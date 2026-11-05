@@ -1,6 +1,6 @@
 /** Todo el copy de la landing vive acá. Los componentes solo lo muestran. */
 export const site = {
-  name: "startup",            // <- el nombre se cambia acá y en ningún otro lado
+  name: "Lionware",            // <- el nombre se cambia acá y en ningún otro lado
   tagline: "Automatizaciones con IA, bajo tu control.",
   email: "hola@example.com",  // placeholder
   hero: {
