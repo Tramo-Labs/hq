@@ -5,3 +5,5 @@
 | D-1 | 2026-11-05 | Servicios primero (automatizaciones con IA para back office), producto después | Factura sin construir; el dashboard de resultados se hace con el primer cliente |
 | D-2 | 2026-11-05 | Código propio desde cero; el monorepo anterior solo como inspiración de estructura | Es propiedad de otra empresa |
 | D-3 | 2026-11-05 | Ningún número publicado sin medir | Misma regla que funcionó antes; evita vender humo |
+| D-4 | 2026-11-05 | Nombre provisorio Tramo; la organización de GitHub sigue siendo Lionware-Solutions | Martín quiere ver la página antes de decidir el nombre |
+| D-5 | 2026-11-05 | Vertical: pymes de alimentos y agro del sur de Córdoba, back office financiero; modelo build fijo más fee mensual | Es el hueco que la competencia no ocupa y donde ya hay dos casos reales |
