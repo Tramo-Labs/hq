@@ -1,6 +1,6 @@
 /** Todo el copy de la landing vive acá. Los componentes solo lo muestran. Ningún número es real: todo lo marcado como ejemplo es ejemplo. */
 export const site = {
-  name: "Lionware",            // <- el nombre se cambia acá y en ningún otro lado
+  name: "Tramo",               // <- el nombre se cambia acá y en ningún otro lado
   tagline: "Automatizaciones con IA, bajo tu control.",
   email: "hola@lionware.com.ar", // placeholder: confirmar el mail antes de publicar
   nav: [
@@ -42,6 +42,7 @@ export const site = {
     items: [
       {
         name: "Cuentas a pagar",
+        slug: "cuentas-a-pagar",
         need: { from: "Gerencia de Administración", via: "por mail · 09:02", text: "Procesamos más de 2.000 facturas por mes entre dos personas y el cierre se atrasa. ¿Se puede automatizar sin cambiar el sistema?" },
         reply: "Se puede, sin migrar nada. Diseñamos la automatización con permisos acotados y aprobación humana en cada umbral que definas.",
         sheet: [
@@ -58,6 +59,7 @@ export const site = {
       },
       {
         name: "Conciliación bancaria",
+        slug: "conciliacion",
         need: { from: "Tesorería", via: "por WhatsApp · 17:40", text: "Tenemos seis cuentas en tres bancos y la conciliación nos lleva dos días por semana." },
         reply: "La automatización cruza extractos con el sistema contable y propone los ajustes. Tesorería los aprueba, no los busca.",
         sheet: [
@@ -74,6 +76,7 @@ export const site = {
       },
       {
         name: "Reportes diarios",
+        slug: "reportes",
         need: { from: "Dirección", via: "en reunión", text: "Cada lunes alguien arma a mano el reporte de ventas, cobranzas y stock. Llega tarde y con errores." },
         reply: "El reporte se arma solo cada mañana con el dato de cada sistema y de dónde sale. Nadie lo toca a mano.",
         sheet: [
@@ -89,6 +92,29 @@ export const site = {
         ],
       },
     ],
+  },
+  integrations: {
+    label: "Trabaja con",
+    items: ["Tango", "Colppy", "Xubio", "Odoo", "SAP Business One", "Google Sheets", "Excel", "Gmail", "WhatsApp", "Mercado Pago", "Banco Galicia", "Banco Nación", "Santander", "AFIP · ARCA"],
+  },
+  howItWorks: {
+    eyebrow: "Cómo se compra",
+    title: "Una auditoría gratis, un proceso en producción, un fee por mes.",
+    items: [
+      { n: "01", name: "Auditoría sin costo.", body: "Treinta minutos con tu equipo. Salís con el mapa de qué automatizar primero y cuánto tiempo devuelve." },
+      { n: "02", name: "Primer proceso en 30 días.", body: "Lo diseñamos con tus reglas y lo ponemos a correr sobre los sistemas que ya usás. Sin migraciones." },
+      { n: "03", name: "Lo operamos nosotros.", body: "Un fee mensual por automatización que incluye operación, monitoreo y mejoras. Cancelás cuando quieras." },
+    ],
+  },
+  realCases: {
+    eyebrow: "En producción",
+    title: "Ya corre en empresas del interior de Córdoba.",
+    // CONFIRMAR con Martín y su socio antes de publicar: nombres, qué hace cada una y si se puede nombrar al cliente.
+    items: [
+      { sector: "Molino harinero · La Carlota", what: "Conciliación bancaria automatizada contra el sistema contable, con los ajustes aprobados por administración." },
+      { sector: "Carnicería · La Carlota", what: "Automatizaciones de operación diaria: pedidos, stock y reportes, con el dato de cada sistema." },
+    ],
+    note: "Sin números hasta medirlos con el cliente.",
   },
   control: {
     eyebrow: "Control",

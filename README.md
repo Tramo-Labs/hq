@@ -1,4 +1,4 @@
-# Lionware
+# Tramo (nombre provisorio)
 
 Repo nuevo, código propio desde cero. La estructura copia la idea del monorepo anterior, no su código:
 `product/` (qué vendemos), `strategy/` (qué creemos y qué decidimos), `ops/` (cómo operamos), `growth/` (cómo vendemos), `eng/` (código).
