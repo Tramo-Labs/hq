@@ -1,0 +1,24 @@
+name: Deploy web
+on:
+  push:
+    branches: [main]
+    paths: ["eng/web/**", ".github/workflows/deploy-web.yml"]
+  workflow_dispatch:
+concurrency: { group: deploy-web, cancel-in-progress: true }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm i -g vercel
+      - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: eng/web
+      - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: eng/web
+      - run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: eng/web
