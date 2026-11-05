@@ -42,7 +42,8 @@ export default function Home() {
               <a href={h.primary.href} className={primary}>{h.primary.label} <span aria-hidden>→</span></a>
               <a href={h.secondary.href} className={ghost}>{h.secondary.label}</a>
             </div>
-            <p className="mt-10 font-mono text-[11px] uppercase tracking-widest text-white/35">{site.areas.join(" · ")}</p>
+            <p className="mt-7 max-w-[34em] text-[14.5px] leading-relaxed text-white/50"><span className="text-accent">●</span> {site.offerLine}</p>
+            <p className="mt-8 font-mono text-[11px] uppercase tracking-widest text-white/35">{site.areas.join(" · ")}</p>
           </Reveal>
           <HeroPanel />
         </div>
@@ -50,7 +51,20 @@ export default function Home() {
 
       <Marquee label={site.integrations.label} items={site.integrations.items} />
 
-      <Section id="casos">
+      <Section id="problema">
+        <Head eyebrow={site.problem.eyebrow} title={site.problem.title} body={site.problem.body} />
+        <Stagger className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 lg:grid-cols-4">
+          {site.problem.stats.map((s) => (
+            <StaggerItem key={s.value} className="bg-ink p-6">
+              <p className="text-[40px] font-light leading-none tabular-nums text-accent">{s.value}</p>
+              <p className="mt-3 text-[15px] leading-snug text-white/85">{s.label}</p>
+              <p className="mt-3 font-mono text-[11px] text-white/35">{s.source}</p>
+            </StaggerItem>
+          ))}
+        </Stagger>
+      </Section>
+
+      <Section id="casos" className="border-t border-white/10">
         <Head eyebrow={site.cases.eyebrow} title={site.cases.title} body={site.cases.body} />
         <Cases />
       </Section>
@@ -68,6 +82,19 @@ export default function Home() {
 
       <Display eyebrow={site.manifesto.eyebrow} title={site.manifesto.title} body={site.manifesto.body} cta={site.manifesto.cta} />
 
+      <Section id="empezar">
+        <Head eyebrow={site.paths.eyebrow} title={site.paths.title} />
+        <Stagger className="grid gap-6 md:grid-cols-2">
+          {site.paths.items.map((p) => (
+            <StaggerItem key={p.name} className="flex flex-col rounded-xl border border-white/10 bg-white/[0.03] p-7">
+              <p className="text-[22px] font-light">{p.name}</p>
+              <p className="mt-3 flex-1 text-[15.5px] leading-relaxed text-white/60">{p.body}</p>
+              <a href={p.href} className={`${ghost} mt-6 w-fit`}>{p.cta} <span aria-hidden>→</span></a>
+            </StaggerItem>
+          ))}
+        </Stagger>
+      </Section>
+
       <Section id="control" className="border-t border-white/10">
         <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
           <div>
@@ -82,6 +109,19 @@ export default function Home() {
           </div>
           <Reveal delay={0.1}><ControlPanel /></Reveal>
         </div>
+      </Section>
+
+      <Section id="nunca" className="border-t border-white/10">
+        <Head eyebrow={site.never.eyebrow} title={site.never.title} />
+        <Stagger className="grid gap-8 md:grid-cols-3">
+          {site.never.items.map((n, i) => (
+            <StaggerItem key={n.name} className="border-t border-white/10 pt-5">
+              <span className="font-mono text-[12px] text-accent">0{i + 1}</span>
+              <p className="mt-3 text-[20px] font-light line-through decoration-accent/70 decoration-1">{n.name}</p>
+              <p className="mt-3 text-[15px] leading-relaxed text-white/60">{n.body}</p>
+            </StaggerItem>
+          ))}
+        </Stagger>
       </Section>
 
       <Section id="resultados" className="border-t border-white/10">
@@ -107,7 +147,7 @@ export default function Home() {
         <Stagger className="grid grid-cols-2 border-t border-white/10 lg:grid-cols-4">
           {site.process.steps.map((s, i) => (
             <StaggerItem key={s.name} className="border-b border-white/10 py-7 pr-5 lg:border-b-0">
-              <span className="font-mono text-[12px] text-accent">0{i + 1}</span>
+              <span className="font-mono text-[12px] text-accent">0{i + 1} · {s.when}</span>
               <p className="mt-3 text-[24px] font-light">{s.name}</p>
               <p className="mt-2 text-[14.5px] leading-relaxed text-white/55">{s.body}</p>
             </StaggerItem>
@@ -148,6 +188,10 @@ export default function Home() {
         </footer>
       </section>
       <AssistantBar />
+      <a href={`https://wa.me/${site.whatsapp}`} target="_blank" rel="noopener" aria-label="Escribinos por WhatsApp"
+        className="fixed bottom-20 right-4 z-30 inline-flex size-12 items-center justify-center rounded-full bg-[#25D366] text-ink shadow-lg transition-transform hover:scale-105 sm:bottom-24">
+        <svg viewBox="0 0 24 24" className="size-6" fill="currentColor" aria-hidden><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 2.9 2.9 0 0 0-.9 2.2 5 5 0 0 0 1 2.6 11.4 11.4 0 0 0 4.4 3.9c1.6.7 2.2.7 3 .6a2.6 2.6 0 0 0 1.7-1.2 2 2 0 0 0 .1-1.2c0-.1-.2-.2-.5-.3z"/></svg>
+      </a>
     </main>
   );
 }

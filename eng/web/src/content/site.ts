@@ -4,6 +4,7 @@ export const site = {
   tagline: "Automatizaciones con IA, bajo tu control.",
   email: "hola@lionware.com.ar", // placeholder: confirmar el mail antes de publicar
   nav: [
+    { label: "El problema", href: "#problema" },
     { label: "Casos", href: "#casos" },
     { label: "Control", href: "#control" },
     { label: "Resultados", href: "#resultados" },
@@ -94,8 +95,8 @@ export const site = {
     ],
   },
   integrations: {
-    label: "Trabaja con",
-    items: ["Tango", "Colppy", "Xubio", "Odoo", "SAP Business One", "Google Sheets", "Excel", "Gmail", "WhatsApp", "Mercado Pago", "Banco Galicia", "Banco Nación", "Santander", "AFIP · ARCA"],
+    label: "Trabaja con lo que ya usás",
+    items: ["Tango", "Colppy", "Xubio", "Odoo", "SAP Business One", "Google Sheets", "Excel", "Gmail", "WhatsApp", "Mercado Pago", "Banco Galicia", "Banco Nación", "Santander", "Bancor", "Interbanking", "ARCA"],
   },
   howItWorks: {
     eyebrow: "Cómo se compra",
@@ -131,6 +132,36 @@ export const site = {
     title: "Que la administración corra sola.",
     body: "No vendemos inteligencia artificial. Vendemos que la conciliación esté hecha el lunes a las 8, que ninguna factura se pague dos veces y que el reporte llegue solo. La IA es cómo lo hacemos.",
     cta: { label: "Iniciar un proyecto", href: "#contacto" },
+  },
+  offerLine: "Diagnóstico de 2 horas sin costo. Un fee mensual por proceso. Cancelás cuando quieras. Todo queda sobre tu sistema.",
+  whatsapp: "5493584000000", // placeholder: poner el número real con código de país, sin signos
+  problem: {
+    eyebrow: "El problema",
+    title: "La plata se pierde en lo que nadie mira.",
+    stats: [
+      { value: "49 días", label: "tarda en promedio una pyme en cobrar", source: "Observatorio PyME, tercer trimestre 2026" },
+      { value: "1 de 7", label: "pymes industriales enfrenta embargos de ARCA", source: "Observatorio PyME, octubre 2026" },
+      { value: "$840.000", label: "al año retenidos de más en Ingresos Brutos en un caso real de Córdoba", source: "Asert, ejemplo publicado" },
+      { value: "60 días", label: "y el extracto del banco se da por conforme si nadie lo revisó", source: "BCRA" },
+    ],
+    body: "No es que tu administración trabaje poco. Es que concilia a fin de mes, cuando el saldo a favor ya se congeló y el vencimiento ya pasó.",
+  },
+  paths: {
+    eyebrow: "Por dónde empezar",
+    title: "¿Sos la empresa o el estudio contable?",
+    items: [
+      { name: "Para empresas", body: "Tu administración al día cada 15 días: bancos, Mercado Pago y facturas de proveedores, con tu aprobación y un panel que te muestra qué pasó.", cta: "Agendar el diagnóstico", href: "#contacto" },
+      { name: "Para estudios contables", body: "Recibís cada mes la conciliación hecha y clasificada de tus clientes, en el formato de tu sistema. Vos seguís firmando; nosotros hacemos el trabajo que menos te gusta.", cta: "Hablar por el estudio", href: "#contacto" },
+    ],
+  },
+  never: {
+    eyebrow: "Lo que no hacemos",
+    title: "Tres cosas que nunca te vamos a pedir.",
+    items: [
+      { name: "Tu clave fiscal", body: "Trabajamos con los servicios que vos delegás a nuestro CUIT desde ARCA, y se revocan cuando quieras." },
+      { name: "Tu clave del home banking", body: "Los movimientos salen del exporte que ya hacés o de un token a tu nombre. Nunca de tu contraseña." },
+      { name: "Permiso para pagar", body: "Ningún pago sale sin que lo apruebe una persona tuya. Nosotros proponemos; vos decidís; tu contador firma." },
+    ],
   },
   control: {
     eyebrow: "Control",
@@ -177,10 +208,10 @@ export const site = {
     eyebrow: "Cómo trabajamos",
     title: "Del primer llamado a producción en semanas, no meses.",
     steps: [
-      { name: "Auditoría", body: "Treinta minutos sin costo. Salís con un mapa de qué automatizar primero y cuánto tiempo devuelve." },
-      { name: "Diseño", body: "Definimos el proceso, los permisos y dónde entra una persona a aprobar." },
-      { name: "Producción", body: "La primera automatización corriendo en tus sistemas en menos de treinta días." },
-      { name: "Operación", body: "La operamos, la monitoreamos y la mejoramos. Cada mes ves qué hizo y qué ahorró." },
+      { name: "Auditoría", when: "Día 0", body: "Treinta minutos sin costo. Salís con un mapa de qué automatizar primero y cuánto tiempo devuelve." },
+      { name: "Diseño", when: "Semana 1", body: "Definimos el proceso, los permisos y dónde entra una persona a aprobar." },
+      { name: "Producción", when: "Día 30", body: "La primera automatización corriendo en tus sistemas en menos de treinta días." },
+      { name: "Operación", when: "Cada 15 días", body: "La operamos, la monitoreamos y la mejoramos. Cada mes ves qué hizo y qué ahorró." },
     ],
     cta: "Agendar auditoría",
   },
