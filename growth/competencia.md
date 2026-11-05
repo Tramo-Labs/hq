@@ -44,3 +44,10 @@ Todo sale de los sitios de cada empresa. Los números de resultados son autodecl
 - Canal a mirar: HackIA 2026 del gobierno de Córdoba, con sedes en Río Cuarto, Villa María y San Francisco y becas del 50% para pymes.
 - La diferenciación no puede ser "leemos el PDF del banco" (eso ya lo regala Xubio). Tiene que ser "conectamos tu ERP, tus bancos y tus planillas, resolvemos las excepciones y te mostramos el resultado".
 - El patrón "la IA propone, una persona aprueba" ya es el estándar del nicho. Se adopta, no se inventa.
+
+## DANKA (dnkargentina.com), agregado el 05/11
+Consultora tecnológica de Buenos Aires: diseño de producto, datos e integración, operación. Eslogan "Poder para inspirar". No es un competidor directo (no venden automatización para pymes; su producto Lumity es una plataforma de innovación abierta para gobiernos y organizaciones), pero su landing es la referencia visual que pidió Martín.
+- Hecho con WordPress y Elementor, jQuery, sin GSAP ni Three. Un video de fondo en el hero, cinco canvas con partículas propias (el "cometa" y el texto "Lumity" hecho de puntos), animaciones CSS de entrada (fadeIn, slideInUp) y un brillo pulsante en los botones.
+- Tipografía: Inter Tight y Sora para títulos, Inter para texto, una mono para rótulos. Oscuro con un bloque rojo de declaración ("Da forma a lo que no existe") en fuente display enorme.
+- Lo distintivo: una barra flotante al pie, "asistente impulsado por IA", con un placeholder que se escribe solo ("Cuéntanos cuál es tu reto y te ayudaremos a resolverlo con IA") y micrófono.
+- Lo que tomamos para Tramo: la barra flotante con pregunta que se escribe sola y lleva al formulario; partículas livianas en el hero en lugar de video; un bloque de declaración en color de acento con tipografía display. Lo que no: video pesado, cinco canvas, Elementor.

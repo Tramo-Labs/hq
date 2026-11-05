@@ -6,6 +6,9 @@ import { Marquee } from "@/components/marquee";
 import { Cases } from "@/components/cases";
 import { ControlPanel } from "@/components/control-panel";
 import { ResultsPanel } from "@/components/results-panel";
+import { Particles } from "@/components/particles";
+import { AssistantBar } from "@/components/assistant-bar";
+import { Display } from "@/components/display";
 
 const btn = "inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-3 text-[14.5px] font-medium transition-transform active:scale-[0.97]";
 const primary = `${btn} bg-paper text-ink hover:bg-white/90`;
@@ -25,6 +28,7 @@ export default function Home() {
 
       {/* Hero: título grande y liviano a la izquierda, el panel animado a la derecha. */}
       <section className="relative isolate overflow-hidden">
+        <Particles />
         <div aria-hidden className="absolute inset-0 -z-10 opacity-[0.18] [background-image:radial-gradient(rgba(255,255,255,0.6)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_at_top_left,black,transparent_60%)]" />
         <div className="mx-auto grid max-w-6xl gap-14 px-4 pb-20 pt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-center lg:py-28">
           <Reveal>
@@ -61,6 +65,8 @@ export default function Home() {
           ))}
         </Stagger>
       </Section>
+
+      <Display eyebrow={site.manifesto.eyebrow} title={site.manifesto.title} body={site.manifesto.body} cta={site.manifesto.cta} />
 
       <Section id="control" className="border-t border-white/10">
         <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
@@ -141,6 +147,7 @@ export default function Home() {
           <span>{site.name} · {site.tagline}</span><span>La Carlota, Córdoba · Argentina</span>
         </footer>
       </section>
+      <AssistantBar />
     </main>
   );
 }

@@ -116,6 +116,22 @@ export const site = {
     ],
     note: "Sin números hasta medirlos con el cliente.",
   },
+  assistant: {
+    label: "Contanos tu proceso",
+    cta: "Contar",
+    prompts: [
+      "Contanos qué proceso te lleva más tiempo y te mostramos cómo automatizarlo.",
+      "¿Cuántas cuentas bancarias conciliás por semana?",
+      "¿Qué reporte armás a mano todos los lunes?",
+      "¿Qué sistemas usás hoy? Tango, Colppy, Excel, WhatsApp...",
+    ],
+  },
+  manifesto: {
+    eyebrow: "Tramo / Lo que hacemos",
+    title: "Que la administración corra sola.",
+    body: "No vendemos inteligencia artificial. Vendemos que la conciliación esté hecha el lunes a las 8, que ninguna factura se pague dos veces y que el reporte llegue solo. La IA es cómo lo hacemos.",
+    cta: { label: "Iniciar un proyecto", href: "#contacto" },
+  },
   control: {
     eyebrow: "Control",
     title: "Cada automatización opera bajo tus reglas.",
