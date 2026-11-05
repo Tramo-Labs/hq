@@ -1,0 +1,1078 @@
+     Consulta a
+        Padrón
+      Alcance 4
+          ws_sr_padron_a4
+
+Manual para el desarrollador
+
+                 Versión 1.3
+                  04/01/23
+Consulta a Padrón Alcance 4
+                              Historial de modificaciones
+
+    Ver        Fecha          Edición                            Descripción
+    1.0       06/12/16        DINTR     Versión inicial del documento
+    1.1       12/12/16        DINTR     Versión corregida de acuerdo a revisión de WS
+    1.2       22/02/19        DINTR     Se agregan domicilios de locales y establecimientos
+    1.3       04/01/23        DINTR     Se modifica el tipo de dato para numero de inscripción
+                                                                        Contenido
+                                                                             Indice
+INTRODUCCIÓN................................................................................................................................................3
+ALCANCE.............................................................................................................................................................3
+DEFINICIONES................................................................................................................................................... 3
+WEB SERVICES.................................................................................................................................................4
+SITIO DE CONSULTA Y CANAL DE ATENCIÓN ......................................................................................... 4
+AUTENTICACIÓN............................................................................................................................................... 4
+URLS......................................................................................................................................................................4
+ID DEL SERVICIO .                                                                                                                                                          5
+                             .............................................................................................................................................
+MÉTODOS...........................................................................................................................................................5
+DUMMY (VERIFICACIÓN DEL SERVICIO)........................................................................................................5
+SOLICITUD.......................................................................................................................................................... 5
+RESPUESTA ....................................................................................................................................................... 5
+EJEMPLO............................................................................................................................................................. 6
+MÉTODO GETPERSONA................................................................................................................................. 7
+SOLICITUD.......................................................................................................................................................... 7
+RESPUESTA ....................................................................................................................................................... 8
+EJEMPLO. ............................................................................................................................................................ 9
+DEFINICIONES DE TIPOS DE DATOS........................................................................................................14
+TIPOS DE DATOS SIMPLES ..........................................................................................................................14
+TIPOS DE DATOS COMPLEJOS .................................................................................................................. 15
+ANEXOS............................................................................................................................................................22
+VALORES TIPORESIDENCIA ....................................................................................................................... 23
+VALORES TIPOESTADO ............................................................................................................................... 23
+VALORES TIPOREGIMEN ............................................................................................................................. 24
+VALORES TIPOTELEFONO .......................................................................................................................... 24
+VALORES TIPORELACION ........................................................................................................................... 25
+VALORES SUBTIPORELACIÓN ................................................................................................................... 26
+VALORES TIPOEMAIL .................................................................................................................................... 29
+VALORES TIPODATOADICIONAL ............................................................................................................... 29
+1 Introducción
+
+        El servicio de Consulta de Padrón Alcance 4 permite que un organismo externo acceda a
+los datos de un contribuyente registrado en el Padrón de AFIP.
+
+       La consulta se realiza mediante un webService SOAP que básicamente recibe como
+parámetro una CUIT y responde con los datos públicos del contribuyente identificado con la misma.
+
+      Este documento está dirigido a quienes tengan la misión de probar y utilizar este
+webService.
+
+          Para tener acceso a este webService el organismo usuario debe obtener un ticket de
+acceso.
+
+          El proceso de obtención del ticket de acceso esta fuera del alcance de este documento.
+
+1.1   Alcance
+        Este WS se puede utilizar para acceder a datos de un contribuyente relacionados con su
+situación tributaria. Ejemplo: impuestos y regimenes en los que esta inscripto.
+
+
+
+1.2 Definiciones, Siglas y Abreviaturas
+
+
+                SOAP               Simple Object Acces Protocolo
+                WSDL               Web Services Definition Language
+                WSAA               Web Service de Autenticación y Autorización de AFIP
+               WSPN3               Web Service de Padrón Nivel3
+                 CE                Cliente externo usuario de los webServices de AFIP
+                CUIT               Clave Unica de Identificación Tributaria.
+                                   Campo numérico de 11 dígitos que identificada unívocamente a
+                                   un contribuyente.
+                 SSO               Ticket para poder acceder a los webServices de AFIP.
+                                   Son generados por WSAA.
+                SUPA               Sistema único de parámetros
+2. Web Services
+
+   2.1. Sitio de consulta y canal de atención
+       Para consultas acerca de la arquitectura de Web Services, autenticación y
+       autorización dirigirse a http://www.afip.gob.ar/ws/.
+       Las consultas sobre aspectos técnicos del WS deberán ser remitidas a la cuenta
+sri@afip.gob.ar. Para su mejor tratamiento, se solicita detallar en el asunto la denominación
+del WS y ambiente de que se trate (Producción y Homologación), como así también adjuntar
+request y response.
+     Para consultar propias del negocio o normativas, contactarse mediante el sitio
+www.afip.gob.ar/consultas.
+   2.2. Autenticación
+        Para la utilización de los métodos el webService, a excepción del dummy, se debe
+        enviar en cada solicitud, el token y el sign, información que es obtenida del WSAA
+        (Web Service de Autenticación y Autorización), en respuesta a una solicitud de ti-
+        cket de acceso.
+   2.3. URLs:
+
+
+Descripción                    URL
+
+                               https://awshomo.afip.gov.ar/sr-padron/webservices/
+Conexión al servicio en am-
+                               personaServiceA4
+biente
+de Testing
+                               https://awshomo.afip.gov.ar/sr-padron/webservices/
+WSDLdel servicio en am-
+                               personaServiceA4?WSDL
+biente
+de Testing
+                               https://aws.afip.gov.ar/sr-padron/webservices/
+Conexión al servicio en am-
+                               personaServiceA4
+biente
+de Producción
+                               https://aws.afip.gov.ar/sr-padron/webservices/
+WSDL del servicio en am-
+                               personaServiceA4?WSDL
+biente
+de Producción
+      2.4. ID del Servicio
+
+
+      El id del servicio es ws_sr_padron_a4. El mismo es el nombre de servicio que se
+deberá usar al solicitar a WSAA el Ticket de Acceso.
+
+
+3
+ .    Métodos
+
+      3.1. dummy (Verificación del servicio)
+
+                Nombre método: dummy
+
+              Descripción: El método dummy verifica el estado y la disponibilidad de los
+elementos principales del servicio (aplicación, autenticación y base de datos).
+
+         3.1.1. Solicitud:
+
+<soapenv:Envelope           xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a4="http://a4.soap.ws.server.puc.sr/">
+     <soapenv:Header/>
+     <soapenv:Body>
+      <a4:dummy/>
+     </soapenv:Body>
+</soapenv:Envelope>
+
+
+         3.1.2. Respuesta:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+     <soap:Body>
+      <ns2:dummyResponse xmlns:ns2="http://a4.soap.ws.server.puc.sr/">
+        <return>
+          <appserver>?</appserver>
+          <authserver>?</authserver>
+          <dbserver>?</dbserver>
+
+       Donde dummyResponse es del tipo dummyResponse definido en el WSDL y
+contiene la etiqueta return del tipo dummyReturn.
+       Los valores de los atributos appserver, authserver y dbserver pueden ser OK o,
+en caso de falla, ERROR.
+      3.1.3. Ejemplo:
+      Invocación del métddo:
+
+<soapenv:Envelope           xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a4="http://a4.soap.ws.server.puc.sr/">
+ <soapenv:Header/>
+ <soapenv:Body>
+   <a4:dummy/>
+ </soapenv:Body>
+</soapenv:Envelope>
+
+
+      Respuesta del método:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+ <soap:Body>
+   <ns2:dummyResponse xmlns:ns2="http://a4.soap.ws.server.puc.sr/">
+     <return>
+      <appserver>OK</appserver>
+      <authserver>OK</authserver>
+      <dbserver>OK</dbserver>
+     </return>
+   </ns2:dummyResponse>
+ </soap:Body>
+</soap:Envelope>
+   3.2. Método getPersona
+
+
+      Nombre método: getPersona
+
+       Descripción: Devuelve el detalle de todos los datos, existentes en el padrón
+único de contribuyentes, del contribuyente solicitado.
+
+      3.2.1. Solicitud
+           Esquema:
+
+<soapenv:Envelope           xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a4="http://a4.soap.ws.server.puc.sr/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <a4:getPersona>
+     <token>?</token>
+     <sign>?</sign>
+     <cuitRepresentada>?</cuitRepresentada>
+     <idPersona>?</idPersona>
+    </a4:getPersona>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+
+      Donde a4:getPersona es del tipo getPersona y engloba los parámetros de
+entrada:
+
+token y sign: Los mismos son devueltos por el web service de autenticación
+WSAA.
+
+cuitRepresentada: Debe coincidir con alguna de las CUITS listadas en la sección
+relations del token enviado. Debe ser en representación de que organismo se
+solicita la operación.
+
+idPersona: Es la clave de la que se solicitan los datos.
+      3.2.2. Respuesta
+           Esquema:
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+   <ns2:getPersonaResponse xmlns:ns2="http://a4.soap.ws.server.puc.sr/">
+     <personaReturn>
+       <metadata>
+        <fechaHora>?</fechaHora>
+        <servidor>?</servidor>
+       </metadata>
+       <persona>
+       …..
+       </persona>
+     </personaReturn>
+   </ns2:getPersonaResponse>
+  </soap:Body>
+</soap:Envelope>
+
+
+Donde getPersonaResponse, personaReturn, metadata y persona son del tipo del
+mismo nombre, definidos en el WSDL del servicio.
+      3.2.3. Ejemplo
+           Invocación del método:
+
+<soapenv:Envelope           xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a4="http://a4.soap.ws.server.puc.sr/">
+ <soapenv:Header/>
+ <soapenv:Body>
+   <a4:getPersona>
+     <token>ICAgIDwvcmVsYXRpb25zPgogICAgICAgIDwvbG9naW4+CiAgICA8L29wZX
+JhdGlvbj4KPC9zc28+Cgo=</token>
+     <sign>+7rFJNrEcIKRQ+A2xx0m9B9hlVXzU/XHvZEEY7XsvRMIDPRiSlsLR8+MBYH
+TcfsO4=</sign>
+     <cuitRepresentada>20135464605</cuitRepresentada>
+     <idPersona>20000000516</idPersona>
+    </a4:getPersona>
+ </soapenv:Body>
+</soapenv:Envelope>
+
+
+           Respuesta del ejemplo:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+ <soap:Body>
+   <ns2:getPersonaResponse xmlns:ns2="http://a4.soap.ws.server.puc.sr/">
+     <personaReturn>
+       <metadata>
+        <fechaHora>2016-12-02T11:12:37.087-03:00</fechaHora>
+        <servidor>setiwebhomoext.afip.gob.ar</servidor>
+       </metadata>
+       <persona>
+        <actividad>
+           <descripcionActividad>CONSTRUCCIÓN, REFORMA Y REPARACIÓN DE
+EDIFICIOS RESIDENCIALES</descripcionActividad>
+          <idActividad>410011</idActividad>
+          <nomenclador>883</nomenclador>
+          <orden>1</orden>
+          <periodo>201311</periodo>
+  AFIP- ws_sr_padron_a4                                Versión:         1.3
+
+  Especificaciones técnicas de Servicios Web                   Fecha:   04/01/23
+
+
+      </actividad>
+      <apellido>ERNESTO DANIEL</apellido>
+      <dependencia>
+        <descripcionDependencia>DISTRITO ZAPALA</descripcionDependencia>
+        <idDependencia>702</idDependencia>
+      </dependencia>
+      <domicilio>
+        <codPostal>8371</codPostal>
+        <datoAdicional>N/A PATRICIA ANDREA</datoAdicional>
+        <descripcionProvincia>NEUQUEN</descripcionProvincia>
+        <direccion>LAGUNA LOS SAUCES 2</direccion>
+        <idProvincia>20</idProvincia>
+        <localidad>JUNIN DE LOS ANDES</localidad>
+        <orden>1</orden>
+        <tipoDatoAdicional>NO DETERMINADO</tipoDatoAdicional>
+        <tipoDomicilio>FISCAL</tipoDomicilio>
+      </domicilio>
+      <domicilio>
+        <codPostal>1425</codPostal>
+<descripcionProvincia>CIUDAD AUTONOMA BUENOS AIRES</descripcionProvincia>
+        <direccion>ARAOZ 1901</direccion>
+        <idProvincia>0</idProvincia>
+        <orden>1</orden>
+        <tipoDomicilio>LEGAL/REAL</tipoDomicilio>
+      </domicilio>
+      <domicilio>
+        <codPostal>1425</codPostal>
+<descripcionProvincia>CIUDAD AUTONOMA BUENOS AIRES</descripcionProvincia>
+        <direccion>CHARCAS 4321</direccion>
+        <idProvincia>1</idProvincia>
+        <orden>1</orden>
+        <tipoDomicilio>LOCALES Y ESTABLECIMIENTOS</tipoDomicilio>
+      </domicilio>
+      <domicilio>
+        <codPostal>1425</codPostal>
+<descripcionProvincia>CIUDAD AUTONOMA BUENOS AIRES</descripcionProvincia>
+    AFIP- ws_sr_padron_a4                                         Versión:       1.3
+
+    Especificaciones técnicas de Servicios Web                          Fecha:   04/01/23
+
+
+          <direccion>MANSILLA 3037</direccion>
+          <idProvincia>0</idProvincia>
+          <orden>2</orden>
+          <tipoDomicilio>LOCALES Y ESTABLECIMIENTOS</tipoDomicilio>
+        </domicilio>
+        <estadoClave>ACTIVO</estadoClave>
+        <fechaInscripcion>2010-10-30T12:00:00-03:00</fechaInscripcion>
+        <fechaNacimiento>1891-01-01T12:00:00-03:00</fechaNacimiento>
+        <idPersona>20000000516</idPersona>
+        <impuesto>
+     <descripcionImpuesto>GANANCIAS PERSONAS FISICAS</descripcionImpuesto>
+          <diaPeriodo>30</diaPeriodo>
+          <estado>BAJA DEFINITIVA</estado>
+          <ffInscripcion>2002-04-05T12:00:00-03:00</ffInscripcion>
+          <idImpuesto>11</idImpuesto>
+          <periodo>200611</periodo>
+        </impuesto>
+        <impuesto>
+          <descripcionImpuesto>MONOTRIBUTO</descripcionImpuesto>
+          <diaPeriodo>30</diaPeriodo>
+          <estado>BAJA DEFINITIVA</estado>
+          <ffInscripcion>2000-03-11T12:00:00-03:00</ffInscripcion>
+          <idImpuesto>20</idImpuesto>
+          <periodo>200406</periodo>
+        </impuesto>
+        <impuesto>
+          <descripcionImpuesto>MONOTRIBUTO AUTONOMO</descripcionImpuesto>
+          <diaPeriodo>30</diaPeriodo>
+          <estado>BAJA DEFINITIVA</estado>
+          <ffInscripcion>2000-03-11T12:00:00-03:00</ffInscripcion>
+          <idImpuesto>21</idImpuesto>
+          <periodo>200406</periodo>
+        </impuesto>
+        <impuesto>
+                                                 <descripcionImpuesto>GANANCIA         MINIMA
+PRESUNTA</descripcionImpuesto>
+    AFIP- ws_sr_padron_a4                                     Versión:        1.3
+
+    Especificaciones técnicas de Servicios Web                       Fecha:   04/01/23
+
+
+          <diaPeriodo>30</diaPeriodo>
+          <estado>BAJA DEFINITIVA</estado>
+          <ffInscripcion>2005-03-15T12:00:00-03:00</ffInscripcion>
+          <idImpuesto>25</idImpuesto>
+          <periodo>200611</periodo>
+        </impuesto>
+        <impuesto>
+          <descripcionImpuesto>SICORE-IMPTO.EMERG.AUTOMOTORES</descripcio
+nImpuesto>
+          <diaPeriodo>31</diaPeriodo>
+          <estado>BAJA DEFINITIVA</estado>
+          <ffInscripcion>2008-01-29T12:00:00-02:00</ffInscripcion>
+          <idImpuesto>64</idImpuesto>
+          <periodo>200708</periodo>
+        </impuesto>
+        <impuesto>
+                                   <descripcionImpuesto>EMPLEADOR-APORTES SEG.
+SOCIAL</descripcionImpuesto>
+          <diaPeriodo>15</diaPeriodo>
+          <estado>ACTIVO</estado>
+          <ffInscripcion>2005-03-15T12:00:00-03:00</ffInscripcion>
+          <idImpuesto>301</idImpuesto>
+          <periodo>200503</periodo>
+        </impuesto>
+        <impuesto>
+                                          <descripcionImpuesto>APORTES    SEG.SOCIAL
+AUTONOMOS</descripcionImpuesto>
+          <diaPeriodo>10</diaPeriodo>
+          <estado>BAJA DEFINITIVA</estado>
+          <ffInscripcion>2008-01-25T12:00:00-02:00</ffInscripcion>
+          <idImpuesto>308</idImpuesto>
+          <periodo>200804</periodo>
+        </impuesto>
+        <impuesto>
+
+
+
+           estado>BAJA DEFINITIVA</estado>
+     AFIP- ws_sr_padron_a4                                    Versión:        1.3
+
+     Especificaciones técnicas de Servicios Web                      Fecha:   04/01/23
+
+
+          <ffInscripcion>2005-09-12T12:00:00-03:00</ffInscripcion>
+          <idImpuesto>365</idImpuesto>
+          <periodo>200611</periodo>
+        </impuesto>
+        <impuesto>
+                                                    <descripcionImpuesto>ADICIONAL
+EMERG.CIGARRILLOS</descripcionImpuesto>
+          <diaPeriodo>1</diaPeriodo>
+          <estado>ACTIVO</estado>
+          <ffInscripcion>2008-01-28T12:00:00-02:00</ffInscripcion>
+          <idImpuesto>366</idImpuesto>
+          <periodo>200708</periodo>
+        </impuesto>
+        <mesCierre>12</mesCierre>
+        <nombre>MARCELO NICOLAS</nombre>
+        <numeroDocumento>51</numeroDocumento>
+        <regimen>
+            <descripcionRegimen>REG.PER. IMPUESTO DE EMERGENCIA A LOS
+AUTOMOTORES       Y    OTROS    -  FONDO     NACIONAL   DE  INCENTIVO
+DOCENTE.</descripcionRegimen>
+          <estado>BAJA DEFINITIVA</estado>
+          <idImpuesto>64</idImpuesto>
+          <idRegimen>715</idRegimen>
+          <periodo>200708</periodo>
+          <tipoRegimen>PERCEPCION</tipoRegimen>
+        </regimen>
+        <sexo>MASCULINO</sexo>
+        <tipoClave>CUIT</tipoClave>
+        <tipoPersona>FISICA</tipoPersona>
+      </persona>
+    </personaReturn>
+   </ns2:getPersonaResponse>
+ </soap:Body>
+</soap:Envelope>
+       AFIP- ws_sr_padron_a4                                        Versión:       1.3
+
+       Especificaciones técnicas de Servicios Web                         Fecha:   04/01/23
+
+
+4
+ .   Definiciones de tipos de datos
+     4.1. Tipos de datos simples
+         Los datos simples tienen una longitud determinada. Según el tipo base se
+         pueden dar los siguientes casos:
+         • Longitud N: El campo tiene longitud fija de N dígitos o caracteres.
+         • Longitud M-N: El campo tiene longitud variable de tamaño M a N,
+         siendo M<N.
+
+       Tipo dato                  Base                   Longitud              Notas
+
+CUIT                     long                       11
+
+TipoPersona              String                                        Valores: FISICA        o
+                                                                       JURIDICA
+
+TipoClave                String                                        Valores:    CUIT,CUIL
+                                                                       o CDI
+
+EstadoClave              String                                        Valores: ACTIVO,
+                                                                       INACTIVO
+
+TipoDocumento            String                                        Valores: Ver Tabla
+                                                                       5.1
+
+Sexo                     String                                        Valores:
+                                                                       MASCULINO,
+                                                                       FEMENINO,
+                                                                       DESCONOCIDO
+
+TipoResidencia           String                                        Valores: Ver Tabla
+                                                                       5.2
+
+Estado                   String                                        Valores: Ver Tabla
+                                                                       5.3
+
+Orden                    Entero                                        Posición          del
+                                                                       elemento dentro de
+                                                                       un     conjunto     de
+                                                                       elementos del mismo
+                                                                       tipo. Empieza en 1.
+
+TipoRegimen              String                                        Valores: Ver Tabla
+                                                                       5.4
+
+TipoDomicilio            String                                        Valores:  FISCAL,
+                                                                       LEGAL/REAL,
+                                                                       LOCALES        Y
+                                                                       ESTABLECIMIENTO
+                                                                       S
+      AFIP- ws_sr_padron_a4                                   Versión:       1.3
+
+      Especificaciones técnicas de Servicios Web                    Fecha:   04/01/23
+
+
+     Tipo dato                   Base              Longitud              Notas
+
+TipoLinea               String                                   Valores: Fijo o Movil
+
+TipoTelefono            String                                   Valores: Ver Tabla
+                                                                 5.5
+
+TipoRelacion            String                                   Valores: Ver Tabla
+                                                                 5.6
+
+SubtipoRelación         String                                   Valores:Ver Tabla5.7
+
+TipoEstadoEMail         String                                   Valores: Confirmado,
+                                                                 “No confirmado” ó
+                                                                 “No Verificado”
+
+TipoEMail               String                                   Valores. Ver Tabla
+                                                                 5.8
+
+TipoDatoAdicional       String                                   Valores: Ver Tabla
+                                                                 5.9
+
+
+   4.2. Tipos de Datos Complejos
+
+        Los campos dentro de un tipo complejo tienen una multiplicidad (M)
+determinada, esto es, cuantas veces puede o debe aparecer la etiqueta de dicho
+campo. Las distintas variantes son:
+• 0..1: Campo opcional que se especifica como máximo una sola vez.
+• 0..*: Campo opcional que se especifica cero, una o muchas veces.
+• 1..1: Campo obligatorio que se especifica una vez.
+• 1..*: Campo obligatorio que se especifica una o más veces.
+        El tipo de dato simple y la multiplicidad que define a un atributo tiene
+relevancia dentro de los tipos complejos utilizados en los request o solicitud. El
+principal objetivo es ordenar y restringir el ingreso de datos por parte del usuario.
+En el response o respuesta, los tipos simple y multiplicidad son ignorados en la
+documentación, ya que es la respuesta por parte de los servidores de AFIP. Por
+simplicidad, en los tipos de datos complejos pertenecientes exclusivamente a datos
+de respuesta, se declaran los atributos con multiplicidad opcional (0..1 o 0..*) y se
+definen con los tipos base (string, float, int, etc.).
+     AFIP- ws_sr_padron_a4                                       Versión:         1.3
+
+     Especificaciones técnicas de Servicios Web                        Fecha:     04/01/23
+
+
+      Campo                       Descripción                Mult.               Tipo
+
+Tipo getPersona : Información asociada a la autenticación y autorización requerida para
+la utilización del WS, más los parámetros propios del mismo.
+
+       token           Token devuelto por el WSAA.        1..1         String
+
+        sign           Firma devuelta por el WSAA         1..1         String
+
+ cuitRepresentada      CUIT del contribuyente emisor o    1..1         CUIT
+                       representado.
+
+     idPersona         CUIT del cual se solicitan los     1..1         CUIT
+                       datos
+
+Tipo Metadata: Información adicional.
+
+     fechaHora         Fecha y hora de proceso            0..1         DateTime
+
+      servidor         Nombre del equipo que procesó el 0..1           String
+                       requerimiento
+
+Tipo Persona: Datos propios del contribuyente
+
+     idPersona         CUIT del cual se solicitaron los   0..1          CUIT
+                       datos.
+
+    tipoPersona        Tipo de la persona (Fisica o       0..1          TipoPersona
+                       Juridica)
+
+     tipoClave         Tipo de la clave solicitada        0..1          TipoClave
+
+    estadoClave        Estado de la clave solicitada      0..1          EstadoClave
+
+      nombre           Nombre del contribuyente           0..1          String
+
+      apellido         Apellido del contribuyente         0..1          String
+
+    razonSocial        Razón social del contribuyente     0..1          String
+
+   tipoDocumento       Tipo del documento del             0..1          TipoDocumento
+                       contribuyente
+
+ numeroDocumento       Número del documento del           0..1          String
+                       contribuyente
+
+     mesCierre         Mes de cierre de balance del       0..1          Integer
+                       contribuyente
+
+  fechaInscripcion     Fecha de inscripción del           0..1          DateTime
+                       contribuyente
+
+fechaContratoSocial Fecha del contrato social del         0..1          DateTime
+                    contribuyente
+     AFIP- ws_sr_padron_a4                                       Versión:         1.3
+
+     Especificaciones técnicas de Servicios Web                        Fecha:     04/01/23
+
+
+      Campo                       Descripción                Mult.               Tipo
+
+
+
+ fechaFallecimiento    Fecha de fallecimiento del         0..1          DateTime
+                       contribuyente
+
+  fechaNacimiento      Fecha de nacimiento del            0..1          DateTime
+                       contribuyente
+
+   fechaJubilado       Fecha de jubilación del            0..1          DateTime
+                       contribuyente
+
+       sexo            Sexo del contribuyente             0..1          Sexo
+
+   formaJuridica       Forma jurídica del contribuyente   0..1          String
+
+porcentajeCapitalNa Porcentaje de capital nacional de     0..1          Double
+       cional       la sociedad
+
+   leyJubilacion       Ley por la cual se jubiló el       0..1          Integer
+                       contribuyente
+
+ numeroInscripcion     Número de inscripción asignado al 0..1           String
+                       contribuyente
+
+organismoInscripcion Organismo que realizó la             0..1          String
+                     inscripción
+
+localidadInscripcion Localidad donde se realizó la        0..1          String
+                     inscripción
+
+provinciaInscripcion Provincia donde se realizó la        0..1          String
+                     inscripción
+
+   tipoResidencia      Tipo de residencia del             0..1          TipoResidencia
+                       contribuyente
+
+fechaVencimientoMi Fecha de vencimiento del               0..1          DateTime
+      gracion      certificado de migración
+
+cantidadSociosEmpr Cantidad de socios de la empresa 0..1                Integer
+      esaMono      monotributista
+
+tipoOrganismoOrigin Tipo de organismo originante          0..1          String
+        ante
+
+organismoOriginante Organismo originante                  0..1          String
+
+   dependencia         Dependencia del contribuyente      0..1          Dependencia
+
+     actividad         Actividades declaradas por el      0..*          Actividad
+                       contribuyente
+        AFIP- ws_sr_padron_a4                                        Versión:         1.3
+
+        Especificaciones técnicas de Servicios Web                         Fecha:     04/01/23
+
+
+         Campo                       Descripción                 Mult.               Tipo
+
+        domicilio         Domicilios del contribuyente        0..*          Domicilio
+
+        impuesto          Impuestos inscriptos del            0..*          Impuesto
+                          contribuyente
+
+        categoria         Categorias del contribuyente        0..*          Categoria
+
+        regimen           Regimenes inscriptos del            0..*          Regimen
+                          contribuyente
+
+        relacion          Relaciones del contribuyente        0..*          Relacion
+
+claveInactivaAsociad Claves inactivas asociadas al            0..*          Cuit
+          a          contribuyente
+
+        telefono          Teléfonos del contribuyente         0..*          Teléfono
+
+          email           E-mails del contribuyente           0..*          Email
+
+Tipo Dependencia: Dependencia del contribuyente
+
+   idDependencia          Código de la dependencia del        1..1          Integer
+                          contribuyente
+
+descripcionDepende Descripción de a dependencia del 1..1                    String
+        ncia       contribuyente
+
+Tipo Actividad: Actividad económica
+
+descripcionActividad Descripción de la actividad según 1..1                String
+                     SUPA.
+
+idActividad               Identificador de la actividad según 1..1         Long
+                          SUPA.
+
+nomenclador               Nomenclador al que pertenece la     1..1         Long
+                          actividad
+
+orden                     Orden de la actividad del           1..1         Long
+                          contribuyente (1:Principal,
+                          2:Secundaria, etc).
+
+periodo                   Período de alta de la actividad     1..1         AAAAMM
+
+Tipo Categoria: Categoria del impuesto en el que está inscripto el contribuyente
+
+descripcionCategoria Descripción de la categoría según 1..1                String
+                     SUPA.
+
+idCategoria               Identificador de la categoría según 1..1         Long
+                          SUPA.
+      AFIP- ws_sr_padron_a4                                       Versión:       1.3
+
+      Especificaciones técnicas de Servicios Web                        Fecha:    04/01/23
+
+
+         Campo                     Descripción                Mult.              Tipo
+
+IdImpuesto              Impuesto al que pertenece la       1..1         Long
+                        categoria.
+
+estado                  Estado actual de la categoría      1..1         Estado
+
+periodo                 Período inicial del estado de la   1..1         AAAAMM
+                        categoría
+
+Tipo Impuesto: Impuesto inscripto del contribuyente
+
+descripcionImpuesto Descripción del impuesto según         1..1         String
+                    SUPA.
+
+IdImpuesto              Identificador del impuesto en      1..1         Long
+                        SUPA..
+
+estado                  Estado actual del impuesto         1..1         Estado
+
+periodo                 Período inicial del estado del     1..1         AAAAMM
+                        impuesto
+
+ffInscripcion           Fecha de inscripción en el         1..1         DateTime
+                        impuesto.
+
+diaPeriodo              Día de inicio del estado del       1..1         Int (De 1 a 31)
+                        impuesto según período.
+
+Tipo Regimen: Régimen del impuesto en el que está inscripto el contribuyente
+
+descripcionRegimen Descripción del régimen según           1..1         String
+                   SUPA.
+
+idRegimen               Identificador del regimen según    1..1         Long
+                        SUPA.
+
+IdImpuesto              Impuesto al que pertenece el       1..1         Long
+                        régimen.
+
+estado                  Estado actual del régimen          1..1         Estado
+
+periodo                 Período inicial del estado del     1..1         AAAAMM
+                        reǵimen
+
+tipoRegimen             Tipo del régimen inscripto.        1..1         TipoRegimen
+
+Tipo Domicilio: Domicilio declarado por el contribuyente
+
+tipoDomicilio           Tipo de domicilio según SUPA       1..1         TipoDomicilio
+
+direccion               Dirección: Calle, numero, depto,   1..1         String
+                        etc.
+        AFIP- ws_sr_padron_a4                                        Versión:       1.3
+
+        Especificaciones técnicas de Servicios Web                         Fecha:    04/01/23
+
+
+         Campo                        Descripción                Mult.              Tipo
+
+Localidad                 Localidad                           1..1         String
+
+codPostal                 Código postal                       1..1         String
+
+idProvincia               Identificador de la provincia según 1..1         Int
+                          SUPA
+
+descripcionProvincia Nombre de la provincia según             1..1         String
+                     SUPA
+
+orden                     Número de órden dentro del          1..1         Int
+                          conjunto de domicilios del mismo
+                          tipo. Empieza en 1.
+
+tipoDatoAdicional         Tipo de dato adicional del          0..1         TipoDatoAdiciona
+                          domicilio según SUPA                             l
+
+datoAdicional             Dato adicional del domicilio.       0..1         String
+
+Tipo Teléfono: Teléfono declarado por el contribuyente
+
+NumeroTelefono            Número telefónico                   1..1         Long
+
+tipoLinea                 Tipo de línea del teléfono según    1..1         TipoLinea
+                          SUPA
+
+tipoTelefono              Tipo de teléfono según SUPA         1..1         TipoTeléfono
+
+Tipo Relacion: relación del contribuyente con otras claves
+
+tipoRelacion              Tipo de relación según SUPA         1..1         TipoRelación
+
+subtipoRelacion           Subtipo de la relación según        1..1         SubtipoRelación
+                          SUPA
+
+personaAsociada           CUIT o clave de la persona a la     1..1         CUIT
+                          cual está asociada el
+                          contribuyente
+
+fechaRelacion             Fecha de inicio de la relación      1..1         DateTime
+
+fechaVencimiento          Fecha de fin de la relación         1..1         DateTime
+
+Tipo Email: Dirección de email declarada por el contribuyente
+
+Direccion                 Dirección de email                  1..1         String
+
+tipoEmail                 Tipo de email según SUPA            1..1         String
+
+estado                    Identificador del estado del e-mail 1..1         TipoEstadoEmail
+AFIP- ws_sr_padron_a4                           Versión:       1.3
+
+Especificaciones técnicas de Servicios Web            Fecha:    04/01/23
+
+
+ Campo                       Descripción     Mult.             Tipo
+            AFIP- ws_sr_padron_a4                        Versión:       1.3
+
+            Especificaciones técnicas de Servicios Web         Fecha:   04/01/23
+
+
+5
+ . ANEXOS:
+     5
+      .1.    Valores de TipoDocumento:
+
+
+tipoDocumento               Decripcion
+LC                          LIBRETA CIVICA
+LE                          LIBRETA DE ENROLAMIENTO
+CI                          CEDULA DE IDENTIDAD
+TRAM                         EN TRAMITE
+ACTA                        ACTA DE NACIMIENTO
+PAS                         PASAPORTE
+DNI                         DOC.NACIONAL DE IDENTIDAD
+INDET                       INDETERMINADO
+CERT                        CERTIFICADO DE MIGRACIÓN
+DIEXT                       DOCUMENTO IDENTIDAD EXTRANJERO
+DNI M                       D.N.I. (N° MÚLTIPLE)
+INDOC                       ANSES INDOCUMENTADO
+    AFIP- ws_sr_padron_a4                        Versión:       1.3
+
+    Especificaciones técnicas de Servicios Web         Fecha:   04/01/23
+
+
+
+
+  5.2. Valores TipoResidencia:
+
+tipoResidencia
+PERMANENTE
+TEMPORARIA
+TRANSITORIA
+NO RESIDENTE
+PRECARIA
+NATURALIZADO
+
+  5.3. Valores TipoEstado:
+
+estado
+ACTIVO
+ACTIVO EN TRAMITE
+BAJA PROVISORIA
+BAJA DEFINITIVA
+EXENTO
+EXENTO EN TRAMITE
+NO APORTANTE
+      AFIP- ws_sr_padron_a4                               Versión:       1.3
+
+      Especificaciones técnicas de Servicios Web                Fecha:   04/01/23
+
+
+
+
+    5.4. Valores TipoRegimen:
+
+tipoRegimen               descripcionRegimen
+1                         RETENCION
+2                         PERCEPCION
+3                         REGIMEN EXCEPCIONAL DE INGRESO
+4                         NO RETENCIÓN
+5                         PAGO A CUENTA
+6                         CONVENIO CORRESPONSAB.GREMIAL
+7                         PAGO UNICO Y DEFINITIVO
+8                         PERCEP. NO COMP. DET. DE ANT.
+9                         PERCEP.COMP.COMO CRED.FISCAL
+
+
+
+    5.5. Valores TipoTelefono:
+
+tipoTelefono
+PARTICULAR
+COMERCIAL
+DEL CONTADOR
+DEL ASESOR
+PERSONAL INTERNET
+CAMPAÑA TELEFÓNICA
+CONTACTO ADUANERO
+     AFIP- ws_sr_padron_a4                        Versión:       1.3
+
+     Especificaciones técnicas de Servicios Web         Fecha:   04/01/23
+
+
+  5.6. Valores TipoRelacion:
+
+tipoRelacion
+CLAVE INACTIVA
+ORGANISMO CENTRAL
+SOCIEDAD CON INTEGRANTES
+RESPONSABLE SUSTITUTO GAN.MIN.PRES
+PODERDANTE
+RESPONSABLE SUSTITUTO BIENES PERS.
+ASOCIADO A COOPERATIVA
+SUCESION JUDICIAL
+MENOR
+INCAPAZ
+SUCESION NO INICIADA JUDICIALMENTE
+ORGANISMO REPRESENTANTE DE LA PROVINCIA
+PERSONA FISICA CON QUIEBRA
+SUCESION BENEFICIARIO ANSES
+RESIDENTE EN EL EXTERIOR
+ALIANZA TRANSITORIA
+      AFIP- ws_sr_padron_a4                        Versión:       1.3
+
+      Especificaciones técnicas de Servicios Web         Fecha:   04/01/23
+
+
+   5.7. Valores SubtipoRelación:
+
+
+
+subtipoRelacion
+ADM. CENTRAL PROVINCIAL
+COMISIONES DE FOMENTO
+COMUNA
+COOPERATIVAS / SERV PUBLICOS
+EMPRESAS DEL ESTADO
+ENTES MUNICIPALES
+MUNICIPIOS
+ORG. DESCENTRALIZADOS PROV
+SERV. PROVINCIALES
+NOTIFICARSE DE EXPEDIENTES O SUMARIOS
+SOLICITAR Y RETIRAR VALORES
+FIRMAR DDJJ Y SOLICITUDES DE PLAZO O PRÓRROGA, ACEPTAR DETE
+RETIRAR DOCUMENTACIÓN AGREGADA A EXPEDIENTES Y ACTUACIONES
+C
+FIRMAR RECIBOS PROVISIONALES O DEFINITIVOS
+FIRMAR LETRAS Y CUALQUIER OTRO DOCUMENTO QUE IMPORTE
+OBLIGAC
+INTERPONER RECURSOS ADMINISTRATIVOS REFERENTES A LA LIQUIDAC
+ALEGAR DEFENSA E INTERPONER RECURSOS ANTE LA ADMINISTRACIÓN,
+PERCIBIR EL IMPORTE DE DEVOLUCIONES
+RENUNCIAR A LA PRESCRIPCIÓN GANADA O AL TÉRMINO CORRIDO DE L
+OTRAS
+Formulario 3283 Puntos 1 a 10
+F. 3283 Registración anterior al 23/11/2012
+Otros cargos
+Director Titular
+Presidente
+        AFIP- ws_sr_padron_a4                        Versión:       1.3
+
+        Especificaciones técnicas de Servicios Web         Fecha:   04/01/23
+
+
+Socio
+Representante
+Administrador fiduciario
+Condomino
+Condomino Administrador
+Sociedad Gerente (1)
+Sociedad UTE (2)
+Gerente Titular
+Administrador Titular
+Socio Comanditado
+Socio Comanditario
+Miembro del Consejo de Vigilancia
+Síndico Titular
+Representante del Consejo de Administración
+Apoderado
+Fundador
+Fiduciante
+Fideicomisario
+Beneficiario
+Sociedad Depositaria
+Accionista
+Representante del Órgano Directivo
+Representante del Órgano de Fiscalización
+Presidente del Consejo de Administración
+Socios Partícipes
+Socios Protectores
+Propietarios
+Promotores
+Apoderado F.3283
+Vicepresidente
+     AFIP- ws_sr_padron_a4                        Versión:       1.3
+
+     Especificaciones técnicas de Servicios Web         Fecha:   04/01/23
+
+
+Secretario
+Prosecretario
+Tesorero
+Protesorero
+Consejero
+Director Suplente
+Gerente Suplente
+Administrador Suplente
+Síndico Suplente
+Liquidador Titular
+Liquidador Suplente
+Miembro del Consejo de Vigilancia Suplente
+Administrador
+Apoderado Legal
+Apoderado Legal y Fiscal
+Responsable Económico Financiero
+     AFIP- ws_sr_padron_a4                        Versión:       1.3
+
+     Especificaciones técnicas de Servicios Web         Fecha:   04/01/23
+
+
+
+
+  5.8. Valores TipoEMail:
+
+tipoEmail
+COMERCIAL
+PERSONAL
+TRIBUTARIO
+OTROS
+PERSONAL INTERNET
+CONTACTO ADUANERO
+SICNEA
+E-VENTANILLA
+
+
+
+  5.9. Valores TipoDatoAdicional:
+
+BARRIO
+PARAJE
+NO DETERMINADO
+ESTAFETA
+ENTRE LAS CALLES:
+ESQUINA
+SITIO WEB
+

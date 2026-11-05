@@ -1,0 +1,222 @@
+WSAPOC
+
+
+Webservice
+Consulta contribuyentes
+apócrifos
+
+
+Manual del desarrollador
+Versión 1.0.9
+21/01/2025
+Control de cambios
+  Fecha      Versión                             Observaciones
+
+21/10/2024    1.0.0    Versión inicial del documento
+
+04/11/2024    1.0.1    Correcciones menores en textos
+
+14/11/2024    1.0.2    Incorpora headers en mensajes de respuesta con información de
+                       entorno.
+
+                       Modifica Tipo de Datos de Fecha a String con formato enforzado
+                       DD/MM/YYYY
+
+                       Incorpora respuesta estándar con códigos de resultado
+
+11/12/2024    1.0.3    Revisión de textos
+
+21/01/2025    1.0.9    Revisión de namespaces, métodos nuevos
+Introducción
+El objetivo del documento es brindar información necesaria para el desarrollo de un
+cliente del Webservice (WS – Servicio Web) de consulta de los contribuyentes
+calificados como apócrifos.
+La información que contiene esta base de datos corresponde a un listado de sujetos /
+CUIT’s que fueron calificados como apócrifos. La información provista por este servicio
+coincide con la expuesta en el sitio web institucional1de manera libre. Este servicio
+permite la integración de sistemas de manera automática.
+El documento contiene las especificaciones del WSDL, tipos de datos y validaciones
+realizadas por el servicio, así como ejemplos de utilización.
+Para consultas acerca de la arquitectura de WebServices, autenticación y autorización
+dirigirse a www.arca.gob.ar/ws/, donde se encontrará documentación técnica para la
+integración de servicios. Las consultas sobre aspectos técnicos del WS deberán ser
+remitidas a la cuenta sri@arca.gob.ar. Para su mejor tratamiento, se solicita detallar en
+el asunto la denominación del WS y ambiente de que se trate (Producción y
+Homologación), como así también adjuntar request y response correspondiente a la
+prueba o incidente a reportar.
+
+
+
+Direcciones URL
+Homologación: https://eapoc-ws-qaext.afip.gob.ar/Service.asmx?WSDL
+Producción: https://eapoc-ws.afip.gob.ar/service.asmx
+
+
+
+Autenticación
+Los Webservices ARCA debe ser autenticados para poder ser utilizados. Para acceder al
+mismo, se debe dar de alta el servicio “wsapoc” en el sistema “Administrador de
+Relaciones de Clave Fiscal”. Para el ambiente de homologación se podrá utilizar el
+sistema “Autogestión de certificados para Servicios Web en los ambientes de
+homologación”, sistema desde el cual podrán generar certificados digitales de
+homologación y asignarle acceso al Webservice.
+Al momento de solicitar un Ticket de Acceso por medio del WS de Autenticación y
+Autorización (WSAA) tener en cuenta que debe enviar el tag service con el valor
+"wsapoc" y que la duración del mismo es de 12 hs.
+Para más información deberá redirigirse a los manuales www.arca.gob.ar/ws
+
+
+1 Ver Micrositio Facturación Apócrifa https://servicioscf.afip.gob.ar/Facturacion/facturasApocrifas/default.aspx en
+el sitio web institucional
+Tratamiento de errores excepcionales
+Los errores excepcionales serán del tipo descriptivo y tendrán el tratamiento estándar
+“SOAP Faults”:
+
+
+
+
+Dónde:
+<faultstring> es del tipo string y describe al error que se generó al procesar la solicitud.
+
+
+
+Operaciones disponibles
+Método             dummy
+Descripción        Método de test de conexión al servicio
+Parámetros         Sin parámetros
+entrada
+Respuesta          Objeto “Estado del servicio”
+esperada
+
+
+
+
+Ejemplo de ejecución
+Mensaje de invocación
+Mensaje de respuesta
+
+
+
+
+Método            GetAll
+Descripción       Método para obtener la totalidad de casos vigentes incluidos en la base APOC
+Parámetros        Objeto Credencial
+entrada
+Respuesta         Estructura GetAllResponse, derivada de la estructura genérica
+esperada          “MessageResponse”, conteniendo en la estructura “resultados” el total de los
+                  casos vigentes en la base APOC.
+
+
+Ejemplo de ejecución
+Mensaje de invocación
+A continuación, se detalla un mensaje SOAP de ejemplo para obtener el listado
+completo de casos incluidos en la base APOC (método GetAll). La información obtenida
+del WSAA luego de la autenticación, deberá ser utilizada para completar la estructura
+“Credencial” que será incluida en los parámetros de ejecución de todos los métodos
+del servicio.
+Mensaje de respuesta
+Los mensajes de respuesta que se transmiten tienen incorporado atributos de
+entorno en el elemento opcional Header, que se contempla en la estructura
+SOAP. Estos headers brindan información contextual relacionada con el proceso
+del mensaje. No es necesario efectuar controles ni acciones sobre esta
+información, simplemente es información de entorno para un control de
+ejecución ante cualquier eventualidad.
+
+
+
+
+Método         GetPublicacionAPOC
+Descripción    Método para verificar si una CUIT se encuentra incluida en la base APOC
+Parámetros     Objeto Credencial
+entrada        CUIT (Numérico)
+Respuesta      Estructura GetAllResponse, derivada de la estructura genérica
+esperada       “MessageResponse”, conteniendo en la estructura “resultados” el caso solicitado,
+               en caso de estar vigente en la base APOC.
+Ejemplo de ejecución
+Mensaje de invocación
+A continuación, se detalla un mensaje SOAP de ejemplo para obtener los casos
+incluidos en la base APOC (método GetPublicacionAPOC) por CUIT. La información
+obtenida del WSAA luego de la autenticación, deberá ser utilizada para completar la
+estructura “Credencial” que será incluida en los parámetros de ejecución de todos los
+métodos del servicio.
+
+
+
+
+Mensaje de respuesta
+Método           GetAllByPublicacion
+Descripción      Método para obtener las novedades incorporadas a la base APOC en el rango de
+                 fechas enviado como parámetro
+Parámetros       Objeto Credencial
+entrada          Fecha Desde (String – Formato esperado DD/MM/YYYY)
+                 Fecha Hasta (String – Formato esperado DD/MM/YYYY)
+Respuesta        Estructura GetAllByPublicacionResponse, derivada de la estructura genérica
+esperada         “MessageResponse”, conteniendo en la estructura “resultados” una colección de
+                 Objetos del tipo “PublicacionAPOC”, con fecha de publicación en el rango de
+                 fechas indicado en los parámetros de entrada
+
+
+Mensaje de invocación
+A continuación, se detalla un mensaje SOAP de ejemplo para obtener el listado
+completo de casos incluidos en la base APOC (método GetAllByPublicacion) entre dos
+fechas determinadas. La información obtenida del WSAA luego de la autenticación,
+deberá ser utilizada para completar la estructura “Credencial” que será incluida en los
+parámetros de ejecución de todos los métodos del servicio.
+
+
+
+
+Mensaje de respuesta
+Estructuras de datos
+                                                Credencial
+   Atributo          Tipo de dato                                 Descripción
+ Token                   String       Ticket en formato Base 64 emitido por el Webservice de
+                                      Autenticación y Autorización (WSAA)
+ Sign                    String       Firma en formato Base 64 emitido por el Webservice de
+                                      Autenticación y Autorización (WSAA)
+ CUITDelegado            String       CUIT de la Empresa / Organismo consultante
+
+
+                                             MessageResponse
+   Atributo            Tipo de dato                                Descripción
+ Codigo                Alfanumérico      Código de Resultado de la ejecución. 0 para ejecución OK,
+                          (string)       mayor a cero, corresponde a mensaje de error. Ver apartado
+                                         Códigos de Resultado, dentro de la sección Ejemplo de
+                                         Ejecución.
+ Descripcion           Alfanumérico      Descripción del resultado obtenido.
+                          (string)
+ Resultados            Colección de  Fecha de detección de la condición apócrifa del
+                     PublicacionAPOC contribuyente
+
+
+                                             PublicacionAPOC
+        Atributo          Tipo de dato                               Descripción
+ CUIT                    Numérico (long) Clave única de identificación tributaria incluida en la base
+                                         APOC según parámetros indicados en la consulta
+ Descripcion              Alfanumérico      Información adicional sobre el caso, en caso de
+                             (string)       corresponder/existir
+ FechaCondicion           Fecha (Date)      Fecha de detección de la condición apócrifa del
+                                            contribuyente
+ FechaPublicacion         Fecha (Date)      Fecha de publicación de la CUIT en la base APOC
+
+
+                                            Estado del servicio
+  Atributo             Tipo de dato                                 Descripción
+ appserver         Alfanumérico (string) Estado de disponibilidad del servicio
+ dbserver          Alfanumérico (string) Estado de disponibilidad de la conexión a la base de datos
+ authserver        Alfanumérico (string) Estado de disponibilidad de los servicios de seguridad
+                                         (puede no contestar OK, no es determinante para verificar
+                                         la funcionalidad)
+Códigos de resultados
+Código     Tipo                                   Descripción
+
+  0      Ejecución Ejecución OK
+
+ 100      Error    Errores de configuración interna del servicio
+
+ 200      Error    Errores de validación de parámetros
+
+ 201      Error    Error al validar credenciales de autenticación
+
+ 300      Error    Errores internos de ejecución del servicio
+

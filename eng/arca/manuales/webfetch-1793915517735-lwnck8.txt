@@ -1,0 +1,273 @@
+¿Cómo delego servicios para que
+los utilicen en mi nombre y cómo
+se acepta esa delegación?
+PASO 1
+Ingresá en la página de ARCA con clave fiscal.
+
+
+
+
+                                                 PÁGINA 1
+                                                                      ¿Cómo delego servicios
+                                                                     para que los utilicen en mi
+                                                                     nombre y cómo se acepta
+                                                                          esa delegación?
+
+
+
+PASO 2
+Elegí el servicio “ADMINISTRADOR DE RELACIONES” del menú superior.
+
+
+
+
+PASO 3
+Presioná el botón “NUEVA RELACIÓN”.
+
+
+
+
+                                                                             PÁGINA 2
+                                                                                                                                                         ¿Cómo delego servicios
+                                                                                                                                                        para que los utilicen en mi
+                                                                                                                                                        nombre y cómo se acepta
+                                                                                                                                                             esa delegación?
+
+
+
+
+PASO 4                              Administrador de Relaciones
+                                                                Bienvenido Usuario   Petrella, Santiago
+                                                                Actuando en representación de Petrella, Santiago
+
+
+
+Seleccioná “BUSCAR” para                                                                       Incorporar nueva Relación
+
+
+elegir el servicio que necesitás.
+                                                     Autorizante (Dador)         Petrella, Santiago
+
+                                                     Representado                Petrella, Santiago
+
+
+                                                     Servicio                    Presione Buscar para seleccionar el servicio
+
+
+
+
+PASO 5
+Buscá el organismo al que
+corresponde el servicio a                                                                                                       RECORDATORIO
+delegar, por ejemplo ARCA,
+                                                                                                                                Si querés consultar si un servicio se puede
+luego deberás seleccionar la
+                                                                                                                                delegar y el nivel de clave fiscal requerido
+opción Servicios interactivos
+                                                                                                                                podés buscarlo desde
+(en la mayoría de los casos
+                                                                                                                                https://buscador.afip.gob.ar/#/servicios
+corresponde esta opción)
+o WebServices.
+
+
+
+
+                                                                                                                                                                PÁGINA 3
+                                                                                              ¿Cómo delego servicios
+                                                                                             para que los utilicen en mi
+                                                                                             nombre y cómo se acepta
+                                                                                                  esa delegación?
+
+
+
+PASO 6
+A continuación vas a ver como se despliega el listado de servicios. Seleccioná el servicio
+que querés delegar. A modo de ejemplo se muestra el caso de Administración de puntos de
+venta y domicilios.
+
+
+
+
+                                                                                                     PÁGINA 4
+                                                                                           ¿Cómo delego servicios
+                                                                                          para que los utilicen en mi
+                                                                                          nombre y cómo se acepta
+                                                                                               esa delegación?
+
+
+
+PASO 7
+Una vez verificados los datos del servicio a incorporar, deberás presionar el botón
+“BUSCAR” (de la fila “Representante”) para seleccionar la persona a quien le delegás la
+utilización del servicio.
+
+
+                                           Incorporar nueva Relación
+
+   Autorizante (Dador)                                 [   -         - ]
+
+   Representado
+
+
+   Servicio              Administración de puntos de venta y domicilios
+
+
+   Representante            Presione Buscar para seleccionar al Representante
+
+
+
+
+                                                                                                  PÁGINA 5
+                                                                                                                           ¿Cómo delego servicios
+                                                                                                                          para que los utilicen en mi
+                                                                                                                          nombre y cómo se acepta
+                                                                                                                               esa delegación?
+
+
+
+PASO 8
+En este paso verificá que la CUIT ingresada se corresponda con la persona a quien
+le delegás el servicio. Si los datos son correctos presioná el botón “CONFIRMAR”.
+
+                                        Selección del Representante a autorizar
+
+ Está generando una nueva autorización para el servicio Administración de puntos de venta y domicilios. El servicio
+ que seleccionó es un servicio interactivo. Para hacer efectiva la autorización deberá designar a una persona Física
+ con clave fiscal habilitada.
+ La persona                               [   -           - ] lo ha autorizado para delegar este servicio en su nombre.
+
+
+                                                                           [Clave Fiscal Nivel -]
+ CUIT/CUIL/CDI/Usuario
+
+                                El usuario es Externo (podrá delegar este servicio)
+
+
+
+
+PASO 9
+Verificá la información y presioná el botón “CONFIRMAR”.
+
+                                                  Incorporar nueva Relación
+
+ Autorizante (Dador)                                         [   -          - ]
+
+ Representado
+
+
+ Servicio                       Administración de puntos de venta y domicilios
+
+
+ Representante                                          [Clave Fiscal Nivel -]
+
+
+
+
+                                                                                                                                  PÁGINA 6
+                                                                                                                                                                            ¿Cómo delego servicios
+                                                                                                                                                                           para que los utilicen en mi
+                                                                                                                                                                           nombre y cómo se acepta
+                                                                                                                                                                                esa delegación?
+
+
+
+PASO 10
+Una vez confirmada la delegación visualizarás en pantalla el formulario F3283/E
+como constancia de la delegación del servicio.
+
+
+  Rubro 1. AUTORIZANTE
+  Apellido y Nombre / Denominación:
+  CUIT:    -            -
+
+
+
+  Rubro 2. AUTORIZADO
+  Apellido y Nombre / Denominación:
+  CUIT:     -          -
+
+  Tipo de Autorización: Administración de puntos de venta y domicilios
+
+
+
+  Rubro 3. AUTORIZACIÓN
+  El autorizante identificado en el Rubro 1 autoriza a la persona identificada en el Rubro 2, a utilizar y/o interactuar en su nombre y por su cuenta, con los servicios
+  informáticos de esa Agencia de Recaudación y Control Aduanero que se detallan en el listado anexo a la presente.
+
+  Dejo constancia que la presente autorización podrá cadudar por la voluntad de ambas partes o por la de una de ellas, previa comunicación a esa Agencia de
+  Recaudación y Control Aduanero.
+
+
+
+
+                                                                                                                                                                                   PÁGINA 7
+                                                                                                    ¿Cómo delego servicios
+                                                                                                   para que los utilicen en mi
+                                                                                                   nombre y cómo se acepta
+                                                                                                        esa delegación?
+
+
+
+PASO 11
+Para poder utilizar el servicio delegado, la persona autorizada deberá ingresar al
+sitio de ARCA con clave fiscal y aceptar la delegación.
+
+
+Para esto deberá buscar el servicio “ACEPTACIÓN DE DESIGNACIÓN”.
+
+
+
+
+                  El nivel de Seguridad de su Clave Fiscal es 3 (Habilitado en Dependencia ARCA)
+
+
+
+
+                                                                                                           PÁGINA 8
+                                                                                                                                                                                          ¿Cómo delego servicios
+                                                                                                                                                                                         para que los utilicen en mi
+                                                                                                                                                                                         nombre y cómo se acepta
+                                                                                                                                                                                              esa delegación?
+
+
+
+PASO 12
+Una vez confirmada la aceptación de la delegación visualizarás en pantalla
+la constancia de aceptación de la delegación del servicio.
+
+
+  Rubro 1. AUTORIZANTE
+  Apellido y Nombre / Denominación:
+  CUIT:     20-         -
+
+
+
+  Rubro 2. AUTORIZADO
+  Apellido y Nombre / Denominación:
+  CUIT:     27-        -9
+                                                                                                                                                                           IMPORTANTE
+  Tipo de Autorización: Administración de puntos de venta y domicilios
+
+                                                                                                                                                                           Para consultar tus representantes o
+  Rubro 3. AUTORIZACIÓN
+                                                                                                                                                                           representados ingresá por la opción
+  El autorizante identificado en el Rubro 1 autoriza a la persona identificada en el Rubro 2, a utilizar y/o interactuar en su nombre y por su cuenta, con los servicios
+  informáticos de esa Agencia de Recaudación y Control Aduanero que se detallan en el listado anexo a la presente.                                                         “CONSULTAR” del servicio
+  Dejo constancia que la presente autorización podrá cadudar por la voluntad de ambas partes o por la de una de ellas, previa comunicación a esa Agencia de
+  Recaudación y Control Aduanero.                                                                                                                                          “ADMINISTRADOR DE RELACIONES”.
+
+  Rubro 4. ACEPTACIÓN DE AUTORIZACIÓN
+  El autorizado identificado en el Rubro 2 acepta la autorización otorgada por el autorizante identificado en el Rubro 1, para utilizar y/o interactuar en su nombre
+  y por su cuenta, con los servicios informáticos de esa Agencia de Recaudación y Control Aduanero que se detallan en el listado anexo a la presente.
+
+  Esta autorización tendrá vigencia a partir del 31/08/2025
+
+  Dejo constancia que la presente autorización podrá caducar por la voluntad de ambas partes o por la de una de ellas, previa comunicación a esa Agencia de
+  Recaudación y Control Aduanero.
+
+
+
+
+                                                                                                                                                                                                 PÁGINA 9
+

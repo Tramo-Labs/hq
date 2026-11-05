@@ -1,0 +1,2361 @@
+                       Abril 2026
+
+
+
+
+Encuesta nacional
+sobre adopción de IA en
+Pequeñas y Medianas
+Empresas de la Argentina
+Encuesta nacional sobre
+adopción de IA en Pequeñas
+y Medianas Empresas de la
+Argentina
+
+Alejandro Avenburg
+Macarena Santolaria
+Joan Manuel Vezzato
+Ignacio Ibarra
+Sobre nadIA
+El Nodo Argentino de Inteligencia Artificial (nadIA) es una iniciativa del CEPE - Di Tella y Fundar
+que busca impulsar una agenda estratégica para la adopción de inteligencia artificial en Argentina.
+El proyecto promueve la articulación entre sector privado, sector público y academia para generar
+evidencia, identificar condiciones de adopción y contribuir al diseño de políticas y estrategias
+orientadas a un uso productivo de la IA. Este informe se inscribe en esa agenda de trabajo.
+
+CEPE Di Tella es el centro de políticas públicas de la Escuela de Gobierno de la Universidad
+Torcuato Di Tella.
+
+Fundar es un centro de innovación en políticas de desarrollo que combina investigación aplicada
+y acción pública para construir una Argentina más productiva, sustentable e inclusiva.
+
+
+
+
+Sobre este informe
+
+Este informe fue elaborado por el centro de políticas públicas de la Escuela de Gobierno de
+la Universidad Torcuato Di Tella, (CEPE Di Tella) y Fundar, en el marco de su agenda conjunta
+sobre inteligencia artificial, innovación y desarrollo productivo.
+
+Este trabajo fue posible gracias al relevamiento de empresas realizado por la Fundación
+Observatorio PyME, una entidad sin fines de lucro dedicada a la producción, monitoreo y análisis
+de información sobre las PyMEs argentinas, con el apoyo del Banco Interamericano de Desarrollo.
+
+
+
+
+Cita sugerida
+Avernburg A., Santolaria M., Vezzato J. M., e Ibarra, N. (2026). Encuesta nacional sobre adopción
+de IA en Pequeñas y Medianas Empresas de la Argentina. nadIA (Fundar y CEPE Di Tella).
+
+
+
+
+Créditos
+Coordinación de la investigación
+CEPE Di Tella: Eduardo Levy Yeyati, Mariana Barrera y Lucía Recondo
+Fundar: Daniel Yankelevich, Juan Pablo Ruiz Nicolini, Agustina Bendersky
+
+Diseño del cuestionario
+CEPE Di Tella: Eduardo Levy Yeyati y Mariana Barrera
+Fundar: Alejandro Avenburg y Macarena Santolaria
+Observatorio PyME: Daniela Rozenbaum
+
+Equipo autoral
+Alejandro Avenburg, Macarena Santolaria, Joan Manuel Vezzato e Ignacio Ibarra
+
+Relevamiento
+Observatorio PyME: Christian Haedo, Daniela Rozenbaum y equipo de encuestadores del
+Observatorio PyME.
+
+Mesa de asesores
+Agradecemos por valiosos comentarios y sugerencias a Christian Haedo (Observatorio PyME),
+Fernando Vargas (BID), Mariano Pereira (BID), Gonzalo Dalmasso (BID), Daniel Yankelevich (Fundar)
+y Federico Poli.
+4                                                                                                     nadIA
+
+
+
+
+               Resumen Ejecutivo
+               Este informe ofrece una primera radiografía sobre la adopción de IA en PyMEs argentinas. La
+               evidencia relevada muestra que la adopción de inteligencia artificial ya dejó de ser un fenómeno
+               marginal entre las PyMEs argentinas. Un 41,6% de las empresas encuestadas declara utilizar al
+               menos una tecnología de IA y, entre las que todavía no la incorporaron, casi la mitad considera
+               probable hacerlo en los próximos 24 meses. Se trata, además, de un proceso muy reciente y
+               acelerado, concentrado sobre todo en 2024 y 2025, en línea con la expansión de herramientas
+               generativas de texto y código de bajo costo de entrada. En ese marco, el informe permite afirmar
+               que la IA ya forma parte del conjunto de herramientas habituales de una porción significativa de
+               las empresas argentinas y que su expansión probablemente continúe en el corto plazo.
+
+               La difusión de la IA, sin embargo, muestra una trayectoria heterogénea que reproduce desigual-
+               dades sectoriales y tecnológicas preexistentes. El sector de software y servicios informáticos
+               lidera con claridad, con una tasa de adopción del 85,4% y un perfil de uso más intensivo en tec-
+               nologías de mayor complejidad, como machine learning, análisis de datos y automatización de
+               decisiones. En contraste, en buena parte de los sectores industriales la adopción es menor y se
+               concentra sobre todo en herramientas generativas aplicadas a funciones de apoyo, como mar-
+               keting, ventas o administración.
+
+               El perfil de adopción de IA en las empresas se asocia de manera sistemática con la base digital
+               previa; en particular, el uso de tecnologías de nube, comunicación y software de diseño y desa-
+               rrollo en sus versiones pagas. En otras palabras, la brecha de IA está asociada a una brecha de
+               digitalización: las empresas y sectores que ya contaban con mejores capacidades tecnológicas
+               están hoy en mejores condiciones de incorporar estas herramientas, mientras que los rezagados
+               enfrentan mayores dificultades para hacerlo.
+
+               Si bien la adopción de IA ya está extendida, la mayor parte de esa incorporación sigue siendo
+               incipiente desde el punto de vista organizacional. Predominan usos apoyados en herramientas
+               generativas de texto y código, adoptadas recientemente y aplicadas sobre todo en funciones de
+               apoyo, pero todavía con baja formalización interna. La taxonomía propuesta en el estudio muestra
+               que la mayor parte de las firmas adoptantes se concentra en estadios tempranos: las empre-
+               sas “experimentales” representan el 56% de las adoptantes y se caracterizan, precisamente, por
+               incorporar IA sin haber desarrollado aún capacidades técnicas ni marcos de gobernanza que
+               permitan sostener, coordinar y escalar ese uso.
+
+               Sin una buena gobernanza ni un desarrollo de capacidades técnicas y organizacionales, resulta
+               difícil que se obtenga un aumento sostenido de la productividad a partir de tecnologías de IA.
+               Apenas un 4% de las firmas cuenta con un presupuesto específico para IA y solamente un 3,3%
+               de las mismas dispone de una política formal escrita. La gestión del uso de la IA suele ser des-
+               centralizada, difusa o directamente poco clara. A esto se suma un desarrollo todavía limitado de
+               capacidades internas: solo un 4,5% de las empresas incorporaron perfiles especializados en IA,
+               si bien la capacitación en IA por parte de las empresas alcanza un 46,4% de las mismas. Un 57%
+               de las firmas que usan IA no mide formalmente el impacto de la IA sobre su desempeño; en este
+               contexto, el riesgo no es sólo que muchas firmas adopten tarde, sino que una parte importante
+               de las que ya adoptaron no logre pasar de la experimentación al aprovechamiento efectivo, jus-
+               tamente porque carece de las inversiones complementarias —en organización, capacidades y
+Introducción
+               gobernanza— que permiten convertir una prueba puntual en una mejora sostenida.
+5                                                                                              nadIA
+
+
+
+
+    Introducción
+
+    ¿Por qué un estudio sobre el nivel de adopción de IA?
+
+    La inteligencia artificial se instaló en el centro del debate sobre transformación productiva. Para
+    muchos, se trata de la tecnología de propósito general de nuestra época: transversal a sectores,
+    transformadora de procesos y con potencial de reconfigurar la productividad a gran escala. Su
+    adopción, y la forma en que las organizaciones la integran en sus procesos, tiene el potencial de
+    convertirse en un factor determinante de productividad y competitividad en las próximas décadas.
+
+    Los datos empiezan a confirmarlo: el 89% de quienes usan IA afirma que mejora su desempeño
+    laboral, principalmente por reducir tareas repetitivas (Avenburg et al., 2025). Sin embargo, la
+    distancia entre el potencial técnico y el cambio económico efectivo depende de condiciones que
+    van más allá de la tecnología en sí. ¿Cuántas empresas tienen una estrategia concreta de adop-
+    ción? ¿Cuántas están capacitando a sus empleados para usarla? ¿Cuántas están aprovechando
+    su potencial más allá del uso espontáneo y cotidiano?
+
+    Tal como ocurrió con la electricidad o con Internet, los efectos de las grandes transformaciones
+    tecnológicas tardan en hacerse visibles en los datos de productividad. El rezago no es una razón
+    para esperar, la experiencia muestra que el momento en que las empresas empiezan a prepararse
+    suele determinar quiénes quedan adelante y quiénes atrás.
+
+    Argentina llega a este debate con un desafío adicional. Su aparato productivo es profundamente
+    heterogéneo: conviven empresas que compiten en mercados globales con sectores cuya produc-
+    tividad es varias veces inferior. En ese contexto, existe el riesgo de que la adopción de IA no haga
+    más que profundizar brechas que ya existen. Los sectores de alta intensidad tecnológica como la
+    química, la farmacéutica, el software y los servicios profesionales representan apenas el 11,9% del
+    PIB, concentran a los trabajadores más calificados y son los que están mejor posicionados para
+    incorporar nuevas tecnologías. En el otro extremo, actividades como la construcción, el comercio,
+    el transporte o el servicio doméstico emplean a la mayor parte de la fuerza laboral con niveles
+    educativos significativamente más bajos, un promedio de 12 años de escolaridad, y menor capa-
+    cidad de inversión en innovación (Schteingart, D., Sonzogni, P. y Pascuariello, G., 2024).
+
+
+
+                          El riesgo es que la adopción de IA no haga más que profundizar
+                          brechas que ya existen.
+
+
+    Entre ambos extremos, hay una brecha de productividad que puede llegar a casi 100 veces entre
+    los sectores más y menos productivos de la economía (Schteingart, 2024). En este contexto, la
+    IA podría significar un cambio sustantivo en cualquiera de las dos direcciones: profundizar esas
+    distancias si la adopción queda concentrada en quienes ya llevan ventaja, o contribuir a reducirlas
+    si se generan las condiciones para que los sectores rezagados también puedan incorporarla.
+6                                                                                                          nadIA
+
+
+
+
+               ¿Por qué en PyMEs?
+Introducción
+
+
+
+
+               Las PyMEs1 representan aproximadamente el 44% del PBI y son responsables del 51% del empleo
+               total en el país. En términos absolutos, se trata de cerca de 85.000 empresas distribuidas a lo largo
+               de todo el territorio nacional (Fundación Observatorio PyME, 2025). Su peso no es marginal: estas
+               son, en buena medida, la columna vertebral del aparato productivo argentino
+
+               Pero su relevancia va mucho más allá de los números. Las PyMEs funcionan como un eslabón
+               que genera efectos en cadena sobre el resto de la economía: su actividad impulsa la demanda de
+               bienes y servicios de otros sectores, crea empleo indirecto y sostiene el entramado productivo
+               regional. En ese sentido, lo que les ocurre a las PyMEs trasciende sus propias paredes y repercute
+               sobre proveedores, trabajadores, comunidades y sectores enteros.
+
+               Ese peso económico convive hoy con una situación de alta fragilidad. Según datos del Observatorio
+               PyME, hacia mediados de 2025 las empresas del sector llevan ya diez trimestres consecutivos de
+               caída en la producción industrial. La demanda sigue débil y los costos subieron para el 81% de
+               las empresas. A eso se suma la presión creciente de las importaciones y problemas serios en
+               la cadena de cobros. Incluso el sector de software, que había sostenido su dinamismo durante
+               años, empezó a perder empleo. El resultado es que casi siete de cada diez empresas adoptaron
+               una postura defensiva: “recortar, ajustar o sobrevivir” (Fundación Observatorio PyME, 2025). Es
+               en ese contexto donde la pregunta por la inteligencia artificial adquiere una dimensión particular.
+
+               La IA tiene el potencial de mejorar procesos, reducir ineficiencias y liberar capacidad en empresas
+               que hoy operan al límite. Pero para que esa oportunidad sea real y no quede reservada para quie-
+               nes ya llevan ventaja, hacen falta datos: saber cuántas PyMEs están usando inteligencia artificial,
+               cómo la están incorporando y qué barreras las frena.
+
+
+
+                                          Sin ese diagnóstico, cualquier política orientada a cerrar
+                                          brechas corre el riesgo de llegar tarde o mal direccionada. Este
+                                          estudio busca construir ese punto de partida.
+
+
+               Antecedentes, alcance y relevamiento
+
+               Los estudios y encuestas recientes sobre los procesos de adopción han complejizado su medi-
+               ción y conceptualización, considerando la misma como un fenómeno multidimensional que
+               abarca distintos grados de sofisticación. La adopción es vista como un proceso que no incluye
+               solamente incorporación la IA en las empresas, sino también la integración de estas tecnologías
+               en funciones de negocio y procesos internos de las firmas (OCDE 2025, McKinsey 2025, Parida,
+               Sjödin y Reim 2021, Agrawal, Gans y Goldfarb 2022) y la adaptación de procesos organizacio-
+               nales, de capacitación y gobernanza (McElheran, Yang, Kroff y Brynjolfsson 2025, Brynjolfsson,
+               Rock y Syverson 2021, Agrawal, Gans y Goldfarb 2024). Incorporar el uso de IA a la firma sin
+               generación de capacidades ni transformación organizacional alrededor de su uso muy difícil-
+               mente impacte de manera sustancial sobre la productividad, lo que requiere inversiones en capa-
+               citación de personal y rediseño de procesos (Brynjolfsson, Rock y Syverson 2021).
+
+
+
+
+               1   Definidas como empresas de entre 10 y 249 ocupados
+7                                                                                                                                  nadIA
+
+
+
+
+Introducción
+               La Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025) se
+               enfoca en las prácticas y percepciones de adopción de la IA en las PyMEs de la Argentina a tra-
+               vés de estas múltiples dimensiones. De este modo, se busca analizar tanto el grado de alcance
+               del uso e incorporación de la IA en las firmas como las perspectivas de consolidación de ese pro-
+               ceso. Sin incorporar los cambios organizacionales pertinentes, políticas de gobernanza y capaci-
+               tación, es poco factible que la adopción se consolide y alcance el potencial esperado en términos
+               de impacto en la productividad.
+
+               El cuestionario del relevamiento, de 26 preguntas, se concentró en las características del proceso
+               de adopción de IA2 (año de adopción, uso actual y perspectiva de incorporar, tipo de tecnología,
+               si es de desarrollo interno, función, datos utilizados, características de la gobernanza, capacita-
+               ciones y recursos humanos incorporados, presupuesto e inversión, tipo de gestión en el uso de
+               la IA, resultados y medición del impacto), grado de digitalización (uso actual de servicios pagos
+               y perspectivas), percepciones y perspectivas (obstáculos percibidos para la adopción, perspec-
+               tivas de inversión y de impacto en la firma y en el sector, despidos atribuidos a la adopción, pre-
+               ferencias de política pública para promover el uso de IA en las empresas). El cuestionario recogió
+               también características de la firma (tamaño, región, actividad y sector, si exporta y porcentaje de
+               la facturación representada por las exportaciones).
+
+               El relevamiento utilizó una encuesta probabilística estratificada por sector de actividad, diseñada
+               para producir estimaciones representativas del universo de PyMEs manufactureras y del sector
+               de software y servicios informáticos de la Argentina. La población objetivo está compuesta por
+               empresas de 10 a 249 ocupados de la Argentina, y el marco muestral es el Directorio de Empresas
+               de la Fundación Observatorio PyME, actualizado periódicamente a partir de fuentes públicas y
+               privadas. El diseño distingue 14 estratos sectoriales —13 correspondientes a ramas de la industria
+               manufacturera y 1 al sector de software y servicios informáticos— y asigna la muestra de manera
+               proporcional al peso de cada estrato en la población. Dentro de cada uno, la selección de casos se
+               realiza mediante muestreo aleatorio simple sin reemplazo, lo que permite preservar la representa-
+               tividad sectorial y construir inferencias sobre el conjunto del universo relevado y al nivel de estrato.
+
+               El estudio emplea un tamaño muestral de 450 empresas —400 manufactureras y 50 de software
+               y servicios informáticos— y utiliza ponderadores basados en la inversa de la probabilidad de
+               selección, ajustados por no respuesta dentro de cada estrato. Esto permite corregir desbalances
+               muestrales y estimar totales y proporciones consistentes con la estructura del universo empre-
+               sarial relevado. La encuesta efectiva es de 402 empresas. El relevamiento se llevó a cabo en los
+               meses de noviembre y diciembre de 2025.
+
+               En la tabla A.1 del Anexo 1 se puede observar la cantidad total de empresas encuestadas por
+               estrato y su correspondencia con actividades industriales según el nomenclador CIU Rev. 4. Los
+               sectores fueron luego agrupados en 8 sectores agregados para facilitar los análisis, esta agrega-
+               ción se utilizará a lo largo de todo el informe. La descripción de estos 8 sectores agregados se
+               detalla en la tabla A.2 del mismo anexo. En todos los análisis se muestran los resultados ponde-
+               rados, exceptuando aquellos casos en que se aclare lo contrario.
+
+               En la figura 1 se muestra el número total de empresas relevadas por sector de actividad. Como
+               vemos, el sector de mayor representación es metalmecánica (industrias metálicas básicas, pro-
+               ductos metálicos y maquinaria y equipo), seguido por alimentos, bebidas y tabaco y sustancias
+               químicas y derivados del petróleo, carbón, caucho y plástico.
+
+
+
+
+               2   Con excepción de las preguntas sobre uso actual (que se hizo a todas las firmas) y perspectivas de incorporar (solo para las
+               firmas no adoptantes) el bloque de preguntas se administró solo a las firmas adoptantes.
+8                                                                                                                                        nadIA
+
+
+
+
+                 FIGURA 1
+
+                 Cantidad total de empresas por sector
+
+
+                    Metalmecánica
+
+
+
+                         Alimentos
+
+
+
+                   Química/Plástico
+
+
+
+                        Software/IT
+
+
+
+                             Textil
+
+
+
+                      Madera/Papel
+
+
+
+                             Otras
+
+
+
+                          Minerales
+
+
+
+                                      0                            30                           60                              90
+
+
+                                                                              CANTIDAD DE EMPRESAS
+
+
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+                 La muestra está dominada por pequeñas empresas (hasta 50 ocupados), que representan el
+                 77,9% de los casos (313 empresas). Las medianas empresas (51 a 250 ocupados) alcanzan el
+                 22,1% (89 empresas). En términos de distribución regional, el 34,1% de las empresas tiene su
+                 establecimiento principal en la provincia de Buenos Aires y el 27,1% en la Ciudad Autónoma de
+                 Buenos Aires. Le sigue en importancia la provincia de Santa Fe con el 13,4% de la muestra, y
+                 Córdoba con el 8,7%. El restante 16,7% se distribuye entre las demás provincias del país, con pre-
+                 sencia de Mendoza (4,7%), Salta (1,5%), Misiones (1,5%), San Juan (1,2%), Neuquén (1,2%) y otras
+                 provincias con representación menor al 1%.
+
+                 Del total de empresas encuestadas, 175 (43,5%) comercializan su producción en mercados inter-
+                 nacionales, ya sea de forma directa (venta directa al exterior) o indirecta (venta a exportadores).
+                 Los 227 restantes (56,5%) operan exclusivamente en el mercado local. Entre las empresas expor-
+                 tadoras, la distribución por porcentaje de facturación exportada muestra que la gran mayoría son
+                 exportadoras marginales: el 77,6% exporta menos del 25% de su facturación, lo que indica que
+                 la exportación es un componente complementario —no central— de su actividad. Solo el 7,1%
+                 exporta más del 75% de su producción, lo que corresponde principalmente a sectores con inser-
+                 ción internacional más consolidada.
+
+
+Digitalización
+y adopción
+de IA en las
+empresas
+9                                                                                                                                        nadIA
+
+
+
+
+    Digitalización y adopción de IA en las
+    empresas
+
+    Uso de tecnologías digitales pagas
+
+    Para conocer el grado de digitalización de base de las empresas, la encuesta indagó sobre el uso
+    de distintas categorías de tecnologías digitales en su versión paga (figura 2)3.
+
+    En términos de cantidad, el 77,5% de las empresas utiliza al menos una tecnología digital en su
+    versión paga. La distribución de la cantidad de tecnologías adoptadas muestra que son mayoría
+    las empresas con 3 o 4 tecnologías simultáneas. El promedio es de 2,26 tecnologías por empresa.
+    Por tipo de tecnología, las soluciones de nube (53,9%) y de comunicación digital (52,5%) son las
+    más extendidas, seguidas por sistemas de ERP y facturación (48,1%). El e-commerce y marketing
+    digital alcanza el 28,6%, mientras que las soluciones de diseño y desarrollo son adoptadas por el
+    21,3%. Las tecnologías de logística (10,1%) y otras (8,7%) tienen una penetración más reducida.
+
+    FIGURA 2
+
+    Porcentaje de empresas que paga por tecnologías digitales
+
+
+                                                                                                                                            53,9%
+
+
+
+                                                                                                                                          52,5%
+
+
+
+
+                                                                                                                                 48,1%
+
+
+
+                                                                                         28,6%
+
+
+
+
+                                                                          21,3%
+
+
+
+
+                                                    10,1%
+
+
+
+                                                 8,7%
+
+
+
+                          0                                   20%                                  40%                                      60%
+
+                                                        % DE EMPRESAS QUE USAN LA TECNOLOGÍA
+
+
+
+    Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+    3   Las empresas que utilizan servicios y tecnologías digitales en su versión gratuita no están capturadas por esta pregunta. La
+    pregunta es de opción múltiple (la empresa debe indicar todas las tecnologías digitales por las que paga).
+10                                                                                                                                                 nadIA
+
+
+
+
+Digitalización
+y adopción       Este perfil de digitalización base —orientado predominantemente a herramientas de gestión,
+de IA en las
+empresas
+                 comunicación y nube— establece el contexto en el que se insertan las decisiones de adopción
+                 de IA, e indica que una porción significativa de las empresas cuenta con la infraestructura mínima
+                 para avanzar hacia tecnologías más complejas.
+
+
+
+                                                 La adopción de inteligencia artificial está sistemáticamente
+                                                 asociada al nivel previo de digitalización de la empresa.
+
+
+                 A partir de análisis de correlaciones (figura 3) es posible afirmar que la adopción de inteligen-
+                 cia artificial está sistemáticamente asociada al nivel previo de digitalización de la empresa. Las
+                 correlaciones más consistentes aparecen con tres tipos de tecnologías digitales previas: alma-
+                 cenamiento en la nube, herramientas de comunicación interna y software de diseño y desarrollo.
+                 Estas tres dimensiones configuran una infraestructura digital “intangible”, vinculada a gestión de
+                 información, coordinación organizacional y capacidades técnicas internas.
+
+                 FIGURA 3
+
+                 Correlación entre adopción de IA (binario) y tecnologías digitales
+
+                       Coeficiente φ                                                         Estadístico χ²
+
+
+
+                       φ débil                            φ fuerte                           χ² bajo                                          χ² alto
+
+
+
+
+                       Tecnología digital                               φ (Phi)                            χ²                          p-valor
+
+
+                       Nube                                               0,378                          57,45                         <0,001
+
+
+
+                       Comunicación interna                               0,358                          51,60                         <0,001
+
+
+
+                       E-commerce / marketing                             0,294                          34,70                         <0,001
+
+
+
+                       Diseño y desarrollo                                0,290                          33,73                         <0,001
+
+
+
+                       ERP / gestión                                      0,211                          17,93                         <0,001
+
+
+
+                       Logística                                          0,194                          15,13                         <0,001
+
+
+
+                       Otros                                              0,155                           9,63                          0,002
+
+
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+11                                                                                                                                   nadIA
+
+
+
+
+                 Uso de tecnologías de inteligencia artificial
+Digitalización
+y adopción
+de IA en las
+empresas
+
+
+                 El 41,6% de las empresas encuestadas (170 sobre 402) declara utilizar al menos una tecnología
+                 de inteligencia artificial (figura 4). Se trata de un nivel de adopción significativo, incluso si se
+                 excluye al sector de Software y de IT (36,4%).
+
+                 Entre las 232 empresas que no utilizan IA, el 46% considera probable incorporarla en los próximos
+                 24 meses, lo que representa un amplio segmento de adopción potencial. El 30,8% declara que no
+                 sabe si lo hará, mientras que el 23,3% no lo considera una alternativa cercana. Estos datos sugie-
+                 ren que existe un mercado latente relevante y que las barreras para la adopción son en buena
+                 medida superables a mediano plazo, si se dan las condiciones de acceso.
+
+                 Si comparamos esta cifra con las de otras encuestas regionales e internacionales, vemos que
+                 el nivel de adopción se encuentra en niveles relativamente altos.4 En Brasil, la encuesta de uso
+                 de tecnologías del Instituto Brasilero de Geografía y Estadística (IGBE) registró tasas similares
+                 para 2024: 41,9% de las empresas de 100 o más empleados5 (Instituto Brasileiro de Geografia
+                 e Estatística, 2025). Los estudios basados en la Encuesta sobre Adopción Tecnológica, Empleo
+                 y Comercio Internacional (EATEC) confirman patrones similares de heterogeneidad en la región:
+                 en la oleada 2022/23, la adopción de IA osciló entre el 10% en Colombia y el 19% en Chile, con
+                 Argentina y Brasil en torno al 14%, y con una brecha marcada según el tipo de actividad —23%
+                 en empresas de servicios frente al 11% en empresas productoras de bienes— (Garnero et al.,
+                 2023). En Argentina, la Encuesta Nacional de Dinámica del Empleo y la Innovación (ENDEI) regis-
+                 tró una adopción de IA del 50% en el sector de servicios basados en conocimiento para 2024,
+                 aunque con diferencias sectoriales marcadas y concentración en ramas intensivas en tecnolo-
+                 gía (Secretaría de Innovación, Ciencia y Tecnología, 2024). En Estados Unidos, por su parte, el
+                 Census Bureau registró una tasa de adopción de IA del 17,3% (Goldschlag, 2025). En Europa, la
+                 adopción de IA en empresas de 10 o más empleados pasó de 7,7% en 2021 a 13,5% en 2024 y a
+                 20% en 2025, con un 55% de adopción en grandes empresas frente a 17% en pequeñas.
+
+                 Otro indicador relevante es la cantidad de tecnologías de IA adoptadas por cada empresa, si
+                 bien esto no necesariamente significa mayor profundidad en la adopción. Como podemos ver en
+                 la figura 4, predomina la adopción de una sola tecnología. Más de la mitad de los usuarios de IA
+                 usan una o dos tecnologías (un 23,4% del total de firmas) y una proporción un poco menor de
+                 empresas utiliza tres o más tecnologías (18,3% del total de firmas).
+
+
+
+
+Figura 4
+                 4   Cabe destacar que las diferencias observadas en las tasas de adopción pueden responder a diferencias efectivas o, posi-
+                 blemente, diferencias en el diseño muestral, población objetivo y cuestionario de relevamiento, por lo que se sugiere tomar con
+                 recaudo las comparaciones.
+                 5   En este caso, dado que la población objetivo fueron empresas de mayor tamaño (100 o más empleados) que en el caso de
+                 nuestro relevamiento, es esperable encontrar tasas algo más altas de adopción.
+12                                                                                                                                            nadIA
+
+
+
+
+Digitalización
+y adopción
+                 FIGURA 4
+de IA en las
+empresas         Uso de IA en empresas y cantidad de tecnologías de IA utilizadas
+
+                          No usa IA   Usa IA (total)      Cantidad de tecnologías IA (entre usuarios)
+
+
+                                                               Desglose
+
+
+                                       58,4%
+
+
+
+
+                                                       41,6%
+
+
+
+
+                   % EMPRESAS
+
+                                                                            14,7%
+
+                                                                                        8,7%            6,8%
+                                                                                                               5,7%
+                                                                                                                         3,4%                 1,7%
+                                                                                                                                      0,7%
+
+
+                                                                              1            2             3      4          5           6       7
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+                 Curva de adopción de IA
+
+                 Más del 85% de las empresas que hoy usan IA lo hicieron en los últimos dos años: 2024 (32,9%)
+                 y 2025 (52,6%). Este patrón es coherente con la irrupción masiva de herramientas generativas en
+                 el período 2023-2024. Solo el 2,8% de las empresas comenzó a usar IA en 2022, y la adopción
+                 previa a ese año es prácticamente marginal (0,5% en cada uno de los años anteriores). Esto con-
+                 firma que el uso de IA en el sector industrial PyME es un proceso incipiente y todavía en fase de
+                 experimentación.
+
+                 El sector de software e IT registra la curva de adopción más temprana y sostenida a lo largo del
+                 tiempo, comienza antes y escala de forma más gradual. Los sectores industriales tradicionales
+                 presentan curvas de adopción mucho más tardías.
+
+
+
+
+Figura 5
+13                                                                                                                                       nadIA
+
+
+
+
+Digitalización
+y adopción
+                 FIGURA 5
+de IA en las
+empresas         Curva de adopción acumulada de IA por sector
+
+                                   Total general   Software/IT   Metalmecánica     Alimentos   Química/Plástico
+
+
+
+
+                   % ACUMULADO DE ADOPCIÓN
+
+
+
+
+                                                                                 AÑO DE INICIO DE USO DE IA
+
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+                 Uso de IA por sector
+
+                 El análisis por sector revela diferencias muy marcadas en los niveles de adopción. El sector
+                 software e IT encabeza ampliamente el ranking con una tasa de uso de IA (85%) que prácti-
+                 camente duplica al promedio general (41,6%), como se puede ver en la figura 6. En el extremo
+                 opuesto, sectores como textil y madera y papel muestran los niveles de adopción más bajos, lo
+                 que puede reflejar tanto las características productivas de esas industrias como restricciones en
+                 materia de capital humano calificado y presupuesto de inversión.
+
+
+
+
+Figura 6
+14                                                                                                                                       nadIA
+
+
+
+
+Digitalización
+y adopción
+                 FIGURA 6
+de IA en las
+empresas         Uso de IA por sector
+
+                      Total general                                                        41,6%
+
+                       Software/IT                                                                                                               85,4%
+
+                             Textil                                                                         47,4%
+
+                    Metalmecánica                                                             40,6%
+
+                     Madera/Papel                                                              35,1%
+
+                  Química/Plástico                                                          34,7%
+
+                             Otras                                                           31,9%
+
+                         Alimentos                                                 29,9%
+
+
+                         Minerales                                                         16,3%
+
+                                      0                                          40%                                         80%
+
+
+                                                                    % DE EMPRESAS QUE USAN IA (PONDERADO)
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+                 El sector software e IT no sólo lidera en adopción global sino que también presenta un perfil
+                 tecnológico cualitativamente diferente al del resto de la industria manufacturera. Mientras que
+                 en el conjunto de los otros sectores predomina la generación de texto y código (herramientas
+                 del estilo de ChatGPT), el sector IT combina esa adopción con un uso comparativamente más
+                 elevado de machine learning y análisis de datos y automatización de decisiones, tecnologías de
+                 mayor complejidad e integración productiva. Sin embargo, es importante destacar que en algunas
+                 tecnologías la industria tiene un uso más difundido que el sector software/IT, como son los casos
+                 de reconocimiento de imágenes (20% vs 17%) o movimiento autónomo (5% vs 2%). Los tipos de
+                 tecnología IA según sector se pueden ver en la figura 7.
+
+
+
+
+Figura 7
+15                                                                                                                                       nadIA
+
+
+
+
+Digitalización
+y adopción
+                 FIGURA 7
+de IA en las
+empresas         Tipo de tecnología IA utilizada según sector
+
+                     Industria manufacturera   Software/IT
+
+
+
+
+                                                             0                       30%                      60%                      90%
+
+                                                                                            % USO (PONDERADO)
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+                 Tipo de tecnologías IA utilizadas
+
+                 Entre las empresas que usan IA, la generación de texto y código —donde se ubican herramien-
+                 tas como ChatGPT y otros LLMs— es ampliamente la tecnología más difundida, alcanzando el
+                 77,9% de las empresas usuarias (figura 8). Este dato es consistente con la masificación del uso
+                 de herramientas generativas de acceso gratuito o de bajo costo desde 2022-2023. La capacidad
+                 de estas herramientas para asistir en redacción, síntesis, código y comunicación las convierte en
+                 el punto de entrada más frecuente a la IA en el ámbito empresarial.
+
+                 Le siguen en adopción el text mining y NLP –procesamiento de lenguaje natural– (41,1%), la gene-
+                 ración multimedia (37,1%), voz a texto (35,4%), machine learning (ML) y análisis de datos (24,1%)6,
+                 reconocimiento de imágenes (19,6%) y automatización de decisiones (18,1%). Las tecnologías de
+                 movimiento autónomo tienen adopción marginal (4,1%).
+
+
+
+
+                 6   El porcentaje de empresas manufactureras que utilizaban machine learning en 2021 era de 3% según la ENDEI III, lo que mues-
+                 tra un importante incremento, si bien la comparación debe ser tomada con cautela, ya que dicha encuesta se realizó solamente
+                 sobre empresas manufactureras (Secretaría de Innovación, Ciencia y Tecnología, 2024).
+16                                                                                                                                       nadIA
+
+
+
+
+Digitalización
+y adopción
+                 FIGURA 8
+de IA en las
+empresas
+                 Tipo de tecnologías IA utilizadas
+
+                     Otras tecnologías IA   Generación texto/código (ChatGPT)
+
+
+
+
+                                                                                                                                              77,9%
+
+
+                                                                                                     41,1%
+
+
+                                                                                               37,1%
+
+
+                                                                                             35,4%
+
+
+                                                                                  24,1%
+
+
+                                                                          19,6%
+
+
+                                                                        18,1%
+
+
+                                                     4,1%
+
+
+                                                   2,4%
+
+
+
+                                            0                         25%                         50%                         75%
+
+                                                                          % DE EMPRESAS CON IA
+
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+                 Al cruzar cantidad y tipos de tecnologías de IA adoptadas emerge una trayectoria de adopción
+                 bastante clara. La IA generativa de texto y código está presente en el 61% de las empresas que
+                 adoptan una sola tecnología y se ubica por encima del 90% entre quienes adoptan cuatro o más.
+                 Este protagonismo inicial sigue una lógica clara en función de las barreras de acceso: se trata
+                 de herramientas de bajo costo marginal y que no requieren integración con sistemas internos ni
+                 infraestructura técnica dedicada. A medida que el portafolio tecnológico se amplía, el patrón que
+                 emerge no sigue un lógica simple de acumulación sino algo más parecido a un desplazamiento
+                 a otras preferencias: las tecnologías que involucran procesamiento de lenguaje más estructu-
+                 rado (NLP, reconocimiento de voz) dan un salto abrupto entre dos y tres tecnologías adoptadas.
+                 Recién con cuatro o más tecnologías aparecen con fuerza el machine learning y la automatización
+                 de flujos, tecnologías que presuponen no solo familiaridad con la IA sino cierto grado de integra-
+                 ción con los datos y procesos internos de la firma. El movimiento autónomo, en el extremo, recién
+                 aparece entre las empresas que adoptan otras dos tecnologías.
+
+                 Este mapa de calor (figura 9) permite capturar una trayectoria que va de lo cognitivo a lo analítico,
+                 con un umbral de complejidad que cada tecnología exige para ser incorporada al repertorio de la
+                 empresa.
+17                                                                                                                                                nadIA
+
+
+
+
+Digitalización
+y adopción
+                 FIGURA 9
+de IA en las
+empresas         Tipo de tecnologías IA utilizada según trayectoria de adopción
+
+                   0%                                                100%
+
+
+
+
+                   Tecnología de IA                               1 tech                   2 tech                   3 tech                    4+ tech
+
+
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+                 Aplicaciones y funciones de la IA
+
+                 Entre las empresas que utilizan IA, la función más extendida en donde se adopta es marketing
+                 y ventas (54,7%), seguida por administración y gestión (41,5%) y producción y servicios (40,0%)
+                 (como se puede ver en la figura 10). Estas tres funciones concentran la gran mayoría de los usos
+                 declarados, lo que indica que la IA se está aplicando principalmente en áreas de apoyo comercial,
+                 gestión interna y eficiencia operativa. La función de I+D e innovación alcanza el 32,7%, lo que
+                 sugiere un uso emergente de herramientas IA en procesos de desarrollo de nuevos productos o
+                 mejoras de procesos. Finanzas (23,7%) y seguridad TIC (9,6%) son funciones con menor penetra-
+                 ción, y logística (6,2%) registra el porcentaje más bajo entre las funciones evaluadas.
+
+
+
+
+Figura 10
+18                                                                                                                                       nadIA
+
+
+
+
+Digitalización
+y adopción
+                 FIGURA 10
+de IA en las
+empresas         Funciones para las que se utiliza la IA
+
+                                                                                                               54,7%
+
+
+                                                                                              45,1%
+
+
+                                                                                            40%
+
+
+                                                                                   32,7%
+
+
+                                                                       23,7%
+
+
+                                                     9,6%
+
+
+                                              6,2%
+
+
+                                         3%
+
+                                0                           20%                 40%                     60%
+
+                                                                     % DE EMPRESAS CON IA
+
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+                 Sin embargo, es importante señalar la heterogeneidad sectorial de las funciones en donde se imple-
+                 menta IA (figura 11). El 41,2% de adopción en funciones de producción y servicios está fuertemente
+                 traccionado por software e IT, donde el 79,1% de las empresas adoptantes usa IA en producción y
+                 el 53,5% en I+D —cifras que reflejan que en ese sector la IA no es una herramienta de apoyo sino el
+                 núcleo del proceso productivo—. Si se excluye ese sector, el uso de IA en producción y servicios cae
+                 al 28,3% entre las empresas industriales restantes, mientras que marketing (55,9%) y administración
+                 (38,6%) se consolidan como las funciones dominantes, seguidas por I+D (26,8%) y finanzas (24,4%).
+
+
+
+                                               Existe un único perfil sectorial que concentra la adopción de IA
+                                               en funciones de producción y servicios: software.
+
+
+                 Esto permite distinguir la adopción según perfiles sectoriales. Por un lado, existe un único per-
+                 fil sectorial que concentra la adopción de IA en funciones de producción y servicios: software.
+                 En Software e IT, la IA se despliega principalmente en la producción y servicios (79%) e I+D
+                 (53%), superando la tasa de adopción en marketing y ventas. Desarrollar software, automatizar
+                 flujos y experimentar con nuevas herramientas son, en ese sector, simultáneamente producción
+                 e innovación.
+
+                 Un segundo perfil sectorial mantiene la adopción de IA equilibrada entre funciones. En los secto-
+                 res de metalmecánica, muebles y madera y papel, la adopción entre funciones es relativamente
+                 similar: marketing, producción y administración rondan valores similares (35-50%). Son sectores
+                 donde la IA se está expandiendo de manera más transversal, sin un uso dominante claro.
+
+                 Un tercer perfil presenta un patrón de adopción fuertemente concentrado en funciones de apoyo.
+                 Alimentos, textil y caucho y plástico presentan altas tasas de adopción en funciones de marketing
+                 (entre el 60 y 70% de las empresas que adoptan lo hacen en esta función) y de administración y
+                 gestión (entre el 25 y el 40%, aproximadamente), y presentan tasas bajas de adopción en el resto
+                 de las funciones.
+19                                                                                                                                       nadIA
+
+
+
+
+Digitalización
+y adopción
+                 Otros estudios han enfatizado patrones similares de heterogeneidad sectorial, con una mayor
+de IA en las
+empresas
+                 concentración de uso de IA en funciones centrales del proceso productivo en software y
+                 biopharma (BCG 2024).
+
+                 FIGURA 11
+
+                 Función de uso de tecnología de IA por sector (mapa de calor)
+
+
+
+
+                 Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+                 Al analizar la relación entre las funciones en las que se aplica IA y el tipo de tecnologías utilizada,
+                 emerge un patrón de complementariedades. El mapa de calor (figura 12) revela un gradiente bas-
+                 tante definido en la intersección entre amplitud y sofisticación tecnológica según funciones. En
+                 un extremo, marketing y ventas tiende a utilizar tecnologías menos sofisticadas: IA generativa de
+                 texto y de generación multimedia son predominantes, mientras que las tecnologías analíticas y de
+                 procesos como ML y automatización tienen una adopción por debajo del 30%. Esta es una fun-
+                 ción que incorpora la IA a través de herramientas de bajo umbral de entrada, lo cual es coherente
+                 con su posición como una de las áreas con mayor prevalencia de uso en la muestra.
+
+                 En el extremo opuesto, seguridad TIC y producción presentan los perfiles tecnológicos más den-
+                 sos y con mayor peso relativo de tecnologías de analítica y de procesos como ML, automatiza-
+                 ción o reconocimiento de voz e imágenes, lo que sugiere que la IA se usa para estas funciones en
+                 firmas con un repertorio tecnológico diverso. La función de I+D ocupa una posición intermedia,
+                 comparte con producción la presencia fuerte de tecnologías de generación de texto y de voz a
+                 texto pero se distingue por el peso de NLP.
+20                                                                                                                                              nadIA
+
+
+
+
+                   FIGURA 12
+
+                   Función de uso por tecnología de IA (mapa de calor)
+
+
+
+
+                   Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+                   En síntesis, los resultados muestran que en prácticamente cualquier función, las empresas que
+                   usan IA lo hacen combinando varias tecnologías a la vez. Funciones como marketing y ventas
+                   tienden a incorporar IA apoyándose en mayor medida en herramientas generativas de bajo costo
+                   de entrada, mientras que funciones como producción, seguridad TIC o I+D tienden a co-ocurrir
+                   con portafolios donde las tecnologías analíticas y de procesos tienen un peso relativo algo mayor.
+
+
+
+
+                   Formas de adquisición y fuentes de datos
+
+                   Entre las empresas que usan IA, la vía de adquisición más frecuente es la compra de software
+                   comercial (42,7%), seguida por el desarrollo interno propio (35,6%)7. El proveedor externo espe-
+                   cializado representa el 20,4% de los casos. Las opciones de adaptación de software comercial
+                   (11,9%) o de open source (10,7%) tienen menor prevalencia.
+
+                   La figura 13 muestra la distribución de formas de adquisición por sector. Se observa que el sec-
+                   tor Software/IT tiene una proporción significativamente mayor de desarrollo interno, lo que es
+                   esperable dado que sus capacidades técnicas le permiten construir sus propias soluciones. Los
+                   sectores industriales tradicionales, en cambio, dependen más de la adquisición comercial y de
+Capacidades        proveedores externos.
+técnicas,
+organizacionales
+y gobernanza
+
+
+                   7   Un porcentaje llamativamente elevado de empresas que usan IA reportan hacerlo a partir de un desarrollo propio. Es proba-
+                   ble que algunos entrevistados hayan interpretado tareas tales como customización de prompts de ChatGPT como desarrollos
+                   propios, lo cual es cualitativamente diferente de desarrollos más sofisticados como crear un modelo propio de machine learning,
+                   entrenar una red neuronal con datos internos o construir un pipeline de datos.
+21                                                                                                                                                                       nadIA
+
+
+
+
+     FIGURA 13
+
+     Forma de adquisición de IA por sector
+
+                   Desarrollo interno              Adapt. open source                      Adapt. Sw. comercial       Compra Sw. comercial       Proveedor externo       Otro
+
+
+
+
+       % EMPRESAS CON IA
+
+
+
+
+                                   Metalmecánica
+                                                          Alimentos
+
+                                                                        Química/Plástico
+                                                                                                     Software/IT
+                                                                                                                   Textil
+
+
+                                                                                                                                 Madera/Papel
+                                                                                                                                                Otras
+                                                                                                                                                             Minerales
+                                                                                                                                                                            Total general
+
+
+
+
+     Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+     En cuanto a las fuentes de datos utilizadas para alimentar las soluciones de IA, la gran mayoría
+     de las empresas trabaja con datos internos propios (83,9%), lo que indica una preferencia por el
+     procesamiento de información propia de la empresa. Los datos de clientes (29,3%) y los datos
+     públicos (22,8%) son la segunda y tercera fuente en importancia. Las fuentes de datos de ter-
+     ceros (4,8%), IoT/sensores (5,2%) y otras (1,8%) tienen penetración baja, lo que refleja que el
+     ecosistema de datos más complejo y la integración con fuentes externas sigue siendo incipiente
+     en el sector PyME.
+
+
+
+
+     Capacidades técnicas, organizacionales y
+     gobernanza
+
+     Capacitaciones
+
+     Una de las dimensiones más relevantes en la construcción de capacidades técnicas para la adop-
+     ción de IA es la contratación de perfiles especializados y la capacitación del personal existente.
+     En este sentido, el 95,5% de las empresas usuarias de IA no ha incorporado personal nuevo espe-
+     cíficamente para gestionar estas tecnologías. Solo el 4,5% ha sumado perfiles especializados,
+     principalmente en los sectores de software (el 23%) y en metalmecánica (16%). En materia de
+     capacitación, el 46,4% del total de empresas declaran haber capacitado a su personal, la principal
+     siendo capacitaciones técnicas para los equipos de IT (ver figura 14).
+22                                                                                                                                              nadIA
+
+
+
+
+Capacidades
+técnicas,
+                   FIGURA 14
+organizacionales
+y gobernanza       Tipos de capacitación para uso de IA entre adoptantes.
+
+
+                   Técnica para equipos IT                                                                                                       30,9%
+
+
+
+
+                        Específica para un                                                                                     22,9%
+                           departamento
+
+
+
+                     En gobernanza y ética                                                                     18%
+
+
+
+
+                       General para todos                                                                     17,9%
+
+
+
+
+                     En herramientas para
+                                                                             7,3%
+                        tareas específicas
+
+
+
+                                                         1,8%
+
+
+
+                                             0                        10%                        20%                        30%                    40%
+
+
+                                                                                      % DE EMPRESAS CON IA
+
+
+
+                   Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+                   Por otro lado, otra dimensión clave sobre capacidades organizacionales es la de gobernanza, es
+                   decir, el nivel de institucionalización de la adopción de IA en la firma, lo cual puede observarse a
+                   través de la existencia de políticas formales sobre su uso, la asignación de presupuestos espe-
+                   cíficos y la definición de estructuras organizacionales para coordinar las decisiones relacionadas
+                   con la adopción.
+
+
+
+                                                   En su etapa actual, la inversión en IA es en gran medida
+                                                   informal y no planificada.
+
+
+                   La gran mayoría de las empresas usuarias de IA no ha destinado un presupuesto específico para
+                   esta tecnología: el 78,3% incluye el gasto en IA dentro de su presupuesto general sin distinguirlo,
+                   y solo el 7,5% cuenta con un presupuesto específico para IA. Esta situación evidencia que, en
+                   su etapa actual, la inversión en IA es en gran medida informal y no planificada, lo que puede ser
+                   una barrera para la escalabilidad, la evaluación de resultados y el uso estratégico, ya que implica
+                   que posiblemente no haya objetivos explícitamente definidos e incorporados a un presupuesto
+                   específico.
+
+                   La gestión del uso de IA es mayoritariamente descentralizada e informal. En cuanto a cómo se
+                   organiza internamente, el 44,4% de las empresas adoptantes declara que son las distintas áreas y
+                   empleados quienes adoptan IA por su cuenta, sin coordinación central; el 26,6% tiene una gestión
+                   centralizada desde un área específica —IT, dirección o innovación—; y el 20,2% reconoce que
+                   simplemente “no está claro” cómo se gestiona.
+23                                                                                                                                           nadIA
+
+
+
+
+                En línea con ese perfil, la formalización de políticas internas es prácticamente inexistente: el
+                72,5% opera sin ninguna pauta ni política sobre el uso de IA, el 17,9% tiene pautas informales no
+                documentadas, y apenas el 3,3% cuenta con una política formal escrita. Esta situación es consis-
+                tente con la baja madurez de la gobernanza de IA en el sector y sugiere que la construcción de
+                marcos internos de uso —aunque sea en forma de pautas básicas— es una agenda pendiente
+                para la gran mayoría de las organizaciones.
+
+
+
+
+                Impacto actual y esperado de la IA sobre la productividad y el
+                empleo
+
+                La pregunta sobre si la IA efectivamente genera impactos sustanciales tanto sobre la productivi-
+                dad como el empleo es, en este momento, central en la discusión pública sobre el tema. Distintos
+                estudios señalan que la productividad no sube con la mera adopción de IA sino a partir de las
+                inversiones complementarias que la rodean (Brynjolfsson et al., 2021). Al mismo tiempo, BCG
+                (2024) encontró que el 74% de las empresas que iniciaron proyectos de IA no logró generar valor
+                tangible más allá de la prueba de concepto. Sin medición sistemática de resultados, difícilmente
+                una firma pueda distinguir qué vale la pena escalar y qué no.
+
+                Al consultar a las empresas que adoptan IA si han medido su impacto sobre la productividad, la
+                mayoría respondió que aún no mide formalmente sus resultados (57%), tal como se observa en
+                la figura 15. Sin embargo, entre el 40,6% que reporta haber medido el impacto, un 24% encontró
+                resultados positivos, el 15,4% aún se encuentra evaluando resultados y el 1,2% reporta no haber
+                encontrado resultados significativos. Estos datos reflejan que la adopción de IA está en sus pri-
+                meras etapas y que la evaluación sistemática de su impacto es una práctica que aún no se ha
+                institucionalizada en el sector.
+
+                FIGURA 15
+
+                Medición de resultados del impacto de la IA en la empresa
+
+                                         57,4%
+
+
+
+
+                 % DE EMPRESAS CON IA
+                                                                                                                     23,6%
+
+
+                                                                  15,4%
+
+
+
+
+                                                                                                                                             2,4%
+                                                                                             1,2%
+
+
+Percepciones,
+obstáculos y
+perspectivas
+Figura 15
+
+                Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+24                                                                                                   nadIA
+
+
+
+
+            Al preguntar específicamente sobre los resultados positivos ya observados con el uso de la IA,
+            el 16,8% reporta mejoras en la productividad, el 11,6% mejoras en la capacidad de innovación, el
+            10,4% ahorro de costos y el 9,3% mejoras en la satisfacción del cliente.
+
+            Las expectativas sobre el impacto futuro son considerablemente más altas. Ante la pregunta
+            sobre qué impacto tendrá la adopción de IA en su empresa en los próximos cinco años, el 77%
+            espera mejoras en productividad, el 64,4% reducción de costos y el 46,9% aumento de ingresos.
+
+
+
+                                  En la fase actual de adopción el impacto en el empleo es
+                                  todavía limitado.
+
+
+            En relación al impacto de la adopción de IA en el empleo, el 91,2% de las empresas que adoptó
+            IA declara no haber reducido personal como consecuencia de la adopción de estas tecnolo-
+            gías. Solo el 7% ya registró alguna reducción de personal, y el 1,8% estima reducirlo en el futuro
+            próximo. Estos datos sugieren que, en la fase actual de adopción —predominantemente expe-
+            rimental y orientada a herramientas de asistencia textual—, el impacto en el empleo es todavía
+            limitado.
+
+            Sin embargo, la expectativa de reducción de empleos vinculada a la adopción de la IA es mayor;
+            los sectores de metalmecánica (20,8%) y software (20,7%) reportan los valores más altos.
+
+             	
+
+
+            Percepciones, obstáculos y perspectivas
+
+            Percepción del impacto de IA en el sector
+
+            La encuesta también indagó sobre la percepción del impacto que la IA tendrá en el sector de
+            actividad de cada empresa, independientemente de si la utiliza o no. Los resultados muestran
+            una percepción heterogénea, con una inclinación moderadamente favorable.
+
+            El sector de Software/IT registra el mayor impacto esperado: un 38% prevé un impacto muy alto y
+            un 35% un impacto alto. En cambio, en sectores como Textil y Madera/Papel predominan las per-
+            cepciones de impacto medio, combinadas con una menor proporción de respuestas en el tramo
+            alto. Metalmecánica y Alimentos muestran perfiles intermedios, con combinaciones relativamente
+            balanceadas entre impacto alto y medio. Los resultados se pueden ver en la figura 16.
+
+
+
+
+Figura 16
+25                                                                                                                                                                                                                                                                                                                                                                         nadIA
+
+
+
+
+Percepciones,   FIGURA 16
+obstáculos y
+perspectivas
+                Percepción de impacto de IA en el sector, por sector
+
+
+
+
+                 % DE EMPRESAS
+
+
+
+
+                                                                                Software/IT                                                                                                              Software/IT                                                                                                              Software/IT
+                                 Metalmecánica
+                                                 Alimentos
+
+                                                             Química/Plástico
+                                                                                              Textil
+
+
+                                                                                                       Madera/Papel
+                                                                                                                      Otras
+
+                                                                                                                                          Total general
+                                                                                                                                                                          Alimentos
+
+                                                                                                                                                                                      Química/Plástico
+                                                                                                                                                                                                                       Textil
+
+
+                                                                                                                                                                                                                                Madera/Papel
+                                                                                                                                                                                                                                               Otras
+
+                                                                                                                                                                                                                                                                   Total general
+                                                                                                                                                                                                                                                                                                   Alimentos
+
+                                                                                                                                                                                                                                                                                                               Química/Plástico
+                                                                                                                                                                                                                                                                                                                                                Textil
+
+
+                                                                                                                                                                                                                                                                                                                                                         Madera/Papel
+                                                                                                                                                                                                                                                                                                                                                                        Otras
+                                                                                                                              Minerales
+                                                                                                                                                          Metalmecánica
+                                                                                                                                                                                                                                                       Minerales
+                                                                                                                                                                                                                                                                                   Metalmecánica
+                                                                                                                                                                                                                                                                                                                                                                                Minerales
+                                                                                                                                                                                                                                                                                                                                                                                            Total general
+
+
+
+
+                Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+                Perspectivas de inversión en IA
+
+                Respecto a las perspectivas de inversión, el 31,4% de las empresas invierte actualmente y man-
+                tendrá ese nivel, mientras que el 29,8% aún no invierte pero planea comenzar a hacerlo. El 22,1%
+                declara no invertir y no tener planes de hacerlo. Solo el 7,0% invierte y planea aumentar, y el 1,0%
+                invertía pero disminuirá su gasto. El 8,7% no sabe.
+
+                El 68,2% de las empresas estaría en disposición de invertir o continuar invirtiendo en IA en alguna
+                medida.
+
+                Sumando las categorías con intención de inversión futura, el 68,2% de las empresas estaría en
+                disposición de invertir o continuar invirtiendo en IA en alguna medida, lo que confirma el potencial
+                de crecimiento del mercado.
+
+                A nivel sectorial, existen brechas significativas. El sector Software/IT combina el mayor porcen-
+                taje de inversión activa (37,5%) con la mayor proporción de empresas que planea aumentar su
+                gasto (14,6%), lo que lo consolida como el sector de mayor dinamismo. Metalmecánica presenta
+                el porcentaje más alto de empresas que “no invierte pero comenzará” (40,8%), indicando una
+                fuerte intención de adopción próxima. Alimentos tiene una distribución más conservadora: el
+                37,7% planea comenzar pero el porcentaje que planea aumentar la inversión es muy bajo (1,3%).
+                En Textil, el 33,2% no invierte y no planea hacerlo, lo que revela la mayor reticencia del sector a
+                invertir en IA.
+26                                                                                                                                      nadIA
+
+
+
+
+                Obstáculos para la adopción de IA
+Percepciones,
+obstáculos y
+perspectivas
+
+
+
+
+                En la figura 17 podemos ver los principales obstáculos que enfrentan las empresas —tanto usua-
+                rias como no usuarias de IA— para avanzar en la incorporación de estas tecnologías. Los tres más
+                mencionados son la falta de experiencia y conocimiento (46,2%), la falta de personal calificado
+                (42,2%) y el desconocimiento general sobre IA (39,2%). En conjunto, estas tres barreras apuntan
+                a un déficit central de conocimiento, capacitación y entrenamiento, lo que limita la capacidad de
+                las empresas para evaluar, implementar y escalar soluciones de IA. A esos obstáculos se suma la
+                percepción de que “la IA no es útil o necesaria” para el tipo de actividad de la empresa (33,4%),
+                seguida por costos altos (29,2%), dudas sobre rentabilidad (27,0%) e incompatibilidad con siste-
+                mas existentes (26,1%). Las preocupaciones por privacidad y seguridad (19,5%), incertidumbre
+                legal (18,6%) y ética (13,4%) tienen presencia, aunque menor.
+
+                Si desagregamos en tres grupos, entre empresas que adoptaron, aquellas que planifican adoptar
+                y aquellas que no adoptaron y no planifican hacerlo, podemos identificar importantes diferencias.
+                Entre las empresas que no usan IA y no planean hacerlo, la barrera más mencionada es que “la
+                IA no es útil o necesaria para su actividad” (66,2%), con una importante diferencia respecto de
+                quienes planean adoptar (34,9%) y de quienes ya adoptaron (13,5%). En cambio, las barreras de
+                capacidad —falta de experiencia y conocimiento (50,0%) y falta de personal calificado (44,7%)—
+                son más altas en el grupo de firmas que adoptaron, mientras que en el grupo de las firmas que
+                no adoptaron y no planifican hacerlo las tasas de mención de estas barreras son de 28,2% y de
+                29,6% respectivamente.
+
+                FIGURA 17
+
+                Obstáculos para la adopción de IA en las empresas
+
+                    Alto (>35%)     Medio (20-30%)     Bajo (<20%)
+
+
+
+                                                                                                                                46,2%
+
+                                                                                                                        42,2%
+
+                                                                                                                    39,2%
+
+                                                                                                            33,4%
+
+                                                                                                    29,2%
+
+                                                                                              27%
+
+                                                                                         26,1%
+
+                                                                                      23,6%
+
+                                                                              19,5%
+
+                                                                           18,6%
+
+                                                                      15,8%
+
+                                                                 13,4%
+
+
+
+                                                                          % DE EMPRESAS (PONDERADO)
+
+
+
+                Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+                A nivel sectorial, existen diferencias en la composición de obstáculos reportados. En el sector
+                Software/IT, la falta de experiencia (35,4%) y falta de personal (33,3%) son los de mayor fre-
+                cuencia, pero la percepción de que “la IA no es útil” es significativamente más baja (10,4%). En
+27                                                                                                                                      nadIA
+
+
+
+
+                Metalmecánica, la falta de personal calificado es la barrera más alta (47,7%), seguida por la falta
+                de experiencia (40,7%) y el desconocimiento (33,7%). En Alimentos y bebidas, la falta de expe-
+                riencia (48,1%) y el desconocimiento (42,9%) son los obstáculos predominantes, junto con la
+                percepción de no utilidad (42,9%).
+
+
+
+                Políticas públicas para promover la IA
+
+                La encuesta consultó a las empresas qué tipo de políticas públicas consideran más relevantes
+                para facilitar la adopción de IA en el sector industrial. Los resultados muestran una demanda
+                clara y priorizada. La política más demandada es el fortalecimiento de la educación en el nivel
+                secundario y universitario en el campo de la IA (68,4%), lo que refleja la percepción generalizada
+                de que el principal cuello de botella es la disponibilidad de trabajadores calificados en el mediano
+                y largo plazo. En segundo lugar se ubica la asistencia técnica a PyMEs (52,5%), evidenciando la
+                necesidad de acompañamiento especializado para las empresas de menor tamaño en su proceso
+                de adopción. Le siguen en importancia la inversión en formación continua para empleados que
+                trabajan con IA (40,7%), el acceso a proveedores de IA para PyMEs (40,1%) y la modernización de
+                la infraestructura informática a través de inversiones por ejemplo en banda ancha de alta veloci-
+                dad (35,1%). La articulación entre ciencia y tecnología y el sector productivo (30,6%) y las regu-
+                laciones claras (28,3%) también son mencionadas por un tercio de las empresas. Las opciones
+                de disponibilización de sets masivos de datos abiertos (15,3%) y ninguna política (5,2%) tienen
+                presencia marginal. Los resultados se pueden observar en la figura 18.
+
+                FIGURA 18
+
+                Políticas públicas prioritarias para promover la adopción de IA en las empresas
+
+                                                                                                                                        68,4%
+
+
+                                                                                                                     52,5%
+
+
+                                                                                                      40,7%
+
+
+                                                                                                      40,1%
+
+
+                                                                                              35,1%
+
+
+                                                                                        30,6%
+
+
+                                                                                     28,3%
+
+
+                                                                     15,3%
+
+
+                                                             10,2%
+
+
+                                                      5,2%
+
+
+
+
+                                                               % DE EMPRESAS QUE SELECCIONÓ CADA OPCIÓN
+Análisis de
+agrupamientos
+de empresas     Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+                Un análisis desagregando según adopción o perspectiva de adopción de la firma, separando
+                aquellas que lo hicieron o planean hacerlo por un lado versus el resto de las firmas, muestra
+                que la demanda de políticas públicas es mayor entre quienes ya adoptaron IA, algo menor entre
+28                                                                                                                  nadIA
+
+
+
+
+     quienes planean hacerlo, y notoriamente más baja entre quienes no usan ni tienen intención de
+     usar estas tecnologías. Por ejemplo, los porcentajes de empresas que escogieron la opción de
+     fortalecimiento en la educación secundaria y universitaria en el campo de la IA (la opción más
+     escogida en todos los casos) es de 75,3% en el caso de adoptantes, 76,4% en el caso de los que
+     planean adoptar y 47,9% en el caso de los que no adoptaron ni planean adoptar.
+
+
+
+
+     Análisis de agrupamientos de empresas
+
+     Análisis exploratorio de clusters
+
+     Se realizó un primer ejercicio de segmentación exploratoria a partir de la técnica de análisis de
+     clusters para evaluar la existencia de agrupamientos de empresas según las características de la
+     adopción de IA, incorporando su uso actual, percepciones, obstáculos identificados y perspecti-
+     vas para los próximos años y opiniones sobre el rol de la política pública. El objetivo es evaluar si
+     puede identificarse a partir de la cercanías entre respuestas grupos intermedios o distintivos en
+     su nivel de adopción y en sus percepciones y perspectivas, es decir, grupos que más allá de un
+     cluster de “usuarios” y “no usuarios” puedan identificarse a partir de características comunes que
+     vinculen opiniones y obstáculos con su carácter de usuario/no usuario. En el anexo 2 se puede
+     ver la metodología utilizada.
+
+     El análisis generó dos clusters con perfiles bien diferenciados. Como se puede ver en el anexo
+     (figura A.2), el cluster 1 está principalmente por empresas que usan algún tipo de IA, mientras
+     que el cluster 2 está principalmente conformado con empresas que no usan IA. Como podemos
+     observar en el anexo, se pueden observar perfiles muy distintos de firmas, con un cluster 1 con
+     mayor uso de tecnologías digitales pagas (figura A.3), mayor uso de los diversos tipos de tecno-
+     logía de IA (figura A.4). Cabe destacar que las empresas de ambos cluster perciben obstáculos
+     similares para la adopción de IA (como falta de experiencia relevante en la empresa, falta de
+     personal calificado y desconocimiento de aplicaciones posibles son mencionadas con similar
+     frecuencia en ambos clusters (figura A.5).
+
+     El listado de las variables con mayor nivel de asociación con la separación por clusters generada
+     (la variable “clusters”) se puede observar en el anexo (tabla A.3). Como vemos, la variable dicotó-
+     mica que indica si la empresa usa alguna tecnología de IA, la variable que captura cómo se visua-
+     liza la empresa en 5 años en relación con la industria 4.0 y la variable que captura la inversión
+     futura en IA proyectada y la que captura impactos esperados a partir de la adopción de IA son las
+     que mayor nivel de asociación muestran con la variable que separa los clusters.
+
+     En suma, a partir del análisis exploratorio de segmentación realizado sólo se observa dos gran-
+     des grupos de empresas separadas principalmente por el nivel de adopción y diversas variables
+     asociadas al proceso de adopción. No se encuentra evidencia de grupos intermedios ni de sub-
+     grupos dentro de los grupos mayormente conformados por adoptantes y no adoptantes8.
+
+
+
+
+     8   Se realizó un análisis similar modificando la muestra de empresas incluidas, incluyendo empresas adoptantes y empresas
+     que no adoptan pero reportan intención de adoptar en los próximos 24 meses. Los resultados también mostraron dos clusters
+     diferenciados con características similares a los identificados en el análisis con la muestra completa.
+29                                                                                                                                       nadIA
+
+
+
+
+                Taxonomía según el nivel de adopción de IA
+Análisis de
+agrupamientos
+de empresas
+
+
+
+                Como segundo ejercicio se generó una taxonomía para comprender los diferentes estadios de
+                adopción de inteligencia artificial en las pequeñas y medianas empresas. La taxonomía busca
+                diferenciar grupos según su nivel de adopción, incorporando al análisis varias funciones del nego-
+                cio con capacidades técnicas y gobernanza formal para estimular una mejor comprensión con-
+                ceptual de los procesos de adopción de IA.
+
+                En este sentido, la taxonomía intenta capturar los niveles de adopción que existen en las firmas:
+                el grado en que una empresa ha avanzado en la incorporación de IA no solo como herramienta
+                auxiliar sino como componente integrado de sus procesos productivos, administrativos y estraté-
+                gicos. Un mayor nivel de adopción se caracteriza por la combinación de tres atributos: diversidad
+                y complejidad tecnológica, difusión funcional dentro de la organización y capacidades internas
+                —tanto técnicas como de gobernanza— para sostener y escalar dicha adopción.
+
+                La taxonomía fue construida a partir de las principales dimensiones y variables que la literatura
+                identifica como relevantes para evaluar los niveles de adopción de IA9, mientras que los cortes
+                de cada grupo fueron construidos a partir de la observación empírica de la distribución de cada
+                variable.
+
+                a. Tecnología
+
+                La dimensión tecnológica se operacionaliza mediante dos variables: cantidad de tecnologías de
+                IA que utiliza la empresa y el nivel de sofisticación de la tecnología de IA utilizada. Mientras que
+                la primera variable capta la extensión o amplitud del portafolio tecnológico de la firma, la segunda
+                ordena las tecnologías utilizadas según nivel de sofisticación, entendiendo la sofisticación no a
+                partir de la complejidad algorítmica intrínseca de la tecnología sino por la demanda de integración
+                organizacional que cada tipo de tecnología requiere10.
+
+                El nivel de sofisticación se categoriza en tres niveles. El primer nivel (generativa) incluye uso de
+                tecnologías de generación de texto y código y generación de imágenes y videos. Se trata de
+                herramientas que un trabajador individual puede utilizar sin modificar ningún proceso organi-
+                zacional, sin requerir datos propios de la empresa ni infraestructura técnica dedicada, mejoran
+                tareas específicas dentro de flujos de trabajo preexistentes con un costo de transición práctica-
+                mente nulo (Agrawal, Gans y Goldfarb 2022). El segundo nivel (cognitiva) incorpora el reconoci-
+                miento de voz y el procesamiento de lenguaje natural (NLP/minería de texto). Estas tecnologías ya
+                suponen cierto grado de procesamiento sistemático de insumos organizacionales —la empresa
+                no solo genera contenido sino que procesa información interna de manera automatizada—. Su
+                implementación requiere una estructuración del problema y, frecuentemente, acceso a flujos
+                de información interna. El tercer nivel (analítica y de procesos) reúne el aprendizaje automático
+                (machine learning), la automatización de flujos de trabajo y el reconocimiento de imágenes. Estas
+
+
+                9   Las cinco variables seleccionadas presentan correlaciones de Spearman positivas y estadísticamente significativas entre sí
+                (p < 0,001 en todos los pares). El 82% de las empresas adoptantes se ubica en la diagonal o a un cuartil de distancia cuando se
+                cruzan las dos dimensiones principales (extensión tecnológica y difusión funcional).
+                10   La literatura ofrece al menos tres maneras de pensar la sofisticación tecnológica en la adopción de IA. La primera la concibe
+                como una jerarquía intrínseca entre tecnologías: ciertas herramientas funcionan como base sobre la cual se construye la adopción
+                de tecnologías más complejas, como el reconocimiento de voz o el movimiento autónomo (Zolas et al., 2020; Calvino y Fontanelli,
+                2025). La segunda perspectiva desplaza el eje del análisis desde la tecnología hacia la organización: lo que define que una
+                herramienta sea más o menos sofisticada no es su complejidad algorítmica sino el grado de transformación organizacional que
+                demanda; las “soluciones puntuales” se adoptan primero porque se insertan en flujos de trabajo existentes, mientras que las “solu-
+                ciones de sistema” exigen rediseñar la arquitectura decisional de la firma y aparecen solo cuando ya existe experiencia acumulada
+                (Brynjolfsson et al., 2021; Agrawal et al., 2022). Una tercera línea, en cambio, asocia la sofisticación al grado de adaptación de la
+                tecnología a los procesos propios de cada organización: el gradiente va desde el uso de IA embebida en software comercial hasta
+                el desarrollo interno de soluciones propias, diferenciando así entre firmas “compradoras” y firmas “desarrolladoras” de IA (OCDE,
+                2025; Calvino y Fontanelli, 2024; Banco Mundial, 2025).
+30                                                                                                                                     nadIA
+
+
+
+
+Análisis de
+agrupamientos   tecnologías constituyen soluciones de sistema: su implementación efectiva presupone datos
+de empresas     internos estructurados, personal técnico capacitado y, frecuentemente, una reorganización de los
+                procesos productivos o administrativos. Son las tecnologías con mayor demanda de inversiones
+                complementarias (Brynjolfsson et al., 2021)11.
+
+                b. Funciones
+
+                En segundo lugar, la dimensión funcional se operacionaliza mediante una única variable: la can-
+                tidad de funciones con uso de IA, es decir, la cantidad de funciones empresariales en las que la
+                firma declara utilizar algún sistema o software de IA, entendiendo que una empresa que utiliza
+                IA en una sola función tiene un despliegue acotado, mientras que una que la integra en cuatro o
+                más funciones ha logrado una penetración transversal que involucra múltiples áreas y requiere
+                formas de coordinación más complejas12. Esta decisión se fundamenta en la evidencia de que
+                una mayor transversalidad funcional de la IA se asocia con mejores resultados en innovación y
+                productividad13.
+
+                c. Capacidades organizacionales
+
+                Por último, la dimensión de capacidades organizacionales captura con qué recursos y bajo qué
+                marco institucional la empresa sostiene su adopción de IA (Brynjolfsson, Rock y Syverson 2021,
+                McElheran et al., 2025; BCG, 2025). Esta dimensión se operacionaliza mediante dos variables.
+                La primera, capacidades técnicas, releva si la empresa contrató al menos un perfil especializado
+                en IA en los últimos 12 meses (desde científicos de datos hasta responsables de transformación
+                digital) y si proporcionó al menos un tipo de capacitación en IA a sus empleados (desde capa-
+                citación técnica para equipos de IT hasta capacitación general). Cada uno de estos indicadores
+                (contratación de perfil y brindar algún tipo de capacitación) se codifica con un 0,5, las empresas
+                que cumplen con ambas condiciones se codifican con 1.
+
+                Por otro lado, la variable gobernanza mide el grado de institucionalización estratégica de adop-
+                ción de IA. Diversos autores consideran a la gobernanza como factor fundamental para que la
+                adopción genere valor. Agrawal, Gans y Goldfarb (2024) muestran formalmente que la adopción
+                de IA se potencia cuando existen mecanismos de coordinación inter-decisional al interior de la
+                firma; McKinsey (2025) encuentra que las empresas que obtienen mayor valor de la IA se dis-
+                tinguen por el compromiso activo del CEO, la existencia de equipos cross-funcionales y marcos
+                formales de gestión de riesgos y BCG (2025) identifica que factores como el cumplimiento nor-
+                mativo, la definición de guardarraíles para los modelos y la creación de una oficina dedicada a la
+                implementación de IA son decisivos para escalar los pilotos más allá de las pruebas de concepto.
+                En la taxonomía, esta dimensión se compone de dos elementos: si la empresa cuenta con presu-
+                puesto destinado a IA (ya sea específico o dentro del presupuesto general de digitalización) y si
+                dispone de algún protocolo, guía interna o política formal sobre el uso de herramientas de IA. La
+                lógica de la codificación es similar a la de la variable capacidades técnicas: 0, 0,5 o 1 según tenga
+                ninguno, uno o ambos componentes.
+
+
+
+                11  El movimiento autónomo de máquinas (robots autónomos, vehículos autónomos, drones) no se incluye como requisito en nin-
+                gún nivel, dado que su adopción responde a especificidades sectoriales —industrias con procesos físicos automatizables— más
+                que a una posición en la trayectoria general de madurez de la firma.
+                12   Además de la amplitud funcional de la adopción, la literatura señala la relevancia de su intensidad o profundidad: esto es,
+                cuán intensivamente utiliza la firma la IA dentro de cada función (OCDE, 2025; Parida, Sjödin y Reim, 2021). Una adopción puede
+                ser amplia pero superficial —por ejemplo, consultas esporádicas a un chatbot en varias áreas— o estrecha pero profunda —por
+                ejemplo, machine learning integrado al proceso productivo en una sola función—. Sin embargo, dado que la encuesta no releva
+                profundidad en el uso dentro de cada función, esta dimensión se excluye del análisis.
+                13   La OCDE (2025) identifica el “alcance de la aplicación”, desde usos puntales por parte de individuos a integración transversal
+                y unificada en toda la organización, como variable central de sofisticación en su taxonomía para pequeñas y medianas empre-
+                sas, McKinsey (2025) encuentra que las firmas que reportan mayor generación de valor a partir de la IA la utilizan en tres o más
+                funciones de negocio simultáneamente y Parida, Sjödin y Reim (2021) muestran que tanto la amplitud como la profundidad de la
+                adopción están positivamente asociadas con la capacidad de innovación de producto de la firma.
+31                                                                                                         nadIA
+
+
+
+
+Análisis de
+agrupamientos   A partir de la combinación de estas cinco variables, la taxonomía clasifica a las empresas en
+de empresas     cinco categorías, desde la no adopción hasta el liderazgo en IA. Cada etapa incorpora los requi-
+                sitos de la anterior y agrega nuevas exigencias, reflejando una trayectoria acumulativa de nivel
+                de adopción. La asignación es jerárquica descendente: primero se evalúa si la empresa cumple
+                los requisitos de la etapa más avanzada (líderes), luego los de la siguiente (optimizadoras), y así
+                sucesivamente. Toda empresa adoptante que no cumpla los criterios de una etapa superior se
+                clasifica en la inmediata inferior.
+
+                TABLA 1
+
+                Taxonomía de adopción de IA por empresas
+
+                 Grupos                   Tecnologías   Sofisticación   Funciones   Capacidades    Gobernanza
+                                          de IA         tecnológica                 técnicas
+                 Sin adopción             =0            —               =0          —              —
+
+
+                 Experimentales           ≥1            ≥ Nivel 1       ≥1          ≥0             ≥0
+                                                        (Generativa)
+
+                 Exploradoras             ≥2            ≥ Nivel 2       ≥2          ≥0             ≥0
+                                                        (Cognitiva)
+
+                 Optimizadoras            ≥3            ≥ Nivel 3       ≥3          ≥ 0,5          ≥0
+                                                        (Analítica)
+
+                 Líderes                  ≥4            ≥ Nivel 3       ≥4          ≥ 0,5          ≥ 0,5
+                                                        (Analítica)
+
+
+                Fuente: Elaboración propia.
+
+
+                De esta manera, la taxonomía propone cinco agrupamientos de empresas:
+
+                1.   Empresas sin adopción de IA. Este grupo de empresas no utilizan ninguna de las tecnologías
+                     de IA relevadas. La mitad se encuentra en los sectores de metalmecánica (26%) y alimentos
+                     (24%), y el 83% son empresas pequeñas, con una mediana de 20 empleados. Entre estas,
+                     casi la mitad (46%) declara que considera probable comenzar a utilizar IA en los próximos 24
+                     meses, aunque sólo el 23% percibe que la IA tendrá un impacto alto o muy alto en su sector,
+                     lo que sugiere que una parte importante de la no adopción puede estar traccionada por el
+                     escepticismo sobre la relevancia de esta tecnología para su actividad.
+
+                2. Empresas experimentales. Este grupo de firmas utiliza al menos una tecnología en al menos
+                   una función empresarial. Típicamente, se trata de empresas que incorporaron herramientas
+                   de IA generativa —principalmente generación de texto y código (presente en el 68% de los
+                   casos)— en funciones de marketing (45%) o administración (16%). La gran mayoría de estas
+                   empresas no cuenta con capacidades de gobernanza ni técnicas para la adopción de IA. A
+                   pesar de que la mayoría percibe que la IA mejoró su productividad (65%) y que redujo cos-
+                   tos (57%), sólo el 22% midió formalmente resultados positivos, lo que indica una percepción
+                   positiva sobre el impacto pero aún sin evidencia concreta. Representan el 23% del total de
+                   empresas y el 56% de las empresas adoptantes. Su perfil promedio es de 1,6 tecnologías
+                   adoptadas, desplegadas en 1,1 funciones, con un nivel de sofisticación predominantemente
+                   generativo.
+32                                                                                                             nadIA
+
+
+
+
+Análisis de
+agrupamientos
+de empresas
+                PRIMER CASO
+                Una empresa del sector químico-construcción, Buenos Aires
+
+                Qué produce y cómo: la empresa fabrica insumos para la construcción: materiales cementicios
+                en polvo y productos químicos líquidos como adhesivos, polímeros e impermeabilizantes. Cuenta
+                con aproximadamente 100 empleados. Se trata de una empresa experimental según la taxonomía
+                propuesta.
+
+                Usos actuales de IA y potencial en producción: la inteligencia artificial entró por el área admi-
+                nistrativa, de manera gradual y sin una decisión centralizada, a través del sistema de gestión en
+                la nube y de herramientas integradas en servicios digitales previamente adquiridos. El impacto
+                más claro es el ahorro de tiempo en tareas repetitivas y de alto volumen, donde la automatización
+                también reduce errores. También se implementaron soluciones digitales previas con macros en
+                Excel y Power BI para la gestión de certificados de obra, y el sistema de gestión ya automatiza el
+                envío de órdenes de pago y la firma digital de recibos de sueldo.
+
+                En el área productiva, el potencial es reconocido pero todavía lejano. La tecnología que la empresa
+                podría implementar no implicaría rediseñar el proceso sino montarse sobre él: equipos técnicos
+                visitan la planta, evalúan las máquinas existentes, identifican dónde colocar sensores o chips, y
+                desarrollan un software a medida que recibe esos datos. El resultado no sería automatización del
+                proceso sino monitoreo en tiempo real.La empresa participó de una capacitación en IA aplicada
+                a procesos industriales, organizada por una universidad nacional en articulación con un banco
+                orientado a PyMEs. Sin embargo, el paso concreto de implementación de esta tecnología aún no
+                se ha dado.
+
+                Organización y capacitación: La incorporación de tecnología estuvo impulsada desde la direc-
+                ción.La capacitación en IA fue orientada hacia perfiles directivos, no a empleados. En el uso coti-
+                diano, sin embargo, la dinámica fue más descentralizada. Los empleados administrativos —en
+                su mayoría jóvenes, — adoptaron herramientas por su cuenta, sin que mediara ningún proceso
+                formal de formación. No hubo capacitación sistemática para el conjunto de la organización. La
+                adopción, en ese sentido, fue más espontánea que planificada: ingresó a través de herramientas
+                ya embebidas en servicios que la empresa usaba, y se fue extendiendo sin un marco institucional
+                que la orientara.
+
+                Barreras y obstáculos: La principal barrera para avanzar en la implementación de IA en el proceso
+                productivo tiene que ver con dudas sobre su impacto en la productividad dado el nivel de auto-
+                matización previo del proceso. La empresa explica que un sensor que detecta cuándo una bolsa
+                alcanzó los 25 kilos y activa un corte automático sólo tiene sentido si ese corte efectivamente
+                puede ser automático. Cuando el proceso depende de que una persona ponga la bolsa en la
+                balanza, la llene, la corte y la pase a otro lado, el sensor registra datos pero no modifica nada: La
+                IA, en ese esquema, agrega una capa de información sobre un proceso que sigue siendo esencial-
+                mente artesanal. Sin la automatización de base, esa información no se traduce en mejoras reales
+                de productividad. En segundo lugar, el contexto económico agrava el cuadro. Se destaca que si
+                bien entre 2020 y 2023 existieron líneas del BICE con aportes no retornables específicamente
+                orientados a industria 4.0, hoy ese financiamiento no está disponible y que, además, existe una
+                caída de la demanda y la competencia creciente por importaciones, todos elementos que corren
+                el horizonte de inversión.
+33                                                                                                        nadIA
+
+
+
+
+Análisis de
+agrupamientos
+                3. Empresas exploradoras. Este grupo de empresas diversificó su adopción tanto de tecnologías
+de empresas        como en funciones. Representan el 10,2% del total de empresas y el 24,57% de las adoptan-
+                   tes. Utilizan al menos dos tecnologías de IA, con un nivel de sofisticación que incluye tanto IA
+                   generativa de texto (en el 88% de los casos) como cognitivas (como procesamiento de len-
+                   guaje natural, en el 62% de los casos), desplegadas en al menos dos funciones empresariales
+                   (principalmente en producción –en el 64% de los casos– administración –57%– y marketing
+                   –55%–). Su perfil promedio incluye 3,2 tecnologías en 2,7 funciones. Entre todos los grupos, las
+                   exploradoras son las que más adquieren tecnologías de IA por medio de compras comerciales.
+                   También resulta curioso que este grupo es el que más reporta un impacto positivo sobre la
+                   productividad (en un 91% de los casos) al mismo tiempo que es el que menos midió resultados
+                   formalmente (15%). El 75% estima un impacto alto o muy alto de la IA sobre su sector.
+
+                4. Empresas optimizadoras. Las optimizadoras son firmas que utilizan tecnologías analíticas
+                   y de procesos y construyeron capacidades técnicas internas para sostener la adopción.
+                   Representan el 4% del total de empresas y el 10% de las adoptantes. Utilizan al menos tres
+                   tecnologías de IA, incluyendo las de sofisticación analítica (es decir, no sólo generativa de
+                   texto (que se usa en el 94% de los casos) sino también machine learning (utilizada en el 76%
+                   de los casos), en al menos tres funciones (principalmente administración –94%–, producción
+                   –88%– e I+D –76%–). Su perfil promedio incluye 4,3 tecnologías en 3,8 funciones. El otro fac-
+                   tor que las distingue es la existencia de capacidades técnicas: el 88% de ellas realizó alguna
+                   capacitación y el 11% incorporó personal especializado.
+
+                5. Empresas líderes. Son firmas que no solo acumularon tecnología y capacidades sino que
+                   institucionalizaron el uso de la IA dentro de la organización. Representan el 3,8% del total
+                   de empresas y el 10% de las adoptantes: la mayoría de ellas están en el sector de software
+                   e IT (59%) y tienen una mediana de 39 empleados. A los requisitos de las optimizadoras se
+                   le agrega una mayor extensión (al menos cuatro tecnologías en cuatro funciones) y contar
+                   con capacidades de gobernanza formales, desde la existencia de un presupuesto destinado
+                   a IA o un protocolo formal de uso (o ambos). Su perfil promedio incluye 5,2 tecnologías en 5
+                   funciones. A pesar de que este grupo duplica el nivel de medición formal del impacto de la IA
+                   en relación a grupos previos (43%), la mayoría de las empresas aún no midió o está evaluando
+                   los resultados (68%). A pesar de que ninguna empresa líder reporta haber reducido personal
+                   debido a la IA, al igual que los otros grupos, el 24% estima reducir en un futuro. El 81% de las
+                   empresas líderes creen que la IA tendrá un impacto alto o muy alto en su sector.
+
+
+
+
+Segundo caso
+34                                                                                                              nadIA
+
+
+
+
+Análisis de
+agrupamientos
+de empresas
+                SEGUNDO CASO
+                Una empresa de desarrollo de software, subsidiaria de una empresa multina-
+                cional, Buenos Aires
+
+                Qué produce y cómo: la empresa desarrolla software especializado para los sectores de teleco-
+                municaciones y energía —sistemas tipo CRM con funcionalidades de facturación y gestión ope-
+                rativa— que se adapta a las necesidades específicas de cada cliente. A diferencia de soluciones
+                generalistas, su propuesta es de nicho: conocimiento profundo de dos industrias y productos
+                construidos sobre esa base. Opera con aproximadamente 50 empleados. Como subsidiaria de
+                una multinacional, accede a tecnología, capital e infraestructura global, lo que la diferencia estruc-
+                turalmente del universo típico de PyMEs. Se trata de una empresa categorizada como líder en la
+                taxonomía propuesta.
+
+                Cómo entró la IA y cuándo: la adopción tuvo dos momentos claramente distintos. Antes de 2024,
+                el uso de herramientas de IA fue exploratorio y descentralizado: empleados y equipos incorporaron
+                herramientas por su cuenta sin una estrategia formal. Hace aproximadamente un año, la empresa
+                adoptó una política explícita de impulso de adopción de la inteligencia artificial impulsada desde la
+                casa matriz.Este cambio implicó alinear objetivos organizacionales, incorporar incentivos económi-
+                cos vinculados al uso de IA y definir una arquitectura tecnológica común. La adopción dejó de ser
+                un fenómeno individual para convertirse en una transformación institucional.
+
+                Usos actuales: la estrategia se despliega en dos dimensiones simultáneas. Hacia adentro, la IA
+                está rediseñando los procesos de trabajo, especialmente en desarrollo de software y soporte
+                técnico, donde se implementan sistemas que automatizan la gestión de casos y la búsqueda de
+                soluciones en bases de conocimiento. Hacia afuera, la empresa incorpora IA directamente en los
+                productos que ofrece a sus clientes, incluyendo interfaces de atención automatizada integradas a
+                sus sistemas CRM.
+
+                Gobernanza: la empresa cuenta con un equipo centralizado que valida las herramientas de IA
+                antes de su uso, con foco en la protección de datos sensibles. Las herramientas autorizadas son
+                aquellas integradas en entornos corporativos con acuerdos de confidencialidad. Otras soluciones
+                externas no validadas están explícitamente excluidas. La gobernanza se basa en un enfoque de
+                seguridad: toda nueva iniciativa debe pasar por ese proceso de revisión.
+
+                Organización, capacitación y empleo: la adopción implicó el cierre de algunas funciones y una
+                reorganización interna orientada a que los equipos hagan más con la misma dotación. La capa-
+                citación combina plataformas formales con espacios de intercambio interno: un encuentro men-
+                sual donde equipos comparten iniciativas y casos de uso, con el objetivo de construir cultura de
+                adopción de manera orgánica. El rol del programador es el que más está cambiando: está dejando
+                de ser un desarrollador de código para convertirse en un ingeniero de soluciones, alguien que
+                conecta piezas de software, diseña arquitecturas y valida código generado más que producirlo
+                manualmente.
+
+                El obstáculo principal no es tecnológico: la mayor barrera identificada para una adopción efectiva
+                es la gestión del cambio organizacional. El mayor obstáculo no suele ser el costo ni el acceso a
+                la tecnología, sino la ausencia de intermediarios que traduzcan las herramientas disponibles a los
+                procesos concretos de cada empresa. La caída en los costos de desarrollo que habilita la IA abre
+                una oportunidad real de democratización —proyectos que antes requerían meses y equipos gran-
+                des hoy pueden hacerse en menos tiempo y con menos recursos—, pero esa oportunidad solo se
+                captura si hay alguien que acompañe el proceso.
+35                                                                                                                                       nadIA
+
+
+
+
+                Impacto observado vs. esperado en la productividad según
+Análisis de
+agrupamientos
+de empresas
+
+                grupo de empresa
+
+                La diferencia en el impacto observado y esperado de la IA sobre la productividad entre los cinco
+                grupos de empresas va en sintonía con el argumento sobre la brecha entre adopción y capacida-
+                des: a medida que las empresas acumulan experiencia y capacidades, estas reportan en mayor
+                medida resultados positivos (así como también mayores expectativas).
+
+                Resulta llamativo, sin embargo, que los resultados positivos observados desciendan entre las
+                experimentales y las exploradoras. Esto podría indicar que las exploradoras se encuentran en una
+                fase de transición en donde pagan el costo de la reorganización sin haber cosechado todavía el
+                retorno, lo cual es consistente con el argumento de la “curva J de productividad” (Brynjolfsson,
+                Rock y Syverson 2021). según el cual las inversiones complementarias necesarias para aprove-
+                char una tecnología de propósito general generan un período de desempeño negativo antes de
+                que el impacto positivo se materialice.
+
+                FIGURA 20
+
+                Impacto observado y esperado de la IA sobre la productividad según grupo de
+                empresa
+
+                    Resultado positivo observado    Resultado positivo esperado en los próximos cinco años
+
+
+
+
+                Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+                Nota: los resultados positivos observados sólo son declarados por las empresas que declararon haber medido formalmente los resultados
+                de la IA en cada grupo de empresas.
+
+
+
+
+                Obstáculos y políticas prioritarias según tipo de empresa
+
+                Por último, los obstáculos y las demandas de política pública varían de manera reveladora según
+                la etapa de adopción. En los grupos iniciales —sin adopción y experimentales—, los obstá-
+                culos predominantes son la falta de conocimiento sobre IA (39-44%), la percepción de que la
+36                                                                                                                                      nadIA
+
+
+
+
+Análisis de
+agrupamientos
+                tecnología no es útil para su actividad (47%-17%) y la falta de experiencia interna (43-53%). En
+de empresas     consecuencia, sus demandas de política se concentran en formación: educación secundaria y
+                universitaria (63-74%) y asistencia técnica a PyMEs (46-59%), lo que refleja una necesidad de
+                reducir la distancia con la tecnología antes que de operar sobre ella. En cambio, en los grupos
+                avanzados —optimizadoras y líderes—, el perfil es cualitativamente distinto. La percepción de
+                inutilidad desaparece por completo y el desconocimiento cae a niveles marginales, pero emergen
+                con fuerza obstáculos de integración y entorno: la falta de personal calificado es la barrera más
+                alta en optimizadoras (60%), mientras que las preocupaciones por privacidad (27%), incertidum-
+                bre legal (29%) y ética (29%) cobran un peso mayor que en los grupos iniciales. Sus demandas de
+                política reflejan ese corrimiento: las líderes priorizan el acceso a proveedores de IA para PyMEs
+                (66%) y las regulaciones claras (45%) por encima de la formación general.
+
+                FIGURA 21
+
+                Impacto observado y esperado de la IA sobre la productividad según grupo de
+                empresa
+
+                  Q22 - Obstáculos para la adopcción de ia (% que los menciona)
+
+
+
+
+                                                     43,3%                52,5%              53,3%               40,9%                37%
+
+
+                                                    40,3%                 43,1%              41,5%               60,1%               48,7%
+
+
+                                                     39,3%                44%                43,7%               23,7%               12,4%
+
+
+                                                     47,4%                17,2%              14,4%                 0%                 5,9%
+
+
+                                                      31%                 30%                23,6%               29,1%               12,4%
+
+
+                                                     27,1%                24,1%              33,5%               21,9%                31,1%
+
+
+                                                     28,4%                22,7%              26,9%                18%                19,3%
+
+
+                                                     18,1%                19,1%              23,8%               27,4%               23,5%
+
+
+                                                     18,1%                19,7%              19,2%                29%                 6,6%
+
+
+                                                     14,3%                11,6%              9,3%                 29%                 5,9%
+
+
+
+
+                Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+Figura 22
+37                                                                                                                                        nadIA
+
+
+
+
+Análisis de
+agrupamientos
+                  FIGURA 22
+de empresas
+                  Impacto observado y esperado de la IA sobre la productividad según grupo de
+                  empresa
+                    Q26 - Políticas públicas prioritarias para promover la adopción de IA (% que las demanda)
+
+
+
+
+                                                        63,3%                73,9%                 85,9%          63,8%                68,6%
+
+
+                                                        46,2%                58,8%                 74,5%          58,5%                44,6%
+
+
+                                                        34,4%                41,8%                 63,7%          63,9%                43,4%
+
+
+                                                        32,2%                53,7%                 44,5%          40,2%                66,4%
+
+
+                                                        28,8%                39,9%                 52,3%           52,7%               37,3%
+
+
+                                                        25,7%                34,9%                 47,6%          28,3%                36,3%
+
+
+                                                        23,2%                34,2%                 37,7%          28,3%                44,6%
+
+
+                                                        11,3%                 21,1%                23,2%           11,9%               24,5%
+
+
+
+
+                  Fuente: Elaboración propia en base a la Encuesta de Adopción de IA en Pequeñas y Medianas Empresas de la Argentina (2025).
+
+
+
+
+Recomendaciones
+38                                                                                                                       nadIA
+
+
+
+
+     Recomendaciones
+     Los resultados de este relevamiento muestran que la política pública no debería concentrarse
+     únicamente en ampliar el acceso a herramientas de IA, sino en crear las condiciones para que
+     esa adopción se consolide y genere mejoras sostenidas en productividad. El relevamiento mues-
+     tra que la difusión ya comenzó, pero que en buena parte de las PyMEs sigue predominando una
+     incorporación poco estructurada, con baja formalización de políticas internas, escasa medición
+     de resultados, pocas contrataciones especializadas y esfuerzos de capacitación todavía limita-
+     dos. En este contexto, la prioridad no es sólo que más empresas prueben la tecnología, sino que
+     más empresas puedan integrarla de manera estratégica, coordinada y evaluable. Para ello, reco-
+     mendamos los siguientes lineamientos y acciones de política pública:
+
+     1.   Fortalecer la base digital de las PyMEs como condición para una adopción más profunda
+
+     La evidencia del informe muestra que la adopción de IA se asocia al uso de capacidades digita-
+     les. Por eso, los programas de digitalización no deberían concebirse como una agenda separada
+     o previa a la IA, sino como parte de la misma estrategia. Fortalecer el uso de ERP, software de
+     gestión, herramientas de comunicación, servicios de nube y plataformas digitales resulta espe-
+     cialmente importante en los sectores donde la adopción todavía es baja y más superficial. Sin esa
+     base, la incorporación de IA tiende a quedar confinada a usos puntuales de baja complejidad, con
+     escasas posibilidades de escalamiento.
+
+     2. Orientar la política de formación no sólo al uso de herramientas, sino a la construcción de
+        capacidades organizacionales
+
+     Los déficits de conocimiento aparecen como la principal barrera para la difusión de la IA, tanto
+     entre empresas no adoptantes como entre las que ya comenzaron a usarla. En ese marco, las
+     políticas de formación deberían abarcar dos planos. Por un lado, fortalecer la oferta de habili-
+     dades técnicas en el sistema educativo formal y en la formación profesional continua. Por otro,
+     desarrollar capacidades de adopción madura al interior de las firmas: identificación de casos de
+     uso, rediseño de procesos, gestión del cambio, medición de resultados y formación de perfiles
+     capaces de coordinar la adopción más allá del entusiasmo inicial. La capacitación relevante no es
+     sólo técnica; también es organizacional.
+
+     3. Crear instrumentos de asistencia técnica para pasar de la experimentación a la
+        implementación
+
+     Una parte importante de las empresas ya usa IA, pero lo hace sin contar con la experiencia
+     interna necesaria para seleccionar soluciones, adaptarlas a sus procesos o evaluar su impacto.
+     Esto justifica el despliegue de esquemas de extensionismo tecnológico y asistencia técnica
+     orientados específicamente a PyMEs14. Estos instrumentos deberían ayudar a traducir el interés
+     por la IA en proyectos concretos de adopción, acompañando a las empresas en el diagnóstico de
+     necesidades, la selección de proveedores, la implementación piloto y la posterior escalabilidad.
+     El objetivo no es sólo acelerar primeras pruebas, sino reducir el riesgo de que la adopción quede
+     detenida en un estadio inicial.
+
+
+
+
+     14   Un ejemplo concreto de esto son los centros de IA que se crearon en años recientes en muchos países con el objetivo de
+     asesorar a las empresas en la adopción de esta tecnología y conectar el expertise sectorial con el tecnológico. Argentina cuenta
+     con una propuesta de centro diseñada en 2023 con apoyo del BID, el Centro Multidisciplinario de Inteligencia Artificial (CAMIA)
+     (Luvini et al. 2025, p. 92).
+39                                                                                            nadIA
+
+
+
+
+     4. Promover capacidades de gobernanza y gestión interna de la IA en las empresas
+
+     Uno de los hallazgos más relevantes del informe es la brecha entre uso y formalización. Muchas
+     empresas adoptan herramientas de IA, pero pocas cuentan con presupuesto específico, linea-
+     mientos internos, criterios de uso o mecanismos claros de coordinación. Esto sugiere la necesi-
+     dad de incorporar una agenda explícita de gobernanza empresarial de la IA. La política pública
+     puede contribuir mediante guías sectoriales, estándares mínimos, modelos de protocolo interno y
+     programas de acompañamiento que ayuden a las firmas a ordenar la toma de decisiones, asignar
+     responsabilidades y construir criterios de uso responsables, seguros y alineados con sus objeti-
+     vos productivos. La gobernanza no es un complemento posterior: es una condición para que la
+     adopción se consolide.
+
+     5. Incentivar la medición de resultados y la evaluación económica de la adopción
+
+     La medición del impacto es un aspecto fundamental de la gobernanza. Permite ayudar a las
+     empresas en la toma de decisiones: dónde invertir, qué usos escalar y qué experiencias aban-
+     donar, especialmente en las firmas que planifican continuar invirtiendo en IA. Por eso, conviene
+     desarrollar instrumentos que faciliten la medición de impactos sobre productividad, tiempos, cos-
+     tos, calidad, innovación o ventas. Esto puede incluir metodologías simplificadas de evaluación y
+     asistencia técnica para construir indicadores. La gobernanza sin medición carece de herramien-
+     tas para identificar qué aspectos de la adopción se necesita mejorar.
+
+     6. Diseñar políticas segmentadas según el grado de madurez de adopción
+
+     No todas las empresas enfrentan el mismo problema. Las no adoptantes y las adoptantes ini-
+     ciales suelen necesitar sensibilización, demostración de casos de uso y reducción de barreras
+     de conocimiento. Las firmas que ya utilizan IA de manera más frecuente necesitan apoyo para
+     profesionalizar ese uso: capacitación avanzada, contratación de perfiles adecuados, integración
+     con procesos internos, criterios de gobernanza y evaluación. Una política uniforme corre el riesgo
+     de beneficiar sobre todo a las empresas que ya poseen mejores capacidades previas. Por eso,
+     resulta más eficaz diseñar instrumentos diferenciados según el nivel de madurez de adopción y
+     no únicamente según el sector o tamaño de empresa.
+
+     7.   Articular la agenda de IA con desarrollo de proveedores, regulación y sistema
+          científico-tecnológico
+
+     La consolidación de una adopción madura también requiere un ecosistema habilitante. Esto
+     supone fortalecer la oferta local de proveedores de soluciones adaptadas a PyMEs, mejorar la
+     articulación con universidades y centros tecnológicos, y avanzar en marcos regulatorios y de
+     gobernanza que reduzcan la incertidumbre sin desalentar la experimentación. La disponibilidad
+     de proveedores confiables, capacidades científicas aplicadas y reglas claras puede acelerar el
+     pasaje desde usos aislados hacia trayectorias más sostenidas de incorporación. En este punto, la
+     agenda productiva y la agenda de ciencia y tecnología no deberían pensarse por separado: una
+     política de IA para PyMEs exige vincular ambas.
+40                  nadIA
+
+
+
+
+     Bibliografía
+41                                                                                                                                    nadIA
+
+
+
+
+     • Agrawal, A., Gans, J., y Goldfarb, A. (2023). Prediction Ma-        • Chaar, T., Filippucci, F., Jona-Lasinio, C., y Nicoletti, G. (2025).
+     chines, Updated and Expanded: The Simple Economics of                 AI and the global productivity divide: Fuel for the fast or a
+     Artificial Intelligence. Harvard Business Review Press. ISBN:         lift for the laggards? OECD Artificial Intelligence Papers, No.
+     978-1647824679.                                                       51. OECD Publishing.
+
+     • Agrawal, A., Gans, J. S., y Goldfarb, A. (2022). Power and          • Cirera, X., Comin, D., y Cruz, M. (2022). Bridging the tech-
+     Prediction: The Disruptive Economics of Artificial Intelli-           nological divide: Technology adoption by firms in develo-
+     gence. Harvard Business Review Press.                                 ping countries. World Bank.
+
+     • Agrawal, A., Gans, J. S., y Goldfarb, A. (2024). Artificial in-     • Comisión Económica para América Latina y el Caribe (CE-
+     telligence adoption and system-wide change. Journal of                PAL). (2024). Superar las trampas del desarrollo en Améri-
+     Economics y Management Strategy, 33(2), 327–337.                      ca Latina y el Caribe en la era digital: el potencial trans-
+                                                                           formador de las tecnologías digitales y la inteligencia
+     • Avenburg, A., et al. (2025). Encuesta Nacional sobre Adop-          artificial. Naciones Unidas.
+     ción de IA en Argentina. Relevamiento Individuos Agos-
+     to-Septiembre 2025. [Documento de Políticas Públicas.                 • Comisión Económica para América Latina y el Caribe (CE-
+     Universidad Torcuato Di Tella]. Repositorio Digital Universidad       PAL). (2025). Panorama de las políticas de desarrollo pro-
+     Torcuato Di Tella.                                                    ductivo en América Latina y el Caribe, 2025: ¿cómo salir
+                                                                           de la trampa de baja capacidad para crecer? Naciones
+     • Banco Mundial (2025). Digital Progress and Trends Re-               Unidas.
+     port 2025: Strengthening AI Foundations. World Bank
+     Group.                                                                • Conferencia de las Naciones Unidas sobre Comercio y
+                                                                           Desarrollo (UNCTAD). (2025). Technology and innovation
+     • Boston Consulting Group (BCG) (2025).. (2025). From Po-             report 2025: Inclusive artificial intelligence for develop-
+     tential to Profit: Closing the AI Impact Gap. BCG Global.             ment. Naciones Unidas.
+
+     • Boston Consulting Group (2024). Where’s the Value in AI?            • Eurostat (2025). Use of artificial intelligence in enterpri-
+     BCG Build for the Future 2024 Global Study.                           ses. Statistics Explained. Diciembre 2025.
+
+     • Boston Consulting Group (2025). From Potential to Profit:           • Fontanelli, L., Calvino, F., Criscuolo, C., Nesta, L., y Verdolini, E.
+     Closing the AI Impact Gap. BCG AI Radar.                              (2024). The role of human capital for AI adoption: Eviden-
+                                                                           ce from French firms. CEP Discussion Paper No. 2055, Cen-
+     • Brynjolfsson, E., Rock, D., y Syverson, C. (2021). The Pro-         tre for Economic Performance, London School of Economics.
+     ductivity J-Curve: How Intangibles Complement General
+     Purpose Technologies. American Economic Journal: Macro-               • Fontanelli, L., Calvino, F., Criscuolo, C., Nesta, L., y Verdolini,
+     economics, 13(1), 333–372.                                            E. (2024). The role of human capital for AI adoption: Evi-
+                                                                           dence from French firms. CEP Discussion Paper No. 2055,
+     • Brynjolfsson, E., Rock, D., y Syverson, C. (2021). The Pro-         Centre for Economic Performance, LSE.
+     ductivity J-Curve: How Intangibles Complement General
+     Purpose Technologies. American Economic Journal: Macro-               • Fundación Observatorio PyME. (2025). Encuesta coyuntu-
+     economics, 13(1), 333–372.                                            ral: Segundo trimestre 2025.
+
+     • Brynjolfsson, E., Rock, D., y Syverson, C. (2021). The pro-         • Goldschlag, N. (2025). How Many Businesses Are Using
+     ductivity J-curve: How intangibles complement general                 AI? Census Bureau economist.
+     purpose technologies. American Economic Journal: Macro-
+     economics, 13(1), 333–372.                                            • McElheran, K., Li, J. F., Brynjolfsson, E., Kroff, Z., Dinlersoz, E.,
+                                                                           Foster, L., y Zolas, N. (2024). AI adoption in America: Who,
+     • Calvino, F., y Fontanelli, L. (2023). A portrait of AI adopters     what, and where. Journal of Economics y Management Stra-
+     across countries: Firm characteristics, assets’ comple-               tegy, 33(2), 375–415.
+     mentarities and productivity. OECD Science, Technology
+     and Industry Working Papers, No. 2023/02.                             • McElheran, K., Yang, S., Kroff, Z., y Brynjolfsson, E. (2025).
+                                                                           Management practices and the productivity effects of
+     • Calvino, F., y Fontanelli, L. (2024). AI Users Are Not All Ali-     AI adoption. Working Paper. AI Adoption in America: Who,
+     ke: The Characteristics of French Firms Buying and De-                What, and Where. Journal of Economics y Management Stra-
+     veloping AI. CESifo Working Paper No. 11466.                          tegy, 33(2), 375–415.
+
+     • Calvino, F., y Fontanelli, L. (2024). AI Users Are Not All Alike:   • McKinsey y Company (2025). McKinsey y Company. (2025).
+     The Characteristics of French Firms Buying and Develo-                The state of AI in 2025: Agents, innovation, and transfor-
+     ping AI. CESifo Working Paper No. 11466.                              mation. McKinsey Global Survey.
+
+     • Calvino, F., y Fontanelli, L. (2025). Decoding AI: Nine facts       • McKinsey y Company (2025). The state of AI in 2025:
+     about how firms use artificial intelligence in France. LEM            Agents, innovation, and transformation. McKinsey Global
+     Papers Series 2025/13, Sant’Anna School of Advanced Stu-              Survey.
+     dies.
+                                                                           • OCDE (2025). Calvino, F., Bianchini, M., Lane, M., Montegu,
+     • Calvino, F., Bianchini, M., Lane, M., Montegu, J., Verger, V., y    J., Verger, V., y Ancheva, S. (2025). AI adoption by small and
+     Ancheva, S. (2025). AI adoption by small and medium-sized             medium-sized enterprises. OECD Publishing, Paris.
+     enterprises. OECD Publishing.
+42                                                                         nadIA
+
+
+
+
+     • Organización Internacional del Trabajo (OIT). (2025). Artifi-
+     cial intelligence and jobs: Emerging policies and practi-
+     ces for inclusive futures. OIT.
+
+     • Parida, Sjödin y Reim (2021). Parida, V., Sjödin, D., y Reim, W.
+     (2021). Performance effects of digital technology adop-
+     tion and product y service innovation – A process-indus-
+     try perspective. Technovation, 105, 102271.
+
+     • Parida, V., Sjödin, D., y Reim, W. (2021). Performance effects
+     of digital technology adoption and product y service in-
+     novation – A process-industry perspective. Technovation,
+     105, 102271.
+
+     • Programa de las Naciones Unidas para el Desarrollo (PNUD).
+     (2025). Informe sobre Desarrollo Humano 2025: Una
+     cuestión de elección: las personas y las posibilidades en
+     la era de la inteligencia artificial. PNUD.
+
+     • Schteingart, D., Sonzogni, P. y Pascuariello, G. (2024). Es-
+     tructura productiva. Argendata. Fundar.
+
+     • Secretaría de Innovación, Ciencia y Tecnología. (2024). Uso
+     de tecnologías digitales y digitalización en la industria manu-
+     facturera (Informe temático #1, ENDEI III). Dirección Nacional
+     de Información Científica.
+
+     • U.S. Census Bureau. (2024). Business Trends and Outlook
+     Survey (BTOS). U.S. Department of Commerce.
+
+     • Zolas, N., Kroff, Z., Brynjolfsson, E., McElheran, K., Beede, D.,
+     Buffington, C., Goldschlag, N., Foster, L., y Dinlersoz, E. (2020).
+     Advanced Technologies Adoption and Use by U.S. Firms:
+     Evidence from the Annual Business Survey. NBER Working
+     Paper No. 28290.
+43                                                                                      nadIA
+
+
+
+
+     Equipo Fundar
+
+     Dirección ejecutiva: Martín Reydó
+
+     Dirección de proyectos: Lucía Álvarez
+
+     Coordinación editorial: Juan Abadi
+
+     Revisión institucional: Marcelo Mangini
+
+     Diseño: Micaela Nanni
+
+
+
+
+        Encuesta nacional sobre adopción de IA en pequeñas y medianas empresas
+        de la Argentina : CEPE y Fundar :
+          nadIA es un proyecto de CEPE -UTDT- y Fundar, realizado por la Fundación
+        Observatorio PyME, con el apoyo del Banco Interamericano de Desarrollo /
+        Alejandro Avenburg ... [et al.]. - 1a ed. - Ciudad Autónoma de Buenos Aires :
+        Fundar , 2026.
+          Libro digital, PDF
+
+         Archivo Digital: descarga y online
+         ISBN 978-631-6610-61-4
+
+         1. Inteligencia Artificial. 2. Revolución Tecnológica. 3. Economía de la
+        Empresa. I. Avenburg, Alejandro
+         CDD 006.3
+44   nadIA
+

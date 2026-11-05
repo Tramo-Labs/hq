@@ -1,0 +1,459 @@
+Manual del Usuario
+del WSASS
+
+
+
+
+Publicación 19.10.1
+
+
+soporte-ws-testing@arca.gob.ar
+Índice general
+
+
+1. INTRODUCCIÓN
+
+2. FUNCIONALIDADES DISPONIBLES
+
+3. CONCEPTOS BÁSICOS
+
+3.1. Autoservicio de certificados...........................................................................................5
+
+3.2. Gestión de acceso a servicios..........................................................................................5
+
+3.3. Delegación de representación........................................................................................6
+
+4. CÓMO GENERAR UNA SOLICITUD DE CERTIFICADO(CSR) 7
+
+4.1. Generación de laclave privada.........................................................................................7
+4.2. Generación del CSR.......................................................................................................7
+
+5. CÓMO CREAR UN CERTIFICADONUEVO 9
+
+5.1. Cómo crear un archivo PFX con clave privada.............................................................10
+
+6. CÓMO CREAR UNA AUTORIZACION DE ACCESO 11
+
+7. CÓMO AGREGAR UN CERTIFICADO A UN ALIAS 13
+
+8. CÓMO VER LOS SERVICIOS DISPONIBLES 15
+
+9. CÓMO VER LOS CERTIFICADOS GENERADOS 17
+
+10. CÓMO VER LAS AUTORIZACIONES REALIZADAS 19
+
+11. CÓMO ELIMINAR UNA AUTORIZACION 21
+
+12. FAQ (PREGUNTAS/RESPUESTAS FRECUENTES) 23
+
+12.1. ¿Cómo hago para adherirme al servicio WSASS?.............................................................23
+2.2. Cuando trato de adherirme veo el error “El servicio no es delegable”.............................23
+12.3. ¿Cómo hago para generar un certificado para la CUIT de una empresa?..........................23
+12.4. Al crear un certificado en el WSASS veo el error “Error creando certificado”..................23
+12.5. Quiero eliminar un certificado que creé, ¿cómo hago eso?...............................................24
+Introducción
+
+Para los desarrolladores que deseen implementar aplicaciones que consuman de los
+webservices de ARCA, se dispone de la herramienta WSASS (Autogestión de certificados para
+Servicios Web en los ambientes de homologación). WSASS es una aplicación online que
+permite al usuario gestionar sus certificados digitales para el Entorno de Testing
+exclusivamente.
+
+Para usar el WSASS el usuario debe adherirse al servicio, ingresando con su clave fiscal al
+portal de ARCA. El servicio WSASS no es delegable, esto significa que para adherirse al servicio
+WSASS el usuario debe acceder con su clave fiscal de persona física (no de persona jurídica o
+empresa).
+
+Los pasos para adherirse al servicio WSASS se explican en el manual “WSASS: Cómo adherirse
+al servicio” publicado enhttp://www.arca.gob.ar/ws/WSASS/WSASS_como_adherirse.pdf
+
+
+
+Por comentarios o preguntas acerca de este manual, por favor contactar asoporte-ws-
+testing@arca.gob.ar
+FUNCIONALIDADES DISPONIBLES
+
+
+
+
+Las funcionalidades disponibles en el menú del WSASS son:
+
+Introducción: Muestra una guía rápida de tareas que se pueden hacer en el WSASS.
+
+Servicios: Muestra el catálogo de servicios disponibles.
+
+Certificados: Muestra la lista de certificados que ha creado el usuario.
+
+Nuevo Certificado: Formulario para crear un certificado nuevo.
+
+Autorizaciones: Muestra la lista de autorizaciones creadas por el usuario.
+
+Crear autorización a servicio: Formulario para crear una autorización para que un certificado
+pue- da utilizar un servicio representando a un contribuyente.
+
+Eliminar autorización a servicio: Formulario para eliminar una autorización de acceso a servicio
+por parte de un certificado.
+
+Agregar certificado a alias: Formulario para solicitar la creación de un certificado adicional
+asociado.
+
+
+FINALIZAR SESIÓN
+
+Para finalizar la sesión pulsar el botón “Cerrar sesión” que está en la parte superior derecha.
+Para iniciar una nueva sesión hay que reingresar la clave fiscal en el portal de ARCA.
+CONCEPTOS BÁSICOS
+
+
+Usando el WSASS los programadores de aplicaciones pueden solicitar acceso a los diversos
+webservices (denominados “servicios”) que están disponibles en el ambiente de
+testing/homologación de ARCA. Básicamente, el WSASS genera certificados digitales para
+testing. Dichos certificados digitales no son de aplicación para el ambiente de producción.
+
+Para poder acceder a un servicio en ambiente de testing, la aplicación a programar debe
+utilizar el certificado generado en el WSASS. Entre otras cosas, el certificado contiene un
+Distinguished Name (DN) que incluye una CUIT. Cada DN será identificado por un “alias” o
+“nombre simbólico”, que actúa como una abreviación.
+
+3.1 Autoservicio de certificados
+Para obtener el certificado, distinguimos dos casos según si el DN ya fue dado de alta (DN
+existente) o si aún no existe. Para eso utilizar uno de los formularios siguientes:
+
+       Formulario para obtener el certificado por primera vez (menú: Nuevo Certificado).
+
+       Formulario para obtener otro certificado adicional para un DN existente (menú:
+        Agregar Certifi- cado a Alias).
+
+       Ver los certificados emitidos para una CUIT (menú: Certificados).
+
+3.2 Gestión de accesos a servicios
+Una vez generado el DN y obtenido el certificado, se puede gestionar la autorización de acceso
+a los servicios de AFIP, utilizando los siguientes formularios:
+
+       Formulario de solicitud de autorización de acceso a servicio (menú: Crear Autorización
+        a Servicio).
+
+       Formulario para eliminar una autorización de acceso a servicio (menú: Eliminar
+        Autorización a Servicio).
+
+       Ver el catálogo de servicios disponibles (menú: Servicios).
+3.3 Delegación de representación
+Una vez obtenido el certificado, se puede delegar la representación mediante la opción del
+menú Crear Autorización a Servicio, donde en el campo “CUIT representado” se debe colocar
+la CUIT a representar y además se debe seleccionar el servicio deseado.
+CÓMO GENERAR UNA SOLICITUD DE CERTIFICADO (CSR)
+Para obtener el certificado por primera vez, hay que dar de alta al DN. Para esto hay que
+presentar una “solicitud de certificado” o “Certificate Signing Request” (CSR). El CSR se genera
+en su computadora, usando la herramienta OpenSSL (disponible para Windows, UNIX/Linux y
+MacOSX). Los pasos son:
+
+4.1Generación de la clave privada
+La clave privada de 2048 bits se genera con OpenSSL.
+
+ openssl genrsa -out MiClavePrivada.key 2048
+
+
+
+IMPORTANTE
+
+Conserve el archivo de su clave privada en un lugar seguro. La clave privada va ser
+necesaria, junto con el certificado creado a partir de ella, para firmar los mensajes.
+
+
+
+
+4.2Generación del CSR
+El CSR se genera a partir de la clave privada, usando OpenSSL.
+
+
+  openssl req -new -key MiClavePrivada.key -subj
+  "/C=AR/O=Empresa/CN=Sistema/serialNumber=CUIT nnnnnnnnnnn" -out
+  MiPedidoCSR.csr
+
+
+
+
+donde hay que reemplazar:
+
+       MiClavePrivada.key por nombre del archivo elegido en el primer paso.
+
+       Empresa por el nombre de su empresa Sistema por el nombre de su sistema cliente
+
+       nnnnnnnnnnn por la CUIT (sólo los 11 dígitos, sin guiones) de la empresa o del
+        programador (persona jurídica)
+
+       MiPedidoCSR.csr por el nombre del archivo CSR que se va a crear
+IMPORTANTE Observar que en el serialNumber se escribe “CUIT” seguido de un espacio en blanco y a
+continuación los 11 dígitos de la CUIT sin separadores.
+
+
+
+
+      Por ejemplo, para una empresa llamada “MiEmpresa”, un sistema llamado “TestSystem”, la
+      CUIT 20123456789, con un archivo de clave privada llamado TestSystem.key, así se crearía el
+      CSR:
+
+
+      openssl req -new -key TestSystem.key
+
+      -subj "/C=AR/O=MiEmpresa/CN=TestSystem/serialNumber=CUIT 20123456789"
+
+      -out TestSystem.csr
+
+
+
+      Si no hay errores, el archivo TestSystem.csr será utilizado al momento de obtener el DN y el
+      certificado. El aspecto de un archivo CSR es similar a lo siguiente:
+
+
+-----BEGIN CERTIFICATE REQUEST-----
+
+MIIClTCCAX0CAQAwUDELMAkGA1UEBhMCQVIxEjAQBgNVBAoTCVNPUE9SVEVXUzE
+
+S
+
+MBAGA1UEAxMJU09QT1JURVdTMRkwFwYDVQQFExBDVUlUIDIwMTkwMTc4MTU0MII
+
+B
+
+IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyu7TZTjKEdXEZPR4wIhFOw1
+
+S
+
+...
+
+QMNYAgJ/J2Zyy2JzxtsHzZDN1oM1SJbG9KyA5Rp02QZMMMsMWIIYKQLsoM5QAPQ
+    CÓMO CREAR UN CERTIFICADO NUEVO
+
+
+
+
+MENU
+
+Opción: “Nuevo Certificado” para acceder al formulario para crear un DN y el certificado inicial- mente
+asociado al mismo.
+
+
+
+    Los campos a ingresar en el formulario son:
+
+    1. Nombre simbólico del DN. Es el alias o nombre simbólico del DN a crear. Este será el
+    identificador por lo que debe ingresar un alias que no exista.
+
+    2.CUIT del contribuyente. Es la CUIT del contribuyente (persona física). Debe ser la mismo CUIT
+    que se incluyó en la solicitud del certificado CSR (en el campo serialNumber del CSR). Este
+    campo tiene automáticamente la CUIT del usuario conectado al WSASS y no puede editarse.
+
+    3. Solicitud de certificado en formato PKCS10. Es la solicitud de certificado (Certificate Signing
+    Request, CSR) en formato PKCS10. El CSR debe contener en el SerialNumber el valor “CUIT
+    nnnnn”, donde nnnnn es el número de CUIT del usuario conectado al WSASS.
+         Luego presionar “Crear DN y Obtener Certificado”. Si no hay errores, el sistema devuelve un
+         certificado x509 en formato PEM. El aspecto del certificado es similar a lo siguiente:
+
+
+-----BEGIN CERTIFICATE-----
+MIIDSzCCAjOgAwIBAgIIS7JIkcfpQhswDQYJKoZIhvcNAQENBQAwMzEVMBMGA1UEAwwMQ29tcHV
+0 YWRvcmVzMQ0wCwYDVQQKDARBRklQMQswCQYDVQQGEwJBUjAeFw0xNjA5MzAxMTUzMjhaFw0xODA
+5 MzAxMTUzMjhaMDYxGTAXBgNVBAMMEENlcnRfZ2xhcnJpZXJhXzExGTAXBgNVBAUTEENVSVQgMjA x
+OTAxNzgxNTQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDK7tNlOMoR1cRk9HjAiEU
+7
+...
+z2JEQXFPkcxcG6DE9v4Q/8WSaiPRxbzjOkC5+cEuEtqxlwGsCDeFjSRco05XFWmzXg8jLrJIEk8
+
+
+
+         Luego hay que copiarlo y pegarlo en un editor de texto plano, para grabarlo en su disco duro
+         local (por ejemplo, en un archivo MiCertificado.pem).
+
+NOTA
+
+El DN del certificado creado tiene el formato “SERIALNUMBER=CUIT nnnnnnnnnnn, CN=xxxxx”, donde
+‘nnnnnnnnnnn’ es el número de la CUIT y ‘xxxxx’ es el alias que se indi- có. Este formato es por diseño y
+no puede modificarse
+
+
+NOTA
+
+El usuario puede crear todos los certificados que crea necesario. Los certificados creados no pueden ser
+eliminados, ni aún después de su fecha de expiración.
+
+
+
+
+         5.1Cómo crear un archivo PFX con clave privada
+
+         El formato PFX o PKCS#12 es un formato binario para almacenar el certificado, los certificados
+         inter- medios y la clave privada, todo en un único archivo encriptado. Los archivos PFX
+         usualmente tienen la extensión .pfx o .p12 y son típicamente usados en Windows para
+         importar o exportar certificados y claves privadas. Si usted necesita crear un archivo PFX puede
+         usar OpenSSL, por ejemplo:
+
+      openssl pkcs12 -export -inkey MiClavePrivada.key -in MiCertificado.pem -out
+      MiCertificado.pfx
+
+         donde MiClavePrivada.key es la clave privada usada cuando se generó el CSR,
+         MiCertificado.pem es el certificado en formato PEM obtenido usando el WSASS y
+         MiCertificado.pfx será el nuevo archivo PFX (conteniendo al certificado y la clave privada).
+   CÓMO CREAR UNA AUTORIZACION DE ACCESO
+
+
+
+
+MENU
+Opción: “Crear Autorización a Servicio” para acceder al formulario para crear una autorización
+para que un DN pueda utilizar un servicio representando a un contribuyente.
+
+
+   Los campos a ingresar en el formulario son:
+       1. Nombre simbólico del DN a autorizar. Es el alias o nombre simbólico del DN a autorizar
+          acceso al servicio. Debe haberse creado previamente. Elegir el alias de la lista
+          desplegable.
+       2. CUIT del DN a autorizar. Es la CUIT del DN existente, que va a ser autorizado a usar el
+          servicio en representación de un contribuyente. Este campo no puede modificarse.
+       3. CUIT representado. Es la CUIT representada por el DN. Ingresar la CUIT de una persona
+          física o jurídica (empresa).
+       4. CUIT de quien genera la autorización. Es la CUIT de quien genera esta autorización
+          (CUIT autorizante). Este campo tiene automáticamente la CUIT del usuario conectado
+          al WSASS y no puede editarse. 5. Servicio al que desea acceder. Es el nombre del
+          servicio al que el DN será autorizado a acceder, que se elige de la lista de servicios
+          desplegable.
+       Luego presionar el botón “Crear Autorización de Acceso”.
+            CÓMO AGREGAR UN CERTIFICADO A UN ALIAS
+
+
+
+
+MENU
+Opción: “Agregar Certificado a Alias” para acceder al formulario para solicitar la creación de un
+certificado adicional asociado a un DN existente.
+
+
+
+       Los campos a ingresar en el formulario son:
+       1. Nombre simbólico del DN. Es el alias o nombre simbólico del DN. Debe haberse creado
+       previa- mente. Elegir el alias de la lista desplegable.
+       2.CUIT del DN. Es la CUIT del DN seleccionado en el Campo 1.
+       3. Nueva solicitud de certificado en formato PKCS10. Es la solicitud de certificado (Certificate
+       Signing Request, CSR) en formato PKCS10. Se ignora el campo DN del CSR. Copiar y pegar en
+       este campo el contenido del CSR generado oportunamente en su computadora local.
+       Luego presionar “Crear Certificado Adicional para el DN”. Si no hay errores, el sistema
+       devuelve un certificado x509 en formato PEM. Luego hay que copiarlo y pegarlo en un editor
+       de texto plano, para grabarlo en su disco duro local.
+         CÓMO VER LOS SERVICIOS DISPONIBLES
+
+
+
+
+MENU
+Opción: “Servicios” para ver el catálogo de servicios disponibles.
+
+
+
+
+         De cada servicio se muestra:
+         1.Id. Es el identificador interno del servicio.
+         2.Descripción. Una descripción del servicio.
+         3.Url. La dirección del servicio.
+
+         Pulsar en el enlace “Ver” para mostrar los detalles de un servicio en particular
+    CÓMO VER LOS CERTIFICADOS GENERADOS
+
+
+
+
+MENU
+Opción: “Certificados” para ver todos los certificados generados
+
+
+
+
+    De cada certificado se muestra:
+    1.CUIT. Es la CUIT del usuario que generó el certificado.
+    2. Alias. Es el alias o nombre simbólico del DN, identifica al certificado.
+    3.DN. Es el DN del certificado.
+    Pulsar en el enlace “Ver” para mostrar los detalles de un certificado en particular.
+    CÓMO VER LAS AUTORIZACIONES REALIZADAS
+
+
+
+
+MENU
+Opción: Autorizaciones” para ver las autorizaciones realizadas.
+
+
+
+
+    De cada autorización se muestra:
+    1.Dador. Es la CUIT de quien realizó la autorización.
+    2.Alias. Es el alias del certificado autorizado.
+    3.Representado. Es la CUIT que puede acceder al servicio.
+    4.Servicio. Es el identificador del servicio autorizado.
+
+    Pulsar en el enlace “Eliminar” para mostrar los detalles de una autorización en particular,
+    con opción a eliminarla. La eliminación de una autorización no elimina al certificado
+    vinculado a la misma.
+ CÓMO ELIMINAR UNA AUTORIZACIÓN
+
+
+
+
+MENU
+Opción: “Eliminar autorización a servicio” para acceder al formulario que permite eliminar una
+autorización.
+
+
+
+
+ Los campos a ingresar en el formulario son:
+
+ 1. Nombre simbólico del DN autorizado. Es el alias o nombre simbólico del DN. Debe
+ haberse creado previamente. Elegir el alias de la lista desplegable. Al seleccionar el alias,
+ automáticamente se cargan los datos de los demás campos del formulario.
+ 2.CUIT del DN. Es la CUIT del DN al que se le eliminará la autorización de acceso al servicio.
+ Este campo no puede modificarse.
+ 3.CUIT representada. Es la CUIT representada por el DN. Este campo no debe modificarse.
+ 4.CUIT de quien elimina la autorización. Es la CUIT de quien elimina esta autorización del
+ DN para acceder al servicio (CUIT eliminante). Este campo no puede modificarse.
+ 5.Nombre del servicio. Es el nombre del servicio al que accede el DN.
+
+ Pulsar en el enlace “Eliminar autorización” para eliminar la autorización. La eliminación de
+ una autorización no elimina al certificado vinculado a la misma.
+FAQ (PREGUNTAS/RESPUESTAS FRECUENTES)
+
+
+
+12.1 ¿Cómo hago para adherirme al servicio WSASS?
+Para adherirse al WSASS siga los pasos del manual “WSASS: Cómo adherirse al servicio”,
+publicado enhttp://www.arca.gob.ar/ws/WSASS/WSASS_como_adherirse.pdf
+
+
+12.2 Cuando trato de adherirme veo el error “El servicio no
+es delegable”
+
+El servicio WSASS no es delegable. Esto significa que para adherirse al servicio WSASS el
+usuario debe acceder al portal de ARCA, CON SU CLAVE FISCAL DE PERSONA FISICA (no la
+CUIT de una empresa o persona jurídica).
+
+
+12.3 ¿Cómo hago para generar un certificado para la CUIT de
+una empresa?
+Los certificados generados por WSASS siempre se emiten para la CUIT de una persona
+física. Para crear una autorización para una CUIT REPRESENTADA (por ejemplo, la de una
+empresa) hay que crear una autorización para el certificado, indicando como CUIT
+REPRESENTADA la de la empresa.
+
+
+12.4 Al crear un certificado en el WSASS veo el error “Error
+creando certificado”
+El error del WSASS “Error creando certificado” puede deberse a varios motivos. El más
+frecuente es que en el Campo 3 del formulario de creación de certificado nuevo haya
+pegado un texto que no corresponde a un CSR.
+
+Otro error muy frecuente es que el alias elegido para el nuevo certificado sea el alias de un
+certificado ya existente. En este caso usted debería usar un alias nuevo.
+12.5 Quiero eliminar un certificado que creé, ¿cómo hago
+eso?
+La versión actual de WSASS no permite eliminar los certificados creados. Solamente se
+permite eliminar las autorizaciones de los certificados. De todas formas, los mismos
+pueden permanecer en la base de datos sin inconvenientes, aun cuando hayan expirado.
+

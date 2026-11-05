@@ -1,0 +1,93 @@
+                        Web Services SOAP - Documentación
+¿Cómo obtener el Certificado Digital para entorno de producción?
+
+El siguiente documento tiene como objetivo mostrar los distintos pasos para la obtención de un
+certificado digital válido solamente para el entorno de producción.
+
+Se presupone que ya se posee clave fiscal de nivel acorde a los servicios que se utilizan (3), tramitada
+en una dependencia de ARCA.
+
+
+
+PASO 1
+
+Ingresar al portal de ARCA (www.arca.gob.ar) y presionar el botón “Iniciar sesión”.
+
+
+
+
+Se abre una nueva ventana con la página de acceso. Ingresar su “CUIT / CUIL / CDI” y “clave” y cliquear
+en “INGRESAR”:
+PASO 2
+
+
+
+Luego, en la siguiente lista de servicios, seleccionar:
+
+
+
+a) Si está habilitado, el servicio “Administración de Certificados Digitales”.
+
+b) Si el servicio “Administración de Certificados Digitales” no está habilitado, el servicio “Administrador
+de Relaciones de Clave Fiscal” (para poder habilitarlo).
+
+
+
+
+Si la opción es b), para poder habilitar el servicio “Administración de Certificados Digitales”, debe
+realizar lo siguiente:
+
+
+
+i.       Cliquear en “Nueva Relación”:
+ii.    Cliquear en “BUSCAR” para seleccionar el servicio:
+
+
+
+
+iii.   Seleccionar el servicio “Administración de Certificados Digitales”:
+
+
+
+
+iv.    iv. Cliquear en “BUSCAR” para seleccionar el Representante:
+v.     Ingresar CUIT/CUIL/CDI del Representante y cliquear en “BUSCAR”, luego, presionar el botón
+        “Confirmar”
+
+
+
+
+vi.    Salir del sistema y volver a ingresar para poder visualizar y seleccionar el servicio
+        “Administración de Certificados Digitales” en la lista de servicios. vii. En caso de no visualizar
+        el servicio en la lista, debe aceptar la relación utilizando el servicio “Aceptación de
+        Designación”.
+
+
+
+PASO 3
+
+Seleccionar el contribuyente para el que va a operar el servicio (si representa a más de un
+contribuyente):
+
+
+
+
+PASO 4
+
+Cliquear en “Agregar alias”:
+PASO 5
+
+Elegir un nombre para el alias y subir un CSR. En el link http://wswhomo.arca.gov.ar/fiscaldocs/
+WSAA/cert-req-howto.txt puede encontrar la información necesaria para generar el CSR. Luego
+cliquear en “Agregar alias”:
+
+
+
+
+PASO 6
+
+
+
+Cliquear en “Ver” (link ubicado a la derecha del alias generado) para poder visualizar y descargar a su
+PC el certificado.
+

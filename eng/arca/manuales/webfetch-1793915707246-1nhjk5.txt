@@ -1,0 +1,217 @@
+How to Set Up Bank Rules in
+QuickBooks Online
+Learn how to set up bank rules in QuickBooks Online to speed up the way
+you categorize bank and credit card transactions. Bank rules can pre-
+categorize transactions for your review, or automatically add them to your
+books, saving you time on routine bookkeeping tasks.
+
+Why use bank rules
+Bank rules in QuickBooks Online help speed up categorizing transactions.
+They can pre-categorize transactions for your review or automatically add
+them to your books, reducing the manual work involved in reviewing each
+transaction individually.
+
+
+
+
+Screen displaying "How to use bank rules" with benefits listed: "Speed up categorizing
+transactions" and "Pre-categorize transactions to review or automatically add them to
+                                    your books"
+
+Prerequisites
+      Access to your QuickBooks Online company with bank or credit card
+       accounts connected.
+      Permission to access the Accounting menu and create rules.
+
+
+
+Generated with docsie.io
+                                                                                  1/9
+Step 1: Navigate to the bank rules section
+Select All Apps from the left navigation menu, then go to Accounting.
+Hover over Accounting and select Rules from the dropdown menu to open
+the Rules Center.
+
+
+
+
+QuickBooks dashboard with the cursor selecting "Rules" under "Accounting" in the All
+                                   Apps menu
+
+Step 2: Create a new bank rule
+Click New Rule to begin creating a rule. Enter a name for your rule in the
+"What do you want to call this rule?" field — for example, Tractor rental.
+
+Step 3: Set the rule criteria
+Choose whether the rule applies to Money in or Money out transactions,
+then select which bank and credit card accounts it should apply to (for
+example, "All bank accounts").
+
+Add conditions to define when the rule applies:
+
+      Filter by Description or Bank text (the details sent by your bank).
+      Specify whether the text Contains or Does not contain certain words
+       — for example, "Tractor rental".
+      Click + Add a condition to add more conditions if needed.
+
+
+
+Generated with docsie.io
+                                                                                2/9
+      You can also base the rule on the transaction Amount.
+
+
+
+
+ Rules screen showing a new rule being created: "Tractor rental," Money out, All bank
+                accounts, with Description containing "Tractor rental"
+
+
+
+
+Generated with docsie.io
+                                                                                 3/9
+Step 4: Test the rule
+Click Test rule to check whether it applies to any currently unreviewed
+transactions. Review the feedback message, such as "This rule will apply to
+1 currently pending transaction." If the rule doesn't behave as expected,
+adjust the conditions and test again.
+
+
+
+
+Rules screen displaying the "Test rule" button with feedback showing the rule will apply
+                               to 1 pending transaction
+
+Step 5: Assign transaction details
+Decide what QuickBooks should do with transactions that meet your rule
+criteria:
+
+      Select the Transaction type (for example, Expense).
+      Enter the Category you want QuickBooks to apply (for example, Rent,
+       Office Rent, Machine Rent, or Equipment Rental).
+      Optionally, select a Product/service.
+      Click + Add a split if you want to divide the transaction between
+       multiple categories by percentage or amount.
+
+
+
+
+Generated with docsie.io
+                                                                                   4/9
+      Optionally, assign a Payee and Customer.
+
+
+
+
+ Rules screen with the category dropdown open, showing options such as Rent, Office
+                      Rent, Machine Rent, and Equipment Rental
+
+Step 6: Add payee and customer information
+Assigning a Payee to your rule improves record accuracy and makes
+reconciliation easier. If your company settings allow it, you can also assign
+a Customer or Project.
+
+
+
+
+Generated with docsie.io
+                                                                               5/9
+Type in the Payee field and select from the dropdown, or add a new payee
+if one doesn't already exist. Adding this information ensures your records
+are complete and supports better reporting and reconciliation.
+
+
+
+
+Rules screen with the Payee field being filled in, showing a dropdown of vendor options
+                   and the cursor selecting "Ellis Equipment Rental"
+
+Step 7: Enable Auto-add for your rule (optional)
+Locate the Automatically confirm transactions this rule applies to section.
+Toggle Auto-add to ON if you want QuickBooks to automatically add
+matching transactions to your books without review.
+
+
+
+
+Generated with docsie.io
+                                                                                  6/9
+Warning: Use Auto-add with caution. Once enabled, you will not have a
+chance to review transactions before they are posted.
+
+
+
+
+ Rules screen with the Auto-add toggle enabled, cursor pointing to it, and rule details
+                             shown for "Tractor rental"
+
+Step 8: Save the rule
+After entering all required information and confirming the rule works as
+intended, click Save to activate it.
+
+Following these steps lets you automate and streamline how you categorize
+bank and credit card transactions in QuickBooks Online.
+
+Managing existing bank rules
+Edit, copy, disable, or delete a rule
+      Click Edit in the Actions column to make changes to an existing rule.
+      Select Disable from the Actions dropdown to temporarily stop a rule
+       from applying.
+      Select Delete from the Actions dropdown to permanently remove a
+       rule.
+
+
+
+
+Generated with docsie.io
+                                                                                    7/9
+      Use Copy to quickly create a similar rule based on an existing one.
+
+
+
+
+  Rules list showing the Edit dropdown with options to Copy, Disable, or Delete a rule
+
+Change rule priority
+QuickBooks applies rules in the order they appear in the Rules Center. To
+change a rule's priority, click and drag the grid icon next to the rule and
+move it up or down the list.
+
+
+
+
+        Rules list with the cursor dragging the grid icon to change rule priority
+Generated with docsie.io
+                                                                                    8/9
+Export or import rules
+You can export rules to use in a different QuickBooks company, or import
+rules from another company if needed.
+
+Review transactions processed by rules
+Go back to Bank Transactions from the left navigation menu. Whenever
+QuickBooks downloads a transaction, you can see whether a rule was
+applied to it.
+
+Select the Posted tab to view transactions that have been confirmed by you
+or automatically by QuickBooks. Transactions confirmed automatically by a
+rule display an AUTO label in the Transaction Posted column.
+
+
+
+
+  Bank transactions screen on the Posted tab, showing a "Tractor Rental" transaction
+             with an "AUTO" label indicating it was auto-posted by a rule
+
+Summary
+By following these steps, you can efficiently manage, automate, and review
+your bank and credit card transactions in QuickBooks Online using bank
+rules. This ensures accurate records, streamlined reconciliation, and
+greater control over your financial data.
+
+
+
+
+Generated with docsie.io
+                                                                                 9/9
+

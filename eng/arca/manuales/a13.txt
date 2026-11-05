@@ -1,0 +1,847 @@
+                                                Manual
+
+
+                                                Consulta a Padrón
+                                                Alcance 13
+
+                                                ws_sr_padron_a13
+
+                                                Versión 1.4
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                       Pág. 1 de 25
+                                          Historial de modificaciones
+
+    Ver           Fecha              Edición                               Descripción
+     1.0        28/11/18             DINTR      Versión inicial del documento
+     1.1        06/12/18             DINTR      Se agrega campo formaJuridica
+     1.2        05/02/19             DINTR      Se modificó descripción del WS
+     1.3       18/06/2025            DINTR      Se incorpora listado de mensajes
+     1.4       14/08/2026            DINTR      Se agrega método getPersonaV2
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                            Pág. 2 de 25
+ Contenido
+
+ Indice
+ MANUAL CONSULTA A PADRÓN – ALCANCE 13 – V.1.4......................................................................................... 1
+ PÁG. 25 DE 25................................................................................................................................................... 1
+ 1 INTRODUCCIÓN........................................................................................................................................... 4
+ 1.1 ALCANCE...................................................................................................................................................... 4
+ 1.2 DEFINICIONES, SIGLAS Y ABREVIATURAS........................................................................................................ 4
+ 2 WEB SERVICES........................................................................................................................................... 5
+ 2.1 SITIO DE CONSULTA Y CANAL DE ATENCIÓN￹..................................................................................................... 5
+ 2.2 AUTENTICACIÓN............................................................................................................................................ 5
+ 2.3 URLS:￹.......................................................................................................................................................... 5
+ 2.4 ID DEL SERVICIO￹.......................................................................................................................................... 6
+ 3 MÉTODOS..................................................................................................................................................... 6
+ 3.1 DUMMY (VERIFICACIÓN DEL SERVICIO)￹............................................................................................................ 6
+ 3.1.1 SOLICITUD:...................................................................................................................................................................6
+ 3.1.2 RESPUESTA:..................................................................................................................................................................6
+ 3.1.3 EJEMPLO:.................................................................................................................................................................... 7
+ 3.2 MÉTODO GETPERSONA................................................................................................................................. 8
+ 3.2.1 SOLICITUD....................................................................................................................................................................8
+ 3.2.2 RESPUESTA...................................................................................................................................................................9
+ 3.2.3 EJEMPLO....................................................................................................................................................................10
+ 3.3 MÉTODO GETIDPERSONALISTBYDOCUMENTO.............................................................................................. 12
+ 3.3.1 SOLICITUD..................................................................................................................................................................12
+ 3.3.2 RESPUESTA.................................................................................................................................................................13
+ 3.4 MÉTODO GETPERSONAV2........................................................................................................................... 14
+ 3.4.1 SOLICITUD..................................................................................................................................................................14
+ 3.4.2 RESPUESTA.................................................................................................................................................................14
+ 3.4.3 EJEMPLO....................................................................................................................................................................16
+ 4 DEFINICIONES DE TIPOS DE DATOS...................................................................................................... 19
+ 4.1 TIPOS DE DATOS SIMPLES............................................................................................................................ 19
+ 4.2 TIPOS DE DATOS COMPLEJOS...................................................................................................................... 19
+ 5. ANEXOS..................................................................................................................................................... 23
+ 5.1. VALORES DE TIPODOCUMENTO:.................................................................................................................. 23
+ 5.2. VALORES DE TIPOS DE PARÁMETROS:......................................................................................................... 24
+ 5.3. MENSAJES DE ERRORES:............................................................................................................................ 24
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                                                                                           Pág. 3 de 25
+ 1 Introducción
+
+     Este web service permite consultar datos de personas de personas físicas o jurídicas
+ mediante dos vías de acceso principales:
+
+ - Por Clave: Permite obtener los datos identificatorios de la persona, el estado de su clave y sus
+ domicilios legal y fiscal ingresando la CUIT/CUIL.
+ - Por Documento: Permite recuperar las claves asociadas a un número de documento
+ determinado, lo cual sirve para encadenar posteriormente la consulta de datos de la persona.
+
+
+
+ 1.1 Alcance
+    Este WS se puede utilizar para acceder a los domicilios, fiscal y legal, de un contribuyente,
+ como así también a sus datos de identificación.
+
+
+
+ 1.2 Definiciones, Siglas y Abreviaturas
+
+
+                SUPA                   Sistema único de parámetros
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                        Pág. 4 de 25
+ 2 Web Services
+
+
+ 2.1 Sitio de consulta y canal de atención￹
+ Para consultas acerca de la arquitectura de Web Services, autenticación y autorización dirigirse a
+ http://www.arca.gob.ar/ws/.
+        Si les quedan consultas sobre el LoginCMS, certificados y autenticación pueden contactar-
+ se con Consultas WS: webservices-desa@arca.gob.ar.
+         Las consultas sobre aspectos técnicos del WS deberán ser remitidas a la cuenta
+ sri@arca.gob.ar o reportadas a traves del canal de "Consultas Web"
+ (https://servicioscf.arca.gob.ar/publico/crmcit/consulta.aspx). Para su mejor tratamiento, se solicita
+ detallar en el asunto la denominación del WS y ambiente de que se trate (Producción y Homologa-
+ ción), como así también adjuntar xml request y response completos indicando fecha y hora en la
+ que se realiza el llamado e IP desde la que se envió.
+      Para consultar propias del negocio o normativas, contactarse mediante el sitio
+ www.arca.gob.ar/consultas.
+
+
+
+ 2.2 Autenticación
+        Para la utilización de los métodos el webService, a excepción del dummy, se debe enviar
+ en cada solicitud, el token y el sign, información que es obtenida del WSAA (Web Service de Au-
+ tenticación y Autorización), en respuesta a una solicitud de ticket de acceso.
+
+
+
+ 2.3 URLs:￹
+
+Descripción                                 URL
+
+                                            https://awshomo.afip.gov.ar/sr-padron/webservices/
+Conexión al servicio en ambiente
+                                            personaServiceA13
+de Testing
+
+                                            https://awshomo.afip.gov.ar/sr-padron/webservices/
+WSDLdel servicio en ambiente
+                                            personaServiceA13?WSDL
+de Testing
+
+                                            https://aws.afip.gov.ar/sr-padron/webservices/
+Conexión al servicio en ambiente
+                                            personaServiceA13
+de Producción
+
+                                            https://aws.afip.gov.ar/sr-padron/webservices/
+WSDL del servicio en ambiente
+                                            personaServiceA13?WSDL
+de Producción
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                                    Pág. 5 de 25
+ 2.4 ID del Servicio￹
+       El id del servicio es ws_sr_padron_a13. El mismo es el nombre de servicio que se deberá
+ usar al solicitar a WSAA el Ticket de Acceso.
+
+
+
+ 3 Métodos
+
+ 3.1 dummy (Verificación del servicio)￹
+
+
+        Nombre método: dummy
+
+        Descripción: El método dummy verifica el estado y la disponibilidad de los
+        elementos principales del servicio (aplicación y base de datos).
+
+
+ 3.1.1 Solicitud:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a13="http://a13.soap.ws.server.puc.sr/">
+   <soapenv:Header/>
+   <soapenv:Body>
+     <a13:dummy/>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+
+
+ 3.1.2 Respuesta:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+     <ns2:dummyResponse xmlns:ns2="http://a13.soap.ws.server.puc.sr/">
+       <return>
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                        Pág. 6 de 25
+          <appserver>?</appserver>
+          <authserver>?</authserver>
+          <dbserver>?</dbserver>
+       </return>
+     </ns2:dummyResponse>
+   </soap:Body>
+</soap:Envelope>
+
+        Donde dummyResponse es del tipo dummyResponse definido en el WSDL y contiene la
+ etiqueta return del tipo dummyReturn.
+        Los valores de los atributos appserver, authserver y dbserver pueden ser OK o, en caso
+ de falla, ERROR.
+
+
+
+ 3.1.3 Ejemplo:
+         Invocación del método:
+
+
+ <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+ xmlns:a13="http://a13.soap.ws.server.puc.sr/">
+   <soapenv:Header/>
+   <soapenv:Body>
+     <a13:dummy/>
+   </soapenv:Body>
+ </soapenv:Envelope>
+
+
+
+         Respuesta del método:
+
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+     <ns2:dummyResponse xmlns:ns2="http://a13.soap.ws.server.puc.sr/">
+       <return>
+          <appserver>OK</appserver>
+          <authserver>OK</authserver>
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                   Pág. 7 de 25
+          <dbserver>OK</dbserver>
+       </return>
+     </ns2:dummyResponse>
+   </soap:Body>
+</soap:Envelope>
+
+
+
+
+ 3.2 Método getPersona
+         Nombre método: getPersona
+
+        Descripción: Devuelve el detalle de todos los datos, existentes en el padrón único de
+ contribuyentes, del contribuyente solicitado.
+
+
+ 3.2.1 Solicitud
+           Esquema:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a13="http://a13.soap.ws.server.puc.sr/">
+   <soapenv:Header/>
+   <soapenv:Body>
+     <a13:getPersona>
+       <token>?</token>
+       <sign>?</sign>
+       <cuitRepresentada>?</cuitRepresentada>
+       <idPersona>?</idPersona>
+     </a13:getPersona>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+
+
+         Donde a13:getPersona es del tipo getPersona y engloba los parámetros de entrada:
+
+
+ token y sign: Los mismos son devueltos por el web service de autenticación WSAA.
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                     Pág. 8 de 25
+ cuitRepresentada: Debe coincidir con alguna de las CUITS listadas en la sección relations del
+ token enviado. Debe ser en representación de que organismo se solicita la operación.
+
+
+ idPersona: Es la clave de la que se solicitan los datos.
+
+
+ 3.2.2 Respuesta
+           Esquema:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+     <ns2:getPersonaResponse xmlns:ns2="http://a13.soap.ws.server.puc.sr/">
+       <personaReturn>
+          <metadata>
+            <fechaHora>2018-11-28T14:55:19.023-03:00</fechaHora>
+            <servidor>host</servidor>
+          </metadata>
+          <persona>
+          …
+          </persona>
+       </personaReturn>
+     </ns2:getPersonaResponse>
+   </soap:Body>
+</soap:Envelope>
+
+
+
+ Donde getPersonaResponse, personaReturn, metadata y persona son del tipo del mismo
+ nombre, definidos en el WSDL del servicio.
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                    Pág. 9 de 25
+ 3.2.3 Ejemplo
+           Invocación del método:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a13="http://a13.soap.ws.server.puc.sr/">
+   <soapenv:Header/>
+   <soapenv:Body>
+     <a13:getPersona>
+       <token>PDbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/Pgoo=</token>
+       <sign>aoknbFR2TB9cPBLBcPpWpA7BHO2s9tbn8=</sign>
+       <cuitRepresentada>20140453605</cuitRepresentada>
+       <idPersona>27015942210</idPersona>
+     </a13:getPersona>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+
+
+           Respuesta del ejemplo:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+     <ns2:getPersonaResponse xmlns:ns2="http://a13.soap.ws.server.puc.sr/">
+       <personaReturn>
+          <metadata>
+            <fechaHora>2018-11-28T14:55:19.023-03:00</fechaHora>
+            <servidor>127.0.0.1</servidor>
+          </metadata>
+          <persona>
+            <apellido>INTENTAR</apellido>
+       <descripcionActividadPrincipal>SERVICIOS DE ALOJAMIENTO EN HOTELES,
+HOSTERÍAS Y RESIDENCIALES SIMILARES, EXCEPTO POR HORA, QUE NO INCLUYEN
+SERVICIO DE RESTAURANTE AL PÚBLICO</descripcionActividadPrincipal>
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                 Pág. 10 de 25
+            <domicilio>
+               <calle>AV LOS INCAS</calle>
+               <codigoPostal>5881</codigoPostal>
+               <descripcionProvincia>SAN LUIS</descripcionProvincia>
+               <direccion>AV LOS INCAS 4137</direccion>
+               <estadoDomicilio>CONFIRMADO</estadoDomicilio>
+               <idProvincia>11</idProvincia>
+               <localidad>MERLO</localidad>
+               <numero>4137</numero>
+               <tipoDomicilio>FISCAL</tipoDomicilio>
+            </domicilio>
+            <domicilio>
+               <calle>AV LOS INCAS</calle>
+               <codigoPostal>5881</codigoPostal>
+               <descripcionProvincia>SAN LUIS</descripcionProvincia>
+               <direccion>AV LOS INCAS 8732</direccion>
+               <estadoDomicilio>NO DENUNCIADO</estadoDomicilio>
+               <idProvincia>11</idProvincia>
+               <localidad>MERLO</localidad>
+               <numero>8732</numero>
+               <tipoDomicilio>LEGAL/REAL</tipoDomicilio>
+            </domicilio>
+            <estadoClave>ACTIVO</estadoClave>
+            <fechaNacimiento>1936-02-11T12:00:00-03:00</fechaNacimiento>
+            <idActividadPrincipal>551023</idActividadPrincipal>
+            <idPersona>27015942210</idPersona>
+            <mesCierre>12</mesCierre>
+            <nombre>JAZMIN</nombre>
+            <numeroDocumento>1594221</numeroDocumento>
+            <periodoActividadPrincipal>201311</periodoActividadPrincipal>
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                               Pág. 11 de 25
+            <tipoClave>CUIT</tipoClave>
+            <tipoDocumento>LC</tipoDocumento>
+            <tipoPersona>FISICA</tipoPersona>
+          </persona>
+       </personaReturn>
+     </ns2:getPersonaResponse>
+   </soap:Body>
+</soap:Envelope>
+
+
+
+
+ 3.3 Método getIdPersonaListByDocumento
+         Nombre método: getIdPersonaListByDocumento
+
+         Descripción: Devuelve la lista de claves asociadas al número de documento.
+
+
+ 3.3.1 Solicitud
+           Esquema:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:a13="htt
+p://a13.soap.ws.server.puc.sr/">
+<soapenv:Header/>
+<soapenv:Body>
+<a13:getIdPersonaListByDocumento>
+<token>${tokensign#token}</token>
+<sign>${tokensign#sign}</sign>
+<cuitRepresentada>${parametros#cuit_representada}</cuitRepresentada>
+<documento>11709676</documento>
+</a13:getIdPersonaListByDocumento>
+</soapenv:Body>
+</soapenv:Envelope>
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                   Pág. 12 de 25
+       Donde a13:getIdPersonaListByDocumento es del tipo getIdPersonaListByDocumento
+ y engloba los parámetros de entrada:
+
+
+ token y sign: Los mismos son devueltos por el web service de autenticación WSAA.
+
+
+ cuitRepresentada: Debe coincidir con alguna de las CUITS listadas en la sección relations del
+ token enviado. Debe ser en representación de que organismo se solicita la operación.
+
+
+ documento: Es el documento de la clave que se solicitan los datos.
+
+
+ 3.3.2 Respuesta
+           Esquema:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+<soap:Body>
+<ns2:getIdPersonaListByDocumentoResponse xmlns:ns2="http://a13.soap.ws.server.puc.sr/">
+<idPersonaListReturn>
+<idPersona>23117096769</idPersona>
+<idPersona>27117096764</idPersona>
+<metadata>
+<fechaHora>2025-07-17T16:22:09.168-03:00</fechaHora>
+<servidor>qa-sr-padron-ws.cloudhomo.afip.gob.ar</servidor>
+</metadata>
+</idPersonaListReturn>
+</ns2:getIdPersonaListByDocumentoResponse>
+</soap:Body>
+</soap:Envelope>
+
+
+
+ Donde getIdPersonaListByDocumentoResponse, idpersonaListReturn, metadata y
+ idPersona son del tipo del mismo nombre, definidos en el WSDL del servicio.
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                    Pág. 13 de 25
+ 3.4 Método getPersonaV2
+         Nombre método: getPersonaV2
+
+         Descripción: Devuelve datos de la persona. La versión getPersonaV2 extiende la
+ funcionalidad de la versión base, permitiendo consultar la información aún cuando la clave se
+ encuentre en estado INACTIVA.
+
+
+ 3.4.1 Solicitud
+           Esquema:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a13="http://a13.soap.ws.server.puc.sr/">
+   <soapenv:Header/>
+   <soapenv:Body>
+     <a13:getPersonaV2>
+       <token>?</token>
+       <sign>?</sign>
+       <cuitRepresentada>?</cuitRepresentada>
+       <idPersona>?</idPersona>
+     </a13:getPersonaV2>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+
+
+         Donde a13:getPersonaV2 es del tipo getPersonaV2 y engloba los parámetros de entrada:
+
+
+ token y sign: Los mismos son devueltos por el web service de autenticación WSAA.
+
+
+ cuitRepresentada: Debe coincidir con alguna de las CUITS listadas en la sección relations del
+ token enviado. Debe ser en representación de que organismo se solicita la operación.
+
+
+ idPersona: Es la clave de la que se solicitan los datos.
+
+
+ 3.4.2 Respuesta
+           Esquema:
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                      Pág. 14 de 25
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+     <ns2:getPersonaV2Response xmlns:ns2="http://a13.soap.ws.server.puc.sr/">
+       <personaReturn>
+          <metadata>
+            <fechaHora>2026-08-14T11:52:48.525-03:00</fechaHora>
+            <servidor>host</servidor>
+          </metadata>
+          <persona>
+           ...
+          </persona>
+       </personaReturn>
+     </ns2:getPersonaV2Response>
+   </soap:Body>
+</soap:Envelope>
+
+
+
+ Donde getPersonaV2Response, personaReturn, metadata y persona son del tipo del mismo
+ nombre, definidos en el WSDL del servicio.
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                   Pág. 15 de 25
+ 3.4.3 Ejemplo
+           Invocación del método:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a13="http://a13.soap.ws.server.puc.sr/">
+   <soapenv:Header/>
+   <soapenv:Body>
+     <a13:getPersonaV2>
+           <token>PDbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9InllcyI/Pgoo=</token>
+       <sign>aoknbFR2TB9cPBLBcPpWpA7BHO2s9tbn8=</sign>
+       <cuitRepresentada>20140453605</cuitRepresentada>
+       <idPersona>27015942210</idPersona>
+     </a13:getPersonaV2>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+
+
+           Respuesta del ejemplo:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+     <ns2:getPersonaV2Response xmlns:ns2="http://a13.soap.ws.server.puc.sr/">
+       <personaReturn>
+          <metadata>
+            <fechaHora>2026-08-14T11:52:48.525-03:00</fechaHora>
+            <servidor>127.0.0.1</servidor>
+          </metadata>
+          <persona>
+            <apellido>GEOFFREY WILLIAM</apellido>
+       <descripcionActividadPrincipal>FABRICACIÓN DE PARTES, PIEZAS Y ACCESORIOS
+PARA VEHÍCULOS AUTOMOTORES Y SUS MOTORES N.C.P.</descripcionActividadPrincipal>
+            <domicilio>
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                   Pág. 16 de 25
+               <calle>SAN RAMON</calle>
+               <codigoPostal>4600</codigoPostal>
+               <descripcionProvincia>JUJUY</descripcionProvincia>
+               <direccion>SAN RAMON 415</direccion>
+               <estadoDomicilio>DECLARADO</estadoDomicilio>
+               <idProvincia>6</idProvincia>
+               <localidad>CHIJRA</localidad>
+               <numero>415</numero>
+               <tipoDomicilio>FISCAL</tipoDomicilio>
+            </domicilio>
+            <domicilio>
+               <calle>SAN RAMON</calle>
+               <codigoPostal>4600</codigoPostal>
+               <descripcionProvincia>JUJUY</descripcionProvincia>
+               <direccion>SAN RAMON 415</direccion>
+               <estadoDomicilio>DECLARADO</estadoDomicilio>
+               <idProvincia>6</idProvincia>
+               <localidad>CHIJRA</localidad>
+               <numero>415</numero>
+               <tipoDomicilio>LEGAL/REAL</tipoDomicilio>
+            </domicilio>
+            <estadoClave>INACTIVO</estadoClave>
+            <fechaNacimiento>1916-01-31T12:43:12-04:16</fechaNacimiento>
+            <formaJuridica>FIDEICOMISO TESTAMENTARIO</formaJuridica>
+            <idActividadPrincipal>293090</idActividadPrincipal>
+            <idPersona>20002444233</idPersona>
+            <mesCierre>12</mesCierre>
+            <nombre>PHILLIP</nombre>
+            <numeroDocumento>265181</numeroDocumento>
+            <periodoActividadPrincipal>201412</periodoActividadPrincipal>
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                               Pág. 17 de 25
+            <tipoClave>CUIT</tipoClave>
+            <tipoDocumento>DNI</tipoDocumento>
+            <tipoPersona>FISICA</tipoPersona>
+          </persona>
+       </personaReturn>
+     </ns2:getPersonaV2Response>
+   </soap:Body>
+</soap:Envelope>
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4    Pág. 18 de 25
+ 4 Definiciones de tipos de datos
+
+ 4.1 Tipos de datos simples
+         Los datos simples tienen una longitud determinada. Según el tipo base se pueden dar los
+         siguientes casos:
+           • Longitud N: El campo tiene longitud fija de N dígitos o caracteres.
+           • Longitud M-N: El campo tiene longitud variable de tamaño M a N, siendo M<N.
+
+
+         Tipo dato                         Base             Longitud                   Notas
+
+CUIT                            long                 11
+
+TipoPersona                     String                                        Valores: FISICA o
+                                                                              JURIDICA
+
+TipoClave                       String                                        Valores: CUIT,CUIL o
+                                                                              CDI
+
+EstadoClave                     String                                        Valores: ACTIVO,
+                                                                              INACTIVO
+
+TipoDocumento                   String                                        Valores: Ver Tabla 5.1
+
+TipoDomicilio                   String                                        Valores: FISCAL,
+                                                                              LEGAL/REAL
+
+TipoFormaJuridica               String                                        Valores Ver anexo
+                                                                              #Valores Tipos de
+                                                                              parámetros
+
+TipoDatoAdicional               String                                        Valores Ver anexo
+                                                                              #Valores Tipos de
+                                                                              parámetros
+
+
+
+
+ 4.2 Tipos de Datos Complejos
+       Los campos dentro de un tipo complejo tienen una multiplicidad (M) determinada, esto es,
+ cuantas veces puede o debe aparecer la etiqueta de dicho campo. Las distintas variantes son:
+ • 0..1: Campo opcional que se especifica como máximo una sola vez.
+ • 0..*: Campo opcional que se especifica cero, una o muchas veces.
+ • 1..1: Campo obligatorio que se especifica una vez.
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                           Pág. 19 de 25
+ • 1..*: Campo obligatorio que se especifica una o más veces.
+
+
+         El tipo de dato simple y la multiplicidad que define a un atributo tiene relevancia dentro de
+ los tipos complejos utilizados en los request o solicitud. El principal objetivo es ordenar y restringir
+ el ingreso de datos por parte del usuario.
+ En el response o respuesta, los tipos simple y multiplicidad son ignorados en la
+ documentación, ya que es la respuesta por parte de los servidores de ARCA. Por
+ simplicidad, en los tipos de datos complejos pertenecientes exclusivamente a datos
+ de respuesta, se declaran los atributos con multiplicidad opcional (0..1 o 0..*) y se
+ definen con los tipos base (string, float, int, etc.).
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                            Pág. 20 de 25
+         Campo                             Descripción                       Mult.             Tipo
+
+Tipo getPersona : Información asociada a la autenticación y autorización requerida para la
+utilización del WS, más los parámetros propios del mismo.
+
+           token             Token devuelto por el WSAA.              1..1           String
+
+            sign             Firma devuelta por el WSAA               1..1           String
+
+    cuitRepresentada         CUIT del contribuyente emisor o          1..1           CUIT
+                             representado.
+
+        idPersona            CUIT del cual se solicitan los datos     1..1           CUIT
+
+Tipo Metadata: Información adicional.
+
+        fechaHora            Fecha y hora de proceso                  0..1           DateTime
+
+         servidor            Nombre del equipo que procesó el         0..1           String
+                             requerimiento
+
+Tipo Persona: Datos propios del contribuyente
+
+        idPersona            CUIT del cual se solicitaron los datos. 0..1            CUIT
+
+       tipoPersona           Tipo de la persona (Fisica o Juridica)   0..1           TipoPersona
+
+         tipoClave           Tipo de la clave solicitada              0..1           TipoClave
+
+       estadoClave           Estado de la clave solicitada            0..1           EstadoClave
+
+          nombre             Nombre del contribuyente                 0..1           String
+
+          apellido           Apellido del contribuyente               0..1           String
+
+       razonSocial           Razón social del contribuyente           0..1           String
+
+     tipoDocumento           Tipo del documento del contribuyente 0..1               TipoDocumento
+
+   numeroDocumento           Número del documento del                 0..1           String
+                             contribuyente
+
+        mesCierre            Mes de cierre de balance del             0..1           Integer
+                             contribuyente
+
+     fechaInscripcion        Fecha de inscripción del contribuyente 0..1             DateTime
+
+  fechaContratoSocial        Fecha del contrato social del            0..1           DateTime
+                             contribuyente
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                                     Pág. 21 de 25
+         Campo                             Descripción                      Mult.            Tipo
+
+      formaJuridica          Descripción de la forma jurídica en     0..1           TipoFormaJuridica
+                             caso de ser persona jurídica
+
+   fechaFallecimiento        Fecha de fallecimiento del              0..1           DateTime
+                             contribuyente
+
+    fechaNacimiento          Fecha de nacimiento del                 0..1           DateTime
+                             contribuyente
+
+   idActividadPrincipal      Identificador de la actividad según     0..1           Long
+                             SUPA. Actividad principal declarada
+                             por el contribuyente
+
+DescripcionActividadPri Descripcion de la actividad principal        0..1           String
+        ncipal          declarada por el contribuyente
+
+         domicilio           Domicilios del contribuyente            0..*           Domicilio
+
+ claveInactivaAsociada Claves inactivas asociadas al                 0..*           Cuit
+                       contribuyente
+
+Período actividad            Período de la actividad principal       0..1           YYYYMM
+principal                    declarada por el contribuyente
+
+Tipo Domicilio: Domicilio declarado por el contribuyente
+
+tipoDomicilio                Tipo de domicilio según SUPA            1..1           TipoDomicilio
+
+direccion                    Dirección: Calle, numero, depto, etc.   1..1           String
+
+Localidad                    Localidad                               1..1           String
+
+codPostal                    Código postal                           1..1           String
+
+idProvincia                  Identificador de la provincia según     1..1           Int
+                             SUPA
+
+descripcionProvincia         Nombre de la provincia según SUPA       1..1           String
+
+tipoDatoAdicional            Tipo de dato adicional del domicilio    0..1           TipoDatoAdicional
+                             según SUPA
+
+datoAdicional                Dato adicional del domicilio.           0..1           String
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                                   Pág. 22 de 25
+ 5. ANEXOS
+
+      5.1. Valores de TipoDocumento:
+
+
+
+tipoDocumento                 Decripcion
+LC                            LIBRETA CIVICA
+
+LE                            LIBRETA DE ENROLAMIENTO
+
+CI                            CEDULA DE IDENTIDAD
+
+TRAM                          EN TRAMITE
+
+ACTA                          ACTA DE NACIMIENTO
+
+PAS                           PASAPORTE
+
+DNI                           DOC.NACIONAL DE IDENTIDAD
+
+INDET                         INDETERMINADO
+
+CERT                          CERTIFICADO DE MIGRACIÓN
+
+DIEXT                         DOCUMENTO IDENTIDAD EXTRANJERO
+
+DNI M                         D.N.I. (N° MÚLTIPLE)
+
+INDOC                         ANSES INDOCUMENTADO
+
+
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                  Pág. 23 de 25
+      5.2. Valores de tipos de parámetros:
+
+          Para la obtención de los valores válidos, para los tipos de parámetros listados en la
+ siguiente tabla, se debe invocar al WS de nombre ws_sr_padron_a100, con los valores definidos
+ en la columna "CollectionName" de la siguiente tabla (este valor identifica al tipo de parámetro).
+ En respuesta al llamado a dicho servicio se obtiene en cada caso, una coleccion de elementos
+ cuyo atributo "id" los identifica unívocamente dentro de la colección. El conjunto total de ids
+ representa la lista de valores válidos para cada tipo de parámetro.
+
+
+
+
+  Nombre tipo parámetro CollectionName                       Comentario
+  TipoFormaJuridica                SUPA.TIPO_EMPRESA_J       El valor devuelto por este WS (A13), es el que
+                                   URIDICA                   corresponde al atributo
+                                                             DESC_TIPO_EMPRESA_JURIDICA
+
+  TipoDatoAdicional                SUPA.TIPO_DATO_ADICI      El valor devuelto por este WS (A13), es el que
+                                   ONAL_DOMICILIO            corresponde al atributo
+                                                             DESC_TIPO_DATO_ADICIONAL_DOM
+
+
+
+      5.3. Mensajes de errores:
+
+
+  Condición                                      Mensaje
+  La clave (cuit/cuil) de la persona tiene mas   "El Id de la persona no es valido"
+  de 11 digitos
+
+   La clave (cuit/cuil) de la persona no se      "La Clave (CUIT/CUIL) consultada es inexistente"
+  encuentra en la base
+
+  La clave (cuit/cuil) de la persona esta        "La clave (CUIT/CUIL) consultada se encuentra INACTIVA"
+  inactiva
+
+  La firma del token en el login es invalida     "No autorizado, par token/sign invalido.”
+  El parametro del servicio cuitRepresentada     "Debe enviar la CUIT representada"
+  no puede ser null
+
+  La cuitRepresentada tiene que estar en la      "Este token no le permite actuar en representacion de la
+  lista de relaciones del token enviado          CUIT " + cuitRepresentada
+
+  El token “o la firma del mismo no fueron       "Falta token y/o sign."
+  enviados en los parametros
+  correspondientes
+
+
+Manual Consulta a Padrón – Alcance 13 – V.1.4                                                Pág. 24 de 25
+Manual Consulta a Padrón – Alcance 13 – V.1.4   Pág. 25 de 25
+

@@ -1,0 +1,38 @@
+                       WEB SERVICES SOAP – Documentación
+     ¿Cómo asociar el Certificado Digital a un WSN (Web Service de
+                               Negocio)?
+El siguiente documento tiene como objetivo mostrar los distintos pasos para asociar el certificado
+digital (válido para el entorno de producción) a un WSN (Web Service de Negocio). Se presupone que
+ya se posee clave fiscal de nivel acorde a los servicios que se utilizan, tramitada en una dependencia de
+ARCA.
+
+
+
+PASO 1
+
+Ingresar al portal de ARCA (www.arca.gob.ar) y presionar el botón “Iniciar sesión”.
+
+
+
+
+Se abre una nueva ventana con la página de acceso. Ingresar su “CUIT / CUIL / CDI” y “clave” y cliquear
+en “INGRESAR”:
+PASO 2
+
+Luego en la siguiente lista de servicios seleccionar el servicio “Administrador de Relaciones”. Una vez
+que ingrese al servicio “Administrador de Relaciones de Clave Fiscal” debe realizar lo siguiente:
+
+    i.   Clickear en “Nueva Relación”:
+
+
+
+
+    ii. Cliquear en “BUSCAR” para seleccionar el WSN:
+
+
+
+
+    iii. Seleccionar el WSN:
+iv. Cliquear en “BUSCAR” para seleccionar el Representante y luego presionar el botón
+        “Confirmar”:
+

@@ -1,0 +1,1502 @@
+Especificaciones técnicas de Servicios Web –WSCDC
+
+
+
+
+               Constatación de
+               Comprobantes
+                Manuales para el desarrollador
+
+
+
+               Revisión correspondiente al 1 de Diciembre de 2025
+
+
+
+             Agencia de Recaudación y Control Aduanero
+             Subdirección General de Sistemas y
+             Telecomunicaciones
+             ARCA-SDG SIT
+                   Especificaciones técnicas de Servicios Web –WSCDC
+
+                           Historial de modificaciones
+
+Ver   Fecha      Edición            Descripción
+
+
+0.1   25-09-2013 SDG SIT/DIF        Versión inicial del documento
+
+0.2   01-12-2019 SDG SIT/DIF        Soporte a Comprobantes de Turismo / Comprobantes
+                                    MiPyme.
+
+0.3   20-08-2025 SDG SIT/DIF        Adecuación de nuevos topes de facturación al identifi-
+                                    car al receptor.
+
+0.4   01-12-2025 SDG SIT/DIF        Adecuaciones para el reemplazo de comprobantes cla-
+                                    se M.
+
+                                    Se modifica la descripción de los siguientes códigos de
+                                    error: 113, 114,
+                                           Especificaciones técnicas de Servicios Web –WSCDC
+
+                                                                      Contenido
+1 INTRODUCCIÓN.............................................................................................................................................4
+1.1 OBJETIVO.......................................................................................................................................................4
+1.2 ALCANCE........................................................................................................................................................4
+1.3 TRATAMIENTO DE ERRORES EN EL WS.............................................................................................................4
+1.4 TRATAMIENTO DE EVENTOS.............................................................................................................................5
+1.5 DIRECCIÓN URL.............................................................................................................................................5
+2 WS DE NEGOCIO...........................................................................................................................................6
+2.1 OPERACIONES................................................................................................................................................6
+2.2 MÉTODO DE CONSTATACIÓN DE COMPROBANTES (COMPROBANTECONSTATAR)...............................................6
+2.2.1 DIRECCIÓN URL (HOMOLOGACIÓN).............................................................................................................6
+2.2.2 MENSAJE DE SOLICITUD...............................................................................................................................6
+2.2.3 MENSAJE DE RESPUESTA.............................................................................................................................8
+2.2.4 VALIDACIONES Y ERRORES........................................................................................................................11
+2.2.5 OPERATORIA ANTE ERRORES.....................................................................................................................14
+2.2.6 EJEMPLOS.................................................................................................................................................15
+COMPROBANTE DE MODALIDAD CAE CONSTATADO CORRECTAMENTE.....................................................................15
+2.3 RECUPERADOR DE MODALIDADES DE AUTORIZACIÓN DE COMPROBANTES
+(COMPROBANTESMODALIDADCONSULTAR)..............................................................................................................19
+2.3.1 DIRECCIÓN URL (HOMOLOGACIÓN)...........................................................................................................19
+2.3.2 MENSAJE DE SOLICITUD.............................................................................................................................19
+2.3.3 MENSAJE DE RESPUESTA...........................................................................................................................19
+2.4 RECUPERADOR DE VALORES REFERENCIALES DE CÓDIGOS DE TIPOS DE COMPROBANTE
+(COMPROBANTESTIPOCONSULTAR)........................................................................................................................20
+2.4.1 DIRECCIÓN URL (HOMOLOGACIÓN)...........................................................................................................20
+2.4.2 MENSAJE DE SOLICITUD.............................................................................................................................20
+2.4.3 MENSAJE DE RESPUESTA...........................................................................................................................21
+2.5 RECUPERADOR DE VALORES REFERENCIALES DE CÓDIGOS DE TIPOS DE DOCUMENTOS
+(DOCUMENTOSTIPOCONSULTAR)............................................................................................................................22
+2.5.1 DIRECCIÓN URL (HOMOLOGACIÓN)...........................................................................................................22
+2.5.2 MENSAJE DE SOLICITUD.............................................................................................................................22
+2.5.3 MENSAJE DE RESPUESTA...........................................................................................................................23
+2.6 RECUPERADOR DE VALORES REFERENCIALES DE CÓDIGOS DE TIPOS DE DATOS OPCIONALES
+(OPCIONALESTIPOCONSULTAR)..............................................................................................................................24
+2.6.1 DIRECCIÓN URL (HOMOLOGACIÓN)...........................................................................................................24
+2.6.2 MENSAJE DE SOLICITUD.............................................................................................................................24
+2.6.3 MENSAJE DE RESPUESTA...........................................................................................................................24
+2.7 MÉTODO DUMMY PARA VERIFICACIÓN DE FUNCIONAMIENTO DE INFRAESTRUCTURA (COMPROBANTEDUMMY)...26
+2.7.1 DIRECCIÓN URL (HOMOLOGACIÓN)...........................................................................................................26
+2.7.2 MENSAJE DE SOLICITUD.............................................................................................................................26
+2.7.3 MENSAJE DE RESPUESTA...........................................................................................................................26
+2.8 MARGEN DE ERROR MEDIANTE (ERROR ABSOLUTO Y ERROR RELATIVO).......................................................27
+                           Especificaciones técnicas de Servicios Web –WSCDC
+
+
+
+1 Introducción
+
+1.1    Objetivo
+
+Este documento esta dirigido a quienes tengan que desarrollar el software cliente consumidor de
+los WebServices correspondientes al servicio de Constatación de Comprobantes.
+
+
+1.2    Alcance
+
+Este documento brinda las especificaciones técnicas para desarrollar el cliente de WebServices
+para usar el WSCDC. Debe complementarse con los documentos relativos a: “Servicio de
+Autenticación y Autorización y Establecimiento del canal de comunicación”.
+
+
+1.3    Tratamiento de errores en el WS
+
+El tratamiento de errores en todos los servicios se realizará de la siguiente manera:
+
+                     <Errors>
+                           <Err>
+                              <Code>int</Code>
+                              <Msg>string</Msg>
+                           </Err>
+                           <Err>
+                              <Code>int</Code>
+                              <Msg>string</Msg>
+                           </Err>
+                     </Errors>
+
+
+Donde:
+
+
+       Campo                                 Detalle                            Obligatorio
+                    Array de objeto. Err Información correspondiente a
+ Errors                                                                                 N
+                    errores
+ Code               Código de error                                                     S
+ Msg                Mensaje descriptivo del error                                       S
+
+
+Para errores internos de infraestructura, los errores se devuelven en la misma estructura (Errors).
+Los códigos de error son:
+
+
+ Código de error                                      Causa
+ 500                Error interno de aplicación.
+ 501                Error interno de base de datos.
+ 502                Transacción Activa
+ 503                No existen datos en nuestros registros.
+                           Especificaciones técnicas de Servicios Web –WSCDC
+
+1.4    Tratamiento de eventos
+
+El tratamiento de eventos en todos los servicios se realizará de la siguiente manera:
+
+                      <Events>
+                            <Evt>
+                               <Code>int</Code>
+                               <Msg>string</Msg>
+                            </Evt>
+                            <Evt>
+                               <Code>int</Code>
+                               <Msg>string</Msg>
+                            </Evt>
+                      </Events>
+
+
+Donde:
+      Campo                                Detalle                             Obligatorio
+                     Array de objeto. Evt Información correspondiente al
+Events                                                                              N
+                     mensaje
+Code                 Código de evento                                               S
+Msg                  Detalla el evento que se desea comunicar                       S
+
+
+
+1.5    Dirección URL
+
+       Este servicio se llama en Homologación desde:
+         https://wswhomo.afip.gob.ar/WSCDC/service.asmx
+
+
+       Para visualizar el WSDL en Homologación:
+         https://wswhomo.afip.gob.ar/WSCDC/service.asmx?WSDL
+
+
+       Este servicio se llama en Producción desde:
+         https://servicios1.arca.gob.ar/WSCDC/service.asmx
+
+
+       Para visualizar el WSDL en Producción:
+         https://servicios1.arca.gob.ar/WSCDC/service.asmx?WSDL
+                              Especificaciones técnicas de Servicios Web –WSCDC
+
+
+
+
+2 WS de Negocio
+
+2.1     Operaciones
+
+2.4.1    Operaciones a realizar según la RG de aplicación.
+
+
+              Método de Constatación de Comprobantes (ComprobanteConstatar).
+              Método que determina las distintas modalidades por las que puede ser autorizado un
+               comprobante (ComprobantesModalidadConsultar).
+              Recuperador de valores referenciales de códigos de Tipos de comprobante
+               (ComprobantesTipoConsultar)
+              Método Dummy para            verificación   de     funcionamiento   de   infraestructura
+               (ComprobanteDummy)
+              Recuperador de valores referenciales de códigos de Tipos de Documentos
+               (DocumentosTipoConsultar)
+              Recuperador de valores referenciales de códigos de Tipos de datos Opcionales
+               (OpcionalesTipoConsultar)
+
+
+2.2     Método de Constatación de Comprobantes (ComprobanteConstatar)
+
+El cliente ws envía la información del comprobante que desea constatar mediante un requerimiento
+el cual es atendido por WSCDC pudiendo producirse las siguientes situaciones:
+
+
+              Supere todas las validaciones, se constata que el comprobante se encuentra registrado
+               y autorizado, o si aun no fue rendido.
+              No supere alguna de las validaciones de formato o funcionales, la constatación es
+               rechazada.
+Aclaración: Los comprobantes pueden ser constatados por el emisor, por el receptor, o por
+cualquiera que tenga acceso al ws e invoque el método de constatación enviando en el request los
+datos mínimos e indispensables que lo identifican de forma.
+
+
+2.2.1        Dirección URL (Homologación)
+Este servicio se llama desde:
+https://wswhomo.afip.gob.ar/WSCDC/service.asmx?op=ComprobanteConstatar
+
+
+2.2.2    Mensaje de solicitud
+Recibe la información de un comprobante.
+
+
+             <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+             instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+               <soap:Body>
+                 <ComprobanteConstatar>
+                   <Auth>
+                     <Token>string</Token>
+                     <Sign>string</Sign>
+                          Especificaciones técnicas de Servicios Web –WSCDC
+
+                   <Cuit>long</Cuit>
+                 </Auth>
+                 <CmpReq>
+                   <CbteModo>string</CbteModo>
+                   <CuitEmisor>long</CuitEmisor>
+                   <PtoVta>int</PtoVta>
+                   <CbteTipo>int</CbteTipo>
+                   <CbteNro>long</CbteNro>
+                   <CbteFch>string</CbteFch>
+                   <ImpTotal>double</ImpTotal>
+                   <CodAutorizacion>string</CodAutorizacion>
+                   <DocTipoReceptor>string</DocTipoReceptor>
+                   <DocNroReceptor>string</DocNroReceptor>
+                   <Opcionales>
+                     <Opcional>
+                       <Id>string</Id>
+                       <Valor>string</Valor>
+                     </Opcional>
+                     <Opcional>
+                       <Id>string</Id>
+                       <Valor>string</Valor>
+                     </Opcional>
+                   </Opcionales>
+                 </CmpReq>
+               </ComprobanteConstatar>
+             </soap:Body>
+          </soap:Envelope>
+
+
+Donde:
+
+       Campo                               Detalle                            Obligatorio
+                    Información de la autenticación. Contiene los datos de
+Auth                                                                               S
+                    Token, Sign y Cuit
+Token               Token devuelto por el WSAA                                     S
+Sign                Sign devuelto por el WSAA                                      S
+Cuit                Cuit contribuyente                                             S
+
+
+
+
+   Campo                                   Detalle                            Obligatorio
+CmpReq              Información del comprobante a constatar.                       S
+
+
+
+CmpReq: La estructura del comprobante de entrada está compuesta por los siguientes campos:
+    Campo               Tipo                     Detalle                 Obligatorio
+                                   Modalidad por la cual fue autorizado
+CbteModo          String (4)                                                  S
+                                   el comprobante.
+                                         Cuit del emisor del comprobante a
+CuitEmisor          Long (11)                                                     S
+                                         constatar.
+                                         Punto de Venta del comprobante
+PtoVta              Int (5)                                                       S
+                                         que se está constatando.
+
+CbteTipo            Int (3)              Tipo de comprobante                      S
+
+CbteNro             Long (8)             Número de comprobante                    S
+                            Especificaciones técnicas de Servicios Web –WSCDC
+
+CbteFch             String (8)          Fecha del comprobante.                          S
+
+ImpTotal            Double (13+2)       Importe total del comprobante                   S
+
+CodAutorizacion     String (14)         Codigo de autorización                          S
+
+                                        Tipo de documento del receptor del
+DocTipoReceptor     String (2)                                                          N
+                                        comprobante
+                                        N° de documento del receptor del
+DocNroReceptor      String (20)                                                         N
+                                        comprobante
+                                        Array de campos auxiliares.
+Opcionales          Array                                                               N
+                                        Reservado usos futuros <Opcional>.
+
+
+Opcionales: Campos auxiliares (array).
+Campo reservado para usos futuros. El listado de tipos de datos opcionales se puede consultar con
+el método OpcionalesTipoConsultar.
+
+
+        Campo          Tipo                           Detalle                        Obligatorio
+Id                String(4)        Código de Opcional, consultar método
+                                                                                         S
+                                   OpcionalesTipoConsultar
+Valor             String (250)     Valor                                                 S
+
+
+
+
+2.2.3    Mensaje de respuesta
+Retorna los datos del comprobante ingresados con la constatación correspondiente.
+Superadas las validaciones Excluyentes se retorna el tag <Resultado>A</Resultado>, en caso de
+no superar alguna de las validaciones NO excluyentes además devuelve un array de
+observaciones.
+De no superar las validaciones Excluyentes (Formato) se retorna el tag <Resultado>R</Resultado>,
+y un array de errores.
+De no superar las validaciones Excluyentes (Funcionales)                        se    retorna      el   tag
+<Resultado>R</Resultado>, y un array de observaciones.
+Cabe aclarar que las validaciones excluyentes son aquellas que en el caso de no ser superadas
+provocan un rechazo y las validaciones no excluyentes aprueban la solicitud pero con observacio-
+nes.
+
+
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <ComprobanteConstatarResponse>
+                <ComprobanteConstatarResult>
+                  <CmpResp>
+                    <CbteModo>string</CbteModo>
+                    <CuitEmisor>long</CuitEmisor>
+                    <PtoVta>int</PtoVta>
+                    <CbteTipo>int</CbteTipo>
+                    <CbteNro>long</CbteNro>
+                    <CbteFch>string</CbteFch>
+                    <ImpTotal>double</ImpTotal>
+                    <CodAutorizacion>string</CodAutorizacion>
+                        Especificaciones técnicas de Servicios Web –WSCDC
+
+                    <DocTipoReceptor>string</DocTipoReceptor>
+                    <DocNroReceptor>string</DocNroReceptor>
+                    <Opcionales>
+                     <Opcional>
+                      <Id>string</Id>
+                      <Valor>string</Valor>
+                     </Opcional>
+                     <Opcional>
+                      <Id>string</Id>
+                      <Valor>string</Valor>
+                     </Opcional>
+                    </Opcionales>
+                  </CmpResp>
+                  <Resultado>string</Resultado>
+                  <Observaciones>
+                    <Obs>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Obs>
+                    <Obs>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Obs>
+                  </Observaciones>
+                  <FchProceso>string</FchProceso>
+                  <Events>
+                    <Evt>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Evt>
+                    <Evt>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Evt>
+                  </Events>
+                  <Errors>
+                    <Err>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Err>
+                    <Err>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Err>
+                  </Errors>
+                </ComprobanteConstatarResult>
+              </ComprobanteConstatarResponse>
+            </soap:Body>
+         </soap:Envelope>
+
+
+Donde:
+         Campo                               Detalle                        Obligatorio
+                       Contiene los datos del comprobante constatado +
+ComprobanteConstat
+                       respuesta. De corresponder, contiene errores y           S
+arResult
+                       observaciones.
+                       Contiene los datos del comprobante enviado a
+CmpResp                                                                         S
+                       constatar
+                       Resultado de la constatación del comprobante. A =
+Resultado                                                                       S
+                       “Autorizado”, R=”Rechazado”.
+FchProceso             Fecha en la que se realizo la constatación.              S
+Observaciones          Información de observaciones detectadas                  N
+                            Especificaciones técnicas de Servicios Web –WSCDC
+
+Errors                    Información de errores detectados                            N
+Events                    Información de eventos                                       N
+
+
+
+
+CmpResp: La estructura del comprobante de salida está compuesta por los siguientes campos:
+    Campo              Tipo                      Detalle                  Obligatorio
+                                  Modalidad por la cual fue autorizado
+CbteModo          String (4)                                                   S
+                                  el comprobante.
+                                       Cuit del emisor del comprobante a
+CuitEmisor          Long (11)                                                      S
+                                       constatar.
+                                       Punto de Venta del comprobante que
+PtoVta              Int (4)                                                        S
+                                       se está constatando.
+
+CbteTipo            Int (3)            Tipo de comprobante                         S
+
+CbteNro             Long (8)           Número de comprobante                       S
+
+CbteFch             String (8)         Fecha del comprobante.                      S
+
+ImpTotal            Double (13+2)      Importe total del comprobante               S
+
+CodAutorizacion     String (14)        Código de autorización                      S
+
+                                       Tipo de documento del receptor del
+DocTipoReceptor     String (2)                                                     N
+                                       comprobante
+                                       N° de documento del receptor del
+DocNroReceptor      String (20)                                                    N
+                                       comprobante
+                                       Array de campos auxiliares.
+Opcionales          Array                                                          N
+                                       Reservado usos futuros <Opcional>.
+
+
+Opcionales: Campos auxiliares (array). Adicionales por R.G.
+Campo reservado para usos futuros. El listado de tipos de datos opcionales se puede consultar con
+el método OpcionalesTipoConsultar.
+
+
+     Campo              Tipo                          Detalle                   Obligatorio
+Id                String(4)        Código de Opcional, consultar método
+                                                                                    S
+                                   OpcionalesTipoConsultar
+Valor             String (250)     Valor                                            S
+
+
+
+Observaciones: La estructura de datos Obs muestra el detalle de observaciones para un comproban-
+te determinado; estará compuesta por los siguientes campos:
+     Campo         Tipo                              Detalle                     Obligatorio
+Code          Int (5)          Código de observación                                   S
+Msg           String (255)     Mensaje                                                 S
+                           Especificaciones técnicas de Servicios Web –WSCDC
+
+
+
+
+2.2.4   Validaciones y errores
+
+Controles aplicados al objeto <Auth>
+Validaciones Excluyentes
+   Campo /       Código de
+                                                    Descripción de la validación
+    Grupo          error
+                                 No se corresponden token y firma. Usuario no autorizado a realizar
+    <Cuit>           600
+                                 esta operación
+    <Cuit>           601         CUIT representada no incluida en token.
+    <Cuit>           602         CUIT representada no se encuentre activa y vigente.
+
+
+
+Controles aplicados al objeto <CmpReq>
+Validaciones Excluyentes (Formato)
+                                     Código
+         Campo / Grupo                                      Descripción de la validación
+                                     de error
+                                                El modo indicado debe ser alfanumérico de 4
+                                                caracteres como máximo y debe ser alguno de los
+ <CbteModo>                             1
+                                                devueltos        por         el         método
+                                                ComprobantesModalidadConsultar()
+                                                La cuit del emisor indicado debe ser numérica de 11
+ <CuitEmisor>                           2
+                                                dígitos y debe ser valida.
+                                                Campo <PtoVta> debe ser numérico de 5 dígitos
+ <PtoVta>                               3       como máximo y debe estar comprendido entre 1 y
+                                                99998.
+                                                El tipo de comprobante debe ser numérico de 3
+                                                dígitos como máximo y debe ser alguno de los
+ <CbteTipo>                             4
+                                                definidos        en         el         método
+                                                ComprobantesTipoConsultar()
+                                                Campo correspondiente al N° de comprobante,
+ <CbteNro>                              5       debe ser numérico de 8 dígitos como máximo y se
+                                                debe encontrar entre 1 y 99999999.
+                                                Campo correspondiente a la fecha del comprobante,
+ <CbteFch>                              6
+                                                debe tener el siguiente formato yyyymmdd
+                                                Campo correspondiente al importe total del
+ <ImpTotal>                             7       comprobante. Debe ser numérico mayor o igual a 0
+                                                de 13 enteros y 2 decimales.
+                                                El tipo de documento del receptor debe ser
+                                                numérico de 2 dígitos y debe ser alguno de los
+ <DocTipoReceptor>                      8
+                                                devueltos        por         el        método
+                                                DocumentosTipoConsultar().
+                                                El número de documento del receptor, debe
+                                                contener un valor numérico de 11 caracteres. Si el
+ <DocNroReceptor>                       9       número del doucumento contiene letras no
+                                                informarlas, solamente informar los caracteres
+                                                numéricos.
+                                                Código de autorización del comprobante, debe ser
+ <CodAutorizacion>                      10
+                                                de 14 caracteres numéricos.
+                       Especificaciones técnicas de Servicios Web –WSCDC
+
+
+
+
+Validaciones Excluyentes (Funcionales)
+
+
+                                                      Código
+                 Campo / Grupo                                     Descripción de la validación
+                                                      de error
+                                                                  Verificar que el CAE/CAI/CAEA
+<CodAutorizacion>                                        100      exista registrado y autorizado
+                                                                  en las bases del organismo.
+                                                                  La fecha del comprobante
+                                                                  <CbteFch> no podrá ser an-
+<CbteFch>                                                101      terior a 20130101.
+
+
+                                                                  Verifica que la CUIT del emisor
+                                                                  informada se corresponda con
+<CodAutorizacion>/<CuitEmisor>                           102      la cuit registrada bajo el código
+                                                                  de                   autorización
+                                                                  <CodAutorizacion>.
+                                                                  Verifica que el tipo de
+                                                                  comprobante <CbteTipo> se
+<CodAutorizacion>/<CbteTipo>                             103      corresponda con el registrado
+                                                                  bajo el código de autorización
+                                                                  informado <CodAutorizacion>
+                                                                  Verifica que el punto de venta
+                                                                  <PtoVta> se corresponda con
+<CodAutorizacion>/<PtoVta>                               104      el punto de venta registrado
+                                                                  bajo el código de autorización
+                                                                  informado <CodAutorizacion>
+                                                                  Verifica  que   el   Nº     de
+                                                                  comprobante <CbteNro> se
+                                                                  corresponda con el Nº de
+<CodAutorizacion>/<CbteNro>                              105
+                                                                  comprobante registrado bajo el
+                                                                  código     de     autorización
+                                                                  informado <CodAutorizacion>
+                                                                  Para modo <CbteModo> =
+<CbteModo>/                                                       “CAEA” , en caso de no
+                                                                  encontrar   el     comprobante
+<CodAutorizacion>/                                       106
+                                                                  rendido,   verifica   que   se
+                                                                  encuentre vigente la rendición
+                                                                  del mismo.
+                                                                  Para modo <CbteModo> =
+                                                                  “CAE” o <CbteModo> =
+<CbteModo>/
+                                                                  “CAEA”, verifica que la fecha
+<CodAutorizacion>/                                       107      del comprobante <CbteFch> se
+                                                                  corresponda con el código de
+<CbteFch>
+                                                                  autorización        informado
+                                                                  <CodAutorizacion>
+                                                                  Para modo <CbteModo> =
+<CbteModo>/                                                       “CAI” verifica que la fecha del
+<CodAutorizacion>/                                       108      comprobante <CbteFch> se
+                                                                  encuentre dentro del rango
+<CbteFch>                                                         habilitado para el código de
+                                                                  autorización          informado
+                      Especificaciones técnicas de Servicios Web –WSCDC
+
+                                                     Código
+                Campo / Grupo                                     Descripción de la validación
+                                                     de error
+                                                                 <CodAutorizacion>
+                                                                 Para modo <CbteModo> =
+<CbteModo>/
+                                                                 “CAEA”, verifica que el punto
+<CodAutorizacion>/                                      109      de venta sea un punto de venta
+                                                                 habilitado     para      emitir
+<PtoVta>
+                                                                 comprobantes.
+                                                                 Verificar que el importe de la
+                                                                 operación     informado     se
+                                                                 corresponda con lo registrado
+                                                                 en las bases del organismo.
+<CbteModo>/                                                      Para los tipos de comprobantes
+<CodAutorizacion>/                                      110      sin ImpTotal se debe informar
+                                                                 el campo en cero.
+<ImpTotal>
+                                                                 Margen de error:
+                                                                 Error relativo porcentual deberá
+                                                                 ser <= 0.01% o el error
+                                                                 absoluto <=1.
+                                                                 Verifica que el tipo de
+                                                                 documento      del    receptor
+                                                                 <DocTipoReceptor>           se
+<CodAutorizacion>/<DocTipoReceptor>                     111
+                                                                 corresponda con el registrado
+                                                                 bajo el código de autorización
+                                                                 informado <CodAutorizacion>
+                                                                 Verifica que el número de
+                                                                 documento      del    receptor
+                                                                 <DocNroReceptor>            se
+<CodAutorizacion>/<DocNroReceptor>                      112
+                                                                 corresponda con el registrado
+                                                                 bajo el código de autorización
+                                                                 informado <CodAutorizacion>
+                                                                 Para comprobantes tipo “A”, “A
+                                                                 con leyenda operación sujeta a
+                                                                 retención” o MiPyme el tipo de
+<CbteTipo><DocTipoReceptor>                             113
+                                                                 documento del receptor es
+                                                                 obligatorio informarlo y debe
+                                                                 ser CUIT (CbteTipo = 80).
+                                                                 Para comprobantes tipo “A” o
+                                                                 tipo “A con leyenda operación
+                                                                 sujeta a retención”, el Nº de
+<CbteTipo<DocNroReceptor>                               114      documento del receptor es
+                                                                 obligatorio informarlo.
+
+
+<CbteTipo><DocTipoReceptor>                                      Para comprobantes tipo B, C ,
+                                                                 R, 31, 30, 37, 38, 41 y 49 el
+                                                                 tipo de documento del receptor
+                                                        115      solo es obligatorio informarlo
+                                                                 cuando el importe es superior a
+                                                                 10.000.000 pesos.
+
+
+<CbteTipo><DocNroReceptor>                                       Para comprobantes tipo B, C ,
+                                                                 R, 31, 30, 37, 38, 41 y 49 , el
+                                                        116      número de documento del
+                                                                 receptor solo es obligatorio
+                                                                 informarlo cuando el importe es
+                          Especificaciones técnicas de Servicios Web –WSCDC
+
+                                                         Código
+                   Campo / Grupo                                      Descripción de la validación
+                                                         de error
+                                                                     superior a 10.000.000 pesos.
+ <CbteTipo><DocTipoReceptor>><DocNroReceptor>                        Si informa <DocTipoReceptor>
+                                                            117      o     <DocNroReceptor>      es
+                                                                     obligatorio informar ambos.
+ <CbteTipo><DocTipoReceptor>                                         Si informa comprobante del
+                                                                     tipo T (195, 196, 197), los tipos
+                                                            118
+                                                                     de documento válido son 80,
+                                                                     91, 94, 96.
+                                                                     Si    envía     <Opcionales>,
+ <Opcionales>                                               150
+                                                                     <Opcional> es obligatorio.
+                                                                     El   campo         <Id>    en
+                                                                     <Opcionales> es obligatorio y
+ <Opcional>                                                 151      debe ser alguno de los
+                                                                     devueltos por   el    método
+                                                                     OpcionalesTipoConsultar.
+                                                                     El   campo          <Id>   en
+ <Opcional>                                                 152      <Opcionales> es obligatorio y
+                                                                     no debe repetirse."
+                                                                     El campo          <Valor>      en
+ <Opcional>                                                 153
+                                                                     Opcionales es obligatorio
+
+
+Validaciones NO Excluyentes (Funcionales)
+
+
+                                                        Código
+                   Campo / Grupo                                     Descripción de la validación
+                                                        de error
+                                                                    Para modo <CbteModo> =
+                                                                    “CAEA” , en caso de no
+                                                                    encontrar     el     comprobante
+                                                                    rendido,    verifica   que    se
+ <CodAutorizacion>                                         200      encuentre vigente la rendición
+                                                                    del mismo. Si se encuentra en
+                                                                    vigencia el comprobante queda
+                                                                    observado por no encontrarse
+                                                                    rendido.
+
+
+2.2.5   Operatoria ante errores
+
+Para la operatoria del método ComprobanteConstatar se describe la metodología sugerida ante
+rechazos.
+
+Los rechazos por formato devolverán en el tag Errors todas las causas involucradas.
+
+Los rechazos por validaciones funcionales se devolverán en el tag Observaciones todas las causas
+involucradas.
+
+Operatoria con errores de comunicación:
+
+En el diseño del WSCDC se ha previsto que -dada la complejidad actual de las comunicaciones-
+pueden ocurrir interrupciones en la comunicación entre el cliente y el WSCDC básicamente, el pro-
+blema podría resumirse al siguiente escenario: el cliente envía una solicitud de constatación al WS-
+CDC y se queda esperando una respuesta que no llega, hasta que transcurrido algún tiempo, se
+produce una condición de time-out.
+                           Especificaciones técnicas de Servicios Web –WSCDC
+
+En ese caso, el usuario no sabrá si la solicitud llegó al WSCDC, y la falla de comunicación se pro-
+dujo durante el retorno de la información, o bien si la falla ocurrió durante el envío de la solicitud y
+simplemente WSCDC nunca la recibió.
+
+En ambos casos con simplemente enviar la misma solicitud todo quedaría resuelto.
+
+
+
+
+2.2.6   Ejemplos
+Comprobante de modalidad CAE constatado correctamente.
+REQUEST
+         <soapenv:Envelope
+         xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+         xmlns:wsf="http://servicios1.afip.gob.ar/wscdc/">
+            <soapenv:Header/>
+            <soapenv:Body>
+               <ComprobanteConstatar>
+                  <Auth>
+                     <Token>111</Token>
+                     <Sign>11111111</Sign>
+                     <Cuit>300000000007</Cuit>
+                  </Auth>
+                  <CmpReq>
+                     <CbteModo>CAE</CbteModo>
+                     <CuitEmisor>20000000001</CuitEmisor>
+                     <PtoVta>1</PtoVta>
+                     <CbteTipo>1</CbteTipo>
+                     <CbteNro>2</CbteNro>
+                     <CbteFch>20101014</CbteFch>
+                     <ImpTotal>300.8</ImpTotal>
+                     <CodAutorizacion>60428000005029</CodAutorizacion>
+                     <DocTipoReceptor>80</DocTipoReceptor>
+                     <DocNroReceptor>300000000007</DocNroReceptor>
+                  </CmpReq>
+               </ComprobanteConstatar>
+            </soapenv:Body>
+         </soapenv:Envelope>
+
+
+RESPONSE
+         <soap:Envelope
+         xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <soap:Body>
+               <ComprobanteConstatarResponse>
+                  <ComprobanteConstatarResult>
+                     <CmpResp>
+                        <CbteModo>CAE</CbteModo>
+                        <CuitEmisor>20000000001</CuitEmisor>
+                        <PtoVta>1</PtoVta>
+                        <CbteTipo>1</CbteTipo>
+                        <CbteNro>2</CbteNro>
+                        <CbteFch>20101014</CbteFch>
+                        <ImpTotal>300.8</ImpTotal>
+                        <CodAutorizacion>60428000005029</CodAutorizacion>
+                        <DocTipoReceptor>80</DocTipoReceptor>
+                        <DocNroReceptor>30000000007</DocNroReceptor>
+                     </CmpResp>
+                     <Resultado>A</Resultado>
+                     <FchProceso>20130729204436</FchProceso>
+                  </ComprobanteConstatarResult>
+                        Especificaciones técnicas de Servicios Web –WSCDC
+             </ComprobanteConstatarResponse>
+          </soap:Body>
+       </soap:Envelope>
+
+
+
+
+Comprobante de modalidad CAEA aun no informado, dentro de la fecha de vigencia de tope para
+informar. Devuelve una observación en el array de observaciones, pero no Rechaza.
+REQUEST
+       <soapenv:Envelope
+       xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+       xmlns:wsf="http://servicios1.afip.gob.ar/wscdc/">
+          <soapenv:Header/>
+          <soapenv:Body>
+             <ComprobanteConstatar>
+                <Auth>
+                   <Token>111</Token>
+                   <Sign>11111111</Sign>
+                   <Cuit>30000000007</Cuit>
+                </Auth>
+                <CmpReq>
+                   <CbteModo>CAEA</CbteModo>
+                   <CuitEmisor>30000000007</CuitEmisor>
+                   <PtoVta>1112</PtoVta>
+                   <CbteTipo>6</CbteTipo>
+                   <CbteNro>7</CbteNro>
+                   <CbteFch>20110315</CbteFch>
+                   <ImpTotal>2600</ImpTotal>
+                   <CodAutorizacion>21088621021111</CodAutorizacion>
+                   <DocTipoReceptor>80</DocTipoReceptor>
+                   <DocNroReceptor>20000000001</DocNroReceptor>
+                </CmpReq>
+             </ComprobanteConstatar>
+          </soapenv:Body>
+       </soapenv:Envelope>
+
+
+RESPONSE
+       <soap:Envelope
+       xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+          <soap:Body>
+             <ComprobanteConstatarResponse>
+                <ComprobanteConstatarResult>
+                   <CmpResp>
+                      <CbteModo>CAEA</CbteModo>
+                      <CuitEmisor>30000000007</CuitEmisor>
+                      <PtoVta>1112</PtoVta>
+                      <CbteTipo>6</CbteTipo>
+                      <CbteNro>7</CbteNro>
+                      <CbteFch>20110315</CbteFch>
+                      <ImpTotal>2600</ImpTotal>
+                      <CodAutorizacion>21088621021111</CodAutorizacion>
+                      <DocTipoReceptor>80</DocTipoReceptor>
+                      <DocNroReceptor>20000000001</DocNroReceptor>
+                   </CmpResp>
+                   <Resultado>A</Resultado>
+                   <Observaciones>
+                      <Obs>
+                         <Code>200</Code>
+                         <Msg>Existe CAEA, no fue rendido o no coincide
+       con los datos registrados.</Msg>
+                      </Obs>
+                        Especificaciones técnicas de Servicios Web –WSCDC
+                   </Observaciones>
+                   <FchProceso>20130724113214</FchProceso>
+                </ComprobanteConstatarResult>
+             </ComprobanteConstatarResponse>
+          </soap:Body>
+       </soap:Envelope>
+
+
+Comprobante de modalidad CAE con errores de validaciones de formato devuelto en el array de
+Errors.
+REQUEST
+
+
+       <soapenv:Envelope
+       xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+       xmlns:wsf="http://servicios1.afip.gob.ar/wscdc/">
+          <soapenv:Header/>
+          <soapenv:Body>
+             <ComprobanteConstatar>
+                <Auth>
+                   <Token>111</Token>
+                   <Sign>11111111</Sign>
+                   <Cuit>300000000007</Cuit>
+                </Auth>
+                <CmpReq>
+                   <CbteModo>CAE</CbteModo>
+                   <CuitEmisor>222222222222</CuitEmisor>
+                   <PtoVta>1</PtoVta>
+                   <CbteTipo>1</CbteTipo>
+                   <CbteNro>2</CbteNro>
+                   <CbteFch>20101014</CbteFch>
+                   <ImpTotal>300.8</ImpTotal>
+                   <CodAutorizacion>60428000005029</CodAutorizacion>
+                   <DocTipoReceptor>80</DocTipoReceptor>
+                   <DocNroReceptor>20000000001</DocNroReceptor>
+                </CmpReq>
+             </ComprobanteConstatar>
+          </soapenv:Body>
+       </soapenv:Envelope>
+
+
+RESPONSE
+       <soap:Envelope
+       xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+          <soap:Body>
+             <ComprobanteConstatarResponse>
+                <ComprobanteConstatarResult>
+                   <CmpResp>
+                      <CbteModo>CAE</CbteModo>
+                      <CuitEmisor>222222222222</CuitEmisor>
+                      <PtoVta>1</PtoVta>
+                      <CbteTipo>1</CbteTipo>
+                      <CbteNro>2</CbteNro>
+                      <CbteFch>20101014</CbteFch>
+                      <ImpTotal>300.8</ImpTotal>
+                      <CodAutorizacion>60428000005029</CodAutorizacion>
+                      <DocTipoReceptor>80</DocTipoReceptor>
+                      <DocNroReceptor>20000000001</DocNroReceptor>
+                   </CmpResp>
+                   <Resultado>R</Resultado>
+                   <FchProceso>20130729205502</FchProceso>
+                   <Errors>
+                      <Err>
+                         <Code>2</Code>
+                        Especificaciones técnicas de Servicios Web –WSCDC
+                          <Msg>El campo CuitEmisor es invalido.</Msg>
+                       </Err>
+                   </Errors>
+                </ComprobanteConstatarResult>
+             </ComprobanteConstatarResponse>
+          </soap:Body>
+       </soap:Envelope>
+
+
+Comprobante de modalidad CAI con errores de validaciones de negocio devuelto en el array de
+Observaciones.
+REQUEST
+
+
+       <soapenv:Envelope
+       xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+       xmlns:wsf="http://servicios1.afip.gob.ar/wscdc/">
+          <soapenv:Header/>
+          <soapenv:Body>
+             <ComprobanteConstatar>
+                <Auth>
+                   <Token>111</Token>
+                   <Sign>11111111</Sign>
+                   <Cuit>300000000007</Cuit>
+                </Auth>
+                   <CbteModo>CAI</CbteModo>
+                   <CuitEmisor>30000000007</CuitEmisor>
+                   <PtoVta>63</PtoVta>
+                   <CbteTipo>4</CbteTipo>
+                   <CbteNro>20</CbteNro>
+                   <CbteFch>20130801</CbteFch>
+                   <ImpTotal>150.88</ImpTotal>
+                   <CodAutorizacion>12345678901235</CodAutorizacion>
+                   <DocTipoReceptor>80</DocTipoReceptor>
+                   <DocNroReceptor>30000000007</DocNroReceptor>      </
+       ComprobanteConstatar>
+          </soapenv:Body>
+       </soapenv:Envelope>
+
+
+RESPONSE
+       <soap:Envelope
+       xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+          <soap:Body>
+             <ComprobanteConstatarResponse>
+                <ComprobanteConstatarResult>
+                   <CmpResp>
+                      <CbteModo>CAI</CbteModo>
+                      <CuitEmisor>30000000007</CuitEmisor>
+                      <PtoVta>63</PtoVta>
+                      <CbteTipo>4</CbteTipo>
+                      <CbteNro>20</CbteNro>
+                      <CbteFch>20130801</CbteFch>
+                      <ImpTotal>150.88</ImpTotal>
+                      <CodAutorizacion>12345678901235</CodAutorizacion>
+                      <DocTipoReceptor>80</DocTipoReceptor>
+                      <DocNroReceptor>30000000007</DocNroReceptor>
+                   </CmpResp>
+                   <Resultado>R</Resultado>
+                   <Observaciones>
+                      <Obs>
+                         <Code>108</Code>
+                         <Msg>La fecha consignada no se encuentra dentro
+       del rango de fechas habilitadas para el CAI ingresado</Msg>
+                           Especificaciones técnicas de Servicios Web –WSCDC
+                          </Obs>
+                      </Observaciones>
+                      <FchProceso>20130912110834</FchProceso>                       </Com-
+          probanteConstatarResult>
+                </ComprobanteConstatarResponse>
+             </soap:Body>
+          </soap:Envelope>
+
+
+2.3 Recuperador de modalidades de autorización de comprobantes
+(ComprobantesModalidadConsultar)
+
+Este método permite obtener las distintas modalidades de autorización que se encuentran
+habilitadas a consultar.
+
+
+
+2.3.1    Dirección URL (Homologación)
+Este servicio se llama desde:
+https://wswhomo.afip.gob.ar/WSCDC/service.asmx?op=ComprobantesModalidadConsultar
+
+
+
+2.3.2    Mensaje de solicitud
+Recibe las credenciales de autenticación y la cuit del usuario representado.
+          <?xml version="1.0" encoding="utf-8"?>
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <ComprobantesModalidadConsultar>
+                <Auth>
+                  <Token>string</Token>
+                  <Sign>string</Sign>
+                  <Cuit>long</Cuit>
+                </Auth>
+              </ComprobantesModalidadConsultar>
+            </soap:Body>
+          </soap:Envelope>
+
+Donde:
+    Campo                                 Detalle                              Obligatorio
+                   Información de la autenticación. Contiene los datos
+ Auth                                                                              S
+                   de Token, Sign , Cuit
+ Token             Token devuelto por el WSAA                                      S
+ Sign              Sign devuelto por el WSAA                                       S
+ Cuit              Cuit contribuyente                                              S
+
+
+2.3.3    Mensaje de respuesta
+Retorna el universo de modalidades válidas.
+          <?xml version="1.0" encoding="utf-8"?>
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+                              Especificaciones técnicas de Servicios Web –WSCDC
+
+              <ComprobantesModalidadConsultarResponse>
+                <ComprobantesModalidadConsultarResult>
+                  <ResultGet>
+                    <FacModTipo>
+                      <Cod>string</Cod>
+                      <Desc>string</Desc>
+                    </FacModTipo>
+                  </ResultGet>
+                  <Errors>
+                    <Err>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Err>
+                  </Errors>
+                  <Events>
+                    <Evt>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Evt>
+                  </Events>
+                </ComprobantesModalidadConsultarResult>
+              </ComprobantesModalidadConsultarResponse>
+            </soap:Body>
+          </soap:Envelope>
+
+
+Donde:
+ComprobantesModalidadConsultarResult:
+        Campo                                    Detalle                          Obligatorio
+
+ResultGet             Información de los diferentes modos permitidos.                 N
+
+Errors                Información de errores detectados                               N
+Events                Información de eventos                                          N
+
+ResultGet: Detalle de los modos de autorización; esta compuesto por los siguientes campos:
+      Campo           Tipo                             Detalle                    Obligatorio
+Cod              String (4)         Código de autorización                            S
+Desc             String (250)       Descripción de autorización                       S
+
+
+2.4 Recuperador de valores referenciales de códigos de Tipos de comprobante
+(ComprobantesTipoConsultar)
+
+Este método permite consultar los tipos de comprobantes habilitados en este WS.
+
+
+2.4.1    Dirección URL (Homologación)
+Este servicio se llama desde:
+https://wswhomo.afip.gob.ar/WSCDC/service.asmx?op=ComprobantesTipoConsultar
+
+2.4.2    Mensaje de solicitud
+Recibe las credenciales de autenticación y la cuit del usuario representado.
+          <?xml version="1.0" encoding="utf-8"?>
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+                          Especificaciones técnicas de Servicios Web –WSCDC
+
+              <ComprobantesTipoConsultar>
+                <Auth>
+                  <Token>string</Token>
+                  <Sign>string</Sign>
+                  <Cuit>long</Cuit>
+                </Auth>
+              </ComprobantesTipoConsultar>
+            </soap:Body>
+          </soap:Envelope>
+
+Donde:
+    Campo                                Detalle                              Obligatorio
+                  Información de la autenticación. Contiene los datos
+ Auth                                                                             S
+                  de Token, Sign , Cuit
+ Token            Token devuelto por el WSAA                                      S
+ Sign             Sign devuelto por el WSAA                                       S
+ Cuit             Cuit contribuyente                                              S
+
+
+2.4.3    Mensaje de respuesta
+Retorna el universo de tipos de comprobante validos.
+          <?xml version="1.0" encoding="utf-8"?>
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <ComprobantesTipoConsultarResponse>
+                <ComprobantesTipoConsultarResult>
+                  <ResultGet>
+                    <CbteTipo>
+                      <Id>int</Id>
+                      <Desc>string</Desc>
+                      <FchDesde>string</FchDesde>
+                      <FchHasta>string</FchHasta>
+                    </CbteTipo>
+                    <CbteTipo>
+                      <Id>int</Id>
+                      <Desc>string</Desc>
+                      <FchDesde>string</FchDesde>
+                      <FchHasta>string</FchHasta>
+                    </CbteTipo>
+                  </ResultGet>
+                  <Errors>
+                    <Err>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Err>
+                    <Err>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Err>
+                  </Errors>
+                  <Events>
+                    <Evt>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Evt>
+                    <Evt>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Evt>
+                              Especificaciones técnicas de Servicios Web –WSCDC
+
+                  </Events>
+                </ComprobantesTipoConsultarResult>
+              </ComprobantesTipoConsultarResponse>
+            </soap:Body>
+          </soap:Envelope>
+
+
+
+
+Donde:
+ComprobantesTipoConsultarResult:
+        Campo                                     Detalle                         Obligatorio
+                      Información de los diferentes tipos de comprobantes
+ResultGet                                                                             N
+                      permitidos.
+Errors                Información de errores detectados                               N
+Events                Información de eventos                                          N
+
+ResultGet: Detalle de los tipos de comprobantes; esta compuesto por los siguientes campos:
+     Campo            Tipo                             Detalle                    Obligatorio
+Id               Int (3)            Código de comprobante                             S
+Desc             String (250)       Descripción                                       S
+FchDesde         String (8)         Fecha de vigencia desde                           S
+
+FchHasta         String (8)         Fecha de vigencia hasta                           N
+
+
+
+2.5 Recuperador de valores referenciales de códigos de Tipos de Documentos
+(DocumentosTipoConsultar)
+
+Este método retorna el universo de tipos de documentos disponibles en el presente WS.
+
+
+2.5.1    Dirección URL (Homologación)
+Este servicio se llama desde:
+https://wswhomo.afip.gob.ar/WSCDC/service.asmx?op=DocumentosTipoConsultar
+
+2.5.2    Mensaje de solicitud
+Recibe las credenciales de autenticación y la cuit del usuario representado.
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              < DocumentosTipoConsultar>
+                <Auth>
+                  <Token>string</Token>
+                  <Sign>string</Sign>
+                  <Cuit>long</Cuit>
+                </Auth>
+              </DocumentosTipoConsultar>
+            </soap:Body>
+          </soap:Envelope>
+
+Donde:
+                         Especificaciones técnicas de Servicios Web –WSCDC
+
+       Campo                            Detalle                              Obligatorio
+                 Información de la autenticación. Contiene los datos
+Auth                                                                             S
+                 de Token, Sign , Cuit
+Token            Token devuelto por el WSAA                                      S
+Sign             Sign devuelto por el WSAA                                       S
+Cuit             Cuit contribuyente                                              S
+
+2.5.3 Mensaje de respuesta
+
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <DocumentosTipoConsultarResponse>
+                <DocumentosTipoConsultarResult>
+                  <ResultGet>
+                    <DocTipo>
+                      <Id>int</Id>
+                      <Desc>string</Desc>
+                      <FchDesde>string</FchDesde>
+                      <FchHasta>string</FchHasta>
+                    </DocTipo>
+                    <DocTipo>
+                      <Id>int</Id>
+                      <Desc>string</Desc>
+                      <FchDesde>string</FchDesde>
+                      <FchHasta>string</FchHasta>
+                    </DocTipo>
+                  </ResultGet>
+                  <Errors>
+                    <Err>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Err>
+                    <Err>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Err>
+                  </Errors>
+                  <Events>
+                    <Evt>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Evt>
+                    <Evt>
+                      <Code>int</Code>
+                      <Msg>string</Msg>
+                    </Evt>
+                  </Events>
+                </DocumentosTipoConsultarResult>
+              </DocumentosTipoConsultarResponse>
+            </soap:Body>
+          </soap:Envelope>
+
+
+Donde:
+DocumentosTipoConsultarResult:
+        Campo                               Detalle                            Obligatorio
+ ResultGet         Información sobre los tipos de documento aceptados.               N
+ Errors            Información de errores detectados                                 N
+ Events            Información de eventos                                            N
+                              Especificaciones técnicas de Servicios Web –WSCDC
+
+ResultGet:
+      Campo             Tipo                            Detalle                   Obligatorio
+ Id               Int (2)             Código de tipo de documento                      S
+ Desc             String (250)        Descripción                                      S
+ FchDesde         String(8)           Fecha de vigencia desde                          S
+ FchHasta         String (8)          Fecha de vigencia hasta                          N
+
+
+
+2.6 Recuperador de valores referenciales de códigos de Tipos de datos Opcionales
+(OpcionalesTipoConsultar)
+
+Este método permite consultar los códigos y descripciones de los tipos de datos Opcionales que se
+encuentran habilitados para ser usados en el WS.
+
+
+2.6.1    Dirección URL (Homologación)
+Este servicio se llama desde:
+https://wswhomo.afip.gob.ar/WSCDC/service.asmx?op=OpcionalesTipoConsultar
+
+
+
+
+2.6.2    Mensaje de solicitud
+Recibe las credenciales de autenticación y la cuit del usuario representado.
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+              <OpcionalesTipoConsultar>
+                <Auth>
+                  <Token>string</Token>
+                  <Sign>string</Sign>
+                  <Cuit>long</Cuit>
+                </Auth>
+              </OpcionalesTipoConsultar>
+            </soap:Body>
+          </soap:Envelope>
+
+
+
+Donde:
+      Campo                            Detalle                               Obligatorio
+                Información de la autenticación. Contiene los
+ Auth                                                                             S
+                datos de Token, Sign , Cuit
+ Token          Token devuelto por el WSAA                                        S
+ Sign           Sign devuelto por el WSAA                                         S
+ Cuit           Cuit contribuyente                                                S
+
+
+
+
+2.6.3 Mensaje de respuesta
+
+          <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-
+          instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+          xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                          Especificaciones técnicas de Servicios Web –WSCDC
+
+           <soap:Body>
+             <OpcionalesTipoConsultarResponse>
+               <OpcionalesTipoConsultarResult>
+                 <ResultGet>
+                   <OpcionalTipo>
+                     <Id>string</Id>
+                     <Desc>string</Desc>
+                     <FchDesde>string</FchDesde>
+                     <FchHasta>string</FchHasta>
+                   </OpcionalTipo>
+                   <OpcionalTipo>
+                     <Id>string</Id>
+                     <Desc>string</Desc>
+                     <FchDesde>string</FchDesde>
+                     <FchHasta>string</FchHasta>
+                   </OpcionalTipo>
+                 </ResultGet>
+                 <Errors>
+                   <Err>
+                     <Code>int</Code>
+                     <Msg>string</Msg>
+                   </Err>
+                   <Err>
+                     <Code>int</Code>
+                     <Msg>string</Msg>
+                   </Err>
+                 </Errors>
+                 <Events>
+                   <Evt>
+                     <Code>int</Code>
+                     <Msg>string</Msg>
+                   </Evt>
+                   <Evt>
+                     <Code>int</Code>
+                     <Msg>string</Msg>
+                   </Evt>
+                 </Events>
+               </OpcionalesTipoConsultarResult>
+             </OpcionalesTipoConsultarResponse>
+           </soap:Body>
+         </soap:Envelope>
+
+
+
+Donde:
+OpcionalesTipoConsultarResult:
+       Campo                                Detalle                           Obligatorio
+
+ResultGet          Información de los tipos de datos opcionales                   N
+Errors             Información de errores detectados                              N
+Events             Información de eventos                                         N
+
+
+ResultGet: Detalle de los tipos de datos opcionales; esta compuesto por los siguientes campos:
+     Campo             Tipo                           Detalle                 Obligatorio
+Id                 String (4)      Identificador de campo opcional                S
+Desc               String (250)    Descripción                                    S
+FchDesde           String (8)      Fecha de vigencia desde                        S
+FchHasta           String (8)      Fecha de vigencia hasta                        N
+                          Especificaciones técnicas de Servicios Web –WSCDC
+
+2.7 Método Dummy para verificación de funcionamiento de infraestructura
+(ComprobanteDummy)
+
+2.7.1 Dirección URL (Homologación)
+Este servicio se llama desde:
+https://wswhomo.afip.gob.ar/WSCDC/service.asmx?op=ComprobanteDummy
+
+
+
+
+2.7.2 Mensaje de solicitud
+El método no posee parámetros de ingreso
+         <soapenv:Envelope
+         xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+            <soapenv:Header/>
+            <soapenv:Body>
+               <wsc:ComprobanteDummy/>
+            </soapenv:Body>
+         </soapenv:Envelope>
+
+
+
+
+2.7.3 Mensaje de respuesta
+Retorna la comprobación vía “ping” de los elementos principales de infraestructura del servicio.
+
+
+         <soapenv:Envelope
+         xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+            <soapenv:Header/>
+            <soapenv:Body>
+               <ComprobanteDummyResponse>
+                  <ComprobanteDummyResult>
+                     <AppServer>string</AppServer>
+                     <DbServer>string</DbServer>
+                     <AuthServer>string</AuthServer>
+                  </ComprobanteDummyResult>
+               </ComprobanteDummyResponse>
+            </soapenv:Body>
+         </soapenv:Envelope>
+
+
+Donde:
+             Campo                     Tipo                 Detalle            Obligatorio
+AppServer                           String (2)   Servidor de aplicaciones           S
+DbServer                            String (2)   Servidor de base de datos          S
+AuthServer                          String (2)   Servidor de autenticación          S
+                            Especificaciones técnicas de Servicios Web –WSCDC
+
+2.8   Margen de error mediante (Error Absoluto y Error Relativo)
+
+
+
+
+       Error Absoluto eabs: Es la diferencia entre el valor medido informado y el valor real
+
+       Error Relativo erel : Es el cociente entre el valor error absoluto y el valor real.
+
+       En ambos casos se tomará el valor absoluto, es decir el signo resultante de la operación no
+       se considerará.
+
+       El criterio de redondeo que utilizamos en este servicio es Round Half Even.
+

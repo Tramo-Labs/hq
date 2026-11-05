@@ -1,0 +1,592 @@
+Cartera de Consumo
+Términos y Condiciones
+Banca Internet Provincia (BIP / BIP Móvil)
+
+En el caso de que usted decida hacer uso del servicio de Banca Internet Provincia en las
+versiones web (en adelante “BIP”) o Móvil (en adelante “BIP Móvil”) para individuos del
+Banco de la Provincia de Buenos Aires (en adelante “El Banco”) debe aceptar y ajustarse a
+los términos y condiciones que seguidamente se detallan:
+
+Objeto
+BIP/BIP Móvil es el Home Banking que “El Banco” pone a disposición, como canal digital, de
+los/las clientes/as (en adelante “El/la Cliente/a) que permite realizar consultas y
+transacciones bancarias en forma remota y segura.
+
+Adhesión
+Obtención de Usuario y Clave
+A través de un cajero automático de “El Banco” y de Red Link, “El/la Cliente/a” ingresará
+una clave personal de seis dígitos que deberá memorizar y recibirá un usuario provisorio,
+denominado HBNet, impreso en el comprobante de la operación.
+A través de la aplicación Cuenta DNI, ingresando en la opción “Alta usuario BIP”, “El/la
+Cliente/a” elegirá un usuario y clave personal.
+Personalmente en una sucursal de “El Banco”, “El/la Cliente/a” elegirá un usuario, que no
+podrá cambiar luego y se le asignará una clave personal provisoria.
+
+Acceso al Servicio
+El acceso al servicio es a través de Home Banking BIP, haciendo clic acá1 y desde las tiendas
+digitales App Store o Play Store, según el sistema operativo del dispositivo para la aplicación
+BIP Móvil. El dispositivo móvil debe tener conexión a internet y/o servicio de transmisión
+de datos para realizar la descarga de la aplicación BIP Móvil.
+- En caso de haber gestionado usuario y clave provisoria en un cajero automático:
+al realizar el primer ingreso a BIP/BIP Móvil, el sistema solicitará a “El/la Cliente/a” cambiar
+estos por un usuario y clave de su elección. Estos reemplazarán a los provisorios y serán los
+que deberá utilizar en su operatoria diaria. Para los posteriores accesos a BIP Móvil podrá
+habilitar la utilización de la huella dactilar o realizar el logueo con una fotografía de su rostro
+(FaceID), siempre que el dispositivo móvil cuente con estas funcionalidades.
+- En caso de haber gestionado usuario y clave en una sucursal:
+al realizar el primer ingreso a BIP/BIP Móvil deberá modificar la clave provisoria por una de
+su elección. Esta reemplazará a la clave provisoria y, junto con el usuario, serán los que
+deberá utilizar en su operatoria diaria. Para los posteriores accesos a BIP Móvil podrá
+
+
+1
+    https://www.bancoprovincia.bancainternet.com.ar
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 1 de 12
+habilitar la utilización de la huella dactilar o realizar el logueo con una fotografía de su rostro
+(FaceID) si el dispositivo móvil cuenta con estas funcionalidades.
+El acceso será exclusivamente mediante el uso de un usuario y clave o huella dactilar/FaceID
+en caso de haber sido habilitadas por “El/la Cliente/a” (en adelante “Las Claves”), de
+acuerdo a las modalidades operativas descriptas en estos términos y condiciones y aquellas
+que se pudieran habilitar en el futuro.
+El usuario debe estar constituido por un mínimo de ocho (8) y un máximo de quince (15)
+caracteres. Debe contener letras y números. La clave debe estar constituida por un mínimo
+de ocho (8) y un máximo de treinta (30) caracteres. Debe contener como mínimo uno de
+cada uno de los siguientes grupos: letras mayúsculas, minúsculas, números y caracteres
+especiales ¡?+$%@#. No se permite consignar el número de DNI, nombre y/o apellido.
+“Las Claves” son de uso personal, confidencial, únicas e intransferibles, y queda bajo la
+exclusiva responsabilidad de “El/la Cliente/a” el correcto resguardo y protección. Ante el
+olvido de “Las Claves”, “El/la Cliente/a” podrá generarlas nuevamente a través de un cajero
+automático de “El Banco” /Red Link o desde la opción “Bloqueé u olvidé mi usuario y/o
+clave” desde BIP o BIP Móvil.
+
+“El Banco” se reserva el derecho de:
+ ▪ solicitar comprobantes y/o información adicional a efectos de corroborar la
+    información entregada por “El/la Cliente/a” en materia de datos personales o de la
+    documentación complementaria;
+ ▪ rechazar una solicitud de adhesión en caso de detectar incongruencias o
+    inconsistencias en la información provista por “El/la Cliente/a”.
+
+Operaciones habilitadas
+Luego de ingresar “Las Claves”, “El/la Cliente/a” puede realizar todas las operaciones que
+“El Banco” determine y se encuentren disponibles en el menú del servicio, incluida la
+contratación de productos y/o servicios bajo las condiciones particulares de cada uno de
+ellos, siempre que las cuentas sobre las que opere se encuentren abiertas y sin pesar sobre
+ellas suspensiones del servicio de pago, ni medidas cautelares que las afecten, y en la
+medida que se cuente con facultades suficientes para realizar la operación según titularidad
+y orden bajo la cual se encuentren abiertas dichas cuentas.
+Una vez que “El/la Cliente/a” haya efectuado las operaciones deseadas, y quiera dejar de
+operar el servicio, deberá concluir la sesión utilizando las opciones correspondientes.
+“El Banco” podrá requerir a “El/la Cliente/a” la utilización de factores adicionales de
+autenticación (en adelante “Los Factores adicionales de Autenticación”) para la ejecución
+de determinadas operaciones (según el apartado “Servicio Token de Seguridad” y el
+apartado “Servicio de Validación Biométrica – Reconocimiento Facial”).
+Toda transacción que se efectúe en el servicio, mediante el uso de “Las Claves” y “Los
+Factores adicionales de Autenticación” en caso de corresponder, se entenderá realizada por
+“El/la Cliente/a”, considerándose las mismas como válidas, legítimas y auténticas sin
+necesidad de realizar otro tipo de confirmación.
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 2 de 12
+ “El/la Cliente/a” reconoce y acepta que determinados productos, servicios y
+funcionalidades requerirán la aceptación de términos y condiciones particulares adicionales
+a los presentes y no podrán ser utilizados y/o contratados hasta la aceptación de los
+mismos.
+Las operaciones cursadas a través de BIP/BIP Móvil no podrán ser dejadas sin efecto y serán
+tomadas “en firme”, salvo aquellas que deban ser necesariamente confirmadas por “El
+Banco”. En caso de efectuar, por este u otro sistema distinto, operaciones que se
+contrapongan entre sí, se entiende que la única válida es la primera procesada por “El
+Banco”.
+El otorgamiento de productos, servicios y funcionalidades se encuentra sujeto a evaluación
+por parte de “El Banco”.
+“El Banco” a su criterio, podrá modificar total o parcialmente las condiciones del servicio
+BIP/BIP Móvil/Token de Seguridad/Validación biométrica – Reconocimiento facial. “El/la
+Cliente/a” deberá aceptar los términos y condiciones del servicio toda vez que “El Banco”
+lo requiera. Caso contrario no podrá operar el servicio.
+
+Quien suscribe el presente autoriza expresa e irrevocablemente al Banco para que, ante
+operaciones consideradas inusuales y/o sospechosas y/o fraudulentas y/o de mala fe,
+frente al requerimiento de otro Banco u otra entidad proveedora de servicios de pago que
+ofrece cuentas de pago o por decisión de este mismo Banco, congele, suspenda y/o demore
+preventivamente el acceso a los fondos existentes en cuentas de su titularidad; y/o revierta
+operaciones investigadas como fraudulentas y/o verificadas como tales, debitando los
+fondos involucrados de la cuenta de su titularidad y transfiriendo los mismos a la cuenta
+solicitante de la transferencia, debiendo el Banco informar de tales circunstancias al
+domicilio electrónico denunciado y/o aquel que se indica a continuación: correo electrónico
+registrado en E-Provincia a la fecha de notificación Dentro de las 24 horas de acontecido el
+hecho, independientemente de su visualización posterior en los respectivos extractos
+físicos y/o digitales.
+Asimismo, presta su expreso consentimiento para que el Banco ceda aquellos datos
+personales de su titularidad que resulten necesarios para efectivizar la operatoria descripta
+en el párrafo precedente, ello de conformidad con lo dispuesto por los arts. 5 y 11 de la Ley
+25.326 inclusive en renuncia al secreto financiero Ley 21526, art. 39, cuyo tenor puede
+consultar ingresando a https://servicios.infoleg.gob.ar/infolegInternet/anexos/60000-
+64999/64790/norma.htm2                                                                       y
+https://servicios.infoleg.gob.ar/infolegInternet/anexos/15000-19999/16071/norma.htm .      3
+
+
+
+Interrupción del servicio
+El canal BIP/BIP Móvil podrá ser, parcial o totalmente, interrumpido en situaciones tales
+como tareas de mantenimiento de la plataforma, disposiciones o resoluciones de cualquier
+
+2
+    https://servicios.infoleg.gob.ar/infolegInternet/anexos/60000-64999/64790/norma.htm
+3
+    https://servicios.infoleg.gob.ar/infolegInternet/anexos/15000-19999/16071/norma.htm
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 3 de 12
+autoridad pública, cortes en la comunicación con terceros y/o casos de fuerza mayor. Una
+vez finalizada la causa que motivó la interrupción, el servicio será restituido.
+“El/la Cliente/a” comprende que el canal BIP/BIP Móvil puede ser objeto de interrupciones
+y conoce los otros canales disponibles para realizar sus operaciones.
+En ningún caso “El Banco” será responsable por las consecuencias que pudieran surgir por
+la interrupción parcial o total del servicio.
+Ocurrida una interrupción, por cualquier causa, “El/la Cliente/a”, siempre tendrá la
+alternativa de solicitar la información u ordenar las transacciones requeridas mediante los
+medios habituales.
+
+Privacidad
+En el marco de la utilización del servicio Banca Internet Provincia (BIP/BIP Móvil), “El/la
+Cliente/a” reconoce y acepta que el tratamiento de sus datos personales se encuentra
+regido por la Política de Privacidad del Banco de la Provincia de Buenos Aires, la cual detalla
+cómo se recopila, utiliza, almacena y protege la información personal en todos los canales
+digitales. Para mayor información sobre el tratamiento de datos personales, derechos del
+titular y medidas de seguridad implementadas, “El/la Cliente/a” podrá consultar la Política
+de Privacidad vigente accediendo al siguiente enlace: Política de Privacidad4.
+
+Requisitos técnicos
+“El/la Cliente/a" puede operar en BIP desde una computadora personal o dispositivo similar
+que reúna los siguientes requisitos mínimos de hardware y software: lntel Celeron 1.2Ghz
+o similar; 512Mb RAM. Navegadores soportados: compatibles con ES6 como: Edge 15 +,
+Firefox 54+, Chrome 64+, Safari 15+, Opera 38+, Android Browser 99+, Opera Mobile 64+,
+Chrome mobile, Firefox mobile.
+Para operar en BIP Móvil debe contar con un dispositivo móvil con acceso a internet y/o
+servicio de transmisión de datos, contando los mismos con los siguientes sistemas
+operativos:
+    • iOS: versión 15.5 en adelante - iPhone 6s +
+    • Android: API 23 versión 6.0 en adelante.
+
+Permisos Requeridos
+Android
+Permisos básicos de la aplicación
+   • Acceso a internet mediante Wi-Fi o datos móviles.
+   • Cámara y Flash: uso de la cámara del dispositivo.
+   • Acceso y lectura de almacenamiento Externo como descargas y lectura de PDF o
+      Excel.
+
+
+
+
+4
+    https://www.bancoprovincia.com.ar/CDN/Get/Politica_de_Privacidad_BPBA
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 4 de 12
+Permisos solicitados por BioCatch
+    • Sensores de alta frecuencia: acceso a sensores del dispositivo con alta tasa de
+      muestreo (movimiento, orientación, proximidad, etc.).
+    • Estado de red: permite conocer si el dispositivo está conectado a Wi-Fi o datos
+      móviles.
+    • Estado de wi-fi: permite leer información sobre la conexión Wi-Fi (SSID, intensidad
+      de señal, etc.).
+    • Consulta de aplicaciones instaladas: permite obtener una lista de todas las
+      aplicaciones instaladas en el dispositivo.
+    • Estado del teléfono: acceso a información como número de teléfono, estado de
+      llamadas, IMEI, red conectada, etc.
+    • Contactos: permite acceder a la agenda de contactos del dispositivo.
+    • Conexión bluetooth: permite conectarse a dispositivos Bluetooth cercanos
+      (audífonos, relojes, altavoces, etc.).
+iOS
+Permisos básicos de la aplicación
+    • Uso de Cámara: uso de la cámara del dispositivo.
+    • Uso de Face ID: permite el uso de Face ID para iniciar sesión mediante
+      reconocimiento facial.
+    • Consulta de Aplicaciones: permite verificar si ciertas apps están.
+    • Apertura de Documentos: permite abrir archivos directamente desde otras apps.
+    • Intercambio de Archivos: activa la transferencia de archivos entre la app y una
+      computadora mediante iTunes/Finder.
+Permisos solicitados por BioCatch
+    • Acceso a la Galería de Fotos: permite acceder a la galería de fotos del dispositivo.
+
+Responsabilidades y obligaciones de “El/la Cliente/a”
+“El/la Cliente/a” asume expresamente las siguientes responsabilidades:
+
+▪ Aceptar que “Las Claves” de acceso a BIP/BIP Móvil y “Los Factores adicionales de
+  Autenticación” son personales, secretos, confidenciales e intransferibles, estando
+  prohibida su divulgación a terceros por parte de “El/la Cliente/a”. Si este llegara a saber
+  y/o sospechar que un tercero posee conocimiento de “Las Claves” y “Los Factores
+  adicionales de Autenticación”, debe modificarlos de inmediato.
+▪ Aceptar que sólo podrá utilizar “Las Claves” y “Los Factores adicionales de Autenticación”
+  para sí y no podrá emplearlas para que terceros efectúen transacciones y/o reciban
+  información, ni tampoco para realizar transacciones por cuenta y orden de terceros.
+▪ Aceptar que, dado que “Las Claves” y “Los Factores adicionales de Autenticación” serán
+  de su exclusivo conocimiento, al ingresar al sistema con sus datos se validarán las
+  operaciones considerándose las mismas como válidas, legítimas y auténticas sin
+  necesidad de realizar otro tipo de confirmación.
+
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 5 de 12
+▪ Liberar totalmente de responsabilidad a “El Banco” por el uso que un tercero pueda
+  hacer del sistema utilizando “Las Claves” y “Los Factores adicionales de Autenticación”,
+  en función de la confidencialidad de los mismos que obligan a mantenerlos en secreto.
+▪ Asumir la responsabilidad por el uso del sistema, haciéndose cargo de todos los daños y
+  perjuicios emergentes del uso indebido y/o incumplimiento de las obligaciones que
+  asume en el presente documento.
+▪ Aceptar expresamente la información que surja de los registros electrónicos y/o físicos
+  aportados por “El Banco”.
+
+“El/la Cliente/a” asume expresamente las siguientes obligaciones:
+
+▪ Efectuar las operaciones ajustándose estrictamente a las instrucciones dadas por “El
+  Banco”.
+▪ Mantener la confidencialidad de “Las Claves” y “Los Factores adicionales de
+  Autenticación” de acceso a BIP/ BIP Móvil
+▪ Aceptar que las órdenes impartidas, a través de los medios especialmente habilitados al
+  efecto, serán tenidas como prueba de su voluntad de haber realizado las transacciones.
+▪ Eximir a “El Banco” de toda responsabilidad por inconvenientes, daños y/o perjuicios que
+  tuviera con el equipo hardware y/o software utilizados para conectarse a BIP/BIP Móvil
+  y “Los Factores adicionales de Autenticación”, fallas de equipos y/o líneas u otras
+  contingencias, cualquiera fuera el origen, que impidan el normal funcionamiento del
+  sistema, como así también respecto de aquellos relacionados y/u ocasionados por el
+  prestador del servicio de telefonía celular y/o servicio de internet.
+
+Autorización
+“El/la Cliente/a” autoriza expresamente a “El Banco” a que, por motivos de seguridad,
+utilice cualquier sistema idóneo para acreditar la pertenencia de la orden cursada, de las
+operaciones realizadas y de los servicios utilizados, incluyendo la grabación de las
+conversaciones telefónicas, que serán aceptadas como medio de prueba hábil y fehaciente
+aún en juicio.
+
+Responsabilidades y obligaciones de “El Banco”
+▪ Prestar los servicios en las condiciones pactadas en los presentes términos y condiciones.
+Informar a “El/la Cliente/a” cualquier cambio en los términos y condiciones como así
+también en los alcances del servicio.
+▪ Disponibilizar información a “El/la Cliente/a” sobre las Comisiones, Tasas y Cargos que
+   aplican a las operaciones.
+▪ Disponibilizar información a “El/la Cliente/a” sobre las operaciones realizadas.
+Realizar el procesamiento de las operaciones que “El/la Cliente/a” cursa a través de BIP/BIP
+Móvil.
+
+
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 6 de 12
+En ningún caso “El Banco” será responsable por las consecuencias que pudieran surgir por
+la interrupción parcial o total del servicio.
+
+Servicio “Agente Financiero IA”
+
+El Agente Financiero IA es una herramienta de asistente impulsado por Inteligencia Artificial
+(IA), disponible en los canales BIP/BIP Móvil, que “El/la Cliente/a” podrá utilizar para realizar
+consultas y gestionar determinadas operaciones, mediante la interacción con un sistema
+impulsado por IA.
+En el caso que “El/la Cliente/a” decida hacer uso de este servicio, reconoce y presta
+conformidad para interactuar a través de los canales digitales habilitados por el Banco, con
+herramientas tecnológicas de asistencia automatizada y/o sistemas basados en Inteligencia
+Artificial, destinados a la atención, procesamiento de solicitudes y mejora del servicio.
+Asimismo, entiende que la información tratada por dichos sistemas será gestionada
+conforme a la normativa vigente en materia de protección de datos personales, seguridad
+de la información y confidencialidad bancaria, y que las operaciones quedarán sujetas a los
+presentes Términos y Condiciones.
+
+Funcionalidades:
+A través del Agente Financiero IA, “El/la Cliente” podrá acceder a ejecutar, entre otras, las
+siguientes transacciones, debiendo mediar en todos los casos su previo y expreso
+consentimiento:
+
+    •   Consultas de saldos y movimientos.
+    •   Compra y venta de moneda extranjera, conforme a la normativa vigente.
+    •   Gestión de transferencias.
+    •   Consulta de inversiones disponibles y posición actual (según perfil del inversor).
+    •   Apertura de cuenta cuotapartista (según perfil del inversor).
+    •   Constitución de inversiones, Fondos Comunes de Inversión (FCI) y Plazos Fijos (según
+        perfil del inversor).
+    •   Derivación para atención personalizada al Centro de Inversiones del Banco (por
+        solicitud o definición por tipo de inversión).
+
+Y otras consultas u operaciones que “El Banco” incorpore al servicio en el futuro.
+
+Carácter informativo de los contenidos sobre inversiones:
+Al utilizar esta funcionalidad, “El/la Cliente/a” toma conocimiento y acepta que el Agente
+Financiero IA funciona únicamente como una herramienta para realizar operaciones
+previamente instruidas por “El/la Cliente/a”, de acuerdo con su criterio y con su
+consentimiento previo, y que la herramienta solo suministrará la información que
+expresamente le solicite en materia de productos de inversión, sin brindar ningún tipo de
+consejo, recomendación y/u asesoramiento.
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 7 de 12
+Dicha información (incluyendo descripciones de productos, alternativas disponibles,
+rendimientos, riesgos u otra información asociada) tiene carácter meramente informativo
+y se proporciona únicamente con fines descriptivos, y no constituye, bajo ninguna
+circunstancia, la prestación de ningún tipo de asesoramiento financiero, ni la promoción,
+sugerencia, recomendación, invitación, oferta ni solicitud para la contratación, modificación
+o cancelación de productos o servicios financieros.
+La decisión final respecto de cualquier operación de inversión es exclusiva responsabilidad
+de “El/la Cliente/a”.
+
+Para realizar operaciones con productos de inversión, el cliente deberá realizar el “Test del
+Inversor” a los efectos de determinar su perfil de riesgo, de conformidad con lo requerido
+por las normas de la Comisión Nacional de Valores, Normas CNV (TO 2013 y mod.). (LINK).
+
+Alcance de la información y limitaciones:
+
+    •   La información generada por el “Agente Financiero IA” se basa en datos provistos
+        por los sistemas de “El Banco” y en modelos automatizados.
+    •   En caso de discrepancia entre la información provista por el “Agente Financiero IA”
+        y aquella disponible en los canales oficiales de “El Banco”, prevalecerá esta última.
+
+Responsabilidades de “El/La Cliente/a”:
+“El/La Cliente/a” es exclusivo responsable del uso que realice del “Agente Financiero IA”,
+así como de verificar la información antes de confirmar la ejecución de cualquier operación
+a través de los canales habilitados de “El Banco”.
+
+Restricciones/modificación/actualización de funcionalidades:
+
+    •   “El Banco” podrá actualizar, modificar o discontinuar las funcionalidades del
+        “Agente Financiero IA” en cualquier momento, sin previo aviso, y tales cambios
+        serán aplicables desde su publicación en los presentes Términos y Condiciones.
+    •   “El Banco” podrá realizar el bloqueo de “El Usuario” para continuar la conversación
+        con el “Agente Financiero IA”, si se detectan expresiones de odio, sexuales, racismo,
+        o que pudieran afectar la seguridad del servicio.
+
+Servicio “e-Provincia”
+“El/la Cliente/a” toma conocimiento de que con la adhesión a BIP acepta la adhesión a “e-
+Provincia”.
+A través de este servicio “El Banco” remite por correo electrónico, por sí o a través de un
+tercero designado a tal efecto, a la casilla de correo electrónico que “El/la Cliente/a” ha
+registrado en la adhesión a BIP, los extractos de cuentas a la vista, resúmenes de tarjetas
+de crédito, notificaciones, normativa, contratos, avisos, promociones, beneficios y
+comunicaciones, incluyendo la actualización y/o modificación de las comisiones y/o cargos
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 8 de 12
+de los productos, que “El/la Cliente/a” posee en “El Banco” bajo su titularidad, en cuyo caso
+de no mediar rechazo expreso, a partir de los sesenta (60) días corridos contados desde la
+remisión de la comunicación, se asume conformidad.
+
+El servicio “e-Provincia” aplica a todos los productos y servicios que “El/la Cliente/a” posea
+en “El Banco”, para los cuales se implementa la correspondencia en forma electrónica, y
+para aquellos que en el futuro contrate, en tal sentido “El Banco” desistirá de remitir la
+correspondencia vía correo postal.
+A través de BIP o Cuenta DNI, “El/la Cliente/a” puede modificar la dirección de correo
+electrónico registrada para el servicio “e-Provincia”.
+En cualquier momento de la relación contractual “El/la Cliente/a” puede optar
+alternativamente por el servicio de información electrónica o por el envío postal. En este
+último caso debe solicitar la baja del servicio “e-Provincia” a través de BIP/ menú e-Provincia
+/ opción “Baja”, a través de Cuenta DNI en el menú contextual/e-Provincia/opción “Baja de
+e-Provincia”, llamando a 0810-222-2776 o acercándose a cualquier sucursal de “El Banco”,
+lo cual implica la renuncia a recepcionar por correo electrónico toda la documentación y/o
+información mencionada precedentemente y recibirla vía postal.
+Dicha solicitud no implicará la baja de la dirección de correo electrónico a los efectos de
+continuar recibiendo información relacionada con los beneficios y promociones que ofrece
+“El Banco”, sin perjuicio del derecho que le asiste a solicitar la baja a esos efectos también,
+tal como se indica a continuación.
+En caso de que el cliente no desee recibir información sobre publicidades y/o promociones,
+sin perjuicio de continuar recibiendo la restante información relativa a los servicios que
+mantenga contratados, podrá solicitar dicha baja por los mismos medios indicados
+precedentemente, y/o a través del link que se incluye en el mismo correo electrónico
+recibido.
+Si la clave de “e-Provincia” fue generada automáticamente por “El Banco”, “El/la Cliente/a”
+deberá modificarla en el primer ingreso a BIP, de lo contrario deberá generarla en el
+momento de la adhesión a BIP según las medidas de seguridad vigentes. Dicha clave debe
+estar constituida por un mínimo de ocho (8) y un máximo de treinta (30) caracteres,
+permitiéndose seleccionar letras mayúsculas, minúsculas, números o caracteres especiales,
+debiendo utilizar una combinación de por lo menos tres (3) de estos grupos de caracteres.
+No se permite consignar el número de DNI.
+La clave de acceso al servicio “e-Provincia” será requerida para la apertura de aquellos
+archivos que contengan extractos de cuentas (Caja de Ahorros y Cuenta Corriente) y en los
+que en un futuro “El Banco” ponga a disposición.
+
+Servicio “Token de Seguridad”
+Token de Seguridad es el mecanismo adicional de seguridad que “El Banco” pone a
+disposición, para validar las operaciones realizadas a través de BIP/BIP Móvil que así lo
+requieran.
+
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 9 de 12
+Token de Seguridad genera códigos de seis (6) dígitos válidos por treinta (30) segundos y
+regenerados automáticamente.
+Para adherirse a Token de Seguridad, una vez instalada la aplicación BIP Móvil debe
+completar los siguientes pasos:
+1. Acercarse a un cajero automático de “El Banco” /Red Link con su tarjeta de débito e
+ingresar al menú principal y luego Otras operaciones > Gestión de Claves > BIP, BIP Móvil,
+Token de seguridad > Obtener clave. o bien;
+2. Desde la aplicación Cuenta DNI, menú contextual, opción “Activación Token BIP Móvil”.
+
+Para visualizar los códigos del Token de Seguridad debe ingresar a BIP Móvil, opción Token
+de Seguridad, sin necesidad de loguearse.
+
+La desvinculación del Token de Seguridad se realiza a través del botón “DESVINCULAR”. De
+esta manera, el factor de autenticación queda anulado y deberá vincularse nuevamente
+para poder realizar operaciones en BIP/BIP Móvil que requieran un segundo factor de
+autenticación.
+Para reactivar el Token de Seguridad ante fallas, pérdida, robo o extravío de su dispositivo
+móvil, debe desinstalar e instalar nuevamente la aplicación BIP Móvil y realizar la adhesión
+con clave de cajero automático o código de autenticación desde Cuenta DNI.
+
+
+Servicio “Validación Biométrica – Reconocimiento Facial”
+“Validación biométrica – Reconocimiento facial” es un segundo factor de autenticación para
+los canales BIP y BIP Móvil que permite a la persona usuaria ser validada y verificada de
+manera remota para realizar operaciones desde “El Banco”, con el fin de proteger sus
+cuentas personales, a través de un enlace a:
+https://biometria.bancainternet.com.ar:5343/qrcomponent5 para web
+https://biometria.bancainternet.com.ar:5343/provinciawb/home-high6 para Android
+https://biometria.bancainternet.com.ar:5343/wprovinciawb/home-high7 para iOS
+Una vez activo este segundo factor de autenticación, “El/la Cliente/a” podrá utilizarlo para
+validar todas aquellas operaciones en las que “El Banco” así lo requiera para operar de
+manera digital.
+
+Habilitación de validación Biométrica
+Para ejecutar aquellas operaciones que “El Banco” determine, a través de BIP o BIP Móvil,
+deberán ser previamente validadas con el segundo factor de autenticación, “Validación
+biométrica – Reconocimiento facial”, a través de:
+https://biometria.bancainternet.com.ar:5343/qrcomponent8 para web
+
+5
+  https://biometria.bancainternet.com.ar:5343/qrcomponent
+6
+  https://biometria.bancainternet.com.ar:5343/provinciawb/home-high
+7
+  https://biometria.bancainternet.com.ar:5343/wprovinciawb/home-high
+8
+  https://biometria.bancainternet.com.ar:5343/qrcomponent
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 10 de 12
+https://biometria.bancainternet.com.ar:5343/provinciawb/home-high9 para Android
+https://biometria.bancainternet.com.ar:5343/wprovinciawb/home-high10 para iOS
+En el caso de que “El/la Cliente/a” pretenda realizar alguna de estas operaciones, deberá
+realizar la activación de la “Validación biométrica – Reconocimiento facial.
+
+Requisitos Técnicos
+Para la “Validación biométrica – Reconocimiento facial” deberá contar con los siguientes
+requisitos mínimos:
+   • El dispositivo smartphone debe permitir usar la cámara frontal y la cámara trasera,
+        ambas a partir de una resolución FullHD (1080 pixeles x 1920 pixeles);
+   • Conectividad requerida para uso de la plataforma upload/download: 1,5 Mbps
+        (compatible con WiFi, 5G, 4G, 3G);
+   • Máxima latencia: 300ms;
+   • Navegadores compatibles:
+           a) en dispositivos Android: Chrome versión 64 o superior;
+           b) en dispositivos iOS: Safari versión 15 o superior.
+
+Deshabilitación de Validación Biométrica
+“El/la Cliente/a” podrá requerir la deshabilitación de la “Validación biométrica -
+Reconocimiento facial”, en situaciones específicas, presentándose en una Sucursal/Casa y
+suscribiendo la “Solicitud de restitución de Token de Seguridad” que le será provista por “El
+Banco”. De esta manera, y previo análisis por parte de “El Banco”, el factor de autenticación
+quedará anulado y volverá a utilizarse – en su reemplazo - el Token de Seguridad.
+
+
+Obligaciones de “El/la Cliente/a
+“El/la cliente/a” autoriza que las imágenes obtenidas mediante la “Validación biométrica –
+Reconocimiento facial” sean transmitidas a terceros proveedores de “El Banco” a fin de
+obtener una validación automatizada de la identidad. “El/la cliente/a” entiende que el uso
+indebido del “Validación biométrica – Reconocimiento facial” por parte de terceros
+mediante el uso de tomas de fotografías o de filmaciones consentidas por” El/la cliente/a”
+a los efectos de intentos de registración o ingreso en forma indebida, son de su exclusiva
+responsabilidad.
+
+Costo del servicio
+“El/la Cliente/a” se notifica que la utilización del canal BIP/BIP Móvil y los Servicios “e-
+Provincia”, Token de Seguridad y “Validación Biométrica – Reconocimiento Facial” implica
+autorización a “El Banco” a cobrar una comisión por el uso de los mencionados canales y
+servicios, que a la fecha es $0.- (pesos cero).
+
+9
+    https://biometria.bancainternet.com.ar:5343/provinciawb/home-high
+10
+     https://biometria.bancainternet.com.ar:5343/wprovinciawb/home-high
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 11 de 12
+“El/la Cliente/a” acepta que “El Banco” puede modificar el monto de dicha comisión y/o
+percibir comisiones por todas o determinadas operaciones que “El/la Cliente/a” realice
+mediante el canal BIP/BIP Móvil y/o los servicios “e-Provincia” y/o Token de Seguridad y/o
+“Validación Biométrica – Reconocimiento Facial”. Los cambios en las comisiones por parte
+de “El Banco” se llevarán a cabo previo cumplimiento del procedimiento y notificación con
+sesenta (60) días de anticipación. El cambio se tendrá por consentido si dentro de este plazo
+no se formularan objeciones. De no aceptarse la modificación, en cualquier momento antes
+de la entrada en vigencia y sin cargo alguno, “El/la Cliente/a” puede rescindir el contrato.
+“El/la Cliente/a” acepta y ordena que dicha comisión sea debitada de las Cajas de Ahorros
+y/o Cuentas Corrientes de su titularidad radicadas en “El Banco”.
+
+Domicilio especial. Ley aplicable. Competencia
+En caso de suscitarse divergencias como consecuencias de la presente adhesión a los
+servicios de Banca Internet Provincia (BIP) / Token de Seguridad, será competente para
+atender las acciones iniciadas por EL/LA SOLICITANTE, a elección de este/a, el juez del
+lugar de radicación de la cuenta, el del lugar del domicilio legal del Banco (La Plata) o el
+domicilio real de EL/LA SOLICITANTE. En caso de que la acción fuera iniciada por el Banco,
+será competente el tribunal correspondiente al domicilio real de EL/LA SOLICITANTE.
+
+Revocación/Rescisión
+“El/la Cliente/a” tendrá derecho a dar de baja su adhesión al Canal BIP/BIP Móvil y los
+Servicios “e-Provincia” solicitando la revocación/rescisión del servicio en cualquier
+momento de la relación contractual y sin costo ni responsabilidad alguna. De conformidad
+a la normativa vigente, en el primer acceso a Banca Internet Provincia (BIP) se encontrará
+disponible el hipervínculo identificado como “Botón de arrepentimiento/Baja” que
+permitirán revocar la aceptación o rescindir esta adhesión. También podrá efectuarse la
+solicitud correspondiente de manera presencial en nuestras sucursales.
+Finalmente, “El Banco” podrá también dejar sin efecto el servicio cuando lo considere
+conveniente, sin invocación de causa, y sin que ello genere derecho a reclamo de
+indemnización alguna.
+
+El clic en SÍ ACEPTO importará mi expresa aceptación a todos y cada uno de los términos y
+condiciones indicados precedentemente, y en la constancia de haber obtenido toda la
+información necesaria para utilizar correctamente este medio electrónico, como así
+también de haber comprendido los riesgos derivados de su empleo y quién asume los
+mismos.
+
+El clic en IMPRIMIR me permite obtener una copia del presente, cuyo texto también se
+encuentra disposición del cliente en el sitio web del Banco de la Provincia de Buenos Aires,
+sección Canales Digitales/Banca Internet Provincia (BIP)11.
+
+11
+     https://www.bancoprovincia.com.ar/CDN/Get/TYC_BIP
+
+
+Banco de la Provincia de Buenos Aires; CUIT 33-99924210-9; Calle 7 N° 726 (B1900TFS) La Plata
+TCBIPV08
+22.04.2026
+Página 12 de 12
+

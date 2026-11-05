@@ -1,0 +1,225 @@
+        TESORERIA
+Conciliación Bancaria.
+     Parametrización
+                            PARAMETRIZACION DE CONCILIACIÓN BANCARIA
+        Mediante este proceso usted establecerá una comparación entre los movimientos bancarios de una
+        cuenta (registrados contablemente mediante los comprobantes ingresados) y los movimientos que el
+        banco u otra entidad le informa a través del extracto.
+
+         El objetivo de una conciliación es cotejar el extracto bancario contra las registraciones de la empresa.
+        Dado que en general, el saldo contable de una cuenta no coincide con el saldo informado por el banco,
+        la idea es encontrar las diferencias y analizar el motivo.
+
+        Para facilitar la conciliación, este proceso le permite:
+
+               Visualizar con rapidez los movimientos que fueron conciliados.
+               Realizar una selección múltiple de movimientos y conciliarlos.
+               Ordenar los datos por columnas y agrupar.
+               Agregar columnas con datos referentes a movimientos, para un mejor agrupamiento o análisis.
+               Visualizar las modificaciones realizadas, mediante la identificación por colores.
+               Deshacer los cambios realizados.
+               Exportar la grilla a Ms Excel o enviar a Vista Preliminar.
+
+        A partir de la versión 9.50.000 podrán conciliarse cuentas de tipo BANCO y también cuentas de tipo
+        OTRAS. Para esto en el ABM de cuentas deberán parametrizar que la misma es conciliable
+
+
+
+
+        PASOS PREVIOS A LA CONCILIACIÓN
+
+        Para realizar una conciliación automática, el sistema tomará la información- que por lo general
+        proveen los bancos mediante los extractos bancarios- en formato electrónico; la que se cruzará con los
+        movimientos ingresados en el sistema.
+
+        Para poder importar el archivo generado por la entidad bancaria, previamente deberá definir el
+        formato del archivo desde Archivos\Conciliación\Definición de formato de extracto electrónico
+
+        Solapa Principal: Ingresando en este proceso podrá crear nuevos formatos y establecer las relaciones
+        necesarias para que el sistema pueda procesar -en forma automática- los extractos electrónicos.
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                       SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                     Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                       servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620      Lunes a viernes de 8:30 a 18:30 hs.
+        Una vez ingresados el código y descripción del nuevo formato se deberá asociar a una cuenta de
+        tesorería. Un mismo formato puede utilizarse en más de una cuenta.
+
+        En la sección inferior se configuraran los formatos para el EXTRACTO GENERAL y el extracto de
+        cheques.
+
+          Nota: Algunos bancos proveen ambos tipos de extracto. El extracto de cheques por lo general brinda
+         información sobre los cheques de terceros depositados en la cuenta y permite realizar una conciliación
+              más puntual ya que en este se detalla más información con respecto a los datos del cheque.
+
+        Configuración del Archivo para el EXTRACTO GENERAL
+
+        Ingresando en la opción CONFIGURAR ARCHIVO para el extracto general se abrirá un asistente que le
+        guiará en toda la configuración.
+
+        En la segunda pantalla se indicará la ubicación del extracto electrónico y al seleccionarlo el asistente
+        mostrará una vista previa del mismo
+
+
+
+
+        Seguidamente procederá configurar el formato del archivo a importar, a fin de permitir una lectura
+        correcta de la información.
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                       SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                     Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                       servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620      Lunes a viernes de 8:30 a 18:30 hs.
+        Por lo general los extractos electrónicos en los primeros registros muestran información sobre el Nro.
+        de cuenta o los títulos de columnas, en esta configuración lo que realmente interesa son los registros
+        que contengan datos de movimientos. Por este motivo existe un campo en esta pantalla que permite
+        indicar el número de líneas a descartar.
+
+
+
+
+        En la sección Separadores Numéricos indique cuál es el símbolo que representa el separado de
+        decimales y miles. Especifique el formato del archivo (si es delimitado o de ancho fijo).
+
+        En la sección Vista Previa de Datos el sistema mostrará nuevamente una vista previa con las líneas del
+        encabezados descartamos (tantas líneas del principio/ final como Ud. haya indicado)
+
+        Presione SIGUIENTE y acceda a la ventana de Delimitación de Datos. Una vez hecho esto el sistema
+        expondrá la información en columnas en vez de un texto fijo.
+
+        Ingresando al título de cada columna configure si los datos que contiene la misma serán importados y
+        cuáles de ellos intervendrán en la conciliación automática.
+
+
+
+
+        Fecha: corresponde a la fecha del movimiento. Si habilita esta opción indique el formato de la fecha
+        que utiliza el archivo, si el mismo no se encuentra en la lista propuesta ingréselo manualmente. Dado
+        que este valor se tendrá en cuenta en la conciliación automática se habilita esta opción y su
+        equivalencia.
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                     SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                   Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                     servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620    Lunes a viernes de 8:30 a 18:30 hs.
+        Tipo y Nro. De comprobante: corresponde al tipo y número de comprobante.
+
+
+
+
+        En este ejemplo, el tipo y número de comprobante se pueden encontrar en una misma columna del
+        archivo, por lo tanto se seleccionan ambos.
+        Como no se utilizará esta información al realizar la conciliación automática, desde proceso de
+        conciliación no se habilita la opción Conciliación automática.
+
+
+        Importe, Importe debe e Importe haber: corresponde al importe del movimiento. Dependiendo del
+        archivo los valores debe y haber pueden estar en columnas separadas o en la misma, en este caso los
+        importes correspondientes a haberes pueden identificarse porque se encuentran en negativo, o bien,
+        según el valor de otra columna.
+        Dado que este valor también se tendrá en cuenta en la conciliación automática se habilita esta opción
+        y su equivalencia.
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                      SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                    Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                      servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620     Lunes a viernes de 8:30 a 18:30 hs.
+        Análisis de signo para el valor del movimiento: active esta opción si los valores créditos y débitos del
+        movimiento bancario están en la misma columna y no tienen signo (los débitos no tienen signo
+        negativo), pero el signo del movimiento está dado por el valor de otra columna. En este caso se
+        deberá especificar el valor que se interpretará como un movimiento débito (negativo), por ejemplo:
+        D.
+        Pendientes de registrar: indique si en la columna se encuentra la descripción de aquellos conceptos
+        que luego de ejecutar la conciliación automática quedarán registrados como pendientes de registrar
+        (por                   ejemplo:                   I.V.A.,                   IIBB,                  etc.)
+        En este ejemplo, este valor se encuentra en la misma columna que el tipo y número de comprobante.
+
+
+
+
+        Para las columnas que se tendrán en cuenta en la conciliación automática se debe indicar la
+        equivalencia:
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                        SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                      Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                        servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620       Lunes a viernes de 8:30 a 18:30 hs.
+        • Igual a: seleccionando esta opción se tendrá en cuenta el campo completo para comparar el valor del
+        mismo con el correspondiente en Tesorería. Por ejemplo: La "Fecha" del extracto sea igual a la "Fecha"
+        del comprobante.
+
+        • Contiene: seleccionando esta opción se tendrá en cuenta si parte del valor del campo coincide con el
+        correspondiente en Tesorería. Por ejemplo: El "Tipo comprobante" del movimiento de Tesorería se
+        encuentre dentro de la columna configurada como "Tipo comprobante" del extracto
+
+        Hecho esto, concluirá el proceso de configuración del formato de archivo.
+
+        Nota: Para que los Pendientes puedan conciliarse automáticamente, será necesario ir al proceso
+        Conceptos de conciliación (Archivos-Conciliación-Conceptos de Conciliación) y allí cargar aquellos
+        conceptos que deben ser tenidos en cuenta.
+
+
+
+
+        En la pantalla de DEFINICIÓN DEL FORMATO DE EXTRACTO ELECTRÓNICO encontrará la solapa
+        Pendientes de registrar donde deberá establecer la relación entre los conceptos creados y su
+        equivalencia en el extracto.
+
+
+
+
+        En este caso se definirá con las condiciones “Igual a” si la descripción es exactamente la ingresada en
+        este proceso o “Contiene” si la descripción puede tener más información que la que nos interesa
+        relacionar.
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                       SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                     Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                       servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620      Lunes a viernes de 8:30 a 18:30 hs.
+        Configuración del Archivo para el EXTRACTO DE CHEQUES
+
+        Mediante el botón "CONFIGURAR ARCHIVO" desde el ítem Formato para Extracto de Cheques
+        ingresará a un asistente que lo guiará en la configuración del archivo *.csv. El mismo será utilizado en el
+        proceso de Importación de extractos electrónicos para traer los datos -enviados por una entidad
+        bancaria u otro organismo- correspondientes a cheques depositado; a fin de ser conciliados
+        automáticamente desde el proceso Conciliación.
+
+        Se deberán seguir los mismos pasos que para el archivo general en cuanto a las líneas a excluir y los
+        delimitadores a utilizar para separar los datos en columnas.
+
+        En la sección de Columna Destino, se establecerá la relación entre las columnas que se obtuvieron de la
+        delimitación del extracto y los datos que guarda el sistema.
+
+        Ingresando al título de cada columna configure si los datos a los cuales corresponde cada columna.
+
+
+
+
+        Las opciones posibles son: número, importe, código postal y fecha del cheque. En caso de seleccionar
+        esta última opción, indique el formato de la fecha que utiliza el archivo, si el mismo no se encuentra
+        en la lista propuesta ingréselo manualmente
+        Una vez finalizada la configuración de columnas, presione "Siguiente" y finalice el proceso.
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                         SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                       Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                         servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620        Lunes a viernes de 8:30 a 18:30 hs.
+

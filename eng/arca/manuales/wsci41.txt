@@ -1,0 +1,1327 @@
+         Consulta a Padrón
+
+         Constancia de
+         Inscripción
+         ws_sr_constancia_inscripcion
+
+         Versión 4.1 – Marzo 2026
+
+
+
+
+TÍTULO
+TEXTO
+                              Historial de modificaciones
+
+Ver           Fecha            Edición                                 Descripción
+1.0          13/01/17          DINTR          Versión inicial del documento
+
+2.0          27/11/17          DINTR          Cambio de nombre del WS de ws_sr_padron_a5 a
+                                              ws_sr_constancia_inscripcion
+
+3.0          27/11/18          DINTR          Nuevo método getPersonaList
+
+3.1          08/02/19          DINTR          Se documenta, por ejemplo, error en getPersonaList cuando
+                                              no existe el CUIT
+
+3.2          08/03/19          DINTR          Se agrega la descripción del campo impuesto en
+                                              datosMonotributo
+
+3.3          17/10/19          DINTR          Se agregan los metodos getPersona_v2 y getPersonaList_v2
+
+3.4          02/05/23          DI SIRE        Agregado de anexo con listado de errores por validaciones y
+                                              se incorpora el dato de persona fallecida en Datos Generales
+
+3.5        13/12/2023          DI SIRE        Se elimina la referencia a "TIPO COMPONENTE -
+                                              Componentes de la persona jurídica monotributista por no
+                                              estar vigente.
+
+3.6        31/01/2025          DI SIRE        Se agrega al impuesto: la descripción del motivo (<motivo>) y
+                                              el id del estado (<estadoImpuesto>)
+
+3.7        04/07/2025          DI SIRE        Se incorpora mensaje de error al punto 5.3
+
+3.8        06/02/2026          DI SIRE        Se incorpora fecha de solicitud
+
+3.9        25/02/2026          DI SIRE        Corrección links en apartados 2 y 2.3
+
+4.0        26/02/2026          DI SIRE        Agregado de aclaraciones por Régimen de DJ simplificada de
+                                              ganancias
+
+4.1        27/02/2026          DI SIRE        Modificación links WSDL de afip a arca. Correcciones en
+                                              apartado de Tipos de datos complejos y agregado de ejemplo
+                                              metodo getPersona_v2 con caracterización incluida.
+
+
+
+
+      Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1      Pág. 1 de 32
+                                                                   Contenido
+                                                                       Indice
+INTRODUCCIÓN....................................................................................................................................3
+ALCANCE....................................................................................................................................................3
+DEFINICIONES..............................................................................................................................................3
+WEB SERVICES....................................................................................................................................4
+ARQUITECTURA DE WEB SERVICES DE ARCA...................................................................................................4
+SOPORTE TÉCNICO.......................................................................................................................................4
+ACCESO AL WEB SERVICE.............................................................................................................................4
+ID DEL WEB SERVICE...................................................................................................................................4
+URLS DEL WEB SERVICE.............................................................................................................................4
+MÉTODOS..............................................................................................................................................5
+DUMMY (VERIFICACIÓN DEL SERVICIO)................................................................................................................5
+SOLICITUD..................................................................................................................................................5
+RESPUESTA.................................................................................................................................................5
+EJEMPLO....................................................................................................................................................5
+MÉTODO GETPERSONA_V2............................................................................................................................7
+SOLICITUD..................................................................................................................................................7
+RESPUESTA.................................................................................................................................................8
+EJEMPLO....................................................................................................................................................9
+MÉTODO GETPERSONALIST_V2.....................................................................................................................13
+SOLICITUD................................................................................................................................................13
+RESPUESTA...............................................................................................................................................14
+EJEMPLO..................................................................................................................................................15
+DEFINICIONES DE TIPOS DE DATOS...............................................................................................21
+TIPOS DE DATOS SIMPLES.............................................................................................................................21
+TIPOS DE DATOS COMPLEJOS.......................................................................................................................21
+ANEXOS...............................................................................................................................................27
+VALORES TIPOREGIMEN:..............................................................................................................................27
+VALORES TIPODATOADICIONAL:.....................................................................................................................28
+VALIDACIONES Y MENSAJES DE ERROR:............................................................................................................29
+..............................................................................................................................................................29
+
+
+
+
+          Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1                                                 Pág. 2 de 32
+1 Introducción
+
+       El servicio de Consulta de la Constancia de Inscripción de Padrón, antes llamado de
+Alcance 5 (ws_sr_padron_a5), permite que un organismo externo acceda a los datos de la
+constancia de un contribuyente registrado en el Padrón de ARCA.
+
+        La consulta se realiza mediante un webService SOAP que básicamente recibe como
+parámetro una CUIT y responde, con los datos que constituyen la constancia de inscripción del
+contribuyente identificado con la misma.
+
+      Este documento está dirigido a quienes tengan la misión de probar y utilizar este
+webService.
+
+          Para tener acceso a este webService el organismo usuario debe obtener un ticket de
+acceso.
+
+          El proceso de obtención del ticket de acceso esta fuera del alcance de este documento.
+
+
+1.1   Alcance
+       Este WS se puede utilizar para acceder a datos de un contribuyente relacionados con su
+constancia de inscripción.
+
+
+
+1.2 Definiciones, Siglas y Abreviaturas
+
+
+          WSAA       Web Service de Autenticación y Autorización de ARCA
+          SUPA       Sistema único de parámetros. Tablas disponibles en el webservice Consulta de
+                     Padrón Alcance 100 (w_sr_padron_a100).
+
+
+
+
+      Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 3 de 32
+2. Web Services
+
+
+  2.1. Arquitectura de Web Services de ARCA
+      Documentación disponible en https://www.arca.gob.ar/ws/ .
+
+
+  2.2. Soporte Técnico
+      Envía un correo a sri@arca.gob.ar cumpliendo los siguientes requisitos:
+      - Asunto: Indicar ID del Web Service y Ambiente (Homologación o Producción).
+      - Adjuntos: Incluir los archivos de request y response.
+
+
+  2.3. Acceso al Web Service
+      Exceptuando el método dummy, todas las invocaciones requieren credenciales válidas (to-
+      ken y sign).
+      Estas se obtienen a través del servicio WSAA y son específicas para cada ambiente (Ho-
+      mologación o Producción).
+
+
+  2.4. ID del Web Service
+      El id es ws_sr_constancia_inscripcion.
+
+
+  2.5. URLs del Web Service
+
+
+      Ambiente       URL
+
+      Testing        https://awshomo.arca.gob.ar/sr-padron/webservices/personaServiceA5?WSDL
+
+      Producción     https://aws.arca.gob.ar/sr-padron/webservices/personaServiceA5?WSDL
+
+
+
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 4 de 32
+3. Métodos
+
+   3.1. dummy (Verificación del servicio)
+
+              Nombre método: dummy
+
+              Descripción: El método dummy verifica el estado y la disponibilidad de los
+elementos principales del servicio (aplicación, autenticación y base de datos).
+
+       3.1.1. Solicitud:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a5="http://a5.soap.ws.server.puc.sr/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <a5:dummy/>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+
+       3.1.2. Respuesta:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <ns2:dummyResponse xmlns:ns2="http://a5.soap.ws.server.puc.sr/">
+      <return>
+       <appserver>?</appserver>
+       <authserver>?</authserver>
+       <dbserver>?</dbserver>
+      </return>
+    </ns2:dummyResponse>
+  </soap:Body> </soap:Envelope>
+
+       Donde dummyResponse es del tipo dummyResponse definido en el WSDL y
+contiene la etiqueta return del tipo dummyReturn.
+       Los valores de los atributos appserver, authserver y dbserver pueden ser OK o,
+en caso de falla, ERROR.
+
+
+
+       3.1.3. Ejemplo:
+       Invocación del métddo:
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 5 de 32
+<soapenv:Envelope           xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a5="http://a5.soap.ws.server.puc.sr/">
+ <soapenv:Header/>
+ <soapenv:Body>
+   <a5:dummy/>
+ </soapenv:Body>
+</soapenv:Envelope>
+
+
+      Respuesta del método:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+ <soap:Body>
+   <ns2:dummyResponse xmlns:ns2="http://a5.soap.ws.server.puc.sr/">
+     <return>
+      <appserver>OK</appserver>
+      <authserver>OK</authserver>
+      <dbserver>OK</dbserver>
+     </return>
+   </ns2:dummyResponse>
+ </soap:Body>
+</soap:Envelope>
+
+
+
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 6 de 32
+   3.2. Método getPersona_v2
+
+
+      Nombre método: getPersona_v2
+
+      Descripción: Devuelve el detalle de todos los datos, correspondientes a la
+constancia de inscripción, del contribuyente solicitado.
+
+      3.2.1. Solicitud
+
+            Esquema:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a5="http://a5.soap.ws.server.puc.sr/">
+  <soapenv:Header/>
+  <soapenv:Body>
+   <a5:getPersona_v2>
+     <token>?</token>
+     <sign>?</sign>
+     <cuitRepresentada>?</cuitRepresentada>
+     <idPersona>?</idPersona>
+   </a5:getPersona_v2>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+
+     Donde a5:getPersona_v2 es del tipo getPersona_v2 y engloba los
+parámetros de entrada:
+
+      token y sign: Los mismos son devueltos por el web service de autenticación
+      WSAA.
+
+      cuitRepresentada: Debe coincidir con alguna de las CUITS listadas en la
+      sección relations del token enviado. Debe ser en representación de que
+      organismo se solicita la operación.
+
+      idPersona: Es la clave de la que se solicitan los datos.
+
+
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 7 de 32
+      3.2.2. Respuesta
+
+            Esquema:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+   <ns2:getPersona_v2Response xmlns:ns2="http://a5.soap.ws.server.puc.sr/">
+     <personaReturn>
+       <metadata>
+         <fechaHora>?</fechaHora>
+         <servidor>?</servidor>
+       </metadata>
+       <datosGenerales>
+        <apellido>...</apellido>
+        <domicilioFiscal> … </domicilioFiscal>
+        <esSucesion>- -SI - -</esSucesion>
+        <estadoClave>...</estadoClave>
+        <idPersona>...</idPersona>
+        <mesCierre>..</mesCierre>
+        <nombre>...</nombre>
+        <tipoClave>...</tipoClave>
+        <tipoPersona>...</tipoPersona>
+       </datosGenerales>
+       <datosRegimenGeneral>
+        <actividad>... </actividad>
+        <impuesto>… </impuesto>
+      </datosRegimenGeneral>
+        <datosMonotributo>…</datosMonotributo>
+       <errorConstancia>....</ errorConstancia>
+       <errorRegimenGeneral>....</ errorRegimenGeneral>
+       <errorMonotributo>....</errorMonotributo>
+    </personaReturn>
+   </ns2:getPersona_v2Response>
+  </soap:Body>
+</soap:Envelope>
+
+
+Donde getPersona_v2Response, personaReturn, metadata, datosGenerales,
+datosRegimenGeneral, datosMonotributo, errorConstancia, errorRegimenGeneral y
+errorMonotributo son del tipo del mismo nombre, definidos en el WSDL del servicio.
+
+
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 8 de 32
+      3.2.3. Ejemplo
+           Invocación del método:
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a5="http://a5.soap.ws.server.puc.sr/">
+ <soapenv:Header/>
+ <soapenv:Body>
+   <a5:getPersona_v2>
+     <token>${tokensign#token}</token>
+     <sign>${tokensign#sign}</sign>
+     <cuitRepresentada>${parametros#cuit_representada}</cuitRepresentada>
+    <idPersona>20164755100</idPersona>
+   </a5:getPersona_v2>
+ </soapenv:Body>
+</soapenv:Envelope>
+
+
+           Respuesta del ejemplo:
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+ <soap:Body>
+   <ns2:getPersona_v2Response xmlns:ns2="http://a5.soap.ws.server.puc.sr/">
+     <personaReturn>
+      <datosGenerales>
+        <apellido>SKIOGEK OGIUPE</apellido>
+        <caracterizacion>
+          <descripcionCaracterizacion>IVA ANUAL
+AGROPECUARIO</descripcionCaracterizacion>
+          <fechaSolicitud>20030316</fechaSolicitud>
+          <idCaracterizacion>17</idCaracterizacion>
+          <periodo>19010101</periodo>
+        </caracterizacion>
+        <caracterizacion>
+          <descripcionCaracterizacion>CUENTA
+CORRIENTE</descripcionCaracterizacion>
+          <fechaSolicitud>20070901</fechaSolicitud>
+
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 9 de 32
+           <idCaracterizacion>82</idCaracterizacion>
+           <periodo>20070901</periodo>
+         </caracterizacion>
+         <caracterizacion>
+           <descripcionCaracterizacion>CATEGORÍA A: MUY BAJO
+RIESGO</descripcionCaracterizacion>
+           <fechaSolicitud>20161025</fechaSolicitud>
+           <idCaracterizacion>354</idCaracterizacion>
+           <periodo>20161025</periodo>
+         </caracterizacion>
+         <caracterizacion>
+           <descripcionCaracterizacion>GANANCIAS SIMPLIFICADA LEY
+27.779</descripcionCaracterizacion>
+           <fechaSolicitud>20260220</fechaSolicitud>
+           <idCaracterizacion>639</idCaracterizacion>
+           <periodo>20250101</periodo>
+         </caracterizacion>
+         <domicilioFiscal>
+           <codPostal>7007</codPostal>
+           <datoAdicional>BARRIO ANTONIO CARLOS</datoAdicional>
+           <descripcionProvincia>BUENOS AIRES</descripcionProvincia>
+           <direccion>SAN MANUEL 9</direccion>
+           <idProvincia>1</idProvincia>
+           <localidad>SAN MANUEL</localidad>
+           <tipoDatoAdicional>BARRIO</tipoDatoAdicional>
+           <tipoDomicilio>FISCAL</tipoDomicilio>
+         </domicilioFiscal>
+         <esSucesion>NO</esSucesion>
+         <estadoClave>ACTIVO</estadoClave>
+         <idPersona>20164755100</idPersona>
+         <mesCierre>12</mesCierre>
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 10 de 32
+        <nombre>OGIEK KPSGR</nombre>
+        <tipoClave>CUIT</tipoClave>
+        <tipoPersona>FISICA</tipoPersona>
+      </datosGenerales>
+      <datosRegimenGeneral>
+        <actividad>
+          <descripcionActividad>CULTIVO DE CEREALES N.C.P., EXCEPTO LOS DE
+USO FORRAJERO</descripcionActividad>
+          <idActividad>11119</idActividad>
+          <nomenclador>883</nomenclador>
+          <orden>1</orden>
+          <periodo>201311</periodo>
+        </actividad>
+        <categoriaAutonomo>
+          <descripcionCategoria>T3 CAT II INGRESOS DESDE
+$25.001</descripcionCategoria>
+          <idCategoria>302</idCategoria>
+          <idImpuesto>308</idImpuesto>
+          <periodo>200703</periodo>
+        </categoriaAutonomo>
+        <impuesto>
+          <descripcionImpuesto>GANANCIAS PERSONAS
+FISICAS</descripcionImpuesto>
+          <estadoImpuesto>AC</estadoImpuesto>
+          <idImpuesto>11</idImpuesto>
+          <motivo>INSCRIPCIÓN TRAMITADA EN AGENCIA</motivo>
+          <periodo>199203</periodo>
+        </impuesto>
+        <impuesto>
+          <descripcionImpuesto>IVA</descripcionImpuesto>
+          <estadoImpuesto>AC</estadoImpuesto>
+
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 11 de 32
+            <idImpuesto>30</idImpuesto>
+            <motivo>INSCRIPCIÓN TRAMITADA EN AGENCIA</motivo>
+            <periodo>199911</periodo>
+          </impuesto>
+          <impuesto>
+            <descripcionImpuesto>APORTES SEG.SOCIAL
+AUTONOMOS</descripcionImpuesto>
+            <estadoImpuesto>AC</estadoImpuesto>
+            <idImpuesto>308</idImpuesto>
+            <motivo>INSCRIPCIÓN NO TRAMITADA EN AGENCIA</motivo>
+            <periodo>200703</periodo>
+          </impuesto>
+        </datosRegimenGeneral>
+        <metadata>
+          <fechaHora>2026-02-26T15:52:37.653-03:00</fechaHora>
+          <servidor>qa-sr-padron-ws.cloudhomo.afip.gob.ar</servidor>
+        </metadata>
+      </personaReturn>
+    </ns2:getPersona_v2Response>
+  </soap:Body>
+</soap:Envelope>
+
+¿Y el método getPersona? Este sigue estando para conservar la compatibilidad con soluciones ya
+desarrolladas pero alentamos a la adopción de este nuevo método que incluye todas las actividades
+del monotributista y las caracterizaciones vigentes.
+
+
+
+
+      Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 12 de 32
+   3.3. Método getPersonaList_v2
+
+
+      Nombre método: getPersonaList_v2
+
+      Descripción: Devuelve idénticos datos que el método getPersona_v2, pero
+para una lista de hasta 250 claves tributarias.
+
+      3.3.1. Solicitud
+           Esquema:
+
+<soapenv:Envelope           xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a5="http://a5.soap.ws.server.puc.sr/">
+  <soapenv:Header/>
+  <soapenv:Body>
+   <a5:getPersonaList_v2>
+     <token>?</token>
+     <sign>?</sign>
+     <cuitRepresentada>?</cuitRepresentada>
+               <idPersona>?</idPersona>
+               ……...
+               <idPersona>?</idPersona>
+     </a5:getPersonaList_v2>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+
+     Donde a5:getPersonaList_v2 es del tipo getPersonaList_v2 y engloba los
+parámetros de entrada:
+
+      token y sign: Los mismos son devueltos por el web service de autenticación
+      WSAA.
+
+      cuitRepresentada: Debe coincidir con alguna de las CUITS listadas en la
+      sección relations del token enviado. Debe ser en representación de que
+      organismo se solicita la operación.
+
+      idPersona: Es la clave de la que se solicitan los datos.
+
+
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 13 de 32
+      3.3.2. Respuesta
+
+            Esquema:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <ns2:getPersonaList_v2Response xmlns:ns2="http://a5.soap.ws.server.puc.sr/">
+     <personaListReturn>
+       <metadata>
+         <fechaHora>?</fechaHora>
+         <servidor>?</servidor>
+       </metadata>
+       <persona>
+         <datosGenerales>…..</datosGenerales>
+         <datosRegimenGeneral>....</datosRegimenGeneral>
+         <datosMonotributo>…</datosMonotributo>
+         <errorConstancia>....</ errorConstancia>
+         <errorRegimenGeneral>....</ errorRegimenGeneral>
+         <errorMonotributo>....</errorMonotributo>
+       </persona>
+       <persona>...<persona>
+       …….
+       <persona>...<persona>
+     </personaListReturn>
+    </ns2:getPersonaList_v2Response>
+  </soap:Body>
+</soap:Envelope>
+
+
+Donde getPersonaList_v2Response, personaListReturn, metadata, persona,
+datosGenerales,    datosRegimenGeneral,     datosMonotributo,     errorConstancia,
+errorRegimenGeneral y errorMonotributo son del tipo del mismo nombre, definidos en el
+WSDL del servicio.
+
+
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 14 de 32
+      3.3.3. Ejemplo
+
+            Invocación del método:
+
+<soapenv:Envelope           xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+xmlns:a5="http://a5.soap.ws.server.puc.sr/">
+ <soapenv:Header/>
+ <soapenv:Body>
+   <a5:getPersonaList_v2>
+     <token>PD94bWwgdmVylcnNpb249IjIuMCI+CiAgICA8aWQgc3JjPSJDTj13c2FhaG9
+tbywgTz1BRklQLCBNvPgo=</token>
+     <sign>Dtjsx5ddKZPm86zJO1mtpGEXFAMfF4p9xQQq9wjc3S04=</sign>
+     <cuitRepresentada>20140363605</cuitRepresentada>
+       <idPersona>20224107030</idPersona>
+      <idPersona>27015942210</idPersona>
+      <idPersona>12345678901</idPersona> <!--CUIT inexistente-->
+     </a5:getPersonaList_v2>
+ </soapenv:Body>
+</soapenv:Envelope>
+
+
+            Respuesta del ejemplo:
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+ <soap:Body>
+   <ns2:getPersonaList_v2Response xmlns:ns2="http://a5.soap.ws.server.puc.sr/">
+     <personaListReturn>
+       <metadata>
+         <fechaHora>2018-11-27T12:03:48.839-03:00</fechaHora>
+         <servidor>localhost</servidor>
+       </metadata>
+       <persona>
+         <datosGenerales>
+           <apellido>FRANCO AGUSTIN</apellido>
+           <domicilioFiscal>
+              <codPostal>1828</codPostal>
+              <descripcionProvincia>BUENOS AIRES</descripcionProvincia>
+              <direccion>ALEM 5982</direccion>
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 15 de 32
+             <idProvincia>1</idProvincia>
+             <localidad>BANFIELD</localidad>
+             <tipoDomicilio>FISCAL</tipoDomicilio>
+          </domicilioFiscal>
+          <esSucesion>NO</esSucesion>
+          <estadoClave>ACTIVO</estadoClave>
+          <idPersona>20224107030</idPersona>
+          <mesCierre>12</mesCierre>
+          <nombre>SEVERINO</nombre>
+          <tipoClave>CUIT</tipoClave>
+          <tipoPersona>FISICA</tipoPersona>
+        </datosGenerales>
+        <datosRegimenGeneral>
+          <actividad>
+             <descripcionActividad>CULTIVO DE TRIGO</descripcionActividad>
+             <idActividad>11112</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>9</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <actividad>
+             <descripcionActividad>CULTIVO DE MAÍZ</descripcionActividad>
+             <idActividad>11121</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>5</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <actividad>
+                <descripcionActividad>CULTIVO DE CEREALES DE USO FORRAJERO
+N.C.P.</descripcionActividad>
+             <idActividad>11129</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>8</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <actividad>
+ <descripcionActividad>CULTIVO DE PASTOS DE USO
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 16 de 32
+FORRAJERO</descripcionActividad>
+             <idActividad>11130</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>6</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <actividad>
+             <descripcionActividad>CULTIVO DE SOJA</descripcionActividad>
+             <idActividad>11211</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>7</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <actividad>
+             <descripcionActividad>CULTIVO DE GIRASOL</descripcionActividad>
+             <idActividad>11291</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>3</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <actividad>
+             <descripcionActividad>CULTIVO DE OLEAGINOSAS N.C.P. EXCEPTO
+SOJA Y GIRASOL</descripcionActividad>
+             <idActividad>11299</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>2</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <actividad>
+<descripcionActividad>CULTIVO DE LEGUMBRES FRESCAS</descripcionActividad>
+             <idActividad>11341</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>4</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <actividad>
+              <descripcionActividad>SERVICIOS DE ASESORAMIENTO, DIRECCIÓN Y
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 17 de 32
+GESTIÓN EMPRESARIAL REALIZADOS POR INTEGRANTES DE CUERPOS DE
+DIRECCIÓN EN SOCIEDADES EXCEPTO LAS ANÓNIMAS</descripcionActividad>
+             <idActividad>702092</idActividad>
+             <nomenclador>883</nomenclador>
+             <orden>1</orden>
+             <periodo>201311</periodo>
+          </actividad>
+          <impuesto>
+         <descripcionImpuesto>GANANCIAS PERSONAS
+FISICAS</descripcionImpuesto>
+            <estadoImpuesto>AC</estadoImpuesto>
+             <idImpuesto>11</idImpuesto>
+             <motivo>INSCRIPCIÓN TRAMITADA EN AGENCIA</motivo>
+             <periodo>200512</periodo>
+          </impuesto>
+          <impuesto>
+             <descripcionImpuesto>IVA</descripcionImpuesto>
+             <estadoImpuesto>AC</estadoImpuesto>
+             <idImpuesto>30</idImpuesto>
+             <motivo>INSCRIPCIÓN TRAMITADA EN AGENCIA</motivo>
+             <periodo>200705</periodo>
+          </impuesto>
+          <impuesto>
+ <descripcionImpuesto>APORTES SEG.SOCIAL AUTONOMOS</descripcionImpuesto>
+             <estadoImpuesto>AC</estadoImpuesto>
+             <idImpuesto>308</idImpuesto>
+             <motivo>INSCRIPCIÓN TRAMITADA EN AGENCIA</motivo>
+             <periodo>200512</periodo>
+          </impuesto>
+        </datosRegimenGeneral>
+      </persona>
+      <persona>
+        <datosGenerales>
+          <apellido>INTENTAR</apellido>
+          <domicilioFiscal>
+             <codPostal>5881</codPostal>
+
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 18 de 32
+         <descripcionProvincia>SAN LUIS</descripcionProvincia>
+         <direccion>AV LOS INCAS 4137</direccion>
+         <idProvincia>11</idProvincia>
+         <localidad>MERLO</localidad>
+         <tipoDomicilio>FISCAL</tipoDomicilio>
+      </domicilioFiscal>
+      <esSucesion>NO</esSucesion>
+      <estadoClave>ACTIVO</estadoClave>
+      <idPersona>27015942210</idPersona>
+      <mesCierre>12</mesCierre>
+      <nombre>JAZMIN</nombre>
+      <tipoClave>CUIT</tipoClave>
+      <tipoPersona>FISICA</tipoPersona>
+    </datosGenerales>
+    <datosMonotributo>
+      <actividadMonotributista>
+<descripcionActividad>PREST. DE SERVICIO O LOCACIÓN</descripcionActividad>
+         <idActividad>8</idActividad>
+         <nomenclador>1</nomenclador>
+         <orden>0</orden>
+         <periodo>201803</periodo>
+      </actividadMonotributista>
+      <categoriaMonotributo>
+     <descripcionCategoria>B LOCACIONES DE SERVICIO</descripcionCategoria>
+         <idCategoria>36</idCategoria>
+         <idImpuesto>20</idImpuesto>
+         <periodo>201804</periodo>
+      </categoriaMonotributo>
+      <impuesto>
+         <descripcionImpuesto>MONOTRIBUTO</descripcionImpuesto>
+         <estadoImpuesto>AC</estadoImpuesto>
+         <idImpuesto>20</idImpuesto>
+         <motivo>Recategorización</motivo>
+         <periodo>201803</periodo>
+      </impuesto>
+    </datosMonotributo>
+
+Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 19 de 32
+          <datosRegimenGeneral>
+            <actividad>
+             <descripcionActividad>SERVICIOS DE ALOJAMIENTO EN HOTELES,
+HOSTERÍAS Y RESIDENCIALES SIMILARES, EXCEPTO POR HORA, QUE NO
+INCLUYEN SERVICIO DE RESTAURANTE AL PÚBLICO</descripcionActividad>
+               <idActividad>551023</idActividad>
+               <nomenclador>883</nomenclador>
+               <orden>1</orden>
+               <periodo>201311</periodo>
+            </actividad>
+            <impuesto>
+   <descripcionImpuesto>EMPLEADOR-APORTES SEG. SOCIAL</descripcionImpuesto>
+               <estadoImpuesto>AC</estadoImpuesto>
+               <idImpuesto>301</idImpuesto>
+               <motivo>Inscripción tramitada en agencia</motivo>
+               <periodo>200004</periodo>
+            </impuesto>
+          </datosRegimenGeneral>
+        </persona>
+        <persona>
+                <errorConstancia>
+                         <error>No existe persona con ese Id</error>
+                         <idPersona>12345678901</idPersona>
+                </errorConstancia>
+        </persona>
+      </personaListReturn>
+    </ns2:getPersonaList_v2Response>
+  </soap:Body>
+</soap:Envelope>
+
+
+¿Y el método getPersona_v2? Como en el otro caso, este también sigue estando para conservar la
+compatibilidad con soluciones ya desarrolladas pero alentamos a la adopción de este nuevo método
+que incluye todas las actividades del monotributista y las caracterizaciones vigentes.
+
+
+
+
+      Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 20 de 32
+4. Definiciones de tipos de datos
+
+   4.1. Tipos de datos simples
+        Los datos simples tienen una longitud determinada. Según el tipo base se
+        pueden dar los siguientes casos:
+        • Longitud N: El campo tiene longitud fija de N dígitos o caracteres.
+        • Longitud M-N: El campo tiene longitud variable de tamaño M a N, siendo
+        M<N.
+
+           Tipo dato                Base           Longitud                     Notas
+
+    CUIT                             long              11
+
+    TipoPersona                     String                       Valores: FISICA o JURIDICA
+
+    TipoClave                       String                       Valores: CUIT,CUIL o CDI
+
+    EstadoClave                     String                       Valores: ACTIVO, INACTIVO
+
+    TipoRegimen                     String                       Valores: Ver Tabla 5.1
+
+    TipoDomicilio                   String                       Valores: FISCAL, LEGAL/REAL
+
+    TipoDatoAdicional               String                       Valores: Ver Tabla 5.2
+
+
+   4.2. Tipos de Datos Complejos
+
+        Los campos dentro de un tipo complejo tienen una multiplicidad (M)
+determinada, esto es, cuantas veces puede o debe aparecer la etiqueta de dicho
+campo. Las distintas variantes son:
+• 0..1: Campo opcional que se especifica como máximo una sola vez.
+• 0..*: Campo opcional que se especifica cero, una o muchas veces.
+• 1..1: Campo obligatorio que se especifica una vez.
+• 1..*: Campo obligatorio que se especifica una o más veces.
+       El tipo de dato simple y la multiplicidad que define a un atributo tiene
+relevancia dentro de los tipos complejos utilizados en los request o solicitud. El
+principal objetivo es ordenar y restringir el ingreso de datos por parte del usuario.
+En el response o respuesta, los tipos simple y multiplicidad son ignorados en la
+documentación, ya que es la respuesta por parte de los servidores de ARCA. Por
+simplicidad, en los tipos de datos complejos pertenecientes exclusivamente a datos
+de respuesta, se declaran los atributos con multiplicidad opcional (0..1 o 0..*) y se
+definen con los tipos base (string, float, int, etc.).
+
+
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1    Pág. 21 de 32
+           Campo                                             Descripción
+
+Tipo getPersona_v2 : Información asociada a la autenticación y autorización requerida
+para la utilización del WS, más los parámetros propios del mismo.
+
+token                          Token devuelto por el WSAA.
+
+sign                           Firma devuelta por el WSAA
+
+cuitRepresentada               CUIT del contribuyente emisor o representado.
+
+idPersona                      CUIT del cual se solicitan los datos
+
+Tipo getPersonaList_v2 : Información asociada a la autenticación y autorización
+requerida para la utilización del WS, más los parámetros propios del mismo.
+
+token                          Token devuelto por el WSAA.
+
+sign                           Firma devuelta por el WSAA
+
+cuitRepresentada               CUIT del contribuyente emisor o representado.
+
+idPersona                      CUIT del cual se solicitan los datos
+
+Tipo metadata: Información adicional.
+
+fechaHora                      Fecha y hora de proceso
+
+servidor                       Nombre del equipo que procesó el requerimiento
+
+Tipo datosGenerales: Datos propios del contribuyente
+
+idPersona                      CUIT del cual se solicitaron los datos.
+
+tipoPersona                    Tipo de la persona (Fisica o Juridica)
+
+tipoClave                      Tipo de la clave solicitada
+
+estadoClave                    Estado de la clave solicitada
+
+nombre                         Nombre del contribuyente
+
+apellido                       Apellido del contribuyente
+
+razonSocial                    Razón social del contribuyente
+
+esSucesion                     Corresponde a persona física fallecida
+
+mesCierre                      Mes de cierre de balance del contribuyente
+
+fechaContratoSocial            Fecha del contrato social del contribuyente
+
+dependencia                    Dependencia del contribuyente
+
+domicilioFiscal                Domicilio fiscal del contribuyente (tipoDomicilio=”FISCAL”)
+
+
+       Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 22 de 32
+           Campo                                          Descripción
+
+caracterizacion             Caracterizaciones
+
+Tipo datosRegimenGeneral: Datos de régimen general de impuestos
+
+impuesto                    Impuestos inscriptos del contribuyente
+
+categoriaAutonomo           Categoria del contribuyente en autónomos
+
+regimen                     Regimenes inscriptos del contribuyente
+
+actividad                   Actviidades del contribuyente
+
+Tipo datosMonotributo: Datos del régimen de monotributo del contribuyente
+
+impuesto                    Impuestos inscriptos del contribuyente
+
+actividadMonotributista     Actividad en monotributo del contribuyente
+
+categoriaMonotributo        Categoria en monotributo del contribuyente
+
+componenteDeSociedad Componentes de la sociedad monotributista
+
+actividad                   Actviidades del contribuyente
+
+Tipo errorConstancia: Errores comunes de la constancia
+
+idPersona                   CUIT del cual se solicitaron los datos
+
+nombre                      Nombre de la persona física
+
+apellido                    Apellido de la persona física
+
+error                       Error encontrado en los datos comunes de las constancias
+
+Tipo errorRegimenGeneral: Errores de la constancia del régimen general
+
+error                       Error encontrado para la emisión de la constancia del régimen
+                            general
+
+mensaje                     Mensaje: “No cumple con las condiciones para enviar datos del
+                            regimen general”
+
+Tipo errorMonotributo: Errores de la constancia del régimen de monotributo
+
+error                       Error encontrado para la emisión de la constancia de
+                            monotributo
+
+mensaje                     Mensaje fijo “No cumple con las condiciones para enviar datos
+                            monotributo”
+
+Tipo Dependencia: Dependencia del contribuyente
+
+idDependencia               Código de la dependencia del contribuyente
+
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 23 de 32
+          Campo                                           Descripción
+
+descripcionDependencia Descripción de a dependencia del contribuyente
+
+codPostal                   Código postal de la dependencia
+
+direccion                   Dirección de la dependencia
+
+idProvincia                 Identificador de la provincia según SUPA
+
+descripcionProvincia        Nombre de la provincia según SUPA
+
+Localidad                   Localidad
+
+Tipo Actividad: Actividad económica
+
+descripcionActividad        Descripción de la actividad según SUPA.
+
+idActividad                 Identificador de la actividad según SUPA.
+
+nomenclador                 Nomenclador al que pertenece la actividad
+
+orden                       Orden de la actividad del contribuyente (1:Principal,
+                            2:Secundaria, etc).
+
+periodo                     Período de alta de la actividad
+
+Tipo Categoría: Categoría del impuesto en el que está inscripto el contribuyente
+
+descripcionCategoria        Descripción de la categoría según SUPA.
+
+idCategoria                 Identificador de la categoría según SUPA.
+
+IdImpuesto                  Impuesto al que pertenece la categoria.
+
+periodo                     Período inicial del estado de la categoría
+
+Tipo Impuesto: Impuesto inscripto del contribuyente
+
+descripcionImpuesto         Descripción del impuesto según SUPA.
+
+IdImpuesto                  Identificador del impuesto en SUPA..
+
+estadoImpuesto              Identificador del estado del impuesto en SUPA
+                            (tipo_estado_impuesto)
+
+motivo                      Descripción del motivo del impuesto
+
+periodo                     Período inicial del estado del impuesto
+
+Tipo Regimen: Régimen del impuesto en el que está inscripto el contribuyente
+
+descripcionRegimen          Descripción del régimen según SUPA.
+
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 24 de 32
+           Campo                                           Descripción
+
+ idRegimen                   Identificador del regimen según SUPA.
+
+ IdImpuesto                  Impuesto al que pertenece el régimen.
+
+ periodo                     Período inicial del estado del reǵimen
+
+ tipoRegimen                 Tipo del régimen inscripto.
+
+ Tipo Domicilio: Domicilio declarado por el contribuyente
+
+ tipoDomicilio               Tipo de domicilio según SUPA
+
+ direccion                   Dirección: Calle, numero, depto, etc.
+
+ Localidad                   Localidad
+
+ codPostal                   Código postal
+
+ idProvincia                 Identificador de la provincia según SUPA
+
+ descripcionProvincia        Nombre de la provincia según SUPA
+
+ tipoDatoAdicional           Tipo de dato adicional del domicilio según SUPA
+
+ datoAdicional               Dato adicional del domicilio.
+
+ Caracterización:
+
+ idCaracterizacion           Identificador de la caracterización según
+                             SUPA.E_CARACTERIZACION
+
+ descripcionCaracterizaci Descripción de la caracterización según
+ on                       SUPA.E_CARACTERIZACION
+
+ periodo                     Período de validez para la caracterización.
+
+ fechaSolicitud              Fecha de trámite
+
+
+Régimen de Declaración Jurada Simplificada del Impuesto a las Ganancias
+
+       La adhesión de un contribuyente al Régimen de Declaración Jurada
+Simplificada del Impuesto a las Ganancias, se consigna a través de una
+caracterización. La misma se visualiza con los siguientes datos, establecidos por el
+art 2 del anexo del Dto 93/26:
+
+· idCaracterizacion: 639
+· descripcionCaracterizacion: GANANCIAS SIMPLIFICADA LEY 27.779
+· periodo: el período fiscal desde el cual se ejerció la opción de adhesión
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 25 de 32
+· fechaSolicitud: la fecha de ejercicio de la opción de adhesión
+
+
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 26 de 32
+5. ANEXOS:
+
+    5.1. Valores TipoRegimen:
+
+tipoRegimen                 descripcionRegimen
+1                           RETENCION
+2                           PERCEPCION
+3                           REGIMEN EXCEPCIONAL DE INGRESO
+4                           NO RETENCIÓN
+5                           PAGO A CUENTA
+6                           CONVENIO CORRESPONSAB.GREMIAL
+7                           PAGO UNICO Y DEFINITIVO
+8                           PERCEP. NO COMP. DET. DE ANT.
+9                           PERCEP.COMP.COMO CRED.FISCAL
+
+
+
+
+     Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 27 de 32
+  5.2. Valores TipoDatoAdicional:
+
+BARRIO
+PARAJE
+NO DETERMINADO
+ESTAFETA
+ENTRE LAS CALLES:
+ESQUINA
+SITIO WEB
+
+
+
+
+    Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 28 de 32
+    5.3. Validaciones y mensajes de error:
+
+Validación                                                            Mensaje de error
+
+El tipo de la clave es distinto de C                                  La clave ingresada no es una CUIT
+
+Si no tiene baja de oficio y la clave se encuentra
+inactiva por caracterizaciones de bloqueo                             La CUIT del contribuyente fue limitada en
+(328 - Falta Inscripción en Impuestos o Regimenes,                    los términos de la RG AFIP 3832/16.
+329 - Falta de Presentación DDJJ,
+330 - Falta Movimiento y Empleados en DDJJ).
+
+                                                                      La CUIT del contribuyente fue limitada en
+Si no tiene baja de oficio y la Clave inactiva por
+                                                                      los términos de la RG AFIP 3832/16.
+caracterización de bloqueo (195 - Incluido en Base
+                                                                      Motivo: - descripción de la caracterización
+Contribuyentes NO Confiable)
+                                                                      -
+
+Con cada una de las caracterizaciones por
+108 – CUIT Inactiva,
+195 - Incluido en Base Contribuyentes NO Confiable,
+196 - Baja proyecto productivo solicitada por Min. Desarrollo Soc.,
+263 - Cancelación CUIT p/Excl. pleno der.R.G. AFIP Nº 3640 - Art.9,
+339 – Partido Político - Reg. Caducidad S/Info Min. Del Interior,     La CUIT fue cancelada de acuerdo a: -
+340 – Clave inactivada Renaper/Oficio Judicial,
+342 - COOP.EFECTORAS INACTIVADAS POR REQ.DEL                          descripción de la caracterización -
+MIN.DESARROLLO SOCIAL,
+343 - SOCIEDAD EN FORMACION - INACTIVADA POR
+INCUMPLIMIENTO,
+344 - COOPERATIVA INACTIVA INAES
+350 - CLAVES INVALIDAS
+
+Si tiene caracterización 160 - Cancelación de CUIT RG                 La CUIT fue cancelada de acuerdo a lo
+3358                                                                  establecido en la RG 3358
+
+                                                                      La CUIT que ingresaste se encuentra
+Si la clave está inactiva pero no bloqueada
+                                                                      inactiva, ingresá tu CUIT activa
+
+Si dependencia es nula o región de dependencia es 0                   No tiene dependencia informada
+
+Si tipo_bloqueo es distinto de nulo                                   PASIVO DECRETO 1299/98
+
+                                                                      El contribuyente registra fecha de
+Si tiene fecha_fallecimiento pero no es sucesión.
+                                                                      fallecimiento y no es sucesión indivisa
+
+Si número de documento es cero cuando tipo_persona
+                                                                      Documento erróneo
+es Física
+
+Si nombre es nulo cuando tipo_persona es Física                       Nombre erróneo
+
+Si razón social es nula cuando tipo_persona es Jurídica Razón social errónea
+
+Si clave es CUIT y no posee domicilio fiscal                          Domicilio Incompleto
+
+Si posee domicilio fiscal, pero el código postal es nulo o
+                                                           Código postal erróneo
+es cero.
+
+Si posee domicilio fiscal, pero el código de provincia es
+                                                                      Provincia errónea
+nulo
+
+
+       Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1            Pág. 29 de 32
+Validación                                                  Mensaje de error
+
+Si posee domicilio fiscal, pero el código calle es nulo y   Si no tiene calle, debe tener Dato
+dato adicional también es nulo                              adicional
+
+Si posee domicilio fiscal, pero el código de localidad es
+                                                            No tiene localidad
+nulo y el código de provincia es cero
+
+Si posee domicilio fiscal, pero el estado de domicilio      Estado erróneo del domicilio
+inexistente o no denunciado o no notificado o Sin
+correspondencia con tipo domicilio.
+
+Si posee caracterización (61) NO RESPONDIO AL               No responde al requerimiento
+REQUERIMIENTO
+
+Si posee caracterización (463) NO RESPONDIO AL              Debe responder requerimientos
+REQUERIMIENTO – VERIFICA                                    pendientes en verificaciones
+
+Si posee caracterización (483) NO RESPONDIO AL              Debe responder fiscalizaciones
+REQUERIMIENTO - VERIFICACIÓN ELECTRÓNICA                    electrónicas pendientes
+
+                                                            No es posible mostrar la Constancia de
+                                                            Inscripción Opción de Monotributo, atento
+                                                            que el contribuyente consultado registra
+                                                            irregularidades en los relevamientos de
+Si posee caracterización (321) RELEVAMIENTO DE              personal efectuados por esta
+TRABAJADORES CON IRREGULARIDADES DETECTADAS                 Administración Federal. El contribuyente
+                                                            o su representante podrán consultar las
+                                                            irregularidades detectadas en el
+                                                            relevamiento de personal accediendo con
+                                                            clave fiscal al servicio IDR
+
+No se encuentra adherido al domicilio fiscal electrónico,
+ES monotributista fuera de las categorias:
+
+61 - B MONOTRIBUTO SOCIAL AGROP.                            No consta en nuestros registros que Ud.
+98 - B ASOCIADO COOPERATIVA
+99 - B MONOTRIBUTO SOCIAL LOCACION                          ha cumplido con la adhesión al domicilio
+100 - B MONOTRIBUTO SOCIAL VENTAS                           fiscal electrónico, según lo normado por
+101 - D 2 SOCIOS PROY. SERVICIOS                            la R.G. 3990-E, hasta tanto no normalice
+102 - D 2 SOCIOS PROY. PRODUCTIVO                           su situación no podrá visualizar su
+103 - E 3 SOCIOS PROY. SERVICIOS
+104 - E 3 SOCIOS PROY. PRODUCTIVO                           constancia.
+
+y no posee caracterización (418) EXCEPTUADO DE
+CONSTITUIR DFE
+
+No se encuentra adherido al domicilio fiscal electrónico    Tu Constancia se encuentra bloqueada.
+y NO ES monotributista                                      El 30-nov-2018 venció el plazo para
+                                                            constituir el domicilio fiscal electrónico.
+                                                            Constituilo para desbloquearla.
+
+                                                            Sr. Contribuyente de acuerdo a lo
+                                                            establecido en el Art. Nº 7 de la R.G.
+                                                            AFIP Nº 3537/13 para obtener la
+Si no cumplió con la obligación de reempadronamiento        constancia de inscripción/opción, deberá
+de actividades económicas                                   realizar previamente la actualización de
+                                                            todas sus actividades económicas.
+                                                            A tales efectos ingrese al servicio
+                                                            Sistema Registral, opción Registro
+                                                            Tributario/ F. 420/D Declaración de
+
+      Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1     Pág. 30 de 32
+Validación                                                  Mensaje de error
+
+                                                            actividades, y declare las actividades del
+                                                            nomenclador f. 883 que correspondan.
+
+                                                            Datos de monotributo incompletos- no
+Registra impuesto 20 - Monotributo pero no categoría
+                                                            posee categoría.
+
+Las personas activas asociadas a personas jurídicas
+                                                            La sociedad no posee la cantidad de
+como integrantes de la sociedad no cumplen el mínimo
+                                                            integrantes requerida
+de 2 y máximo de 3.
+
+Si el contribuyente es un trabajador independiente          Ud se encuentra bajo la modalidad de
+promovido no podrá tener de alta un local                   trabajador independiente promovido, no
+/establecimiento. T_DOMICILIO id_tipo_domicilio = 3.        puede tener Locales/establecimientos..
+
+                                                            No puede estar inscripto en el/los
+Si el contribuyente es un trabajador independiente          impuestos 308/180/301 y
+promovido y posee impuestos activos y vigentes como         simultáneamente como Trabajador
+308 – autónomo/180 – Bs Ps/301 – empleador.                 Independiente Promovido del régimen de
+                                                            Monotributo
+
+Si el contribuyente es un trabajador independiente          No puede tener más de una actividad
+promovido y presenta más de una actividad con código        pues Ud es Trabajador Independiente
+> 100                                                       Promovido.
+
+                                                            Para obtener la constancia de
+Si la Actividad Económica Principal no corresponde a        inscripción/opción, deberá realizar
+nomenclador vigente                                         previamente la actualización de todas sus
+                                                            actividades económicas.
+
+Cuando el código de actividad es nulo.                      Actividad económica principal inexistente
+
+Cuando el mes de cierre es menor que 1 o mayor a 12         Mes de cierre declarado es invalido
+
+Si el tipo de persona es jurídica y la forma jurídica es
+                                                            La sociedad no registra forma jurídica
+nula
+
+Si no es monotributista y la forma jurídica no es:
+
+95 - COOPERATIVA EFECTORA
+108 - ECONOMIA MIXTA
+116 - EMPRESA DEL ESTADO
+124 - CON PARTICIPACION ESTATAL MAYORITARIA 125 - ORGAN.    El contribuyente cuenta con impuestos
+PUBLICO                                                     con baja de oficio por Decreto
+126 - ORGAN. PUBLICO INTERNACIONAL                          1299/98','14 - Baja motivo 163
+175 - DIRECCION ADMINISTRATIVA ESTATAL
+245 - SOCIEDAD BINACIONAL FUERA DE JURISDICCION
+246 - ENTIDADES DE DERECHO PUBLICO NO ESTATAL
+Y tiene Baja de oficio decreto 1299/98 en alguno de sus
+impuestos
+
+Si no es monotributista y la forma jurídica no es:
+
+95 - COOPERATIVA EFECTORA
+108 - ECONOMIA MIXTA                                        El contribuyente no cuenta con impuestos
+116 - EMPRESA DEL ESTADO                                    activos y posee impuestos con baja de
+124 - CON PARTICIPACION ESTATAL MAYORITARIA 125 - ORGAN.    oficio por Decreto 1299/98
+PUBLICO
+126 - ORGAN. PUBLICO INTERNACIONAL
+175 - DIRECCION ADMINISTRATIVA ESTATAL
+245 - SOCIEDAD BINACIONAL FUERA DE JURISDICCION
+
+
+      Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1   Pág. 31 de 32
+Validación                                                           Mensaje de error
+
+246 - ENTIDADES DE DERECHO PUBLICO NO ESTATAL
+
+Y no tiene impuestos activos y además tiene Baja de
+oficio decreto 1299/98 en alguno de sus impuestos
+
+Aplica a personas con fecha inscripción posterior o
+igual a 26/05/2010, no inscriptas mediante CUIT-
+DIGITAL
+A monotributistas fuera de las categorías:                           La constancia de inscripción se
+61 - B MONOTRIBUTO SOCIAL AGROP.                                     encuentra bloqueada porque el
+99 - B MONOTRIBUTO SOCIAL LOCACION                                   contribuyente, o su Administrador de
+100 - B MONOTRIBUTO SOCIAL VENTAS
+101 - D 2 SOCIOS PROY. SERVICIOS
+                                                                     Relaciones, no registró los datos
+102 - D 2 SOCIOS PROY. PRODUCTIVO                                    biométricos. Puede hacerlo desde la
+103 - E 3 SOCIOS PROY. SERVICIOS                                     aplicación ARCA, o en una dependencia
+104 - E 3 SOCIOS PROY. PRODUCTIVO                                    de ARCA con un turno previo.
+
+Y si no poseen baja de oficio por RG 3402.
+Se verifica que hayan cargado los datos biométricos.
+
+Si tiene alguna de las caracterizaciones:                            La CUIT del contribuyente fue limitada en
+412 - Limitado por solicitud de CUIT digital observada. DNI
+413 - Limitado por solicitud de CUIT digital observada. Foto y DNI
+                                                                     los terminos de la RG AFIP 4320/18.
+414 - Limitado por solicitud de CUIT digital observada. Domicilio    Motivo:
+                                                                     El motivo se completa con la descripción
+El texto del mensaje se completa con la descripción de               de las caracterizaciones 412, 413 ó 414
+la/s caracterización/es que posea                                    que posea.
+
+
+
+
+       Especificaciones técnicas de Servicios Web – WS_SR_constancia_inscripcion - V.4.1          Pág. 32 de 32
+

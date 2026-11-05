@@ -1,0 +1,89 @@
+Especificaciones del QR incluido en las facturas electrónicas
+EI QR codificará la siguiente información del comprobante:
+    Fecha de emisión
+    CUIT del emisor
+    Punto de venta
+    Tipo de Comprobantes
+    Número de Comprobante
+    Importe total
+    Moneda
+    Cotización
+    Tipo Documento Receptor (de corresponder)
+    Número de Documento de Receptor (de corresponder)
+    Código del Tipo de Autorización
+    Código de Autorización
+
+Cuando la solicitud de autorización de emisión del comprobante electrónico se realice
+mediante el servicio "Comprobantes en línea" y/o la aplicación "Facturador Móvil", el
+propio sistema de este Organismo incorporará el código "QR" al comprobante autorizado.
+
+Especificación técnica:
+
+El código QR deberá codificar el siguiente texto:
+{URL}?p={DATOS CMPBASE64}
+
+Donde:
+{URL}=https://www.arca.gob.ar/fe/qr/
+
+{DATOS CMPBASE64}=JSON con datos del comprobante codificado en Base64
+
+La especificación del JSON con los datos del comprobante es la siguiente (versión 1):
+
+   Campo                  Tipo                      Descripción               Valor ejemplo
+ver           Numérico 1 digito          OBLIGATORIO – versión del formato              1
+                                         de los datos del comprobante
+fecha         full-date (RFC3339)        OBLIGATORIO – Fecha de emisión       "2020-10-13"
+                                         del comprobante
+cuit          Numérico 11 dígitos        OBLIGATORIO – Cuit del Emisor del    30000000007
+                                         comprobante
+ptoVta        Numérico hasta 5 dígitos OBLIGATORIO – Punto de venta                 10
+                                       utilizado para emitir el
+                                       comprobante
+tipoCmp       Numérico hasta 3 dígitos OBLIGATORIO – tipo de                            1
+                                       comprobante (según Tablas del
+                                       sistema )
+nroCmp        Numérico hasta 8 dígitos OBLIGATORIO – Número del                     94
+                                       comprobante
+      Campo             Tipo                     Descripción               Valor ejemplo
+importe       Decimal hasta 13        OBLIGATORIO – Importe Total del         12100
+              enteros y 2 decimales   comprobante (en la moneda en la
+                                      que fue emitido)
+moneda        3 caracteres            OBLIGATORIO – Moneda del                "DOL"
+                                      comprobante (según Tablas del
+                                      sistema )
+ctz           Decimal hasta 13        OBLIGATORIO – Cotización en pesos         65
+              enteros y 6 decimales   argentinos de la moneda utilizada
+                                      (1 cuando la moneda sea pesos)
+tipoDocRec    Numérico hasta 2 dígitos DE CORRESPONDER – Código del             80
+                                       Tipo de documento del receptor
+                                       (según Tablas del sistema )
+nroDocRec     Numérico hasta 20       DE CORRESPONDER – Número de          20000000001
+              dígitos                 documento del receptor
+                                      correspondiente al tipo de
+                                      documento indicado
+tipoCodAut    string                  OBLIGATORIO – “A” para                    "E"
+                                      comprobante autorizado por CAEA,
+                                      “E” para comprobante autorizado
+                                      por CAE
+codAut        Numérico 14 dígitos     OBLIGATORIO – Código de             70417054367476
+                                      autorización otorgado por ARCA
+                                      para el comprobante
+
+Pie del PDF del comprobante:
+
+
+
+
+Texto codificado en el QR:
+https://www.afip.gob.ar/fe/qr/?p=eyJ2ZXIiOjEsImZlY2hhIjoiMjAyMC0xMC0xMyIsImN1
+aXQiOjMwMDAwMDAwMDA3LCJwdG9WdGEiOjEwLCJ0aXBvQ21wIjoxLCJucm9DbXAiO
+jk0LCJpbXBvcnRlIjoxMjEwMCwibW9uZWRhIjoiRE9MIiwiY3R6Ijo2NSwidGlwb0RvY1JlYyI
+6ODAsIm5yb0RvY1JlYyI6MjAwMDAwMDAwMDEsInRpcG9Db2RBdXQiOiJFIiwiY29kQXV
+0Ijo3MDQxNzA1NDM2NzQ3Nn0=
+
+JSON con datos del comprobante:
+{"ver":1,"fecha":"2020-10-
+13","cuit":30000000007,"ptoVta":10,"tipoCmp":1,"nroCmp":94,"importe":12100,"mon
+eda":"DOL","ctz":65,"tipoDocRec":80,"nroDocRec":20000000001,"tipoCodAut":"E","co
+dAut":70417054367476}
+

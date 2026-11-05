@@ -1,0 +1,138 @@
+         TESORERIA
+Conciliación de cuentas
+                                         CONCILIACIÓN DE CUENTAS
+
+        Dentro de Proceso periódicos encontrará distintos procesos relacionados con la conciliación de
+        cuentas:
+
+
+
+
+        CONCILIACIÓN
+
+        Al ingresar a este proceso deberá indicar la cuenta a conciliar, al igual que las fechas desde/hasta del
+        extracto.
+
+
+
+
+        El botón “BUSCAR CONCILIACIONES” (F8) le permitirá elegir alguna de las conciliaciones anteriormente
+        generadas:
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                       SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                     Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                       servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620      Lunes a viernes de 8:30 a 18:30 hs.
+        En esta grilla tendrán las fechas desde/hasta de cada conciliación generada, al igual que los saldos
+        iniciales y finales de cada una de ellas.
+
+        En el caso modifique alguna conciliación ya realizada afectando el saldo final, automáticamente se
+        actualizará el saldo inicial de la próxima. Este último aparecerá resaltado y el sistema dará aviso si se
+        quiere ajustar dicho importe. También de esta misma ventana se podrá eliminar una conciliación ya
+        generada.
+
+        En la ventana de parámetros de la Conciliación; es posible indicar el Saldo final del extracto. Esto
+        permitirá a la persona que realice el proceso la posibilidad de controlar que se llegue al mismo saldo
+        que indica el extracto sobre el cual se está conciliando.
+
+        Completos los datos, presione SIGUIENTE y accederá a una ventana en forma de grilla, que detalla
+        todos los movimientos ingresados en el sistema que serán tenidos en cuenta para esta conciliación.
+
+        Esta grilla está compuesta por columnas donde se detalla la fecha, tipo y Nro. de comprobante, detalle
+        de cheques por cada comprobante, importe y datos de conciliación.
+
+
+
+
+        A su vez cuentan con diferentes opciones sobre la barra de herramientas que les permitirá cambiar la
+        visualización de la grilla como también realizar exportaciones a Excel o imprimir la conciliación.
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                       SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                     Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                       servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620      Lunes a viernes de 8:30 a 18:30 hs.
+        Con respecto a los comprobantes existe la posibilidad de ver estos detallados como mostramos en la
+        imagen anterior o bien por total del comprobante, este cambio se realiza desde la opción visualización.
+
+        Otra funcionalidad muy importante es la posibilidad de seleccionar un rango de registros al mismo
+        tiempo utilizando la tecla SHIFT y conciliarlos todos juntos.
+
+
+
+
+        Como verá los registros conciliados quedarán resaltados en color verde para distinguirlos de los no
+        conciliados.
+
+        Si presiona en la opción Extracto accederá a la pantalla para seleccionar –de entre los extractos
+        electrónicos importados- aquel que necesita conciliar.
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                      SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                    Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                      servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620     Lunes a viernes de 8:30 a 18:30 hs.
+        Se podrá modificar la fecha a procesar o bien seleccionar alguno de los ya importados; al igual que
+        indicar el tipo de archivo ( si es General o de Cheques) . También tiene la posibilidad de tildar la opción
+        para que el sistema realice la conciliación previa en forma automatica.
+
+        En este caso, la ventana queda subdividida en dos: Sobre el margen izquierdo figurarán los
+        movimientos del sistema y sobre el margen derecho el extracto electrónico.
+
+
+
+
+        A medida que navega por la grilla, podrá observar que los movimientos que fueron conciliados
+        automaticamente se resaltan en ambas grillas de la pantalla permitiendo identificar rapidamente la
+        relación establecida.
+
+        Para aquellos comprobantes que queden sin conciliar, se podrá realizar una conciliación manual y
+        relacionar estos movimientos con los del extracto. Para esto ingrese en la modalidad RELACIONAR
+        dando click en el botón dispuesto en la parte superior de la pantalla.
+
+
+
+
+        Se debe seleccionar los registros a relacionar en la grilla de movimientos y luego realizar la misma
+        operación sobre la grilla del extracto.
+
+        Finalmente, si presiona en el botón CONCILIAR estos quedarán relacionados y conciliados
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                         SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                       Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                         servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620        Lunes a viernes de 8:30 a 18:30 hs.
+        Presione SIGUIENTE para visualizar los movimientos Pendientes de registrar. El sistema mostrará
+        agrupados según los conceptos los importes que pudo conciliar automáticamente del extracto
+        importado permitiendo editar y modificar estos importes. Por debajo podrán observar las líneas de
+        totales y diferencias de la conciliación.
+
+        Presionado el botón TERMINAR finalizará el proceso y la conciliación quedará guardada en el sistema
+        para su posterior consulta o bien volver a realizar la conciliación.
+
+
+
+
+          Nota: Desde el proceso Importación de extractos electrónicos se importará la información de cada
+                    extracto electrónico para luego poder utilizarlos en el proceso de Conciliación.
+
+        Desde el proceso de Depuración de extractos electrónicos podrán eliminar del sistema esta
+        información.
+
+
+
+
+AXOFT ARGENTINA S.A.                 TANGO CENTRO DE CLIENTES                    SOPORTE TÉCNICO
+Cerrito 1186 Piso 2º - CP C1010AAX   Cerrito 1214 - CP C1010AAZ                  Mesa de ayuda: +54 (011) 5256-2919
+Buenos Aires – Argentina -           Buenos Aires – Argentina                    servicios@axoft.com
+www.axoft.com                        +54 (011) 5031-8264 - +54 (011) 4816-2620   Lunes a viernes de 8:30 a 18:30 hs.
+

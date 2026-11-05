@@ -1,0 +1,325 @@
+SUBDIRECCIÓN GENERAL
+DE SISTEMAS Y
+TELECOMUNICACIONES
+
+
+
+
+     Documento Técnico Delegación
+                   de Webservices
+                      ARCA con el
+                    Administrador
+                    de Relaciones
+        Historial de modificaciones
+
+
+
+Versión    Fecha        Descripción
+1.0.0      16/05/2011   Versión inicial del Documento
+1.1.0      17/05/2011   Incorporación de Revocación de Designación
+1       Introducción
+
+1.1     Objetivo
+
+El siguiente documento tiene como objetivo mostrar los distintos pasos para la delegación de un
+Webservice provisto por ARCA.
+
+Se presupone que ya se posee clave fiscal de nivel acorde a los servicios que se utilizan (3), tramitada en
+una dependencia de ARCA.
+
+
+
+1.2     Alcance
+
+Aquellos desarrolladores o contactos técnicos de las Empresas o Contribuyentes que necesiten consumir
+un Webservice provisto por AFIP.
+
+
+
+1.3     Siglas, Acrónimos y Referencias
+
+CSR: Solicitud de Certificado de Firma (en inglés Certificate Signing Request).
+
+Webservice: Servicio HTTP       SOAP implementado por            ARCA y           consultado     por
+Contribuyentes.
+Delegación de un Webservice
+2.1 Presentación de Situación
+
+Para ejemplificar el procedimiento se utilizará un caso ficticio. En este caso tenemos a una empresa
+“SERVICIOS GENERALES S.A.” (CUIT 30503612891) recientemente incluida en el régimen de Facturación
+Electrónica. Para poder operar el Webservice de Facturación Electrónica, esta empresa cuenta con dos
+posibilidades: (i) realizar los desarrollos informáticos correspondientes, o bien (ii) tercerizar el servicio en
+una empresa dedicada a esta actividad.
+
+El presente documento explorará ambas situaciones. Para la segunda situación se presenta también a la
+empresa “EMPRESA DE FACTURACION S.A” (CUIT 30710955057), que es una firma que brinda servicio de
+facturación a otras empresas. A su vez factura electrónicamente a sus clientes. JUAN JOSE ESQUIVEL
+(CUIT 20223626719) es actualmente el Administrador de Relaciones de “SERVICIOS GENERALES S.A.”.
+
+Para poder comenzar a utilizar el Webservice de Facturación Electrónica, es necesario que primero el
+Administrador de Relaciones (o Subadministrador de Relaciones según sea el caso) autorice el acceso al
+mismo. Ingresando por el portal institucional (http://www.arca.gob.ar) deberá ubicar el botón de acceso
+directo con la Clave Fiscal.
+
+
+
+
+En la pantalla de autenticación con Clave Fiscal, el Administrador de Relaciones de “SERVICIOS
+GENERALES S.A.” deberá ingresar la CUIT/CUIL/CDI de su usuario (sin guiones ni separadores de ningún
+tipo) y la contraseña en el campo Clave.
+Luego de ingresar el usuario y la contraseña presionar el botón “INGRESAR”. Se desplegará el listado de
+servicios habilitados para el usuario.
+NOTA: En caso de seleccionar a JUAN JOSE ESQUIVEL en este desplegable, los servicios autorizados serán
+autorizados para operar en nombre de JUAN JOSE ESQUIVEL, y no en nombre de SERVICIOS GENERALES
+S.A..
+
+El servicio a utilizar se denomina “Administración de Relaciones de Clave Fiscal” (o “Subadministrador de
+Relaciones de Clave Fiscal” según sea el caso). La primera acción a realizar en el servicio, será determinar
+en nombre de quien se transaccionará.
+
+
+
+
+El sistema presenta la pantalla con un desplegable conteniendo todas las personas para las que esta
+persona es Administrador de Relaciones.
+
+En este ejemplo la empresa “SERVICIOS GENERALES S.A.” es la empresa que utilizará los Webservices, por
+lo tanto se deberá seleccionar a “SERVICIOS GENERALES S.A.” del desplegable.
+
+El servicio cuenta con cuatro opciones. La primera opción “Adherir Servicio” permite al usuario incorporar
+un servicio para operar en nombre del Representado (en este caso “SERVICIOS GENERALES S.A.”),
+simplemente seleccionando el servicio.
+
+La segunda opción “Nueva Relación” es similar a la anterior con la diferencia que permite seleccionar
+además al Representado y al Representante en la autorización que se está generando.
+En este caso el Administrador de Relaciones de “SERVICIOS GENERALES” utilizará la opción “Nueva
+Relación” del Administrador de Relaciones.
+
+
+
+
+La pantalla se presenta con un desplegable para seleccionar el Representado, que es la persona por la que
+se operará el servicio. En este caso, el usuario solo puede administrar las relaciones de “SERVICIOS
+GENERALES S.A.” por lo tanto el desplegable aparece deshabilitado, con la única opción seleccionada por
+defecto. Una vez seleccionado el representado, se puede buscar el servicio que se autorizará.
+
+
+
+
+  Dentro de los servicios, deberá seleccionar la agrupación de Webservices, y dentro de esta
+  agrupación, buscar el servicio que desee habilitar. Para este caso selecciona el servicio “Facturación
+  Electrónica”. Una vez seleccionado el servicio, la pantalla de la autorización se actualiza con la nueva
+  información.
+Al haber seleccionado el servicio, la transacción permite seleccionar ahora el usuario Representante para
+la autorización.
+
+
+
+
+Al ser el servicio elegido un Webservice, la selección del representante plantea dos posibilidades. Una es
+seleccionar un computador fiscal propio y la otra es autorizar a un tercero para que opere el Webservice
+en nombre propio.
+
+
+
+2.2     Situación 1: Desarrollo Propio
+
+En esta situación, la empresa “SERVICIOS GENERALES S.A.” (CUIT 30503612891) ha decidido realizar los
+desarrollos informáticos necesarios para adaptar su sistema de facturación actual y poder incorporar la
+facturación electrónica.
+
+La empresa ya ha realizado la habilitación del Computador Fiscal correspondiente. Para obtener más
+información de cómo realizar la solicitud del Certificado Digital para habilitar a un Computador Fiscal,
+remitirse al Documento Técnico “Generación de Certificados Digitales para Utilización con Webservices”.
+
+En este caso, la empresa elegirá en la pantalla “Selección del Representante a autorizar”, el computador
+fiscal que desee utilizar para ese servicio.
+Nota: Al seleccionar un computador fiscal del desplegable, el cuadro de texto habilitado para ingresar la
+CUIT/CUIL/CDI del usuario quedo deshabilitado.
+
+
+
+Para continuar con la autorización, deberá confirmar la operación utilizando el botón “Confirmar”.
+Nuevamente la pantalla vuelve a actualizarse, ahora con la información del representante autorizado.
+
+
+
+
+En esta instancia se podrá realizar una última revisión de las selecciones realizadas, y en caso y se deberá
+presionar el botón “Confirmar” para efectivizar la autorización y finalizar la delegación.
+2.3   Situación 2: Tercerización del Servicio
+
+         En esta situación, la empresa “SERVICIOS GENERALES S.A.” (CUIT 30503612891) ha decidido
+ no realizar desarrollos informáticos y tercerizará el servicio de facturación electrónica en la empresa
+ “EMPRESA DE FACTURACION S.A” (CUIT 30710955057). Para este ejemplo, el usuario ingresara en la
+ pantalla “Selección del Representante a autorizar”, el cuadro de texto “CUIT/CUIL/CDI del Usuario”
+ colocando la CUIT de la empresa a la que contratara para que opere el servicio en su nombre.
+
+
+
+
+        Al ingresar la CUIT de la “EMPRESA DE FACTURACION S.A.”, la pantalla se actualiza y el
+ sistema emite una advertencia indicando que la delegación que está realizando requiere que el
+ autorizado realice también una operación para que este servicio pueda ser utilizado.
+En esta instancia se podrá realizar una última revisión de las selecciones realizadas, y en caso
+y se deberá presionar el botón “Confirmar” para efectivizar la autorización y finalizar la
+delegación. Al confirmar el sistema emite la constancia correspondiente (F3283/E).
+
+
+
+
+Hasta aquí es la operatoria del Administrador de Relaciones de “SERVICIOS GENERALES S.A.”.
+Sin embargo, como el sistema lo advierte en la pantalla de la página anterior, la operatoria no
+es suficiente para comenzar a utilizar el servicio. Para que “EMPRESA DE FACTURACION S.A.”
+pueda operar el Webservice en nombre de “SERVICIOS GENERALES S.A.” es necesario que el
+Administrador de Relaciones (o subadministrador de Relaciones) de “EMPRESA DE
+FACTURACION S.A.” determine cual es el computador que va a utilizar para ese Webservice y
+para ese cliente.
+
+Para esto el Administrador de Relaciones de “EMPRESA DE FACTURACION S.A.” deberá
+ingresar al Administrador de Relaciones, aceptar la designación realizada por “SERVICIOS
+GENERALES S.A.”, y luego autorizar a alguno de sus computadores para operar ese servicio.
+
+Como primer paso, se deberá aceptar la designación realizada por “SERVICIOS GENERALES
+S.A.”. Ingresando por la cuarta opción del menú principal del servicio Administrador de
+Relaciones de Clave Fiscal, el sistema despliega un listado de todas las autorizaciones que se
+encuentran pendientes de aceptación.
+
+
+
+
+Presionando el botón “Aceptar”, la “EMPRESA DE FACTURACION S.A.” acepta operar el
+Webservice de Facturación Electrónica en nombre de “SERVICIOS GENERALES S.A.”. El
+siguiente paso será determinar que computador fiscal será utilizado para este servicio.
+
+La operatoria es similar a la realizada en los pasos anteriores. El Administrador de Relaciones
+de “EMPRESA DE FACTURACION S.A.” ingresa al servicio “Administrador de Relaciones”,
+selecciona a “EMPRESA DE FACTURACION S.A.” como persona por la que va a operar, y luego
+selecciona la opción “Nueva Relación”.
+Nótese que al Administrador de Relaciones de la “EMPRESA DE FACTURACION S.A.” puede
+seleccionar entre esa misma empresa y a partir de ahora también entre “SERVICIOS
+GENERALES S.A.”. Una vez elegido el representado, se deberá seleccionar el servicio a operar
+para esa persona.
+
+
+
+
+Cabe aclarar que el listado de servicios disponibles, se circunscribe a los servicios que el
+representado a autorizado a la empresa a operar. En este caso puntual, el único servicio que
+“EMPRESA DE FACTURACION S.A.” puede operar por “SERVICIOS GENERALES S.A.” es el
+Webservice de Facturación Electrónica. El usuario solo puede seleccionar ese servicio para
+continuar.
+
+
+
+
+Al haber seleccionado el servicio, la transacción permite seleccionar ahora el usuario
+Representante para la autorización.
+En este caso, al tratarse de una subdelegación de un servicio, el sistema presenta una
+advertencia indicando que solo puede elegir un Computador Fiscal para este servicio. No
+podrá elegir a otra empresa para continuar con una cadena de autorizaciones.
+
+
+
+
+Al seleccionar el computador a utilizar por “EMPRESA DE FACTURACION S.A.” para este
+Webservice de “SERVICIOS GENERALES S.A.”, el sistema habilita el botón “Confirmar”.
+
+
+
+
+En esta instancia se podrá realizar una última revisión de las selecciones realizadas, y en caso y
+se deberá presionar el botón “Confirmar” para efectivizar la autorización y finalizar la
+delegación. Al confirmar el sistema emite la constancia correspondiente (F3283/E).
+En esta instancia, el servicio SI se encuentra disponible para ser utilizado. Solo “EMPRESA DE
+FACTURACION S.A.” a través del computador fiscal “facturación-1” podrá operar el webservice
+de Facturación Electrónica y emitir comprobantes electrónicos para “SERVICIOS GENERALES
+S.A.”.
+3 Revocación del Webservice
+
+¿Qué ocurría si “SERVICIOS GENERALES S.A.” decidiera cancelar su contrato con “EMPRESA DE
+FACTURACION S.A.”? Ya sea porque se decidió a implementar las adaptaciones tecnológicas a
+sus sistemas, o bien porque ha contratado a otra empresa para que realice las operaciones que
+antes realizaba con la primera.
+
+En cualquiera de estas opciones, para anular la autorización que “SERVICIOS GENERALES S.A.”
+realizó a favor de “EMPRESA DE FACTURACION S.A.”, el Administrador de Relaciones (o
+SubAdministrador de Relaciones según el caso) de “SERVICIOS GENERALES S.A.” deberá
+revocar esta delegación.
+
+Nuevamente, ingresa al servicio “Administrador de Relaciones de Clave Fiscal” (o
+“SubAdministrador de Relaciones de Clave Fiscal” según el caso), selecciona a “SERVICIOS
+GENERALES S.A.” para operar en su nombre.
+
+
+
+
+En el menú principal deberá seleccionar la tercera opción, el botón “Consultar” donde podrá
+listar las personas con las que está relacionada y los servicios involucrados en esa relación. Al
+ingresar al menú de Consultas, el sistema despliega una pantalla como la siguiente.
+
+
+
+
+El listado muestra los “Representantes del Usuario”, donde aparece un listado de todas las
+personas que figuran autorizadas para algún servicio por la empresa “SERVICIOS GENERALES S.
+A.”. En este caso en el listado se encuentra JUAN JOSE ESQUIVEL (CUIT 20223626719) que es el
+Administrador de Relaciones de la empresa y aparece también “EMPRESA DE FACTURACION
+S.A” (CUIT 30710955057). Al presionar sobre la lupa ubicada a la derecha del renglón, se podrá
+acceder al detalle de servicios habilitados para la relación entre “SERVICIOS GENERALES S.A.” y
+el representante seleccionado.
+
+
+
+
+  En este caso, el único servicio habilitado para la relación entre “SERVICIOS GENERALES
+  S.A.” y “EMPRESA DE FACTURACION S.A.” es el Webservice de Facturación Electrónica
+  autorizado en el punto 2.
+  Para cancelar esta autorización, lo único que el usuario deberá hacer es presionar sobre el
+  botón “Revocar” correspondiente al renglón de ese servicio.
+
+
+
+
+  En esta instancia se podrá realizar una última revisión de las selecciones realizadas, y en
+  caso y se deberá presionar el botón “Confirmar” para efectivizar la revocación de la
+  autorización. Al confirmar el sistema emite la constancia correspondiente (F3283/E).
+
+
+
+
+  Nota: Cada servicio representa una autorización distinta. Para revocar todos los servicios
+  autorizados para una persona, deberá repetir esta operatoria tantas veces como servicios
+  haya autorizado oportunamente.
+TÍTULO
+TEXTO
+
+
+
+4.      Preguntas más Frecuentes
+
+
+
+¿Puedo utilizar el mismo certificado digital asociado un Computador Fiscal en más de un
+equipo?
+
+No. Cuando un computador fiscal solicita al WSAA un ticket de inicio de sesión para un
+Webservice en particular, el ticket cuenta con un período de validez. Durante ese período de
+validez, ese computador no podrá solicitar otro ticket de inicio de sesión para el mismo
+Webservice. Entonces si tiene más de un equipo con el mismo computador instalado, no va a
+poder utilizar los dos equipos en simultáneo.
+
+
+
+¿Puedo utilizar el mismo computador para distintos Webservices?
+
+Sí. El mismo computador puede ser utilizado para distintos Webservices provistos por AFIP.
+
+
+
+¿Para que necesito pedir más de un Computador Fiscal?
+
+No es obligatorio. Con un computador fiscal alcanza para todos los Webservices que quiera
+operar. La posibilidad de generar más de un Computador Fiscal, es simplemente una facilidad
+para que los usuarios finales puedan organizar administrativamente sus autorizaciones.
+
