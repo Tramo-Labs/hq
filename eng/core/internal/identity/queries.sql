@@ -71,6 +71,10 @@ select count(*) from memberships where tenant_id = $1 and role = 'owner';
 -- name: DeleteMembership :one
 delete from memberships where user_id = $1 and tenant_id = $2 returning role;
 
+-- name: SetPasswordIfUnset :execrows
+-- Never overwrites a password the person already chose.
+update users set password_hash = $2 where id = $1 and password_hash is null;
+
 -- name: RevokeUserTenantSessions :execrows
 update refresh_tokens set revoked_at = now()
 where user_id = $1 and tenant_id = $2 and revoked_at is null;

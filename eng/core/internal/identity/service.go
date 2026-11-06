@@ -348,14 +348,24 @@ func (s *Service) ListMembers(ctx context.Context) ([]store.ListMembersRow, erro
 	return rows, err
 }
 
-// AddMember gives email the role in the caller's tenant. Owners and
-// operators may add members; only an operator grants operator or accountant.
+// AddMember gives email the role in the caller's tenant, under the grant
+// rules of spec §1 and §2 (CanGrant). An operator granting the first owner
+// is checked again inside the insert's transaction with the tenant row
+// locked, so two operators can not both create one.
 func (s *Service) AddMember(ctx context.Context, p Principal, email, role string) (store.ListMembersRow, error) {
-	if !CanManageMembers(p.Role) || ((role == RoleOperator || role == RoleAccountant) && p.Role != RoleOperator) {
-		return store.ListMembersRow{}, ErrForbidden
-	}
 	if !validRole(role) {
 		return store.ListMembersRow{}, fmt.Errorf("unknown role %q", role)
+	}
+	if !CanGrant(p.Role, role) {
+		return store.ListMembersRow{}, ErrForbidden
+	}
+	firstOwner := p.Role == RoleOperator
+	if firstOwner {
+		// Early refusal, before any user row is created; the locked
+		// check below is the one that counts.
+		if err := s.DB.InTenant(ctx, func(tx pgx.Tx) error { return noOwnerYet(ctx, store.New(tx), p.TenantID, false) }); err != nil {
+			return store.ListMembersRow{}, err
+		}
 	}
 	email, err := normalizeEmail(email)
 	if err != nil {
@@ -373,6 +383,11 @@ func (s *Service) AddMember(ctx context.Context, p Principal, email, role string
 		return store.ListMembersRow{}, err
 	}
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		if firstOwner {
+			if err := noOwnerYet(ctx, store.New(tx), p.TenantID, true); err != nil {
+				return err
+			}
+		}
 		if err := store.New(tx).CreateMembership(ctx, store.CreateMembershipParams{UserID: user, TenantID: p.TenantID, Role: store.Role(role)}); err != nil {
 			return mapUnique(err)
 		}
@@ -484,8 +499,39 @@ func PurgeExpiredRefreshTokens(ctx context.Context, d *db.DB) (int64, error) {
 	return n, err
 }
 
-// CanManageMembers reports whether role may add people to a tenant.
-func CanManageMembers(role string) bool { return role == RoleOwner || role == RoleOperator }
+// CanGrant reports whether a member with role granter may give role to
+// someone over HTTP (spec §1 and §2). The owner grants owner, approver,
+// viewer and accountant. The operator grants only owner, and AddMember
+// further requires that the tenant has no owner yet. Nobody grants
+// operator: the first one comes from `api create-operator`.
+func CanGrant(granter, role string) bool {
+	switch granter {
+	case RoleOwner:
+		return role == RoleOwner || role == RoleApprover || role == RoleViewer || role == RoleAccountant
+	case RoleOperator:
+		return role == RoleOwner
+	}
+	return false
+}
+
+// noOwnerYet answers ErrForbidden when the tenant already has an owner.
+// With lock it first takes the tenant row, serializing it with removals and
+// other grants.
+func noOwnerYet(ctx context.Context, q *store.Queries, tenant uuid.UUID, lock bool) error {
+	if lock {
+		if _, err := q.LockTenant(ctx, tenant); err != nil {
+			return err
+		}
+	}
+	n, err := q.CountOwners(ctx, tenant)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return ErrForbidden
+	}
+	return nil
+}
 
 func validRole(r string) bool {
 	switch r {

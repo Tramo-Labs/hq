@@ -53,6 +53,12 @@ func MetaFrom(ctx context.Context) (Meta, bool) {
 	return m, ok
 }
 
+// WithMeta stores m in ctx, for work that does not come through HTTP (a
+// command line tool) but is still audited with a request id.
+func WithMeta(ctx context.Context, m Meta) context.Context {
+	return context.WithValue(ctx, metaKey{}, m)
+}
+
 // RequestMeta gives every request an id (a well formed incoming
 // X-Request-Id is kept), echoes it, and stores it with the client IP in the
 // context. The client IP is the TCP peer. Only when that peer is one of

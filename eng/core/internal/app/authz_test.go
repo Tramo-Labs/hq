@@ -2,7 +2,9 @@ package app_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -144,5 +146,85 @@ func TestEveryDenialIsAudited(t *testing.T) {
 	// The owner reads them in the audit export.
 	if _, _, csvBody := c.get("/v1/exports/audit", own.access); strings.Count(csvBody, "authz.denied") != len(attempts) {
 		t.Errorf("audit export:\n%s", csvBody)
+	}
+}
+
+// F7 and F13 (cliente, qa/ESCENARIOS.md): who grants which role over HTTP.
+// Spec §1 and §2: the owner invites owner, approver, viewer and accountant;
+// the operator only the first owner; nobody grants operator.
+func TestGrantRules(t *testing.T) {
+	deps := newDeps(t)
+	c := client{t, serve(t, deps)}
+	who := c.roles(deps, "molino-f7")
+	targets := []string{"owner", "approver", "viewer", "accountant", "operator"}
+	allowed := map[string]map[string]bool{
+		"owner": {"owner": true, "approver": true, "viewer": true, "accountant": true},
+		// The tenant already has an owner, so the operator grants nothing
+		// here (F13, broader: not even owner).
+		"operator": {}, "approver": {}, "viewer": {}, "accountant": {},
+	}
+	n := 0
+	for granter, ok := range allowed {
+		for _, role := range targets {
+			n++
+			email := granter + "-" + role + "@f7.test"
+			r := c.do("POST", "/v1/tenant/members", who[granter].access, map[string]any{"email": email, "role": role}, idem()...)
+			if ok[role] && r.status != 201 || !ok[role] && r.status != 403 {
+				t.Errorf("%s grants %s: %d %s", granter, role, r.status, r.raw)
+			}
+		}
+	}
+
+	// An operator on a tenant left without owner grants the first owner,
+	// and only one.
+	if _, err := deps.DB.Pool.Exec(context.Background(),
+		`delete from memberships where tenant_id = $1 and role = 'owner'`, who["owner"].tenant); err != nil {
+		t.Fatal(err)
+	}
+	op := who["operator"].access
+	for _, role := range []string{"approver", "viewer", "accountant", "operator"} {
+		if r := c.do("POST", "/v1/tenant/members", op, map[string]any{"email": "first-" + role + "@f7.test", "role": role}, idem()...); r.status != 403 {
+			t.Errorf("operator grants %s on an ownerless tenant: %d", role, r.status)
+		}
+	}
+	if r := c.do("POST", "/v1/tenant/members", op, map[string]any{"email": "first-owner@f7.test", "role": "owner"}, idem()...); r.status != 201 {
+		t.Fatalf("operator grants the first owner: %d %s", r.status, r.raw)
+	}
+	if r := c.do("POST", "/v1/tenant/members", op, map[string]any{"email": "second-owner@f7.test", "role": "owner"}, idem()...); r.status != 403 {
+		t.Fatalf("operator grants a second owner: %d %s", r.status, r.raw)
+	}
+}
+
+// Two operators granting the first owner at once: exactly one gets it.
+func TestOperatorsRacingForTheFirstOwner(t *testing.T) {
+	deps := newDeps(t)
+	c := client{t, serve(t, deps)}
+	own := c.registerAndLogin("molino-race", "owner@race.test")
+	op1 := c.grant(deps, own.tenant, "op1-race", "op1@race.test", "operator")
+	op2 := c.grant(deps, own.tenant, "op2-race", "op2@race.test", "operator")
+	for i := 0; i < 10; i++ {
+		if _, err := deps.DB.Pool.Exec(context.Background(),
+			`delete from memberships where tenant_id = $1 and role = 'owner'`, own.tenant); err != nil {
+			t.Fatal(err)
+		}
+		var wg sync.WaitGroup
+		status := make([]int, 2)
+		for j, op := range []account{op1, op2} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				email := fmt.Sprintf("o%d-%d@race.test", i, j)
+				status[j] = c.do("POST", "/v1/tenant/members", op.access, map[string]any{"email": email, "role": "owner"}, idem()...).status
+			}()
+		}
+		wg.Wait()
+		var owners int
+		if err := deps.DB.Pool.QueryRow(context.Background(),
+			`select count(*) from memberships where tenant_id = $1 and role = 'owner'`, own.tenant).Scan(&owners); err != nil {
+			t.Fatal(err)
+		}
+		if owners != 1 || status[0]+status[1] != 201+403 {
+			t.Fatalf("round %d: %d owners, statuses %v", i, owners, status)
+		}
 	}
 }

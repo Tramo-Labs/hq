@@ -12,7 +12,7 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 | `POST /v1/auth/logout` | refresh token | no | Revokes the family and clears the cookie. |
 | `GET /v1/me` | bearer | | The caller, active tenant and role, every membership. |
 | `GET /v1/tenant/members` | bearer | | Members of the active tenant. |
-| `POST /v1/tenant/members` | bearer, owner or operator | required | Adds a person; only an operator grants `operator` or `accountant`. |
+| `POST /v1/tenant/members` | bearer, owner or operator | required | Adds a person under the grant rules below. |
 | `DELETE /v1/tenant/members/{userId}` | bearer, owner | | Removes a person (204). 404 if not a member, 409 `last_owner` for the last owner. |
 
 Errors (problem `code`): `unauthorized`, `refresh_token_reused`, `email_taken`,
@@ -25,6 +25,39 @@ password on any tenant stays the generic 401, so it says nothing to someone
 without the password, and it is not counted as a failed guess
 (`TestLoginIntoAForeignTenantSaysNotAMember`; mutation checked: answering
 the generic 401 again fails it).
+
+## Who grants which role
+
+Spec §1 and §2 (`CanGrant`):
+
+| Granter | May grant |
+|---------|-----------|
+| owner | owner, approver, viewer, accountant |
+| operator | owner, and only while the tenant has no owner |
+| approver, viewer, accountant | nothing |
+
+Nobody grants `operator` over HTTP. Anything else is 403 (and audited as
+`authz.denied`). The operator's "no owner yet" check runs again inside the
+insert's transaction with the tenant row locked, so two operators racing
+create one owner, not two.
+
+**The first operator** comes only from the command line, run where the api
+runs:
+
+```
+printf '%s\n' "$PASSWORD" | api create-operator -email ops@example.com -tenant <uuid> -password-stdin
+```
+
+It needs only `DATABASE_URL`, reads the password from the first line of
+stdin (never a flag or the environment), creates the user when missing,
+never overwrites an existing password, refuses a person who already has
+another role in that tenant, and is idempotent: a second run changes
+nothing. Audited as `identity.operator_created` (or
+`identity.password_set`) with request id `cli-<uuid>`, no user and no IP.
+
+**Not built** (separate item): the operator creating a tenant (spec §2,
+step 1). Today `register` makes the registering person the owner, so the
+operator's "first owner" grant applies only to a tenant left without one.
 
 ## Removing a member
 
@@ -149,5 +182,16 @@ integrations.
   removing each other). Mutations checked: without the tenant lock, without
   the last owner check, letting the operator remove, and without the
   revocation, each fails.
+- `internal/app/authz_test.go`: `TestGrantRules` (every granter against
+  every role on a tenant with an owner, then on one without: the operator
+  grants the first owner and not a second, nor any other role) and
+  `TestOperatorsRacingForTheFirstOwner` (10 rounds of two operators).
+  `cmd/api/operator_test.go`: `TestCreateOperatorCommand` (password only
+  from stdin, length checked, idempotent, password not overwritten, audit
+  row with `cli-` request id, another role not promoted, unknown tenant
+  refused). Mutations checked: the old rules, an operator granting any
+  role, no locked check in the insert's transaction, the owner count
+  ignored, the audit action changed, another role accepted silently: each
+  fails.
 - `internal/platform/ratelimit`: windows, expiry, reset, bounded memory,
   exactly 100 of 400 concurrent events allowed.

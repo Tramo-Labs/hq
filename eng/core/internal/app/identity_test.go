@@ -268,7 +268,7 @@ func TestTenantsAreIsolatedAndRolesEnforced(t *testing.T) {
 	if r := add(a.access, "apro@alfa.test", "viewer"); r.status != 409 {
 		t.Fatalf("duplicate member: %d", r.status)
 	}
-	// Only an operator can grant operator or accountant.
+	// Nobody grants operator over HTTP (F7; full matrix in authz_test.go).
 	if r := add(a.access, "x@tramo.test", "operator"); r.status != 403 {
 		t.Fatalf("owner granted operator: %d", r.status)
 	}

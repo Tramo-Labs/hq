@@ -350,3 +350,21 @@ func (q *Queries) RevokeUserTenantSessions(ctx context.Context, arg RevokeUserTe
 	}
 	return result.RowsAffected(), nil
 }
+
+const setPasswordIfUnset = `-- name: SetPasswordIfUnset :execrows
+update users set password_hash = $2 where id = $1 and password_hash is null
+`
+
+type SetPasswordIfUnsetParams struct {
+	ID           uuid.UUID
+	PasswordHash *string
+}
+
+// Never overwrites a password the person already chose.
+func (q *Queries) SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnsetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setPasswordIfUnset, arg.ID, arg.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

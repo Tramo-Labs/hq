@@ -4,6 +4,9 @@
 //	              which defaults to true in dev and false elsewhere)
 //	api migrate   apply pending migrations with MIGRATE_DATABASE_URL (or
 //	              DATABASE_URL) and exit; needs no other configuration
+//	api create-operator -email X -tenant <uuid> -password-stdin
+//	              grant the operator role (the only way to); idempotent,
+//	              audited; needs only DATABASE_URL
 //
 // In production the migrate step runs with a privileged role and the api
 // with tramo_runtime, which cannot touch a table by itself (ADR 0005).
@@ -28,6 +31,11 @@ func main() {
 	run := serve
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		run = migrate
+	}
+	if len(os.Args) > 1 && os.Args[1] == "create-operator" {
+		run = func() error {
+			return createOperator(context.Background(), os.Args[2:], os.Stdin, os.Stdout, os.Getenv, identity.DefaultArgon2)
+		}
 	}
 	if err := run(); err != nil {
 		slog.Error("api", "err", err)
