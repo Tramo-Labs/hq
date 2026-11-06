@@ -28,3 +28,4 @@ and the sensitive data it touches. No README, no merge.
 |--------|--------|
 | platform | `internal/platform/README.md` |
 | identity | `internal/identity/README.md` |
+| arca-gateway | `internal/arca/README.md` |

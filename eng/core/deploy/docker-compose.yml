@@ -31,8 +31,13 @@ services:
   arca-gateway:
     build: { context: .., dockerfile: deploy/Dockerfile }
     command: ["/app/arca-gateway"]
-    environment: *env
-    ports: ["9090:9090"]
+    # Its own environment: the gateway never sees DATABASE_URL or core's
+    # secrets, and only it would get ARCA_CERT / ARCA_KEY outside sim.
+    environment:
+      ARCA_ENV: sim
+      GRPC_ADDR: ":9090"
+    # Not published: only core reaches it, over the compose network.
+    expose: ["9090"]
   mailpit:
     image: axllent/mailpit:latest
     ports: ["8025:8025", "1025:1025"]

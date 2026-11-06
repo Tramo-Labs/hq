@@ -21,12 +21,171 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type CondicionIva int32
+
+const (
+	CondicionIva_CONDICION_IVA_UNSPECIFIED CondicionIva = 0
+	// Registered for IVA (tax 30 active).
+	CondicionIva_CONDICION_IVA_RESPONSABLE_INSCRIPTO CondicionIva = 1
+	// Monotributo (tax 20 active).
+	CondicionIva_CONDICION_IVA_MONOTRIBUTO CondicionIva = 2
+	// Neither of the above appears active: the caller decides with the raw
+	// taxes. The gateway never guesses exento or consumidor final.
+	CondicionIva_CONDICION_IVA_NO_DETERMINADA CondicionIva = 3
+)
+
+// Enum value maps for CondicionIva.
+var (
+	CondicionIva_name = map[int32]string{
+		0: "CONDICION_IVA_UNSPECIFIED",
+		1: "CONDICION_IVA_RESPONSABLE_INSCRIPTO",
+		2: "CONDICION_IVA_MONOTRIBUTO",
+		3: "CONDICION_IVA_NO_DETERMINADA",
+	}
+	CondicionIva_value = map[string]int32{
+		"CONDICION_IVA_UNSPECIFIED":           0,
+		"CONDICION_IVA_RESPONSABLE_INSCRIPTO": 1,
+		"CONDICION_IVA_MONOTRIBUTO":           2,
+		"CONDICION_IVA_NO_DETERMINADA":        3,
+	}
+)
+
+func (x CondicionIva) Enum() *CondicionIva {
+	p := new(CondicionIva)
+	*p = x
+	return p
+}
+
+func (x CondicionIva) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CondicionIva) Descriptor() protoreflect.EnumDescriptor {
+	return file_arca_v1_arca_proto_enumTypes[0].Descriptor()
+}
+
+func (CondicionIva) Type() protoreflect.EnumType {
+	return &file_arca_v1_arca_proto_enumTypes[0]
+}
+
+func (x CondicionIva) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CondicionIva.Descriptor instead.
+func (CondicionIva) EnumDescriptor() ([]byte, []int) {
+	return file_arca_v1_arca_proto_rawDescGZIP(), []int{0}
+}
+
+type ModoAutorizacion int32
+
+const (
+	ModoAutorizacion_MODO_AUTORIZACION_UNSPECIFIED ModoAutorizacion = 0
+	ModoAutorizacion_MODO_AUTORIZACION_CAE         ModoAutorizacion = 1
+	ModoAutorizacion_MODO_AUTORIZACION_CAEA        ModoAutorizacion = 2
+	ModoAutorizacion_MODO_AUTORIZACION_CAI         ModoAutorizacion = 3
+)
+
+// Enum value maps for ModoAutorizacion.
+var (
+	ModoAutorizacion_name = map[int32]string{
+		0: "MODO_AUTORIZACION_UNSPECIFIED",
+		1: "MODO_AUTORIZACION_CAE",
+		2: "MODO_AUTORIZACION_CAEA",
+		3: "MODO_AUTORIZACION_CAI",
+	}
+	ModoAutorizacion_value = map[string]int32{
+		"MODO_AUTORIZACION_UNSPECIFIED": 0,
+		"MODO_AUTORIZACION_CAE":         1,
+		"MODO_AUTORIZACION_CAEA":        2,
+		"MODO_AUTORIZACION_CAI":         3,
+	}
+)
+
+func (x ModoAutorizacion) Enum() *ModoAutorizacion {
+	p := new(ModoAutorizacion)
+	*p = x
+	return p
+}
+
+func (x ModoAutorizacion) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ModoAutorizacion) Descriptor() protoreflect.EnumDescriptor {
+	return file_arca_v1_arca_proto_enumTypes[1].Descriptor()
+}
+
+func (ModoAutorizacion) Type() protoreflect.EnumType {
+	return &file_arca_v1_arca_proto_enumTypes[1]
+}
+
+func (x ModoAutorizacion) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ModoAutorizacion.Descriptor instead.
+func (ModoAutorizacion) EnumDescriptor() ([]byte, []int) {
+	return file_arca_v1_arca_proto_rawDescGZIP(), []int{1}
+}
+
+type ResultadoConstatacion int32
+
+const (
+	ResultadoConstatacion_RESULTADO_CONSTATACION_UNSPECIFIED ResultadoConstatacion = 0
+	// Resultado A: authorized (may still carry observations).
+	ResultadoConstatacion_RESULTADO_CONSTATACION_APROBADO ResultadoConstatacion = 1
+	// Resultado R: rejected; see observaciones and errores.
+	ResultadoConstatacion_RESULTADO_CONSTATACION_RECHAZADO ResultadoConstatacion = 2
+)
+
+// Enum value maps for ResultadoConstatacion.
+var (
+	ResultadoConstatacion_name = map[int32]string{
+		0: "RESULTADO_CONSTATACION_UNSPECIFIED",
+		1: "RESULTADO_CONSTATACION_APROBADO",
+		2: "RESULTADO_CONSTATACION_RECHAZADO",
+	}
+	ResultadoConstatacion_value = map[string]int32{
+		"RESULTADO_CONSTATACION_UNSPECIFIED": 0,
+		"RESULTADO_CONSTATACION_APROBADO":    1,
+		"RESULTADO_CONSTATACION_RECHAZADO":   2,
+	}
+)
+
+func (x ResultadoConstatacion) Enum() *ResultadoConstatacion {
+	p := new(ResultadoConstatacion)
+	*p = x
+	return p
+}
+
+func (x ResultadoConstatacion) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ResultadoConstatacion) Descriptor() protoreflect.EnumDescriptor {
+	return file_arca_v1_arca_proto_enumTypes[2].Descriptor()
+}
+
+func (ResultadoConstatacion) Type() protoreflect.EnumType {
+	return &file_arca_v1_arca_proto_enumTypes[2]
+}
+
+func (x ResultadoConstatacion) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ResultadoConstatacion.Descriptor instead.
+func (ResultadoConstatacion) EnumDescriptor() ([]byte, []int) {
+	return file_arca_v1_arca_proto_rawDescGZIP(), []int{2}
+}
+
 type GetPersonaRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	CuitRepresentado int64                  `protobuf:"varint,1,opt,name=cuit_representado,json=cuitRepresentado,proto3" json:"cuit_representado,omitempty"`
-	CuitConsultado   int64                  `protobuf:"varint,2,opt,name=cuit_consultado,json=cuitConsultado,proto3" json:"cuit_consultado,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// CUIT to look up, 11 digits.
+	Cuit          int64 `protobuf:"varint,1,opt,name=cuit,proto3" json:"cuit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetPersonaRequest) Reset() {
@@ -59,33 +218,176 @@ func (*GetPersonaRequest) Descriptor() ([]byte, []int) {
 	return file_arca_v1_arca_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetPersonaRequest) GetCuitRepresentado() int64 {
+func (x *GetPersonaRequest) GetCuit() int64 {
 	if x != nil {
-		return x.CuitRepresentado
+		return x.Cuit
 	}
 	return 0
 }
 
-func (x *GetPersonaRequest) GetCuitConsultado() int64 {
+type Impuesto struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Descripcion string                 `protobuf:"bytes,2,opt,name=descripcion,proto3" json:"descripcion,omitempty"`
+	// AC = active, as ARCA reports it.
+	Estado string `protobuf:"bytes,3,opt,name=estado,proto3" json:"estado,omitempty"`
+	// YYYYMM or YYYYMMDD as ARCA reports it.
+	Periodo       string `protobuf:"bytes,4,opt,name=periodo,proto3" json:"periodo,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Impuesto) Reset() {
+	*x = Impuesto{}
+	mi := &file_arca_v1_arca_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Impuesto) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Impuesto) ProtoMessage() {}
+
+func (x *Impuesto) ProtoReflect() protoreflect.Message {
+	mi := &file_arca_v1_arca_proto_msgTypes[1]
 	if x != nil {
-		return x.CuitConsultado
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Impuesto.ProtoReflect.Descriptor instead.
+func (*Impuesto) Descriptor() ([]byte, []int) {
+	return file_arca_v1_arca_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Impuesto) GetId() int32 {
+	if x != nil {
+		return x.Id
 	}
 	return 0
+}
+
+func (x *Impuesto) GetDescripcion() string {
+	if x != nil {
+		return x.Descripcion
+	}
+	return ""
+}
+
+func (x *Impuesto) GetEstado() string {
+	if x != nil {
+		return x.Estado
+	}
+	return ""
+}
+
+func (x *Impuesto) GetPeriodo() string {
+	if x != nil {
+		return x.Periodo
+	}
+	return ""
+}
+
+type Domicilio struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Direccion     string                 `protobuf:"bytes,1,opt,name=direccion,proto3" json:"direccion,omitempty"`
+	Localidad     string                 `protobuf:"bytes,2,opt,name=localidad,proto3" json:"localidad,omitempty"`
+	CodPostal     string                 `protobuf:"bytes,3,opt,name=cod_postal,json=codPostal,proto3" json:"cod_postal,omitempty"`
+	Provincia     string                 `protobuf:"bytes,4,opt,name=provincia,proto3" json:"provincia,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Domicilio) Reset() {
+	*x = Domicilio{}
+	mi := &file_arca_v1_arca_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Domicilio) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Domicilio) ProtoMessage() {}
+
+func (x *Domicilio) ProtoReflect() protoreflect.Message {
+	mi := &file_arca_v1_arca_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Domicilio.ProtoReflect.Descriptor instead.
+func (*Domicilio) Descriptor() ([]byte, []int) {
+	return file_arca_v1_arca_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Domicilio) GetDireccion() string {
+	if x != nil {
+		return x.Direccion
+	}
+	return ""
+}
+
+func (x *Domicilio) GetLocalidad() string {
+	if x != nil {
+		return x.Localidad
+	}
+	return ""
+}
+
+func (x *Domicilio) GetCodPostal() string {
+	if x != nil {
+		return x.CodPostal
+	}
+	return ""
+}
+
+func (x *Domicilio) GetProvincia() string {
+	if x != nil {
+		return x.Provincia
+	}
+	return ""
 }
 
 type GetPersonaResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RazonSocial   string                 `protobuf:"bytes,1,opt,name=razon_social,json=razonSocial,proto3" json:"razon_social,omitempty"`
-	CondicionIva  string                 `protobuf:"bytes,2,opt,name=condicion_iva,json=condicionIva,proto3" json:"condicion_iva,omitempty"`
-	Activo        bool                   `protobuf:"varint,3,opt,name=activo,proto3" json:"activo,omitempty"`
-	RawJson       string                 `protobuf:"bytes,4,opt,name=raw_json,json=rawJson,proto3" json:"raw_json,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Cuit  int64                  `protobuf:"varint,1,opt,name=cuit,proto3" json:"cuit,omitempty"`
+	// FISICA or JURIDICA.
+	TipoPersona string `protobuf:"bytes,2,opt,name=tipo_persona,json=tipoPersona,proto3" json:"tipo_persona,omitempty"`
+	// Razón social, or "apellido nombre" for people.
+	Nombre string `protobuf:"bytes,3,opt,name=nombre,proto3" json:"nombre,omitempty"`
+	// ACTIVO, INACTIVO, ...
+	EstadoClave          string       `protobuf:"bytes,4,opt,name=estado_clave,json=estadoClave,proto3" json:"estado_clave,omitempty"`
+	CondicionIva         CondicionIva `protobuf:"varint,5,opt,name=condicion_iva,json=condicionIva,proto3,enum=arca.v1.CondicionIva" json:"condicion_iva,omitempty"`
+	Impuestos            []*Impuesto  `protobuf:"bytes,6,rep,name=impuestos,proto3" json:"impuestos,omitempty"`
+	CategoriaMonotributo string       `protobuf:"bytes,7,opt,name=categoria_monotributo,json=categoriaMonotributo,proto3" json:"categoria_monotributo,omitempty"`
+	DomicilioFiscal      *Domicilio   `protobuf:"bytes,8,opt,name=domicilio_fiscal,json=domicilioFiscal,proto3" json:"domicilio_fiscal,omitempty"`
+	// Errors ARCA attached to a partial answer (errorRegimenGeneral,
+	// errorMonotributo). Empty when the record is complete.
+	Avisos []string `protobuf:"bytes,9,rep,name=avisos,proto3" json:"avisos,omitempty"`
+	// When ARCA answered (metadata.fechaHora).
+	Consultado    string `protobuf:"bytes,10,opt,name=consultado,proto3" json:"consultado,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetPersonaResponse) Reset() {
 	*x = GetPersonaResponse{}
-	mi := &file_arca_v1_arca_proto_msgTypes[1]
+	mi := &file_arca_v1_arca_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -97,7 +399,7 @@ func (x *GetPersonaResponse) String() string {
 func (*GetPersonaResponse) ProtoMessage() {}
 
 func (x *GetPersonaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_arca_v1_arca_proto_msgTypes[1]
+	mi := &file_arca_v1_arca_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -110,55 +412,102 @@ func (x *GetPersonaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPersonaResponse.ProtoReflect.Descriptor instead.
 func (*GetPersonaResponse) Descriptor() ([]byte, []int) {
-	return file_arca_v1_arca_proto_rawDescGZIP(), []int{1}
+	return file_arca_v1_arca_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetPersonaResponse) GetRazonSocial() string {
+func (x *GetPersonaResponse) GetCuit() int64 {
 	if x != nil {
-		return x.RazonSocial
+		return x.Cuit
+	}
+	return 0
+}
+
+func (x *GetPersonaResponse) GetTipoPersona() string {
+	if x != nil {
+		return x.TipoPersona
 	}
 	return ""
 }
 
-func (x *GetPersonaResponse) GetCondicionIva() string {
+func (x *GetPersonaResponse) GetNombre() string {
+	if x != nil {
+		return x.Nombre
+	}
+	return ""
+}
+
+func (x *GetPersonaResponse) GetEstadoClave() string {
+	if x != nil {
+		return x.EstadoClave
+	}
+	return ""
+}
+
+func (x *GetPersonaResponse) GetCondicionIva() CondicionIva {
 	if x != nil {
 		return x.CondicionIva
 	}
+	return CondicionIva_CONDICION_IVA_UNSPECIFIED
+}
+
+func (x *GetPersonaResponse) GetImpuestos() []*Impuesto {
+	if x != nil {
+		return x.Impuestos
+	}
+	return nil
+}
+
+func (x *GetPersonaResponse) GetCategoriaMonotributo() string {
+	if x != nil {
+		return x.CategoriaMonotributo
+	}
 	return ""
 }
 
-func (x *GetPersonaResponse) GetActivo() bool {
+func (x *GetPersonaResponse) GetDomicilioFiscal() *Domicilio {
 	if x != nil {
-		return x.Activo
+		return x.DomicilioFiscal
 	}
-	return false
+	return nil
 }
 
-func (x *GetPersonaResponse) GetRawJson() string {
+func (x *GetPersonaResponse) GetAvisos() []string {
 	if x != nil {
-		return x.RawJson
+		return x.Avisos
+	}
+	return nil
+}
+
+func (x *GetPersonaResponse) GetConsultado() string {
+	if x != nil {
+		return x.Consultado
 	}
 	return ""
 }
 
 type ConstatarComprobanteRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	CuitRepresentado int64                  `protobuf:"varint,1,opt,name=cuit_representado,json=cuitRepresentado,proto3" json:"cuit_representado,omitempty"`
-	CuitEmisor       int64                  `protobuf:"varint,2,opt,name=cuit_emisor,json=cuitEmisor,proto3" json:"cuit_emisor,omitempty"`
-	PuntoVenta       int32                  `protobuf:"varint,3,opt,name=punto_venta,json=puntoVenta,proto3" json:"punto_venta,omitempty"`
-	TipoComprobante  int32                  `protobuf:"varint,4,opt,name=tipo_comprobante,json=tipoComprobante,proto3" json:"tipo_comprobante,omitempty"`
-	Numero           int64                  `protobuf:"varint,5,opt,name=numero,proto3" json:"numero,omitempty"`
-	Fecha            string                 `protobuf:"bytes,6,opt,name=fecha,proto3" json:"fecha,omitempty"`
-	Importe          float64                `protobuf:"fixed64,7,opt,name=importe,proto3" json:"importe,omitempty"`
-	Cae              string                 `protobuf:"bytes,8,opt,name=cae,proto3" json:"cae,omitempty"`
-	TipoEmision      string                 `protobuf:"bytes,9,opt,name=tipo_emision,json=tipoEmision,proto3" json:"tipo_emision,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Modo            ModoAutorizacion       `protobuf:"varint,1,opt,name=modo,proto3,enum=arca.v1.ModoAutorizacion" json:"modo,omitempty"`
+	CuitEmisor      int64                  `protobuf:"varint,2,opt,name=cuit_emisor,json=cuitEmisor,proto3" json:"cuit_emisor,omitempty"`
+	PuntoVenta      int32                  `protobuf:"varint,3,opt,name=punto_venta,json=puntoVenta,proto3" json:"punto_venta,omitempty"`
+	TipoComprobante int32                  `protobuf:"varint,4,opt,name=tipo_comprobante,json=tipoComprobante,proto3" json:"tipo_comprobante,omitempty"`
+	Numero          int64                  `protobuf:"varint,5,opt,name=numero,proto3" json:"numero,omitempty"`
+	// YYYYMMDD.
+	Fecha string `protobuf:"bytes,6,opt,name=fecha,proto3" json:"fecha,omitempty"`
+	// Total in cents. Never a float.
+	ImporteTotalCents int64 `protobuf:"varint,7,opt,name=importe_total_cents,json=importeTotalCents,proto3" json:"importe_total_cents,omitempty"`
+	// CAE, CAEA or CAI, 14 digits.
+	CodigoAutorizacion string `protobuf:"bytes,8,opt,name=codigo_autorizacion,json=codigoAutorizacion,proto3" json:"codigo_autorizacion,omitempty"`
+	// Optional receiver document (80 = CUIT).
+	DocTipoReceptor int32  `protobuf:"varint,9,opt,name=doc_tipo_receptor,json=docTipoReceptor,proto3" json:"doc_tipo_receptor,omitempty"`
+	DocNroReceptor  string `protobuf:"bytes,10,opt,name=doc_nro_receptor,json=docNroReceptor,proto3" json:"doc_nro_receptor,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ConstatarComprobanteRequest) Reset() {
 	*x = ConstatarComprobanteRequest{}
-	mi := &file_arca_v1_arca_proto_msgTypes[2]
+	mi := &file_arca_v1_arca_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -170,7 +519,7 @@ func (x *ConstatarComprobanteRequest) String() string {
 func (*ConstatarComprobanteRequest) ProtoMessage() {}
 
 func (x *ConstatarComprobanteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_arca_v1_arca_proto_msgTypes[2]
+	mi := &file_arca_v1_arca_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -183,14 +532,14 @@ func (x *ConstatarComprobanteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConstatarComprobanteRequest.ProtoReflect.Descriptor instead.
 func (*ConstatarComprobanteRequest) Descriptor() ([]byte, []int) {
-	return file_arca_v1_arca_proto_rawDescGZIP(), []int{2}
+	return file_arca_v1_arca_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ConstatarComprobanteRequest) GetCuitRepresentado() int64 {
+func (x *ConstatarComprobanteRequest) GetModo() ModoAutorizacion {
 	if x != nil {
-		return x.CuitRepresentado
+		return x.Modo
 	}
-	return 0
+	return ModoAutorizacion_MODO_AUTORIZACION_UNSPECIFIED
 }
 
 func (x *ConstatarComprobanteRequest) GetCuitEmisor() int64 {
@@ -228,38 +577,100 @@ func (x *ConstatarComprobanteRequest) GetFecha() string {
 	return ""
 }
 
-func (x *ConstatarComprobanteRequest) GetImporte() float64 {
+func (x *ConstatarComprobanteRequest) GetImporteTotalCents() int64 {
 	if x != nil {
-		return x.Importe
+		return x.ImporteTotalCents
 	}
 	return 0
 }
 
-func (x *ConstatarComprobanteRequest) GetCae() string {
+func (x *ConstatarComprobanteRequest) GetCodigoAutorizacion() string {
 	if x != nil {
-		return x.Cae
+		return x.CodigoAutorizacion
 	}
 	return ""
 }
 
-func (x *ConstatarComprobanteRequest) GetTipoEmision() string {
+func (x *ConstatarComprobanteRequest) GetDocTipoReceptor() int32 {
 	if x != nil {
-		return x.TipoEmision
+		return x.DocTipoReceptor
+	}
+	return 0
+}
+
+func (x *ConstatarComprobanteRequest) GetDocNroReceptor() string {
+	if x != nil {
+		return x.DocNroReceptor
+	}
+	return ""
+}
+
+type Observacion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Observacion) Reset() {
+	*x = Observacion{}
+	mi := &file_arca_v1_arca_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Observacion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Observacion) ProtoMessage() {}
+
+func (x *Observacion) ProtoReflect() protoreflect.Message {
+	mi := &file_arca_v1_arca_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Observacion.ProtoReflect.Descriptor instead.
+func (*Observacion) Descriptor() ([]byte, []int) {
+	return file_arca_v1_arca_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Observacion) GetCode() int32 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *Observacion) GetMsg() string {
+	if x != nil {
+		return x.Msg
 	}
 	return ""
 }
 
 type ConstatarComprobanteResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Valido        bool                   `protobuf:"varint,1,opt,name=valido,proto3" json:"valido,omitempty"`
-	Observaciones []string               `protobuf:"bytes,2,rep,name=observaciones,proto3" json:"observaciones,omitempty"`
+	Resultado     ResultadoConstatacion  `protobuf:"varint,1,opt,name=resultado,proto3,enum=arca.v1.ResultadoConstatacion" json:"resultado,omitempty"`
+	Observaciones []*Observacion         `protobuf:"bytes,2,rep,name=observaciones,proto3" json:"observaciones,omitempty"`
+	Errores       []*Observacion         `protobuf:"bytes,3,rep,name=errores,proto3" json:"errores,omitempty"`
+	// FchProceso as ARCA reports it.
+	FechaProceso  string `protobuf:"bytes,4,opt,name=fecha_proceso,json=fechaProceso,proto3" json:"fecha_proceso,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ConstatarComprobanteResponse) Reset() {
 	*x = ConstatarComprobanteResponse{}
-	mi := &file_arca_v1_arca_proto_msgTypes[3]
+	mi := &file_arca_v1_arca_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -271,7 +682,7 @@ func (x *ConstatarComprobanteResponse) String() string {
 func (*ConstatarComprobanteResponse) ProtoMessage() {}
 
 func (x *ConstatarComprobanteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_arca_v1_arca_proto_msgTypes[3]
+	mi := &file_arca_v1_arca_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -284,305 +695,109 @@ func (x *ConstatarComprobanteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConstatarComprobanteResponse.ProtoReflect.Descriptor instead.
 func (*ConstatarComprobanteResponse) Descriptor() ([]byte, []int) {
-	return file_arca_v1_arca_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *ConstatarComprobanteResponse) GetValido() bool {
-	if x != nil {
-		return x.Valido
-	}
-	return false
-}
-
-func (x *ConstatarComprobanteResponse) GetObservaciones() []string {
-	if x != nil {
-		return x.Observaciones
-	}
-	return nil
-}
-
-type UltimoAutorizadoRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Cuit            int64                  `protobuf:"varint,1,opt,name=cuit,proto3" json:"cuit,omitempty"`
-	PuntoVenta      int32                  `protobuf:"varint,2,opt,name=punto_venta,json=puntoVenta,proto3" json:"punto_venta,omitempty"`
-	TipoComprobante int32                  `protobuf:"varint,3,opt,name=tipo_comprobante,json=tipoComprobante,proto3" json:"tipo_comprobante,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *UltimoAutorizadoRequest) Reset() {
-	*x = UltimoAutorizadoRequest{}
-	mi := &file_arca_v1_arca_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UltimoAutorizadoRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UltimoAutorizadoRequest) ProtoMessage() {}
-
-func (x *UltimoAutorizadoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_arca_v1_arca_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UltimoAutorizadoRequest.ProtoReflect.Descriptor instead.
-func (*UltimoAutorizadoRequest) Descriptor() ([]byte, []int) {
-	return file_arca_v1_arca_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *UltimoAutorizadoRequest) GetCuit() int64 {
-	if x != nil {
-		return x.Cuit
-	}
-	return 0
-}
-
-func (x *UltimoAutorizadoRequest) GetPuntoVenta() int32 {
-	if x != nil {
-		return x.PuntoVenta
-	}
-	return 0
-}
-
-func (x *UltimoAutorizadoRequest) GetTipoComprobante() int32 {
-	if x != nil {
-		return x.TipoComprobante
-	}
-	return 0
-}
-
-type UltimoAutorizadoResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Numero        int64                  `protobuf:"varint,1,opt,name=numero,proto3" json:"numero,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UltimoAutorizadoResponse) Reset() {
-	*x = UltimoAutorizadoResponse{}
-	mi := &file_arca_v1_arca_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UltimoAutorizadoResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UltimoAutorizadoResponse) ProtoMessage() {}
-
-func (x *UltimoAutorizadoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_arca_v1_arca_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UltimoAutorizadoResponse.ProtoReflect.Descriptor instead.
-func (*UltimoAutorizadoResponse) Descriptor() ([]byte, []int) {
-	return file_arca_v1_arca_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *UltimoAutorizadoResponse) GetNumero() int64 {
-	if x != nil {
-		return x.Numero
-	}
-	return 0
-}
-
-type SolicitarCAERequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Cuit            int64                  `protobuf:"varint,1,opt,name=cuit,proto3" json:"cuit,omitempty"`
-	ComprobanteJson string                 `protobuf:"bytes,2,opt,name=comprobante_json,json=comprobanteJson,proto3" json:"comprobante_json,omitempty"`
-	IdempotencyKey  string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *SolicitarCAERequest) Reset() {
-	*x = SolicitarCAERequest{}
-	mi := &file_arca_v1_arca_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SolicitarCAERequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SolicitarCAERequest) ProtoMessage() {}
-
-func (x *SolicitarCAERequest) ProtoReflect() protoreflect.Message {
-	mi := &file_arca_v1_arca_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SolicitarCAERequest.ProtoReflect.Descriptor instead.
-func (*SolicitarCAERequest) Descriptor() ([]byte, []int) {
 	return file_arca_v1_arca_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *SolicitarCAERequest) GetCuit() int64 {
+func (x *ConstatarComprobanteResponse) GetResultado() ResultadoConstatacion {
 	if x != nil {
-		return x.Cuit
+		return x.Resultado
 	}
-	return 0
+	return ResultadoConstatacion_RESULTADO_CONSTATACION_UNSPECIFIED
 }
 
-func (x *SolicitarCAERequest) GetComprobanteJson() string {
-	if x != nil {
-		return x.ComprobanteJson
-	}
-	return ""
-}
-
-func (x *SolicitarCAERequest) GetIdempotencyKey() string {
-	if x != nil {
-		return x.IdempotencyKey
-	}
-	return ""
-}
-
-type SolicitarCAEResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cae           string                 `protobuf:"bytes,1,opt,name=cae,proto3" json:"cae,omitempty"`
-	Vencimiento   string                 `protobuf:"bytes,2,opt,name=vencimiento,proto3" json:"vencimiento,omitempty"`
-	Numero        int64                  `protobuf:"varint,3,opt,name=numero,proto3" json:"numero,omitempty"`
-	Observaciones []string               `protobuf:"bytes,4,rep,name=observaciones,proto3" json:"observaciones,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SolicitarCAEResponse) Reset() {
-	*x = SolicitarCAEResponse{}
-	mi := &file_arca_v1_arca_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SolicitarCAEResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SolicitarCAEResponse) ProtoMessage() {}
-
-func (x *SolicitarCAEResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_arca_v1_arca_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SolicitarCAEResponse.ProtoReflect.Descriptor instead.
-func (*SolicitarCAEResponse) Descriptor() ([]byte, []int) {
-	return file_arca_v1_arca_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *SolicitarCAEResponse) GetCae() string {
-	if x != nil {
-		return x.Cae
-	}
-	return ""
-}
-
-func (x *SolicitarCAEResponse) GetVencimiento() string {
-	if x != nil {
-		return x.Vencimiento
-	}
-	return ""
-}
-
-func (x *SolicitarCAEResponse) GetNumero() int64 {
-	if x != nil {
-		return x.Numero
-	}
-	return 0
-}
-
-func (x *SolicitarCAEResponse) GetObservaciones() []string {
+func (x *ConstatarComprobanteResponse) GetObservaciones() []*Observacion {
 	if x != nil {
 		return x.Observaciones
 	}
 	return nil
+}
+
+func (x *ConstatarComprobanteResponse) GetErrores() []*Observacion {
+	if x != nil {
+		return x.Errores
+	}
+	return nil
+}
+
+func (x *ConstatarComprobanteResponse) GetFechaProceso() string {
+	if x != nil {
+		return x.FechaProceso
+	}
+	return ""
 }
 
 var File_arca_v1_arca_proto protoreflect.FileDescriptor
 
 const file_arca_v1_arca_proto_rawDesc = "" +
 	"\n" +
-	"\x12arca/v1/arca.proto\x12\aarca.v1\"i\n" +
-	"\x11GetPersonaRequest\x12+\n" +
-	"\x11cuit_representado\x18\x01 \x01(\x03R\x10cuitRepresentado\x12'\n" +
-	"\x0fcuit_consultado\x18\x02 \x01(\x03R\x0ecuitConsultado\"\x8f\x01\n" +
-	"\x12GetPersonaResponse\x12!\n" +
-	"\frazon_social\x18\x01 \x01(\tR\vrazonSocial\x12#\n" +
-	"\rcondicion_iva\x18\x02 \x01(\tR\fcondicionIva\x12\x16\n" +
-	"\x06activo\x18\x03 \x01(\bR\x06activo\x12\x19\n" +
-	"\braw_json\x18\x04 \x01(\tR\arawJson\"\xb4\x02\n" +
-	"\x1bConstatarComprobanteRequest\x12+\n" +
-	"\x11cuit_representado\x18\x01 \x01(\x03R\x10cuitRepresentado\x12\x1f\n" +
+	"\x12arca/v1/arca.proto\x12\aarca.v1\"'\n" +
+	"\x11GetPersonaRequest\x12\x12\n" +
+	"\x04cuit\x18\x01 \x01(\x03R\x04cuit\"n\n" +
+	"\bImpuesto\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\x12 \n" +
+	"\vdescripcion\x18\x02 \x01(\tR\vdescripcion\x12\x16\n" +
+	"\x06estado\x18\x03 \x01(\tR\x06estado\x12\x18\n" +
+	"\aperiodo\x18\x04 \x01(\tR\aperiodo\"\x84\x01\n" +
+	"\tDomicilio\x12\x1c\n" +
+	"\tdireccion\x18\x01 \x01(\tR\tdireccion\x12\x1c\n" +
+	"\tlocalidad\x18\x02 \x01(\tR\tlocalidad\x12\x1d\n" +
+	"\n" +
+	"cod_postal\x18\x03 \x01(\tR\tcodPostal\x12\x1c\n" +
+	"\tprovincia\x18\x04 \x01(\tR\tprovincia\"\x9f\x03\n" +
+	"\x12GetPersonaResponse\x12\x12\n" +
+	"\x04cuit\x18\x01 \x01(\x03R\x04cuit\x12!\n" +
+	"\ftipo_persona\x18\x02 \x01(\tR\vtipoPersona\x12\x16\n" +
+	"\x06nombre\x18\x03 \x01(\tR\x06nombre\x12!\n" +
+	"\festado_clave\x18\x04 \x01(\tR\vestadoClave\x12:\n" +
+	"\rcondicion_iva\x18\x05 \x01(\x0e2\x15.arca.v1.CondicionIvaR\fcondicionIva\x12/\n" +
+	"\timpuestos\x18\x06 \x03(\v2\x11.arca.v1.ImpuestoR\timpuestos\x123\n" +
+	"\x15categoria_monotributo\x18\a \x01(\tR\x14categoriaMonotributo\x12=\n" +
+	"\x10domicilio_fiscal\x18\b \x01(\v2\x12.arca.v1.DomicilioR\x0fdomicilioFiscal\x12\x16\n" +
+	"\x06avisos\x18\t \x03(\tR\x06avisos\x12\x1e\n" +
+	"\n" +
+	"consultado\x18\n" +
+	" \x01(\tR\n" +
+	"consultado\"\x9e\x03\n" +
+	"\x1bConstatarComprobanteRequest\x12-\n" +
+	"\x04modo\x18\x01 \x01(\x0e2\x19.arca.v1.ModoAutorizacionR\x04modo\x12\x1f\n" +
 	"\vcuit_emisor\x18\x02 \x01(\x03R\n" +
 	"cuitEmisor\x12\x1f\n" +
 	"\vpunto_venta\x18\x03 \x01(\x05R\n" +
 	"puntoVenta\x12)\n" +
 	"\x10tipo_comprobante\x18\x04 \x01(\x05R\x0ftipoComprobante\x12\x16\n" +
 	"\x06numero\x18\x05 \x01(\x03R\x06numero\x12\x14\n" +
-	"\x05fecha\x18\x06 \x01(\tR\x05fecha\x12\x18\n" +
-	"\aimporte\x18\a \x01(\x01R\aimporte\x12\x10\n" +
-	"\x03cae\x18\b \x01(\tR\x03cae\x12!\n" +
-	"\ftipo_emision\x18\t \x01(\tR\vtipoEmision\"\\\n" +
-	"\x1cConstatarComprobanteResponse\x12\x16\n" +
-	"\x06valido\x18\x01 \x01(\bR\x06valido\x12$\n" +
-	"\robservaciones\x18\x02 \x03(\tR\robservaciones\"y\n" +
-	"\x17UltimoAutorizadoRequest\x12\x12\n" +
-	"\x04cuit\x18\x01 \x01(\x03R\x04cuit\x12\x1f\n" +
-	"\vpunto_venta\x18\x02 \x01(\x05R\n" +
-	"puntoVenta\x12)\n" +
-	"\x10tipo_comprobante\x18\x03 \x01(\x05R\x0ftipoComprobante\"2\n" +
-	"\x18UltimoAutorizadoResponse\x12\x16\n" +
-	"\x06numero\x18\x01 \x01(\x03R\x06numero\"}\n" +
-	"\x13SolicitarCAERequest\x12\x12\n" +
-	"\x04cuit\x18\x01 \x01(\x03R\x04cuit\x12)\n" +
-	"\x10comprobante_json\x18\x02 \x01(\tR\x0fcomprobanteJson\x12'\n" +
-	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"\x88\x01\n" +
-	"\x14SolicitarCAEResponse\x12\x10\n" +
-	"\x03cae\x18\x01 \x01(\tR\x03cae\x12 \n" +
-	"\vvencimiento\x18\x02 \x01(\tR\vvencimiento\x12\x16\n" +
-	"\x06numero\x18\x03 \x01(\x03R\x06numero\x12$\n" +
-	"\robservaciones\x18\x04 \x03(\tR\robservaciones2\xdf\x02\n" +
+	"\x05fecha\x18\x06 \x01(\tR\x05fecha\x12.\n" +
+	"\x13importe_total_cents\x18\a \x01(\x03R\x11importeTotalCents\x12/\n" +
+	"\x13codigo_autorizacion\x18\b \x01(\tR\x12codigoAutorizacion\x12*\n" +
+	"\x11doc_tipo_receptor\x18\t \x01(\x05R\x0fdocTipoReceptor\x12(\n" +
+	"\x10doc_nro_receptor\x18\n" +
+	" \x01(\tR\x0edocNroReceptor\"3\n" +
+	"\vObservacion\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\"\xed\x01\n" +
+	"\x1cConstatarComprobanteResponse\x12<\n" +
+	"\tresultado\x18\x01 \x01(\x0e2\x1e.arca.v1.ResultadoConstatacionR\tresultado\x12:\n" +
+	"\robservaciones\x18\x02 \x03(\v2\x14.arca.v1.ObservacionR\robservaciones\x12.\n" +
+	"\aerrores\x18\x03 \x03(\v2\x14.arca.v1.ObservacionR\aerrores\x12#\n" +
+	"\rfecha_proceso\x18\x04 \x01(\tR\ffechaProceso*\x97\x01\n" +
+	"\fCondicionIva\x12\x1d\n" +
+	"\x19CONDICION_IVA_UNSPECIFIED\x10\x00\x12'\n" +
+	"#CONDICION_IVA_RESPONSABLE_INSCRIPTO\x10\x01\x12\x1d\n" +
+	"\x19CONDICION_IVA_MONOTRIBUTO\x10\x02\x12 \n" +
+	"\x1cCONDICION_IVA_NO_DETERMINADA\x10\x03*\x87\x01\n" +
+	"\x10ModoAutorizacion\x12!\n" +
+	"\x1dMODO_AUTORIZACION_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15MODO_AUTORIZACION_CAE\x10\x01\x12\x1a\n" +
+	"\x16MODO_AUTORIZACION_CAEA\x10\x02\x12\x19\n" +
+	"\x15MODO_AUTORIZACION_CAI\x10\x03*\x8a\x01\n" +
+	"\x15ResultadoConstatacion\x12&\n" +
+	"\"RESULTADO_CONSTATACION_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fRESULTADO_CONSTATACION_APROBADO\x10\x01\x12$\n" +
+	" RESULTADO_CONSTATACION_RECHAZADO\x10\x022\xb9\x01\n" +
 	"\vArcaService\x12E\n" +
 	"\n" +
 	"GetPersona\x12\x1a.arca.v1.GetPersonaRequest\x1a\x1b.arca.v1.GetPersonaResponse\x12c\n" +
-	"\x14ConstatarComprobante\x12$.arca.v1.ConstatarComprobanteRequest\x1a%.arca.v1.ConstatarComprobanteResponse\x12W\n" +
-	"\x10UltimoAutorizado\x12 .arca.v1.UltimoAutorizadoRequest\x1a!.arca.v1.UltimoAutorizadoResponse\x12K\n" +
-	"\fSolicitarCAE\x12\x1c.arca.v1.SolicitarCAERequest\x1a\x1d.arca.v1.SolicitarCAEResponseB6Z4github.com/Tramo-Labs/hq/eng/core/gen/arca/v1;arcav1b\x06proto3"
+	"\x14ConstatarComprobante\x12$.arca.v1.ConstatarComprobanteRequest\x1a%.arca.v1.ConstatarComprobanteResponseB6Z4github.com/Tramo-Labs/hq/eng/core/gen/arca/v1;arcav1b\x06proto3"
 
 var (
 	file_arca_v1_arca_proto_rawDescOnce sync.Once
@@ -596,31 +811,37 @@ func file_arca_v1_arca_proto_rawDescGZIP() []byte {
 	return file_arca_v1_arca_proto_rawDescData
 }
 
-var file_arca_v1_arca_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_arca_v1_arca_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_arca_v1_arca_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_arca_v1_arca_proto_goTypes = []any{
-	(*GetPersonaRequest)(nil),            // 0: arca.v1.GetPersonaRequest
-	(*GetPersonaResponse)(nil),           // 1: arca.v1.GetPersonaResponse
-	(*ConstatarComprobanteRequest)(nil),  // 2: arca.v1.ConstatarComprobanteRequest
-	(*ConstatarComprobanteResponse)(nil), // 3: arca.v1.ConstatarComprobanteResponse
-	(*UltimoAutorizadoRequest)(nil),      // 4: arca.v1.UltimoAutorizadoRequest
-	(*UltimoAutorizadoResponse)(nil),     // 5: arca.v1.UltimoAutorizadoResponse
-	(*SolicitarCAERequest)(nil),          // 6: arca.v1.SolicitarCAERequest
-	(*SolicitarCAEResponse)(nil),         // 7: arca.v1.SolicitarCAEResponse
+	(CondicionIva)(0),                    // 0: arca.v1.CondicionIva
+	(ModoAutorizacion)(0),                // 1: arca.v1.ModoAutorizacion
+	(ResultadoConstatacion)(0),           // 2: arca.v1.ResultadoConstatacion
+	(*GetPersonaRequest)(nil),            // 3: arca.v1.GetPersonaRequest
+	(*Impuesto)(nil),                     // 4: arca.v1.Impuesto
+	(*Domicilio)(nil),                    // 5: arca.v1.Domicilio
+	(*GetPersonaResponse)(nil),           // 6: arca.v1.GetPersonaResponse
+	(*ConstatarComprobanteRequest)(nil),  // 7: arca.v1.ConstatarComprobanteRequest
+	(*Observacion)(nil),                  // 8: arca.v1.Observacion
+	(*ConstatarComprobanteResponse)(nil), // 9: arca.v1.ConstatarComprobanteResponse
 }
 var file_arca_v1_arca_proto_depIdxs = []int32{
-	0, // 0: arca.v1.ArcaService.GetPersona:input_type -> arca.v1.GetPersonaRequest
-	2, // 1: arca.v1.ArcaService.ConstatarComprobante:input_type -> arca.v1.ConstatarComprobanteRequest
-	4, // 2: arca.v1.ArcaService.UltimoAutorizado:input_type -> arca.v1.UltimoAutorizadoRequest
-	6, // 3: arca.v1.ArcaService.SolicitarCAE:input_type -> arca.v1.SolicitarCAERequest
-	1, // 4: arca.v1.ArcaService.GetPersona:output_type -> arca.v1.GetPersonaResponse
-	3, // 5: arca.v1.ArcaService.ConstatarComprobante:output_type -> arca.v1.ConstatarComprobanteResponse
-	5, // 6: arca.v1.ArcaService.UltimoAutorizado:output_type -> arca.v1.UltimoAutorizadoResponse
-	7, // 7: arca.v1.ArcaService.SolicitarCAE:output_type -> arca.v1.SolicitarCAEResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: arca.v1.GetPersonaResponse.condicion_iva:type_name -> arca.v1.CondicionIva
+	4, // 1: arca.v1.GetPersonaResponse.impuestos:type_name -> arca.v1.Impuesto
+	5, // 2: arca.v1.GetPersonaResponse.domicilio_fiscal:type_name -> arca.v1.Domicilio
+	1, // 3: arca.v1.ConstatarComprobanteRequest.modo:type_name -> arca.v1.ModoAutorizacion
+	2, // 4: arca.v1.ConstatarComprobanteResponse.resultado:type_name -> arca.v1.ResultadoConstatacion
+	8, // 5: arca.v1.ConstatarComprobanteResponse.observaciones:type_name -> arca.v1.Observacion
+	8, // 6: arca.v1.ConstatarComprobanteResponse.errores:type_name -> arca.v1.Observacion
+	3, // 7: arca.v1.ArcaService.GetPersona:input_type -> arca.v1.GetPersonaRequest
+	7, // 8: arca.v1.ArcaService.ConstatarComprobante:input_type -> arca.v1.ConstatarComprobanteRequest
+	6, // 9: arca.v1.ArcaService.GetPersona:output_type -> arca.v1.GetPersonaResponse
+	9, // 10: arca.v1.ArcaService.ConstatarComprobante:output_type -> arca.v1.ConstatarComprobanteResponse
+	9, // [9:11] is the sub-list for method output_type
+	7, // [7:9] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_arca_v1_arca_proto_init() }
@@ -633,13 +854,14 @@ func file_arca_v1_arca_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_arca_v1_arca_proto_rawDesc), len(file_arca_v1_arca_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   8,
+			NumEnums:      3,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_arca_v1_arca_proto_goTypes,
 		DependencyIndexes: file_arca_v1_arca_proto_depIdxs,
+		EnumInfos:         file_arca_v1_arca_proto_enumTypes,
 		MessageInfos:      file_arca_v1_arca_proto_msgTypes,
 	}.Build()
 	File_arca_v1_arca_proto = out.File

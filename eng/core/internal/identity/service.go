@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
-	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/cuit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
@@ -78,13 +78,13 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (user, tenant 
 	if err != nil {
 		return uuid.Nil, uuid.Nil, err
 	}
-	var cuit *int64
+	var cuitNum *int64
 	if in.Cuit != "" {
-		n, err := parseCuit(in.Cuit)
+		n, err := cuit.Parse(in.Cuit)
 		if err != nil {
-			return uuid.Nil, uuid.Nil, err
+			return uuid.Nil, uuid.Nil, ErrInvalidCuit
 		}
-		cuit = &n
+		cuitNum = &n
 	}
 	hash, err := HashPassword(s.Argon, in.Password)
 	if err != nil {
@@ -95,7 +95,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (user, tenant 
 		if user, err = q.CreateUser(ctx, store.CreateUserParams{Email: email, PasswordHash: &hash}); err != nil {
 			return mapUnique(err)
 		}
-		if tenant, err = q.CreateTenant(ctx, store.CreateTenantParams{Slug: in.TenantSlug, Name: in.TenantName, Cuit: cuit}); err != nil {
+		if tenant, err = q.CreateTenant(ctx, store.CreateTenantParams{Slug: in.TenantSlug, Name: in.TenantName, Cuit: cuitNum}); err != nil {
 			return mapUnique(err)
 		}
 		if err := q.CreateMembership(ctx, store.CreateMembershipParams{UserID: user, TenantID: tenant, Role: store.RoleOwner}); err != nil {
@@ -375,33 +375,6 @@ func normalizeEmail(s string) (string, error) {
 		return "", ErrInvalidEmail
 	}
 	return a.Address, nil
-}
-
-// parseCuit validates the 11 digits and the mod 11 check digit.
-func parseCuit(s string) (int64, error) {
-	if len(s) != 11 {
-		return 0, ErrInvalidCuit
-	}
-	weights := [10]int{5, 4, 3, 2, 7, 6, 5, 4, 3, 2}
-	sum := 0
-	for i := 0; i < 10; i++ {
-		d := int(s[i] - '0')
-		if d < 0 || d > 9 {
-			return 0, ErrInvalidCuit
-		}
-		sum += d * weights[i]
-	}
-	check := 11 - sum%11
-	switch check {
-	case 11:
-		check = 0
-	case 10:
-		return 0, ErrInvalidCuit // ARCA never issues these
-	}
-	if int(s[10]-'0') != check {
-		return 0, ErrInvalidCuit
-	}
-	return strconv.ParseInt(s, 10, 64)
 }
 
 func mapUnique(err error) error {

@@ -21,22 +21,32 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ArcaService_GetPersona_FullMethodName           = "/arca.v1.ArcaService/GetPersona"
 	ArcaService_ConstatarComprobante_FullMethodName = "/arca.v1.ArcaService/ConstatarComprobante"
-	ArcaService_UltimoAutorizado_FullMethodName     = "/arca.v1.ArcaService/UltimoAutorizado"
-	ArcaService_SolicitarCAE_FullMethodName         = "/arca.v1.ArcaService/SolicitarCAE"
 )
 
 // ArcaServiceClient is the client API for ArcaService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// ArcaService is the only door from core to ARCA. The gateway owns the
-// certificate, caches one access ticket per service and CUIT, and every call
-// is idempotent: CAE requests check the last authorized voucher first.
+// ArcaService is the only door from core to ARCA. The gateway is the only
+// process that holds the certificate private key; it caches one access
+// ticket (TA) per web service and talks SOAP to ARCA.
+//
+// Both operations of v1 are queries made with Tramo's own CUIT and
+// certificate. They prove that a CUIT exists and what ARCA says about it, or
+// that a voucher is authorized. They do NOT prove that a client delegated
+// anything to Tramo: that needs a WSFE call on the client's CUIT, which is
+// not part of v1.
+//
+// Errors use gRPC codes: INVALID_ARGUMENT (bad input, nothing sent to ARCA),
+// NOT_FOUND (ARCA has no such person), UNAVAILABLE (ARCA or WSAA did not
+// answer or refused a ticket; retry later), INTERNAL (anything else).
 type ArcaServiceClient interface {
+	// GetPersona reads the registration record (ws_sr_constancia_inscripcion,
+	// getPersona_v2) of any CUIT.
 	GetPersona(ctx context.Context, in *GetPersonaRequest, opts ...grpc.CallOption) (*GetPersonaResponse, error)
+	// ConstatarComprobante asks WSCDC whether a voucher was authorized with
+	// the given data.
 	ConstatarComprobante(ctx context.Context, in *ConstatarComprobanteRequest, opts ...grpc.CallOption) (*ConstatarComprobanteResponse, error)
-	UltimoAutorizado(ctx context.Context, in *UltimoAutorizadoRequest, opts ...grpc.CallOption) (*UltimoAutorizadoResponse, error)
-	SolicitarCAE(ctx context.Context, in *SolicitarCAERequest, opts ...grpc.CallOption) (*SolicitarCAEResponse, error)
 }
 
 type arcaServiceClient struct {
@@ -67,38 +77,30 @@ func (c *arcaServiceClient) ConstatarComprobante(ctx context.Context, in *Consta
 	return out, nil
 }
 
-func (c *arcaServiceClient) UltimoAutorizado(ctx context.Context, in *UltimoAutorizadoRequest, opts ...grpc.CallOption) (*UltimoAutorizadoResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UltimoAutorizadoResponse)
-	err := c.cc.Invoke(ctx, ArcaService_UltimoAutorizado_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *arcaServiceClient) SolicitarCAE(ctx context.Context, in *SolicitarCAERequest, opts ...grpc.CallOption) (*SolicitarCAEResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SolicitarCAEResponse)
-	err := c.cc.Invoke(ctx, ArcaService_SolicitarCAE_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ArcaServiceServer is the server API for ArcaService service.
 // All implementations must embed UnimplementedArcaServiceServer
 // for forward compatibility.
 //
-// ArcaService is the only door from core to ARCA. The gateway owns the
-// certificate, caches one access ticket per service and CUIT, and every call
-// is idempotent: CAE requests check the last authorized voucher first.
+// ArcaService is the only door from core to ARCA. The gateway is the only
+// process that holds the certificate private key; it caches one access
+// ticket (TA) per web service and talks SOAP to ARCA.
+//
+// Both operations of v1 are queries made with Tramo's own CUIT and
+// certificate. They prove that a CUIT exists and what ARCA says about it, or
+// that a voucher is authorized. They do NOT prove that a client delegated
+// anything to Tramo: that needs a WSFE call on the client's CUIT, which is
+// not part of v1.
+//
+// Errors use gRPC codes: INVALID_ARGUMENT (bad input, nothing sent to ARCA),
+// NOT_FOUND (ARCA has no such person), UNAVAILABLE (ARCA or WSAA did not
+// answer or refused a ticket; retry later), INTERNAL (anything else).
 type ArcaServiceServer interface {
+	// GetPersona reads the registration record (ws_sr_constancia_inscripcion,
+	// getPersona_v2) of any CUIT.
 	GetPersona(context.Context, *GetPersonaRequest) (*GetPersonaResponse, error)
+	// ConstatarComprobante asks WSCDC whether a voucher was authorized with
+	// the given data.
 	ConstatarComprobante(context.Context, *ConstatarComprobanteRequest) (*ConstatarComprobanteResponse, error)
-	UltimoAutorizado(context.Context, *UltimoAutorizadoRequest) (*UltimoAutorizadoResponse, error)
-	SolicitarCAE(context.Context, *SolicitarCAERequest) (*SolicitarCAEResponse, error)
 	mustEmbedUnimplementedArcaServiceServer()
 }
 
@@ -114,12 +116,6 @@ func (UnimplementedArcaServiceServer) GetPersona(context.Context, *GetPersonaReq
 }
 func (UnimplementedArcaServiceServer) ConstatarComprobante(context.Context, *ConstatarComprobanteRequest) (*ConstatarComprobanteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ConstatarComprobante not implemented")
-}
-func (UnimplementedArcaServiceServer) UltimoAutorizado(context.Context, *UltimoAutorizadoRequest) (*UltimoAutorizadoResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method UltimoAutorizado not implemented")
-}
-func (UnimplementedArcaServiceServer) SolicitarCAE(context.Context, *SolicitarCAERequest) (*SolicitarCAEResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method SolicitarCAE not implemented")
 }
 func (UnimplementedArcaServiceServer) mustEmbedUnimplementedArcaServiceServer() {}
 func (UnimplementedArcaServiceServer) testEmbeddedByValue()                     {}
@@ -178,42 +174,6 @@ func _ArcaService_ConstatarComprobante_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ArcaService_UltimoAutorizado_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UltimoAutorizadoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ArcaServiceServer).UltimoAutorizado(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ArcaService_UltimoAutorizado_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ArcaServiceServer).UltimoAutorizado(ctx, req.(*UltimoAutorizadoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ArcaService_SolicitarCAE_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SolicitarCAERequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ArcaServiceServer).SolicitarCAE(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ArcaService_SolicitarCAE_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ArcaServiceServer).SolicitarCAE(ctx, req.(*SolicitarCAERequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ArcaService_ServiceDesc is the grpc.ServiceDesc for ArcaService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -228,14 +188,6 @@ var ArcaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ConstatarComprobante",
 			Handler:    _ArcaService_ConstatarComprobante_Handler,
-		},
-		{
-			MethodName: "UltimoAutorizado",
-			Handler:    _ArcaService_UltimoAutorizado_Handler,
-		},
-		{
-			MethodName: "SolicitarCAE",
-			Handler:    _ArcaService_SolicitarCAE_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

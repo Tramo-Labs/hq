@@ -1,0 +1,109 @@
+<!-- Example response of getPersona_v2, copied from the ARCA manual
+     ws_sr_constancia_inscripcion v4.1 section 3.2.3 (eng/arca/manuales/wsci41.txt).
+     The person is ARCA's own fictitious example. -->
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+ <soap:Body>
+   <ns2:getPersona_v2Response xmlns:ns2="http://a5.soap.ws.server.puc.sr/">
+     <personaReturn>
+      <datosGenerales>
+        <apellido>SKIOGEK OGIUPE</apellido>
+        <caracterizacion>
+          <descripcionCaracterizacion>IVA ANUAL
+AGROPECUARIO</descripcionCaracterizacion>
+          <fechaSolicitud>20030316</fechaSolicitud>
+          <idCaracterizacion>17</idCaracterizacion>
+          <periodo>19010101</periodo>
+        </caracterizacion>
+        <caracterizacion>
+          <descripcionCaracterizacion>CUENTA
+CORRIENTE</descripcionCaracterizacion>
+          <fechaSolicitud>20070901</fechaSolicitud>
+
+
+           <idCaracterizacion>82</idCaracterizacion>
+           <periodo>20070901</periodo>
+         </caracterizacion>
+         <caracterizacion>
+           <descripcionCaracterizacion>CATEGORÍA A: MUY BAJO
+RIESGO</descripcionCaracterizacion>
+           <fechaSolicitud>20161025</fechaSolicitud>
+           <idCaracterizacion>354</idCaracterizacion>
+           <periodo>20161025</periodo>
+         </caracterizacion>
+         <caracterizacion>
+           <descripcionCaracterizacion>GANANCIAS SIMPLIFICADA LEY
+27.779</descripcionCaracterizacion>
+           <fechaSolicitud>20260220</fechaSolicitud>
+           <idCaracterizacion>639</idCaracterizacion>
+           <periodo>20250101</periodo>
+         </caracterizacion>
+         <domicilioFiscal>
+           <codPostal>7007</codPostal>
+           <datoAdicional>BARRIO ANTONIO CARLOS</datoAdicional>
+           <descripcionProvincia>BUENOS AIRES</descripcionProvincia>
+           <direccion>SAN MANUEL 9</direccion>
+           <idProvincia>1</idProvincia>
+           <localidad>SAN MANUEL</localidad>
+           <tipoDatoAdicional>BARRIO</tipoDatoAdicional>
+           <tipoDomicilio>FISCAL</tipoDomicilio>
+         </domicilioFiscal>
+         <esSucesion>NO</esSucesion>
+         <estadoClave>ACTIVO</estadoClave>
+         <idPersona>20164755100</idPersona>
+         <mesCierre>12</mesCierre>
+
+
+        <nombre>OGIEK KPSGR</nombre>
+        <tipoClave>CUIT</tipoClave>
+        <tipoPersona>FISICA</tipoPersona>
+      </datosGenerales>
+      <datosRegimenGeneral>
+        <actividad>
+          <descripcionActividad>CULTIVO DE CEREALES N.C.P., EXCEPTO LOS DE
+USO FORRAJERO</descripcionActividad>
+          <idActividad>11119</idActividad>
+          <nomenclador>883</nomenclador>
+          <orden>1</orden>
+          <periodo>201311</periodo>
+        </actividad>
+        <categoriaAutonomo>
+          <descripcionCategoria>T3 CAT II INGRESOS DESDE
+$25.001</descripcionCategoria>
+          <idCategoria>302</idCategoria>
+          <idImpuesto>308</idImpuesto>
+          <periodo>200703</periodo>
+        </categoriaAutonomo>
+        <impuesto>
+          <descripcionImpuesto>GANANCIAS PERSONAS
+FISICAS</descripcionImpuesto>
+          <estadoImpuesto>AC</estadoImpuesto>
+          <idImpuesto>11</idImpuesto>
+          <motivo>INSCRIPCIÓN TRAMITADA EN AGENCIA</motivo>
+          <periodo>199203</periodo>
+        </impuesto>
+        <impuesto>
+          <descripcionImpuesto>IVA</descripcionImpuesto>
+          <estadoImpuesto>AC</estadoImpuesto>
+
+
+            <idImpuesto>30</idImpuesto>
+            <motivo>INSCRIPCIÓN TRAMITADA EN AGENCIA</motivo>
+            <periodo>199911</periodo>
+          </impuesto>
+          <impuesto>
+            <descripcionImpuesto>APORTES SEG.SOCIAL
+AUTONOMOS</descripcionImpuesto>
+            <estadoImpuesto>AC</estadoImpuesto>
+            <idImpuesto>308</idImpuesto>
+            <motivo>INSCRIPCIÓN NO TRAMITADA EN AGENCIA</motivo>
+            <periodo>200703</periodo>
+          </impuesto>
+        </datosRegimenGeneral>
+        <metadata>
+          <fechaHora>2026-02-26T15:52:37.653-03:00</fechaHora>
+          <servidor>qa-sr-padron-ws.cloudhomo.afip.gob.ar</servidor>
+        </metadata>
+      </personaReturn>
+    </ns2:getPersona_v2Response>
+  </soap:Body>
+</soap:Envelope>

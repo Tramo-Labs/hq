@@ -14,6 +14,7 @@ require (
 	github.com/oapi-codegen/nethttp-middleware v1.3.1
 	github.com/oapi-codegen/runtime v1.8.0
 	github.com/pressly/goose/v3 v3.29.0
+	github.com/smallstep/pkcs7 v0.2.3
 	golang.org/x/crypto v0.58.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12

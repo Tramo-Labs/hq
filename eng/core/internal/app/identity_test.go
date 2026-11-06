@@ -86,7 +86,7 @@ func (c client) registerAndLogin(slug, email string) account {
 func TestRegisterIsIdempotentAndValidated(t *testing.T) {
 	c := client{t, server(t)}
 	body := map[string]any{"email": "ana@molino.test", "password": "a long enough password",
-		"tenantName": "Molino del Sur", "tenantSlug": "molino-sur", "cuit": "20123456786"}
+		"tenantName": "Molino del Sur", "tenantSlug": "molino-sur", "cuit": "30000000015"}
 
 	if r := c.do("POST", "/v1/auth/register", "", body); r.status != 400 || r.str("code") != "idempotency_key_required" {
 		t.Fatalf("without key: %d %s", r.status, r.raw)
@@ -113,7 +113,7 @@ func TestRegisterIsIdempotentAndValidated(t *testing.T) {
 		"email taken":    {map[string]any{"tenantSlug": "otro-1", "cuit": nil}, 409, "email_taken"},
 		"slug taken":     {map[string]any{"email": "b@molino.test", "cuit": nil}, 409, "slug_taken"},
 		"cuit taken":     {map[string]any{"email": "c@molino.test", "tenantSlug": "otro-2"}, 409, "cuit_taken"},
-		"bad cuit":       {map[string]any{"email": "d@molino.test", "tenantSlug": "otro-3", "cuit": "20123456787"}, 400, "invalid_cuit"},
+		"bad cuit":       {map[string]any{"email": "d@molino.test", "tenantSlug": "otro-3", "cuit": "30000000016"}, 400, "invalid_cuit"},
 		"short password": {map[string]any{"email": "e@molino.test", "tenantSlug": "otro-4", "cuit": nil, "password": "short"}, 400, "bad_request"},
 		"unknown field":  {map[string]any{"email": "f@molino.test", "tenantSlug": "otro-5", "cuit": nil, "clave_fiscal": "x"}, 400, "bad_request"},
 	} {

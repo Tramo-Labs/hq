@@ -43,23 +43,6 @@ func TestPasswordHash(t *testing.T) {
 	}
 }
 
-func TestCuitCheckDigit(t *testing.T) {
-	for s, ok := range map[string]bool{
-		"20123456786": true,  // weighted sum 148, 148 mod 11 = 5, 11-5 = 6
-		"30500010912": true,  // weighted sum 64, 64 mod 11 = 9, 11-9 = 2
-		"20000000060": true,  // weighted sum 22, mod 11 = 0, 11 maps to 0
-		"20000000061": false, // same base, wrong check digit
-		"20123456787": false, // wrong check digit
-		"2012345678":  false,
-		"2012345678a": false,
-	} {
-		_, err := parseCuit(s)
-		if (err == nil) != ok {
-			t.Errorf("parseCuit(%s): err=%v, want ok=%v", s, err, ok)
-		}
-	}
-}
-
 func TestSignerRejectsForgedTokens(t *testing.T) {
 	seed := make([]byte, 32)
 	_, _ = rand.Read(seed)

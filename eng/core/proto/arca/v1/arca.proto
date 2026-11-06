@@ -4,28 +4,120 @@ package arca.v1;
 
 option go_package = "github.com/Tramo-Labs/hq/eng/core/gen/arca/v1;arcav1";
 
-// ArcaService is the only door from core to ARCA. The gateway owns the
-// certificate, caches one access ticket per service and CUIT, and every call
-// is idempotent: CAE requests check the last authorized voucher first.
+// ArcaService is the only door from core to ARCA. The gateway is the only
+// process that holds the certificate private key; it caches one access
+// ticket (TA) per web service and talks SOAP to ARCA.
+//
+// Both operations of v1 are queries made with Tramo's own CUIT and
+// certificate. They prove that a CUIT exists and what ARCA says about it, or
+// that a voucher is authorized. They do NOT prove that a client delegated
+// anything to Tramo: that needs a WSFE call on the client's CUIT, which is
+// not part of v1.
+//
+// Errors use gRPC codes: INVALID_ARGUMENT (bad input, nothing sent to ARCA),
+// NOT_FOUND (ARCA has no such person), UNAVAILABLE (ARCA or WSAA did not
+// answer or refused a ticket; retry later), INTERNAL (anything else).
 service ArcaService {
+  // GetPersona reads the registration record (ws_sr_constancia_inscripcion,
+  // getPersona_v2) of any CUIT.
   rpc GetPersona(GetPersonaRequest) returns (GetPersonaResponse);
+  // ConstatarComprobante asks WSCDC whether a voucher was authorized with
+  // the given data.
   rpc ConstatarComprobante(ConstatarComprobanteRequest) returns (ConstatarComprobanteResponse);
-  rpc UltimoAutorizado(UltimoAutorizadoRequest) returns (UltimoAutorizadoResponse);
-  rpc SolicitarCAE(SolicitarCAERequest) returns (SolicitarCAEResponse);
 }
 
-message GetPersonaRequest { int64 cuit_representado = 1; int64 cuit_consultado = 2; }
-message GetPersonaResponse { string razon_social = 1; string condicion_iva = 2; bool activo = 3; string raw_json = 4; }
+message GetPersonaRequest {
+  // CUIT to look up, 11 digits.
+  int64 cuit = 1;
+}
+
+enum CondicionIva {
+  CONDICION_IVA_UNSPECIFIED = 0;
+  // Registered for IVA (tax 30 active).
+  CONDICION_IVA_RESPONSABLE_INSCRIPTO = 1;
+  // Monotributo (tax 20 active).
+  CONDICION_IVA_MONOTRIBUTO = 2;
+  // Neither of the above appears active: the caller decides with the raw
+  // taxes. The gateway never guesses exento or consumidor final.
+  CONDICION_IVA_NO_DETERMINADA = 3;
+}
+
+message Impuesto {
+  int32 id = 1;
+  string descripcion = 2;
+  // AC = active, as ARCA reports it.
+  string estado = 3;
+  // YYYYMM or YYYYMMDD as ARCA reports it.
+  string periodo = 4;
+}
+
+message Domicilio {
+  string direccion = 1;
+  string localidad = 2;
+  string cod_postal = 3;
+  string provincia = 4;
+}
+
+message GetPersonaResponse {
+  int64 cuit = 1;
+  // FISICA or JURIDICA.
+  string tipo_persona = 2;
+  // Razón social, or "apellido nombre" for people.
+  string nombre = 3;
+  // ACTIVO, INACTIVO, ...
+  string estado_clave = 4;
+  CondicionIva condicion_iva = 5;
+  repeated Impuesto impuestos = 6;
+  string categoria_monotributo = 7;
+  Domicilio domicilio_fiscal = 8;
+  // Errors ARCA attached to a partial answer (errorRegimenGeneral,
+  // errorMonotributo). Empty when the record is complete.
+  repeated string avisos = 9;
+  // When ARCA answered (metadata.fechaHora).
+  string consultado = 10;
+}
+
+enum ModoAutorizacion {
+  MODO_AUTORIZACION_UNSPECIFIED = 0;
+  MODO_AUTORIZACION_CAE = 1;
+  MODO_AUTORIZACION_CAEA = 2;
+  MODO_AUTORIZACION_CAI = 3;
+}
 
 message ConstatarComprobanteRequest {
-  int64 cuit_representado = 1; int64 cuit_emisor = 2; int32 punto_venta = 3;
-  int32 tipo_comprobante = 4; int64 numero = 5; string fecha = 6; double importe = 7;
-  string cae = 8; string tipo_emision = 9;
+  ModoAutorizacion modo = 1;
+  int64 cuit_emisor = 2;
+  int32 punto_venta = 3;
+  int32 tipo_comprobante = 4;
+  int64 numero = 5;
+  // YYYYMMDD.
+  string fecha = 6;
+  // Total in cents. Never a float.
+  int64 importe_total_cents = 7;
+  // CAE, CAEA or CAI, 14 digits.
+  string codigo_autorizacion = 8;
+  // Optional receiver document (80 = CUIT).
+  int32 doc_tipo_receptor = 9;
+  string doc_nro_receptor = 10;
 }
-message ConstatarComprobanteResponse { bool valido = 1; repeated string observaciones = 2; }
 
-message UltimoAutorizadoRequest { int64 cuit = 1; int32 punto_venta = 2; int32 tipo_comprobante = 3; }
-message UltimoAutorizadoResponse { int64 numero = 1; }
+message Observacion {
+  int32 code = 1;
+  string msg = 2;
+}
 
-message SolicitarCAERequest { int64 cuit = 1; string comprobante_json = 2; string idempotency_key = 3; }
-message SolicitarCAEResponse { string cae = 1; string vencimiento = 2; int64 numero = 3; repeated string observaciones = 4; }
+enum ResultadoConstatacion {
+  RESULTADO_CONSTATACION_UNSPECIFIED = 0;
+  // Resultado A: authorized (may still carry observations).
+  RESULTADO_CONSTATACION_APROBADO = 1;
+  // Resultado R: rejected; see observaciones and errores.
+  RESULTADO_CONSTATACION_RECHAZADO = 2;
+}
+
+message ConstatarComprobanteResponse {
+  ResultadoConstatacion resultado = 1;
+  repeated Observacion observaciones = 2;
+  repeated Observacion errores = 3;
+  // FchProceso as ARCA reports it.
+  string fecha_proceso = 4;
+}
