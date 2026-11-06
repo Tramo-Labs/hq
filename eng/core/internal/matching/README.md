@@ -93,6 +93,8 @@ Who decides what (product spec sections 1 and 5), enforced in `Record`:
 | Automatic | nobody (listed for review) | none |
 | Suggested | operator | approve, reject, escalate to Exceptions |
 | Exceptions (escalated matches) | owner, approver | approve, reject, other (note required, back to the operator) |
+| Exceptions (movements with no candidate) | owner, approver | other (note required), link by hand (exact sum) |
+| Any of the above | who decides that tray | revert the decision in effect |
 
 Nothing about the decider is input: the user is the scope's; the role is
 read from `memberships` in the same transaction (a token can be ten minutes
@@ -111,10 +113,50 @@ the tray already has a decision, 400 for an action the tray does not offer,
 403 for a role that does not decide that tray). Every POST requires
 `Idempotency-Key`.
 
-Still to do: the scheduled job per tenant and month; client decisions on
-movements without any candidate ("no_candidate" exceptions: there is no
-match to approve, only "other" or a link by hand); reverting a decision as
-a new recorded action (spec section 4).
+### Movements with no candidate (migration 00103)
+
+A movement in Exceptions with reason `no_candidate` has no match to
+approve. The client (owner or approver, role read from memberships) decides
+on the movement itself with `DecideMovement`
+(`POST /v1/matching/movements/{movementId}/decision`):
+
+- `other`: note required. The movement leaves the client's tray and shows
+  in Suggested for the operator with reason `client_other` and the note.
+- `link`: link by hand to open items whose amounts add up exactly to the
+  movement. Any difference is an adjustment and stays with the operator.
+  It creates a match with rule `manual_link@v1` (tray `manual`, no run)
+  that is settled for the next runs while the link is in effect. Items
+  already settled by a match in effect cannot be linked (`item_taken`).
+- Only a movement that the latest run of its month left in Exceptions
+  without a candidate can be decided (`not_in_exceptions`).
+
+`matching.movement_decisions` is append only (trigger), RLS forced, one
+row per revision.
+
+### Reversion
+
+Reverting is a new recorded row with action `revert`, never an edit; the
+revision numbers per match and tray (and per movement) keep the history.
+For a match it undoes the latest decision in effect: the client's in
+Exceptions if any, else the operator's in Suggested (reverting an
+escalation sends the match back to Suggested). Only who decides that tray
+may revert it. The views `matching.decision_state` and
+`matching.movement_decision_state` (security invoker, so RLS applies) give
+the decision in effect; everything that reads state uses them. Two
+decisions at once collide on the revision: the second is 409.
+
+Two rules for what does not exist yet:
+
+- **Closed periods are not reverted.** The weekly close is not built. The
+  check lives in one place, `PGStore.closed`, which today lets everything
+  through (`Closed` is nil) and is exercised by a test with a stubbed
+  close. When the close exists, it plugs in there.
+- **ERP writes need compensation.** Decisions are not written to the
+  client's ERP yet. When they are, reverting one that was already written
+  will need a compensating entry in the ERP, never a deletion.
+
+Still to do: the scheduled job per tenant and month (after backend wires
+River).
 
 ## Sensitive data
 

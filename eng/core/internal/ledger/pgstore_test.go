@@ -238,8 +238,10 @@ func TestPGEveryTableForcesRLS(t *testing.T) {
 				t.Errorf("%s: rls %v, forced %v, tenant policy %v", name, enabled, forced, policy)
 			}
 		}
-		if seen != 10 {
-			t.Errorf("%d tables in the datos schemas; want 10", seen)
+		// 4 ledger, 1 documents, 6 matching (00103 added movement_decisions).
+		// A new table makes this fail on purpose: check it, then count it.
+		if seen != 11 {
+			t.Errorf("%d tables in the datos schemas; want 11", seen)
 		}
 		return rows.Err()
 	})

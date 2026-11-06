@@ -22,6 +22,9 @@ import (
 // tenant transaction, read only.
 type PGStore struct {
 	DB *db.DB
+	// Closed answers whether a period is closed. Nil means no period is
+	// closed (the weekly close does not exist yet). See closed.
+	Closed ClosedFunc
 }
 
 // ItemIn is an item as a source delivers it (ERP open item, invoice).
@@ -136,14 +139,17 @@ func (s *PGStore) LoadInput(ctx context.Context, from, to time.Time, cfg Config)
 			return err
 		}
 
-		// Settled: automatic, or approved in either tray. Turned down:
-		// rejected in either tray, or "other" from the client. A match that
-		// was only escalated is neither: it waits in Exceptions.
+		// By the decisions in effect (reverted ones do not count):
+		// settled is automatic, approved in either tray, or a manual link in
+		// effect; turned down is rejected in either tray or "other" from the
+		// client. Escalated and undecided is neither: it waits in Exceptions.
 		rows, err = tx.Query(ctx,
 			`select m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids,
-			        coalesce(bool_or(d.action = 'approve'), false),
+			        coalesce(bool_or(d.action = 'approve'), false)
+			          or (m.tray = 'manual' and exists (select 1 from matching.movement_decision_state s
+			              where s.tenant_id = m.tenant_id and s.match_id = m.id and s.action = 'link')),
 			        coalesce(bool_or(d.action in ('reject', 'other')), false)
-			   from matching.matches m left join matching.decisions d on d.tenant_id = m.tenant_id and d.match_id = m.id
+			   from matching.matches m left join matching.decision_state d on d.tenant_id = m.tenant_id and d.match_id = m.id
 			  group by m.tenant_id, m.id`)
 		if err != nil {
 			return err
@@ -290,12 +296,94 @@ type DecisionInput struct {
 	Note   string
 }
 
-// Record stores a human decision with the same rules as Book: the same
-// decision sent twice is applied once, a decided match is not decided again,
-// a key is not reused for something else. The decider is the scope's user.
-// The role is read from memberships inside the same transaction, not taken
-// from the token: a token can be up to ten minutes old, and someone whose
-// role was lowered cannot decide for one more minute.
+var (
+	// ErrNothingToRevert: the item has no decision in effect.
+	ErrNothingToRevert = errors.New("matching: there is no decision in effect to revert")
+	// ErrClosed: the period of the item is closed; what closed is not reverted.
+	ErrClosed = errors.New("matching: the period is closed")
+)
+
+// ClosedFunc tells whether any of the periods (YYYY-MM) is closed for the
+// tenant in the context.
+type ClosedFunc func(ctx context.Context, tx pgx.Tx, periods []string) (bool, error)
+
+// closed is the single place where a reversion checks the close. The
+// weekly close does not exist yet, so with no Closed hook it always lets
+// the reversion through. When it exists, this is where it plugs in: what
+// already closed is not reverted.
+func (s *PGStore) closed(ctx context.Context, tx pgx.Tx, periods []string) (bool, error) {
+	if s.Closed == nil {
+		return false, nil
+	}
+	return s.Closed(ctx, tx, periods)
+}
+
+// memberRole is the caller's role read from memberships in tx, not from the
+// token: a token can be up to ten minutes old, and someone whose role was
+// lowered cannot decide for one more minute.
+func memberRole(ctx context.Context, tx pgx.Tx) (string, error) {
+	var role string
+	err := tx.QueryRow(ctx,
+		`select role::text from memberships where user_id = app_current_user() and tenant_id = app_current_tenant()`).Scan(&role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrForbidden
+	}
+	return role, err
+}
+
+// trayState is the decision in effect in one tray of a match.
+type trayState struct {
+	id       int64
+	revision int    // latest revision, 0 when the tray has no rows
+	action   Action // "" when nothing is in effect (none, or reverted)
+}
+
+// matchState reads the stored tray of a match, the decision in effect in
+// each tray, and the periods of its movements.
+func matchState(ctx context.Context, tx pgx.Tx, id string) (Tray, map[Tray]trayState, []string, error) {
+	var stored string
+	var periods []string
+	err := tx.QueryRow(ctx,
+		`select tray, coalesce(array(select jsonb_array_elements_text(evidence->'movement_periods')), '{}')
+		   from matching.matches where id = $1`, id).Scan(&stored, &periods)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil, nil, fmt.Errorf("%w: unknown match", ErrInvalid)
+	}
+	if err != nil {
+		return "", nil, nil, err
+	}
+	states := map[Tray]trayState{}
+	rows, err := tx.Query(ctx, `select tray, id, revision, coalesce(action, '') from matching.decision_state where match_id = $1`, id)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var tray, action string
+		var st trayState
+		if err := rows.Scan(&tray, &st.id, &st.revision, &action); err != nil {
+			return "", nil, nil, err
+		}
+		st.action = Action(action)
+		states[Tray(tray)] = st
+	}
+	return Tray(stored), states, periods, rows.Err()
+}
+
+// Record stores a human decision on a match, or the reversion of the one in
+// effect (Action Revert). Rules: the same decision sent twice is applied
+// once; a key is not reused for something else; nothing is edited, a
+// reversion is a new row. The decider is the scope's user, the role is the
+// membership's (read here), the tray is the stored one plus any escalation.
+//
+// Revert undoes the latest decision in effect: the client's in Exceptions
+// if there is one, otherwise the operator's in Suggested (including an
+// escalation, which sends the match back to Suggested). Only who decides
+// that tray may revert it, and never in a closed period.
+//
+// Known limit: once decisions are written to the client's ERP, reverting
+// one that was written will need a compensating entry there, never a
+// deletion. ERP writes do not exist yet.
 func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool, error) {
 	sc, ok := db.ScopeFrom(ctx)
 	if !ok {
@@ -310,7 +398,7 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 		return Decision{}, false, ErrInvalid
 	}
 	switch in.Action {
-	case Approve, Reject, Escalate, Other:
+	case Approve, Reject, Escalate, Other, Revert:
 	default:
 		return Decision{}, false, ErrInvalid
 	}
@@ -340,55 +428,71 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			return err
 		}
 
-		// The tray is the stored one, never the caller's: a suggested match
-		// moves to Exceptions only through an escalate decision.
-		var stored string
-		var escalated bool
-		err = tx.QueryRow(ctx,
-			`select m.tray, exists (select 1 from matching.decisions e where e.tenant_id = m.tenant_id
-			                         and e.match_id = m.id and e.action = 'escalate')
-			   from matching.matches m where m.id = $1`, d.MatchID).Scan(&stored, &escalated)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("%w: unknown match", ErrInvalid)
-		}
+		stored, states, periods, err := matchState(ctx, tx, d.MatchID)
 		if err != nil {
 			return err
 		}
-		d.Tray = Tray(stored)
-		if d.Tray == Suggested && escalated {
-			d.Tray = Exception
-		}
-
-		// The role is the membership's now, not the token's.
-		err = tx.QueryRow(ctx,
-			`select role::text from memberships where user_id = app_current_user() and tenant_id = app_current_tenant()`).Scan(&d.Role)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrForbidden
-		}
-		if err != nil {
+		if d.Role, err = memberRole(ctx, tx); err != nil {
 			return err
 		}
-		if !CanDecide(d.Role, d.Tray) {
-			return ErrForbidden
+
+		var target trayState
+		var reverts *int64
+		if d.Action == Revert {
+			switch {
+			case states[Exception].action != "":
+				d.Tray = Exception
+			case states[Suggested].action != "":
+				d.Tray = Suggested
+			default:
+				return ErrNothingToRevert
+			}
+			target = states[d.Tray]
+			if !CanDecide(d.Role, d.Tray) {
+				return ErrForbidden
+			}
+			isClosed, err := s.closed(ctx, tx, periods)
+			if err != nil {
+				return err
+			}
+			if isClosed {
+				return ErrClosed
+			}
+			reverts = &target.id
+		} else {
+			// The tray is the stored one, never the caller's: a suggested
+			// match is in Exceptions while an escalation is in effect.
+			d.Tray = stored
+			if stored == Suggested && states[Suggested].action == Escalate {
+				d.Tray = Exception
+			}
+			if !CanDecide(d.Role, d.Tray) {
+				return ErrForbidden
+			}
+			if !actionFits(d.Action, d.Tray) || (d.Action == Other && d.Note == "") {
+				return ErrActionNotInTray
+			}
+			target = states[d.Tray]
+			if target.action != "" {
+				return ErrAlreadyDecided
+			}
 		}
-		if !actionFits(d.Action, d.Tray) || (d.Action == Other && d.Note == "") {
-			return ErrActionNotInTray
-		}
+		d.Revision = target.revision + 1
 
 		err = tx.QueryRow(ctx,
-			`insert into matching.decisions (tenant_id, key, match_id, tray, action, user_id, role, note, snapshot)
-			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8) returning at`,
-			key, d.MatchID, string(d.Tray), string(d.Action), sc.UserID, d.Role, d.Note, snap).Scan(&d.At)
+			`insert into matching.decisions (tenant_id, key, match_id, tray, revision, action, user_id, role, note, snapshot, reverts)
+			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning at`,
+			key, d.MatchID, string(d.Tray), d.Revision, string(d.Action), sc.UserID, d.Role, d.Note, snap, reverts).Scan(&d.At)
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "decisions_tenant_id_match_id_tray_key" {
-			return ErrAlreadyDecided
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "decisions_tenant_id_match_id_tray_revision_key" {
+			return ErrAlreadyDecided // another decision landed on the same revision first
 		}
 		if err != nil {
 			return err
 		}
 		applied = true
 		return audit.Record(ctx, tx, audit.Entry{Action: "matching." + string(d.Action), Subject: "matching.matches:" + d.MatchID,
-			Detail: map[string]any{"rule": d.Match.Rule.String(), "role": d.Role, "tray": string(d.Tray)}})
+			Detail: map[string]any{"rule": d.Match.Rule.String(), "role": d.Role, "tray": string(d.Tray), "revision": d.Revision}})
 	})
 	if err != nil {
 		return Decision{}, false, err
@@ -458,12 +562,12 @@ func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match,
 		rows, err := tx.Query(ctx, `select `+matchColumns+` from matching.matches m
 			where case $1
 			  when 'auto' then m.tray = 'auto'
-			  when 'suggested' then m.tray = 'suggested' and not exists (select 1 from matching.decisions d
-			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'suggested')
-			  when 'exception' then exists (select 1 from matching.decisions d
-			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.action = 'escalate')
-			    and not exists (select 1 from matching.decisions d
-			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception')
+			  when 'suggested' then m.tray = 'suggested' and not exists (select 1 from matching.decision_state d
+			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'suggested' and d.action is not null)
+			  when 'exception' then exists (select 1 from matching.decision_state d
+			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'suggested' and d.action = 'escalate')
+			    and not exists (select 1 from matching.decision_state d
+			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception' and d.action is not null)
 			  else false end
 			order by created_at, id limit $2`, string(tray), limit)
 		if err != nil {
@@ -485,19 +589,37 @@ func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match,
 // PendingRow is a pending movement as stored by a run.
 type PendingRow struct {
 	RunID uuid.UUID
+	Note  string // the client's note, for ReasonClientOther
 	Pending
 }
+
+// ReasonClientOther: the client said the movement is something else; it
+// is back with the operator, with the client's note.
+const ReasonClientOther PendingReason = "client_other"
 
 // LatestPending lists the movements waiting in a tray according to the
 // latest run of each period.
 func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]PendingRow, error) {
 	var out []PendingRow
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		// A movement the client decided leaves the Exceptions tray; if the
+		// decision in effect is "other", it shows in Suggested for the
+		// operator with the client's note. A reverted decision puts it back.
 		rows, err := tx.Query(ctx, `
-			with latest as (select distinct on (period) id from matching.runs order by period, started_at desc, id)
-			select p.run_id, p.movement_id, p.tray, p.reason, p.candidates from matching.pending p
-			 where p.run_id in (select id from latest) and p.tray = $1
-			 order by p.movement_id limit $2`, string(tray), limit)
+			with latest as (select distinct on (period) id from matching.runs order by period, started_at desc, id),
+			     cur as (select p.*, s.action as decided, s.note as client_note from matching.pending p
+			               left join matching.movement_decision_state s on s.tenant_id = p.tenant_id and s.movement_id = p.movement_id
+			              where p.run_id in (select id from latest))
+			select run_id, movement_id,
+			       case when tray = 'exception' and decided = 'other' then 'suggested' else tray end,
+			       case when tray = 'exception' and decided = 'other' then 'client_other' else reason end,
+			       candidates, coalesce(client_note, '')
+			  from cur
+			 where case $1
+			         when 'exception' then tray = 'exception' and decided is null
+			         when 'suggested' then tray = 'suggested' or (tray = 'exception' and decided = 'other')
+			         else false end
+			 order by movement_id limit $2`, string(tray), limit)
 		if err != nil {
 			return err
 		}
@@ -507,10 +629,13 @@ func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]Pe
 			var mid uuid.UUID
 			var t, reason string
 			var cands []byte
-			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands); err != nil {
+			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands, &r.Note); err != nil {
 				return err
 			}
 			r.MovementID, r.Tray, r.Reason = mid.String(), Tray(t), PendingReason(reason)
+			if r.Reason != ReasonClientOther {
+				r.Note = ""
+			}
 			if err := json.Unmarshal(cands, &r.Candidates); err != nil {
 				return err
 			}

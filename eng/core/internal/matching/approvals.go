@@ -19,21 +19,24 @@ const (
 	// Other: the client says it is something else; back to the operator
 	// with the note (Exceptions tray only, note required).
 	Other Action = "other"
+	// Revert undoes the decision in effect, as a new recorded row.
+	Revert Action = "revert"
 )
 
 // Decision is a human decision on a match: who, when and on what. Decisions
 // are never edited or deleted. Key is the client's idempotency key: the same
 // decision sent twice is applied once.
 type Decision struct {
-	Key     string
-	MatchID string
-	Match   Match // snapshot of what was decided on
-	Action  Action
-	By      string // user id
-	Role    string // operator for Suggested, owner or approver for Exception
-	Tray    Tray   // where the item was when decided (set by the Postgres store)
-	At      time.Time
-	Note    string
+	Key      string
+	MatchID  string
+	Match    Match // snapshot of what was decided on
+	Action   Action
+	By       string // user id
+	Role     string // operator for Suggested, owner or approver for Exception
+	Tray     Tray   // where the item was when decided (set by the Postgres store)
+	Revision int    // per match and tray (set by the Postgres store)
+	At       time.Time
+	Note     string
 }
 
 var (
