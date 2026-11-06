@@ -673,6 +673,10 @@ type PendingRow struct {
 // is back with the operator, with the client's note.
 const ReasonClientOther PendingReason = "client_other"
 
+// ReasonOperatorReturned: the operator sent a client_other movement back
+// to the client, with the operator's note.
+const ReasonOperatorReturned PendingReason = "operator_returned"
+
 // LatestPending lists the movements waiting in a tray according to the
 // latest run of each period.
 func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]PendingRow, error) {
@@ -689,7 +693,10 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 		}
 		// A movement the client decided leaves the Exceptions tray; if the
 		// decision in effect is "other", it shows in Suggested for the
-		// operator with the client's note. A reverted decision puts it back.
+		// operator with the client's note. If the operator returned it, it
+		// is back in Exceptions with the operator's note; if the operator
+		// resolved or linked it, it is in neither. A reverted decision puts
+		// the one before it back in effect.
 		rows, err := tx.Query(ctx, `
 			with latest as (select distinct on (period) id from matching.runs
 			                 where $3 = '' or period = $3 order by period, started_at desc, id),
@@ -698,14 +705,15 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 			              where p.run_id in (select id from latest))
 			select cur.run_id, cur.movement_id,
 			       case when cur.tray = 'exception' and decided = 'other' then 'suggested' else cur.tray end,
-			       case when cur.tray = 'exception' and decided = 'other' then 'client_other' else reason end,
+			       case when cur.tray = 'exception' and decided = 'other' then 'client_other'
+			            when cur.tray = 'exception' and decided = 'return' then 'operator_returned' else reason end,
 			       candidates, coalesce(client_note, ''),
 			       l.date, l.amount, l.description, a.id, a.name, a.bank
 			  from cur
 			  join ledger.movements l on l.id = cur.movement_id
 			  join ledger.accounts a on a.id = l.account_id
 			 where case $1
-			         when 'exception' then tray = 'exception' and decided is null
+			         when 'exception' then tray = 'exception' and (decided is null or decided = 'return')
 			         when 'suggested' then tray = 'suggested' or (tray = 'exception' and decided = 'other')
 			         else false end
 			 order by movement_id limit $2`, string(tray), limit, period)
@@ -725,7 +733,7 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 			}
 			r.Amount = money.Amount(amount)
 			r.MovementID, r.Tray, r.Reason = mid.String(), Tray(t), PendingReason(reason)
-			if r.Reason != ReasonClientOther {
+			if r.Reason != ReasonClientOther && r.Reason != ReasonOperatorReturned {
 				r.Note = ""
 			}
 			if err := json.Unmarshal(cands, &r.Candidates); err != nil {

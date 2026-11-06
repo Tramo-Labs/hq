@@ -455,3 +455,111 @@ func TestPGSuggestedIsTheOperatorsOnly(t *testing.T) {
 		t.Error("owner does not see the match sent to Exceptions")
 	}
 }
+
+// F4: after the client's "other" the operator answers: resolve (note),
+// return to the client (note, back in Exceptions with it) or link. Each
+// side reverts only its own row; reverting the operator's answer puts the
+// client's "other" back. A resolved movement stays out of both trays on
+// the next run.
+func TestPGOperatorAnswersClientOther(t *testing.T) {
+	e := newPGEnv(t)
+	e.run(t)
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
+	open := func() float64 { return value(t, byKey(t, mustMetrics(t, e, "2026-10"))["open_exception_movements"]) }
+	before := open()
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, "x"); !errors.Is(err, ErrNotWithOperator) {
+		t.Errorf("operator answered before the client: %v", err)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "retiro de socio"); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range []string{identity.RoleOwner, identity.RoleApprover, identity.RoleViewer, identity.RoleAccountant} {
+		if _, err := e.decideMovementAs(t, role, fee, MovementResolve, "x"); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s resolved: %v", role, err)
+		}
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, ""); !errors.Is(err, ErrActionNotInTray) {
+		t.Errorf("resolve without a note: %v", err)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementReturn, ""); !errors.Is(err, ErrActionNotInTray) {
+		t.Errorf("return without a note: %v", err)
+	}
+
+	// Return: back in the client's Exceptions with the operator's note.
+	if d, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementReturn, "¿de qué socio? pasame el acta"); err != nil || d.Revision != 2 || d.Role != identity.RoleOperator {
+		t.Fatalf("return: %v %+v", err, d)
+	}
+	if _, ok := e.operatorQueue(t)[fee]; ok {
+		t.Error("a returned movement is still with the operator")
+	}
+	if r, ok := e.pendingIDs(t, Exception)[fee]; !ok || r.Reason != ReasonOperatorReturned || r.Note != "¿de qué socio? pasame el acta" {
+		t.Errorf("not back with the client: %+v", r)
+	}
+	if got := open(); got != before {
+		t.Errorf("a returned movement is open again for the client: %v; want %v", got, before)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleOwner, fee, MovementRevert, ""); !errors.Is(err, ErrForbidden) {
+		t.Errorf("the client reverted the operator's return: %v", err)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, "x"); !errors.Is(err, ErrNotWithOperator) {
+		t.Errorf("operator resolved a movement it returned: %v", err)
+	}
+
+	// The client answers again; the operator resolves it.
+	if _, err := e.decideMovementAs(t, identity.RoleOwner, fee, MovementOther, "retiro de Juan, acta 12"); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.operatorQueue(t)[fee]; r.Reason != ReasonClientOther || r.Note != "retiro de Juan, acta 12" {
+		t.Errorf("second other: %+v", r)
+	}
+	if d, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, "asiento manual de retiro"); err != nil || d.Revision != 4 {
+		t.Fatalf("resolve: %v %+v", err, d)
+	}
+	e.run(t) // the state is per movement, not per run
+	if _, ok := e.operatorQueue(t)[fee]; ok {
+		t.Error("resolved movement still with the operator")
+	}
+	if _, ok := e.pendingIDs(t, Exception)[fee]; ok {
+		t.Error("resolved movement back with the client")
+	}
+	if got := open(); got != before-1 {
+		t.Errorf("open exceptions after resolve: %v; want %v", got, before-1)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "y"); !errors.Is(err, ErrAlreadyDecided) {
+		t.Errorf("client decided a resolved movement: %v", err)
+	}
+
+	// Reverting the operator's answer puts the client's other back.
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementRevert, ""); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.operatorQueue(t)[fee]; r.Reason != ReasonClientOther || r.Note != "retiro de Juan, acta 12" {
+		t.Errorf("the client's other is not back in effect: %+v", r)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementRevert, ""); !errors.Is(err, ErrForbidden) {
+		t.Errorf("the operator reverted the client's other: %v", err)
+	}
+
+	// The operator links it to an open item that adds up exactly.
+	e.setMembership(t, e.a, identity.RoleOwner) // items are loaded as the client
+	ids, err := e.store.UpsertItems(e.ctx, "erp", []ItemIn{
+		{SourceID: "ND-1", Kind: "invoice", Date: day(2), Amount: -850000, Confidence: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementLink, "", ids["ND-1"].String())
+	if err != nil || d.MatchID == "" {
+		t.Fatalf("operator link: %v %+v", err, d)
+	}
+	if _, ok := e.operatorQueue(t)[fee]; ok {
+		t.Error("linked movement still with the operator")
+	}
+}
+
+// operatorQueue is the Suggested tray as the operator sees it (only the
+// operator may list it).
+func (e pgEnv) operatorQueue(t *testing.T) map[string]PendingRow {
+	t.Helper()
+	e.setMembership(t, e.a, identity.RoleOperator)
+	return e.pendingIDs(t, Suggested)
+}

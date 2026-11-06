@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -34,6 +35,12 @@ const (
 	MovementLink MovementAction = "link"
 	// MovementRevert undoes the decision in effect, as a new recorded row.
 	MovementRevert MovementAction = "revert"
+	// MovementResolve: the operator closes a movement the client marked
+	// other, saying what was done with it (note required).
+	MovementResolve MovementAction = "resolve"
+	// MovementReturn: the operator sends it back to the client with what
+	// the operator needs (note required). It shows again in Exceptions.
+	MovementReturn MovementAction = "return"
 )
 
 var (
@@ -46,6 +53,9 @@ var (
 	ErrLinkDoesNotAdd = errors.New("matching: the items do not add up exactly to the movement")
 	// ErrItemTaken: an item is already settled by a match in effect.
 	ErrItemTaken = errors.New("matching: an item is already settled by another match")
+	// ErrNotWithOperator: the operator acts only on a movement the client
+	// marked other and nobody answered yet.
+	ErrNotWithOperator = errors.New("matching: the movement is not waiting for the operator")
 )
 
 // MovementDecisionInput is what the client may say. Who decides and with
@@ -69,11 +79,13 @@ type MovementDecision struct {
 	At         time.Time
 }
 
-// DecideMovement records the client's decision on a movement of the
-// Exceptions tray that has no candidate, or reverts the one in effect.
-// Owner or approver, role read from memberships here. A link creates a
-// manual match (rule manual_link@v1) that is settled for the next runs
-// while the link is in effect.
+// DecideMovement records a decision on a movement of the Exceptions tray
+// that has no candidate, or reverts the one in effect. Role read from
+// memberships here. The client (owner or approver) says other, link, or
+// reverts its own decision; after the client's other, the operator
+// resolves, links or returns it, or reverts its own answer, which puts the
+// client's other back in effect. A link creates a manual match (rule
+// manual_link@v1) that is settled for the next runs while it is in effect.
 func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) (MovementDecision, bool, error) {
 	sc, ok := db.ScopeFrom(ctx)
 	if !ok {
@@ -91,7 +103,7 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		return MovementDecision{}, false, ErrInvalid
 	}
 	switch in.Action {
-	case MovementOther:
+	case MovementOther, MovementResolve, MovementReturn:
 		if in.Note == "" {
 			return MovementDecision{}, false, ErrActionNotInTray
 		}
@@ -145,7 +157,8 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		if d.Role, err = memberRole(ctx, tx); err != nil {
 			return err
 		}
-		if !CanDecide(d.Role, Exception) {
+		client, operator := CanDecide(d.Role, Exception), d.Role == identity.RoleOperator
+		if !client && !operator {
 			return ErrForbidden
 		}
 
@@ -153,11 +166,16 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 			id       int64
 			revision int
 			action   string
+			role     string
 		}
 		err = tx.QueryRow(ctx,
-			`select id, revision, coalesce(action, '') from matching.movement_decision_state where movement_id = $1`, mid).
-			Scan(&cur.id, &cur.revision, &cur.action)
+			`select coalesce(id, 0), revision, coalesce(action, ''), coalesce(role, '')
+			   from matching.movement_decision_state where movement_id = $1`, mid).
+			Scan(&cur.id, &cur.revision, &cur.action, &cur.role)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if err := movementTurn(in.Action, client, MovementAction(cur.action), cur.role); err != nil {
 			return err
 		}
 
@@ -165,9 +183,6 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		var matchID *string
 		switch in.Action {
 		case MovementRevert:
-			if cur.action == "" {
-				return ErrNothingToRevert
-			}
 			isClosed, err := s.closed(ctx, tx, []string{period(date)})
 			if err != nil {
 				return err
@@ -177,9 +192,6 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 			}
 			reverts = &cur.id
 		default:
-			if cur.action != "" {
-				return ErrAlreadyDecided
-			}
 			var waiting bool
 			if err := tx.QueryRow(ctx, `
 				with latest as (select distinct on (period) id from matching.runs order by period, started_at desc, id)
@@ -234,6 +246,43 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		return MovementDecision{}, false, err
 	}
 	return d, applied, nil
+}
+
+// movementTurn says whether the caller's side may take the action given the
+// decision in effect (action and the role that took it). The client acts
+// on a movement nobody decided or that the operator returned; the operator
+// acts on one the client marked other. Each side reverts only its own row.
+func movementTurn(a MovementAction, client bool, cur MovementAction, curRole string) error {
+	curByClient := curRole == identity.RoleOwner || curRole == identity.RoleApprover
+	if a == MovementRevert {
+		switch {
+		case cur == "":
+			return ErrNothingToRevert
+		case client != curByClient:
+			return ErrForbidden
+		}
+		return nil
+	}
+	if client {
+		switch a {
+		case MovementOther, MovementLink:
+		default:
+			return ErrForbidden
+		}
+		if cur != "" && cur != MovementReturn {
+			return ErrAlreadyDecided
+		}
+		return nil
+	}
+	switch a {
+	case MovementResolve, MovementReturn, MovementLink:
+	default:
+		return ErrForbidden
+	}
+	if cur != MovementOther {
+		return ErrNotWithOperator
+	}
+	return nil
 }
 
 // linkByHand checks the items and creates (or finds) the manual match.

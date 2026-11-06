@@ -100,7 +100,8 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 			       select p.movement_id from matching.pending p
 			        where p.run_id in (select id from latest) and p.tray = 'exception'
 			          and not exists (select 1 from matching.movement_decision_state s
-			                           where s.tenant_id = p.tenant_id and s.movement_id = p.movement_id and s.action is not null))
+			                           where s.tenant_id = p.tenant_id and s.movement_id = p.movement_id
+			                            and s.action is not null and s.action <> 'return'))
 			select (select count(*) from open_moves),
 			       (select min(l.date) from ledger.movements l where l.id in (select movement_id from open_moves))`,
 			period).Scan(&openMoves, &oldest); err != nil {
@@ -197,7 +198,7 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 			}
 		} else {
 			m("open_exception_movements", "Movimientos sin explicar", "count", "/v1/matching/pending?tray=exception&period="+period,
-				measured(float64(openMoves)), "Movimientos del mes en Excepciones sin candidato y sin decisión del cliente, según la última corrida")
+				measured(float64(openMoves)), "Movimientos del mes en Excepciones sin candidato, sin decisión del cliente o devueltos por el operador, según la última corrida")
 			m("open_exception_matches", "Sugerencias esperando al cliente", "count", "/v1/matching/matches?tray=exception&period="+period,
 				measured(float64(openMatches)), "Sugerencias del mes que el operador mandó a Excepciones y el cliente no decidió")
 			if oldest == nil {

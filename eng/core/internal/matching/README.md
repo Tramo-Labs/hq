@@ -94,6 +94,7 @@ Who decides what (product spec sections 1 and 5), enforced in `Record`:
 | Suggested | operator | approve, reject, escalate to Exceptions |
 | Exceptions (escalated matches) | owner, approver | approve, reject, other (note required, back to the operator) |
 | Exceptions (movements with no candidate) | owner, approver | other (note required), link by hand (exact sum) |
+| Suggested (movements the client marked other) | operator | resolve (note required), link by hand, return to the client (note required) |
 | Any of the above | who decides that tray | revert the decision in effect |
 
 Nothing about the decider is input: the user is the scope's; the role is
@@ -129,6 +130,23 @@ on the movement itself with `DecideMovement`
   already settled by a match in effect cannot be linked (`item_taken`).
 - Only a movement that the latest run of its month left in Exceptions
   without a candidate can be decided (`not_in_exceptions`).
+
+After the client's `other` the movement is the operator's (F4, migration
+00106). The operator answers with:
+
+- `resolve`: note required (what was done with it). It leaves both trays,
+  also on the next runs.
+- `link`: same rules as the client's link.
+- `return`: note required (what the operator needs). It is back in the
+  client's Exceptions with reason `operator_returned` and the operator's
+  note, and the client decides again (`other` or `link`).
+
+The operator acts only on a movement whose decision in effect is the
+client's `other` (409 `not_with_operator`). Each side reverts only its own
+row (403 otherwise). The decision in effect is the latest row that is not a
+reversion and that nobody reverted, so reverting the operator's answer puts
+the client's `other` back in effect instead of erasing it.
+`open_exception_movements` counts returned movements as open.
 
 `matching.movement_decisions` is append only (trigger), RLS forced, one
 row per revision.

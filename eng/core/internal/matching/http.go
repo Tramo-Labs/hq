@@ -179,6 +179,8 @@ func decisionProblem(err error) error {
 		return conflict("period_closed", ErrClosed.Error())
 	case errors.Is(err, ErrNotInExceptions):
 		return conflict("not_in_exceptions", ErrNotInExceptions.Error())
+	case errors.Is(err, ErrNotWithOperator):
+		return conflict("not_with_operator", ErrNotWithOperator.Error())
 	case errors.Is(err, ErrItemTaken):
 		return conflict("item_taken", ErrItemTaken.Error())
 	case errors.Is(err, ErrActionNotInTray), errors.Is(err, ErrLinkDoesNotAdd), errors.Is(err, ErrInvalid):
