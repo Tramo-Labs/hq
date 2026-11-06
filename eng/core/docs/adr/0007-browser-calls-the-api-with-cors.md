@@ -36,3 +36,7 @@ Consequences: `TRUSTED_PROXIES` in prod is only our Caddy. The client IP
 walk that skips trusted hops stays: in dev the Next proxy still exists.
 The `/v1` proxy of the web is for dev only. Not yet run against real
 browsers on real subdomains; the tests use the HTTP semantics only.
+
+Amendment, 2026-11-06: `Content-Disposition` is exposed too. Without it the
+browser cannot read the file name of an export and saves it under a generic
+name (found by frontend; `TestExportFileNameIsReadableFromThePortal`).

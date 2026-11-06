@@ -54,11 +54,12 @@ func (o Origins) List() []string {
 }
 
 // What the web sends and reads (D-18): the access token, JSON bodies and
-// the idempotency key; it reads Retry-After on a 429 and the request id.
+// the idempotency key; it reads Retry-After on a 429, the request id, and
+// Content-Disposition for the file name of an export.
 const (
 	corsAllowMethods  = "GET, POST, PUT, PATCH, DELETE"
 	corsAllowHeaders  = "Authorization, Content-Type, Idempotency-Key"
-	corsExposeHeaders = "Retry-After, X-Request-Id"
+	corsExposeHeaders = "Retry-After, X-Request-Id, Content-Disposition"
 	corsMaxAge        = "600"
 )
 

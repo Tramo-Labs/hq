@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -157,7 +158,7 @@ func TestCORSOnTheRouter(t *testing.T) {
 		t.Errorf("portal preflight: %d %v", res.StatusCode, res.Header)
 	}
 	res = do(http.MethodPost, "https://app.tramo.test")
-	if res.Header.Get("Access-Control-Expose-Headers") != "Retry-After, X-Request-Id" {
+	if res.Header.Get("Access-Control-Expose-Headers") != "Retry-After, X-Request-Id, Content-Disposition" {
 		t.Errorf("portal request: %v", res.Header)
 	}
 	for _, m := range []string{http.MethodOptions, http.MethodPost} {
@@ -165,5 +166,21 @@ func TestCORSOnTheRouter(t *testing.T) {
 		if v := res.Header.Get("Access-Control-Allow-Origin"); v != "" {
 			t.Errorf("%s from a foreign origin: allow origin %q", m, v)
 		}
+	}
+}
+
+// An export downloaded from the portal keeps its file name: the browser may
+// read Content-Disposition only if CORS exposes it (frontend found the
+// generic name, D-18).
+func TestExportFileNameIsReadableFromThePortal(t *testing.T) {
+	c := serveWithPortal(t)
+	own := c.registerAndLogin("molino-cd", "owner@cd.test")
+	r := c.do("GET", "/v1/exports/audit", own.access, nil, "Origin", portalOrigin)
+	if r.status != 200 || !strings.Contains(r.header.Get("Content-Disposition"), `filename="audit.csv"`) {
+		t.Fatalf("export: %d %v", r.status, r.header)
+	}
+	exposed := strings.Split(r.header.Get("Access-Control-Expose-Headers"), ", ")
+	if !slices.Contains(exposed, "Content-Disposition") || r.header.Get("Access-Control-Allow-Origin") != portalOrigin {
+		t.Fatalf("the portal cannot read the file name: %v", r.header)
 	}
 }

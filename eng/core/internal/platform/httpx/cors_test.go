@@ -43,7 +43,7 @@ func TestCORSAllowsOnlyListedOrigins(t *testing.T) {
 	if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
 		t.Error("credentials not allowed")
 	}
-	if got := w.Header().Get("Access-Control-Expose-Headers"); got != "Retry-After, X-Request-Id" {
+	if got := w.Header().Get("Access-Control-Expose-Headers"); got != "Retry-After, X-Request-Id, Content-Disposition" {
 		t.Errorf("expose headers %q", got)
 	}
 	if w.Header().Get("Vary") != "Origin" {
