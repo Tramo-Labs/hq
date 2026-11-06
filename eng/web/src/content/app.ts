@@ -276,8 +276,9 @@ export const app = {
     // Draft for producto (frontend, 06/11): login by emailed link.
     magic: {
       required: "Por seguridad, a esta cuenta hoy se entra con un enlace por mail.",
-      offer: "Podés entrar con un enlace que te mandamos al mail, sin contraseña.",
-      send: "Mandame un enlace",
+      offer: "¿No tenés contraseña o no la recordás? Te mandamos un enlace al mail para entrar.",
+      send: "Entrar con un enlace por mail",
+      needEmail: "Escribí tu email arriba y te mandamos el enlace.",
       sent: "Si ese email tiene cuenta en Tramo, te mandamos un enlace. Vale 15 minutos y sirve una sola vez.",
       eyebrow: "Entrar con enlace",
       opening: "Abriendo tu sesión…",

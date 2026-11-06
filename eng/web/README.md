@@ -72,8 +72,9 @@ sample person in their first company. Fine for demos and testing, not something 
 - The tenant comes from the token. Several memberships: pick one on `/entrar`; choosing and
   "Cambiar de empresa" call `POST /v1/auth/switch-tenant`, no password. Opened directly or
   reloaded, the switch page restores the session from the cookie first.
-- Login answers that still let the person in by email (429 with `magicLink`, 401
-  `magic_link_required`) offer "Mandame un enlace" (`POST /v1/auth/magic-link`, always 202).
+- `/entrar` always offers "Entrar con un enlace por mail" (`POST /v1/auth/magic-link`), also
+  after a 401 or a 429: an invited person with no password has no other way in, and the core
+  always answers 202, so it reveals nothing about which emails exist (F32).
 - `/ingresar` and `/invitacion` read the token from the URL fragment (never sent to a server),
   wipe it from the address bar and history on read, and send no referrer.
 - The header shows the person's name from `/v1/me`, or the email while it is null; "Tu nombre"

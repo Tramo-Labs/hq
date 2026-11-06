@@ -42,9 +42,6 @@ function safeBack(back: string | undefined, role: Session["role"]) {
   return area && areaAllows(area, role) ? u.pathname + u.search + u.hash : homeFor(role);
 }
 
-/** Login answers that still let the person in by an emailed link. */
-const offersLink = (e: unknown) => e instanceof ApiError && ((e.status === 429 && e.magicLink) || e.code === "magic_link_required");
-
 function explain(e: unknown) {
   if (e instanceof ApiError) {
     if (e.code === "magic_link_required") return s.magic.required;
@@ -107,13 +104,15 @@ function LoginForm({ back, tenantId, expired, current }: LoginProps & { current:
   const [chosen, setChosen] = useState(tenantId ?? current?.tenantId ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // "Mandame un enlace": offered after a 429 with magicLink or a 401 magic_link_required.
-  const [linkOffer, setLinkOffer] = useState(false);
+  // "Entrar con un enlace por mail" is always offered (F32): an invited person with no password, or
+  // one who lost the invitation, has no other way in. The core always answers 202, so it reveals
+  // nothing about which emails exist.
   const [linkSent, setLinkSent] = useState(false);
   const [linkKey] = useState(() => crypto.randomUUID());
 
   async function sendLink() {
     if (busy) return;
+    if (!email.trim()) return setError(s.magic.needEmail);
     setBusy(true);
     setError(null);
     try {
@@ -154,7 +153,6 @@ function LoginForm({ back, tenantId, expired, current }: LoginProps & { current:
       go(session);
     } catch (err) {
       setError(explain(err));
-      if (offersLink(err)) setLinkOffer(true);
     } finally {
       setBusy(false);
     }
@@ -207,14 +205,14 @@ function LoginForm({ back, tenantId, expired, current }: LoginProps & { current:
         </div>
       </form>
 
-      {linkOffer && !current && (
+      {askCredentials && (
         <div className="mt-6 grid gap-3 rounded-xl border border-white/15 p-4">
           {linkSent ? (
             <p role="status" className="text-[14.5px] text-white/85">{s.magic.sent}</p>
           ) : (
             <>
               <p className="text-[14.5px] text-white/80">{s.magic.offer}</p>
-              <button type="button" disabled={busy || !email.trim()} aria-busy={busy} className={`${ghostBtn} w-fit`} onClick={sendLink}>{s.magic.send}</button>
+              <button type="button" disabled={busy} aria-busy={busy} className={`${ghostBtn} w-fit`} onClick={sendLink}>{s.magic.send}</button>
             </>
           )}
         </div>
