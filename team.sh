@@ -18,7 +18,7 @@ MODO="team"
 case "${1:-}" in
   --bg)     MODO="bg"; shift ;;
   --status) claude agents; exit $? ;;
-  --stop)   for r in $ROLES lead; do claude agents stop "$r" >/dev/null 2>&1 || true; done; echo "paradas"; exit 0 ;;
+  --stop)   claude agents --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); d=d if isinstance(d,list) else d.get('agents',d.get('sessions',[])); [print(a['id']) for a in d if a.get('kind')=='background' and a.get('cwd','').startswith('$HOME/tramo')]" | xargs -r -n1 claude stop >/dev/null 2>&1; echo "paradas"; exit 0 ;;
   -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 esac
 OBJ="${1:-$(sed -n 's/^Objetivo de la semana: //p' TEAM.md)}"
@@ -26,13 +26,13 @@ OBJ="${1:-$(sed -n 's/^Objetivo de la semana: //p' TEAM.md)}"
 NOMBRE="team-$(date +%d%H%M)"
 
 if [ "$MODO" = "team" ]; then
-  exec claude --agent lead -n "$NOMBRE" --permission-mode acceptEdits \
+  exec claude --agent lead -n "$NOMBRE" --permission-mode auto \
     "Objetivo: $OBJ. Leé TEAM.md y CLAUDE.md. Spawneá un teammate por rol usando los agent types producto, backend, datos, frontend, ventas y qa. Asigná las tareas del tablero, mantenelo al día, y reportame en castellano corto cuando terminen."
 fi
 
 for r in $ROLES; do
-  claude --bg --agent "$r" -n "$r" --worktree "$r" --permission-mode acceptEdits \
+  claude --bg --agent "$r" -n "$r" --worktree "$r" --permission-mode auto \
     "Sos el teammate $r. Objetivo: $OBJ. Leé TEAM.md y CLAUDE.md, tomá tus tareas, y avisá al lead por SendMessage (usá ListAgents para encontrarlo) cuando termines o te trabes."
 done
-claude --bg --agent lead -n lead --permission-mode acceptEdits \
+claude --bg --agent lead -n lead --permission-mode auto \
   "Objetivo: $OBJ. Los teammates producto, backend, datos, frontend, ventas y qa ya corren como sesiones de fondo en sus worktrees. Coordinalos por SendMessage, integrá sus ramas worktree-<rol> y mantené TEAM.md."
