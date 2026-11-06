@@ -16,9 +16,17 @@ var ErrInvalidName = errors.New("text: invalid name")
 
 // blankLooking are characters that render as blank but are letters or
 // symbols to Unicode, so no category rule catches them: the Hangul fillers
-// (U+3164, U+115F, U+1160, U+FFA0) and the Braille blank (U+2800). The
-// same list as the person's name in identity.
+// (U+3164, U+115F, U+1160, U+FFA0) and the Braille blank (U+2800).
 var blankLooking = map[rune]bool{0x3164: true, 0x115F: true, 0x1160: true, 0xFFA0: true, 0x2800: true}
+
+// Invisible reports a character that changes how text reads without
+// showing itself: controls, format characters (Cf: zero width, soft
+// hyphen, the bidi controls), line and paragraph separators, and the blank
+// looking letters. The one list every module uses: no name, email or note
+// field keeps its own.
+func Invisible(r rune) bool {
+	return unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) || blankLooking[r]
+}
 
 // HasLetterOrNumber reports whether s has at least one letter or number
 // that shows: zero width spaces, bidi controls, spaces of any kind and the
@@ -37,14 +45,15 @@ func HasLetterOrNumber(s string) bool {
 // more than max characters, invalid UTF-8, control or format characters
 // (zero width, the bidi controls that flip how the rest of a line reads),
 // line or paragraph separators, blank looking letters, or no letter or
-// number at all. It is the rule identity applies to a person's name.
+// number at all. Identity applies it to a person's and a company's name,
+// ledger to an account's.
 func Name(s string, max int) (string, error) {
 	s = strings.TrimSpace(s)
 	if s == "" || !utf8.ValidString(s) || utf8.RuneCountInString(s) > max {
 		return "", ErrInvalidName
 	}
 	for _, r := range s {
-		if unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) || blankLooking[r] {
+		if Invisible(r) {
 			return "", ErrInvalidName
 		}
 	}

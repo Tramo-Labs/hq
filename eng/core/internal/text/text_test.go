@@ -35,3 +35,17 @@ func TestName(t *testing.T) {
 		t.Errorf("120 characters: %v", err)
 	}
 }
+
+func TestInvisible(t *testing.T) {
+	for _, r := range []rune{'\u200b', '\u200d', '\ufeff', '\u00ad', '\u202e', '\u2066', '\u2028', '\u2029', '\n', '\x00',
+		'\u3164', '\u115f', '\u1160', '\uffa0', '\u2800'} {
+		if !Invisible(r) {
+			t.Errorf("%U passes as visible", r)
+		}
+	}
+	for _, r := range []rune{'a', 'ñ', '7', '@', '.', '-', ' ', '給'} {
+		if Invisible(r) {
+			t.Errorf("%U refused as invisible", r)
+		}
+	}
+}

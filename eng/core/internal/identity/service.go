@@ -25,6 +25,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	mailer "github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/ratelimit"
+	"github.com/Tramo-Labs/hq/eng/core/internal/text"
 )
 
 // Roles (enum role in migration 00001).
@@ -704,7 +705,7 @@ func validRole(r string) bool {
 func normalizeEmail(s string) (string, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	for _, r := range s {
-		if invisible(r) {
+		if text.Invisible(r) {
 			return "", ErrInvalidEmail
 		}
 	}

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/Tramo-Labs/hq/eng/core/internal/text"
 )
 
 // The 120 character limit lives in the code too, not only in the spec:
@@ -54,6 +56,23 @@ func TestNameRefusesInvisibleAndBidiCharacters(t *testing.T) {
 	for _, s := range []string{"Ana Pérez", "O'Brien", "José-María", "李小龙", "Ana (contadora)", "Ana 2"} {
 		if got, err := normalizeName(s); err != nil || got != s {
 			t.Errorf("%q refused: %v", s, err)
+		}
+	}
+}
+
+// One rule list (internal/text): whatever text refuses as invisible,
+// identity refuses in a name, a company name and an email.
+func TestIdentityUsesTheSharedTextRules(t *testing.T) {
+	for r := rune(0); r <= 0x10FFFF; r++ {
+		if !text.Invisible(r) || (r >= 0xD800 && r <= 0xDFFF) {
+			continue
+		}
+		s := string(r)
+		if _, err := normalizeName("Ana" + s + "Paz"); err == nil {
+			t.Fatalf("name with %U accepted", r)
+		}
+		if _, err := normalizeEmail("ana" + s + "@paz.test"); err == nil {
+			t.Fatalf("email with %U accepted", r)
 		}
 	}
 }
