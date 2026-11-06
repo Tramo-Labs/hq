@@ -338,7 +338,10 @@ export const app = {
     // Draft for producto (frontend, 06/11): accepting an invitation.
     invite: {
       eyebrow: "Invitación",
-      confirmTitle: "Te invitaron a Tramo.",
+      previewing: "Buscando los datos de la invitación…",
+      invitedTo: (tenant: string) => `Te invitaron a ${tenant}.`,
+      asRole: (role: string) => `Vas a entrar con el rol ${role}.`,
+      retry: "Probar de nuevo",
       confirmBody: "Si ya tenés cuenta en Tramo, entrás con ella al aceptar. Si no, en el paso siguiente elegís un nombre y una contraseña.",
       accept: "Aceptar la invitación",
       title: "Sumate a Tramo.",

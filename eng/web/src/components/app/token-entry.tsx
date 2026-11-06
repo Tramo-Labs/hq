@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { app } from "@/content/app";
-import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, whoIsIn, type Session } from "@/lib/api";
-import { acceptStep, inviteStep, passwordProblem, type InviteStage } from "@/components/app/invite-rules";
+import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, previewInvite, whoIsIn, type Session } from "@/lib/api";
+import { acceptStep, inviteStep, needsPreview, offersAccept, passwordProblem, previewFailed, type InviteStage, type PreviewState } from "@/components/app/invite-rules";
 import { tokenProblem } from "@/components/app/token-rules";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
@@ -58,6 +58,10 @@ export function InviteEntry() {
   const [tried, setTried] = useState(false);
   // D-19: accept with the link alone first; the password step only for a person with no account.
   const [stage, setStage] = useState<InviteStage>("confirm");
+  // F38: which company and role, asked once before offering the accept (shares the cap with it).
+  const [preview, setPreview] = useState<PreviewState>({ status: "idle" });
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewing = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -67,6 +71,16 @@ export function InviteEntry() {
     if (!absent) whoIsIn().then((s) => { if (live) setWho(s); }, () => { if (live) setWho(null); });
     return () => { live = false; };
   }, []);
+
+  useEffect(() => {
+    const t = token.current;
+    if (!t || previewing.current || !needsPreview(inviteStep(who), stage, preview)) return;
+    previewing.current = true;
+    Promise.resolve()
+      .then(() => { setPreview({ status: "loading" }); return previewInvite(t); })
+      .then((p) => setPreview({ status: "ready", tenantName: p.tenantName, role: p.role }), (e) => { setPreviewError(explainToken(e, v.invalid)); setPreview(previewFailed(e)); })
+      .finally(() => { previewing.current = false; });
+  }, [who, stage, preview, v.invalid]);
 
   const problem = tried ? passwordProblem(password, confirm) : null;
   const shown = problem === "too_short" ? v.tooShort : problem === "mismatch" ? v.mismatch : error;
@@ -91,6 +105,7 @@ export function InviteEntry() {
     e.preventDefault();
     if (stage === "password") setTried(true);
     if (busy || !token.current || inviteStep(who) !== "form") return;
+    if (stage === "confirm" && !offersAccept(preview)) return;
     if (stage === "password" && passwordProblem(password, confirm)) return;
     setBusy(true);
     setError(null);
@@ -161,12 +176,26 @@ export function InviteEntry() {
     return (
       <>
         <p className="font-mono text-[12px] tracking-wide text-white/60">{v.eyebrow}</p>
-        <h1 className="mt-3 text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{v.confirmTitle}</h1>
-        <p className="mt-4 text-[16px] leading-relaxed text-white/70">{v.confirmBody}</p>
-        <form onSubmit={submit} aria-describedby={error ? ids.error : undefined} className="mt-8 grid gap-5">
-          {error && <p id={ids.error} role="alert" className="text-[14.5px] text-accent">{error}</p>}
-          <button type="submit" disabled={busy} aria-busy={busy} className={`${primaryBtn} w-fit`}>{busy ? v.submitting : v.accept}</button>
-        </form>
+        {preview.status === "ready" ? (
+          <>
+            <h1 className="mt-3 break-words text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{v.invitedTo(preview.tenantName)}</h1>
+            <p className="mt-4 text-[16px] leading-relaxed text-white/85">{v.asRole(app.roles[preview.role])}</p>
+            <p className="mt-2 text-[16px] leading-relaxed text-white/70">{v.confirmBody}</p>
+            <form onSubmit={submit} aria-describedby={error ? ids.error : undefined} className="mt-8 grid gap-5">
+              {error && <p id={ids.error} role="alert" className="text-[14.5px] text-accent">{error}</p>}
+              <button type="submit" disabled={busy} aria-busy={busy} className={`${primaryBtn} w-fit`}>{busy ? v.submitting : v.accept}</button>
+            </form>
+          </>
+        ) : preview.status === "failed" ? (
+          <>
+            <p role="alert" className="mt-4 text-[16px] leading-relaxed text-accent">{previewError}</p>
+            {preview.retry
+              ? <button type="button" onClick={() => setPreview({ status: "idle" })} className={`${ghostBtn} mt-6`}>{v.retry}</button>
+              : <Link href="/entrar" className={`${ghostBtn} mt-6`}>{app.session.magic.again}</Link>}
+          </>
+        ) : (
+          <p role="status" className="mt-4 text-[16px] text-white/80">{v.previewing}</p>
+        )}
       </>
     );
   }

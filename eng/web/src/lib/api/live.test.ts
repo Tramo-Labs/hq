@@ -3,7 +3,7 @@
 // A fake core in memory plays the browser's cookie jar and the core's rotation rule.
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { refresh, request, switchTenant } from "./live";
+import { previewInvite, refresh, request, switchTenant } from "./live";
 import { getSession, setSession } from "./session";
 
 const T1 = "00000000-0000-4000-8000-000000000001";
@@ -102,4 +102,29 @@ test("two refreshes at once share one flight", async () => {
   assert.equal(a, b);
   assert.deepEqual(core.auth, ["refresh"]);
   assert.equal(core.revoked, false);
+});
+
+// F38: the invitation preview is anonymous and keeps the token out of the URL.
+test("previewInvite posts the token in the body only, with no session and no Idempotency-Key", async () => {
+  const token = "t".repeat(43);
+  const seen: { url: string; method?: string; headers: Headers; body: unknown }[] = [];
+  globalThis.fetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
+    seen.push({ url: String(input), method: init.method, headers: new Headers(init.headers), body: JSON.parse(String(init.body)) });
+    return reply(200, { tenantName: "Molino Alfa", role: "viewer" });
+  }) as typeof fetch;
+  setSession({ accessToken: "a-secret", tenantId: T1, tenantName: "x", role: "owner", email: "o@x.test", name: null, memberships: [] });
+  assert.deepEqual(await previewInvite(token), { tenantName: "Molino Alfa", role: "viewer" });
+  assert.equal(seen.length, 1);
+  const [r] = seen;
+  assert.equal(new URL(r.url, "http://web.test").pathname, "/v1/auth/invite/preview");
+  assert.equal(r.method, "POST");
+  assert.ok(!r.url.includes(token), "the token never goes in the URL");
+  assert.deepEqual(r.body, { token });
+  assert.equal(r.headers.get("Authorization"), null);
+  assert.equal(r.headers.get("Idempotency-Key"), null);
+});
+
+test("previewInvite answers like accept: the core's error comes back as is", async () => {
+  globalThis.fetch = (async () => reply(403, { code: "not_a_member" })) as typeof fetch;
+  await assert.rejects(previewInvite("t".repeat(43)), (e: unknown) => (e as { code?: string }).code === "not_a_member");
 });

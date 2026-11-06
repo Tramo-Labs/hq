@@ -1,6 +1,6 @@
 import { ApiError, SessionExpired } from "./errors";
 import { getSession, setSession, type Session } from "./session";
-import type { Me, Tokens } from "./types";
+import type { InvitePreview, Me, Tokens } from "./types";
 
 /**
  * The real core. In production (D-18) the browser calls the API origin directly
@@ -79,6 +79,16 @@ export async function acceptInvite(token: string, password?: string, name?: stri
     body: JSON.stringify({ token, password, name, tokenDelivery: "cookie" }),
   });
   return open(await tokens(res));
+}
+
+/**
+ * What an invitation is for, before accepting it (F38): the company and the role. Anonymous, the
+ * token in the body (never in the URL); it does not spend the token. Same errors as accept.
+ */
+export async function previewInvite(token: string): Promise<InvitePreview> {
+  const res = await call("/v1/auth/invite/preview", { method: "POST", headers: json, body: JSON.stringify({ token }) });
+  if (!res.ok) throw await ApiError.from(res);
+  return (await res.json()) as InvitePreview;
 }
 
 let refreshing: Promise<Session> | null = null;

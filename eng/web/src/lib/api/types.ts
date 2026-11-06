@@ -50,6 +50,9 @@ export type Tokens = {
 
 export type Membership = { tenantId: string; tenantName: string; role: Role };
 
+/** POST /v1/auth/invite/preview (F38): what the invitation is for. Does not spend the token. */
+export type InvitePreview = { tenantName: string; role: Role };
+
 /** GET /v1/tenant/members item. pending until the person accepts the invitation (D-19); a pending person's name is never shown. */
 export type Member = { userId: string; email: string; name: string | null; role: Role; status: "active" | "pending" };
 

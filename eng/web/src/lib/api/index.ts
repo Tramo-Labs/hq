@@ -3,7 +3,7 @@ import * as live from "./live";
 import { getMode, getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus, ItemDirection, OpenItems, Member,
+  Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus, ItemDirection, OpenItems, Member, InvitePreview,
 } from "./types";
 
 export type * from "./types";
@@ -20,7 +20,7 @@ export { endedElsewhere, getMode, getSession, subscribe, type Mode, type Session
  *
  * Paths used (eng/core/api/openapi.yaml):
  *   POST /v1/auth/login | refresh | logout | switch-tenant
- *   POST /v1/auth/magic-link | magic-link/accept | invite/accept
+ *   POST /v1/auth/magic-link | magic-link/accept | invite/preview | invite/accept
  *   GET  /v1/me, PATCH /v1/me                    GET /v1/me/tenant
  *   GET  /v1/tenants (operator, accountant)      GET /v1/ledger/accounts, /v1/ledger/quarantine
  *   GET  /v1/matching/matches?tray=&period=      GET /v1/matching/pending?tray=&period=
@@ -52,6 +52,11 @@ export async function requestMagicLink(email: string, idempotencyKey: string, te
 /** POST /v1/auth/magic-link/accept with the token from the link, and the session it opens. */
 export async function acceptMagicLink(token: string) {
   return isLive() ? live.acceptMagicLink(token) : (await sample()).acceptMagicLink();
+}
+
+/** POST /v1/auth/invite/preview: the company and role of an invitation, before accepting (F38). */
+export async function previewInvite(token: string): Promise<InvitePreview> {
+  return isLive() ? live.previewInvite(token) : (await sample()).previewInvite();
 }
 
 /** POST /v1/auth/invite/accept: an existing account with the link alone; a new person also sets a password (and a name). */

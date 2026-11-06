@@ -2,7 +2,33 @@
 // message is the one that applies to what is typed now.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { acceptIfNobodyIn, acceptStep, inviteStep, passwordProblem } from "./invite-rules";
+import { acceptIfNobodyIn, acceptStep, inviteStep, needsPreview, offersAccept, passwordProblem, previewFailed, type PreviewState } from "./invite-rules";
+
+// F38: the company and the role before the accept button, asked once and only when it is offered.
+const idle: PreviewState = { status: "idle" };
+const ready: PreviewState = { status: "ready", tenantName: "Molino Alfa", role: "viewer" };
+
+test("the preview is asked only on the first step with nobody in, and only once (F38)", () => {
+  assert.equal(needsPreview("form", "confirm", idle), true);
+  assert.equal(needsPreview("signed_in", "confirm", idle), false, "someone is in: F33 first");
+  assert.equal(needsPreview("checking", "confirm", idle), false);
+  assert.equal(needsPreview("form", "password", idle), false, "already past the preview");
+  for (const p of [{ status: "loading" }, ready, { status: "failed", problem: "offline", retry: true }] as PreviewState[]) {
+    assert.equal(needsPreview("form", "confirm", p), false, p.status);
+  }
+});
+
+test("accepting is offered only once the preview said the company and role (F38)", () => {
+  assert.equal(offersAccept(ready), true);
+  for (const p of [idle, { status: "loading" }, previewFailed(new ApiError(429, "rate_limited"))] as PreviewState[]) assert.equal(offersAccept(p), false, p.status);
+});
+
+test("a dead link shows no retry; a passing problem does (F38)", () => {
+  assert.deepEqual(previewFailed(new ApiError(401, "invalid_invite")), { status: "failed", problem: "invalid", retry: false });
+  assert.deepEqual(previewFailed(new ApiError(403, "not_a_member")), { status: "failed", problem: "not_member", retry: false });
+  assert.deepEqual(previewFailed(new ApiError(429, "rate_limited", undefined, 30)), { status: "failed", problem: "rate_limited", retry: true });
+  assert.deepEqual(previewFailed(new TypeError("Failed to fetch")), { status: "failed", problem: "offline", retry: true });
+});
 import { ApiError } from "../../lib/api/errors";
 
 // D-19 (F26): one link for everyone; the page accepts with the link alone first.

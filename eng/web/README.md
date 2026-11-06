@@ -129,6 +129,12 @@ accept without a password: an existing account is in with that, and its password
 Only a 400 password_required (the link stays usable) opens the name and password step. Both
 sends go through the F33 re-check. `invite-rules.test.ts` covers both paths.
 
+Before the accept button the page says which company and role the invitation is for (F38):
+POST /v1/auth/invite/preview with the token in the body, anonymous, once per page and only when
+nobody is in (it shares the per-IP cap with accept and does not spend the token). The button shows
+only after the preview answered; a dead link (401, 403) shows its message and a way to /entrar,
+a passing problem (429, offline) a retry. Sample mode answers 401, like its accept.
+
 Miembros (`/app/miembros`, owner only, spec §1, D-19): who has access and who is invited, apart;
 invite by email with the roles the core lets an owner give (owner, approver, viewer, accountant;
 never operator); remove an active person or cancel a pending invitation, each after a

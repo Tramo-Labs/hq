@@ -3,7 +3,7 @@ import * as fx from "./fixtures";
 import { getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, Role, TenantStatus, ItemDirection, OpenItems, Member,
+  Page, PendingMovement, PendingTray, Role, TenantStatus, ItemDirection, OpenItems, Member, InvitePreview,
 } from "./types";
 
 /**
@@ -83,6 +83,11 @@ export async function switchTenant(tenantId: string) {
 
 /** Sample mode sends no invitations either: any token is unknown (401 invalid_invite). */
 export async function acceptInvite(): Promise<Session> {
+  throw new ApiError(401, "invalid_invite");
+}
+
+/** Like accept: sample mode has no invitations, so any token is unknown (401 invalid_invite). */
+export async function previewInvite(): Promise<InvitePreview> {
   throw new ApiError(401, "invalid_invite");
 }
 

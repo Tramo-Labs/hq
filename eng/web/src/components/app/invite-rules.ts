@@ -1,6 +1,8 @@
 // The /invitacion rules, kept apart from the component so node --test can check them without
 // rendering React.
 import { ApiError } from "../../lib/api/errors";
+import type { Role } from "../../lib/api/types";
+import { tokenProblem, type TokenProblem } from "./token-rules";
 
 /**
  * What the invitation page shows, given who is signed in on this browser: undefined while it is
@@ -58,6 +60,30 @@ export async function acceptStep<W extends { email: string }, S>(
     throw e;
   }
 }
+
+/**
+ * F38: before the accept button the page says which company and which role the invitation is
+ * for. The preview is asked once, only when the page would offer the accept (nobody in, first
+ * step), since it shares the per-IP cap with accept. Accepting is offered only once the preview
+ * answered: a dead link (401, 403) shows its message and no button; a passing problem (429,
+ * offline) shows its message and a retry.
+ */
+export type PreviewState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; tenantName: string; role: Role }
+  | { status: "failed"; problem: TokenProblem; retry: boolean };
+
+export function needsPreview(step: InviteStep, stage: InviteStage, preview: PreviewState) {
+  return step === "form" && stage === "confirm" && preview.status === "idle";
+}
+
+export function previewFailed(e: unknown): PreviewState {
+  const problem = tokenProblem(e);
+  return { status: "failed", problem, retry: problem !== "invalid" && problem !== "not_member" };
+}
+
+export const offersAccept = (preview: PreviewState) => preview.status === "ready";
 
 export type PasswordProblem = "too_short" | "mismatch";
 
