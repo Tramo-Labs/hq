@@ -3,6 +3,7 @@ import Link from "next/link";
 import { site } from "@/content/site";
 import { app } from "@/content/app";
 import { Login } from "@/components/app/login";
+import { getMode } from "@/lib/api";
 
 export const metadata: Metadata = { title: `${app.session.eyebrow} · ${site.name}`, robots: { index: false } };
 
@@ -17,6 +18,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
           <Link href="/" className="inline-flex min-h-11 items-center text-[17px] font-medium tracking-tight">{site.name}</Link>
         </div>
       </header>
+      {getMode() === "sample" && <p className="border-b border-accent/30 bg-accent/10 px-4 py-2 text-center font-mono text-[12px] text-accent">{app.sample}</p>}
       <main id="contenido" className="mx-auto max-w-md px-4 pb-24 pt-10 sm:pt-16">
         <Login back={one(sp.volver)} switching={one(sp.cambiar) === "1"} tenantId={one(sp.empresa)} expired={one(sp.motivo) === "vencida"} />
       </main>

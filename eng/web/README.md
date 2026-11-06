@@ -3,7 +3,22 @@
 Landing (`/`), client portal (`/app`), operator console (`/operador`) and login (`/entrar`).
 Next.js 16 and Tailwind 4. Copy lives in `src/content/` (`site.ts` and `app.ts`, owned by producto).
 
-## Two modes
+## Portal on or off
+
+`PORTAL_ENABLED` decides whether `/entrar`, `/app` and `/operador` exist. Their route files are
+named `*.portal.tsx` and only count as routes when it is on (`pageExtensions` in
+`next.config.ts`), so with it off they are not compiled at all.
+
+| Command | Default | Override |
+|---|---|---|
+| `npm run build` (production) | off: landing only, the portal paths answer 404 | `PORTAL_ENABLED=1` |
+| `npm run dev` | on | `PORTAL_ENABLED=0` |
+
+Checked on 06/11: off builds only `/` and `/_not-found`; `/entrar`, `/app`, `/operador` and
+`/v1/*` answer 404; the built output has no login copy, sample logins, `/v1/auth`, `/entrar`
+or `/operador`. On builds all ten routes. The landing never links to the portal.
+
+## Two modes (portal on)
 
 | `CORE_API_URL` | Mode | What the portal and the console read |
 |---|---|---|
@@ -14,8 +29,10 @@ The mode and the rewrite are compiled into the build: set `CORE_API_URL` for `np
 and keep it for `npm run start`. Only the mode reaches the browser bundle, never the URL.
 
 ```bash
-npm run build && npm run start                                            # sample
-CORE_API_URL=http://localhost:8080 npm run build && CORE_API_URL=http://localhost:8080 npm run start   # live
+npm run build && npm run start                                            # landing only (production default)
+PORTAL_ENABLED=1 npm run build && PORTAL_ENABLED=1 npm run start          # portal on sample data
+export PORTAL_ENABLED=1 CORE_API_URL=http://localhost:8080
+npm run build && npm run start                                            # portal on the core
 ```
 
 ## Sessions (live mode)
