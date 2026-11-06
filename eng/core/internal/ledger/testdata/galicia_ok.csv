@@ -1,0 +1,11 @@
+Fecha;Descripción;Origen;Débitos;Créditos;Grupo de Conceptos;Concepto;Número de Terminal;Observaciones Cliente;Número de Comprobante;Leyendas Adicionales 1;Leyendas Adicionales 2;Tipo de Movimiento;Saldo
+10/10/2026;PERCEPCION IIBB SIRCREB;Sucursal;9.307,52;;Varios;Varios;;;000109;;;Pesos;1.664.434,73
+09/10/2026;ECHEQ 00012345 COBRADO;Sucursal;;310.250,75;Varios;Varios;;;000108;;;Pesos;1.673.742,25
+08/10/2026;IMP LEY 25413 DEBITO;Sucursal;723,00;;Varios;Varios;;;000107;;;Pesos;1.363.491,50
+06/10/2026;TRANSFERENCIA RECIBIDA CLIENTE DOS;Sucursal;;100.000,00;Varios;Varios;;;000106;;;Pesos;1.364.214,50
+06/10/2026;TRANSFERENCIA RECIBIDA CLIENTE DOS;Sucursal;;100.000,00;Varios;Varios;;;000106;;;Pesos;1.264.214,50
+06/10/2026;DEPOSITO EN EFECTIVO;Sucursal;;45.000,00;Varios;Varios;;;000105;;;Pesos;1.164.214,50
+03/10/2026;IVA 21% S/COMISION;Sucursal;1.785,00;;Varios;Varios;;;000104;;;Pesos;1.119.214,50
+02/10/2026;COMISION MANTENIMIENTO CUENTA;Sucursal;8.500,00;;Varios;Varios;;;000103;;;Pesos;1.120.999,50
+02/10/2026;PAGO PROVEEDOR EJEMPLO SA;Sucursal;120.500,50;;Varios;Varios;;;000102;;;Pesos;1.129.499,50
+01/10/2026;TRANSFERENCIA RECIBIDA CLIENTE UNO;Sucursal;;250.000,00;Varios;Varios;;;000101;;;Pesos;1.250.000,00
