@@ -118,16 +118,16 @@ func inviteMessage(base, to, tenantName, role, token string, hasPassword bool) m
 	}
 }
 
-// roleLabel is a role's name in the product's Spanish, the same the portal
-// shows (eng/web/src/content/app.ts).
+// roleLabel is a role's name in the product's Spanish, as product/GUIA-DE-USO.md
+// names it and the portal shows it (eng/app/src/content/app.ts).
 func roleLabel(role string) string {
 	switch role {
 	case RoleOwner:
-		return "titular"
+		return "dueño"
 	case RoleApprover:
 		return "aprobador"
 	case RoleViewer:
-		return "lectura"
+		return "solo lectura"
 	case RoleAccountant:
 		return "contador"
 	case RoleOperator:

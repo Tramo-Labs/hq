@@ -167,7 +167,7 @@ invitation; adding an active member is 409 `already_member`.
   were lowercased).
 - **Copy.** Invitation and magic link emails are in Spanish with voseo
   (F31, `TestEmailsAreInSpanish`), roles named as the portal names them
-  (titular, aprobador, lectura, contador, operador). Backend wrote the
+  (dueño, aprobador, solo lectura, contador, operador, as in product/GUIA-DE-USO.md). Backend wrote the
   text; producto owns it from here.
 
 ## Removing a member

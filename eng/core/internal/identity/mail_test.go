@@ -22,7 +22,7 @@ func TestEmailsAreInSpanish(t *testing.T) {
 			}
 		}
 	}
-	for role, label := range map[string]string{RoleOwner: "titular", RoleApprover: "aprobador", RoleViewer: "lectura", RoleAccountant: "contador", RoleOperator: "operador"} {
+	for role, label := range map[string]string{RoleOwner: "dueño", RoleApprover: "aprobador", RoleViewer: "solo lectura", RoleAccountant: "contador", RoleOperator: "operador"} {
 		m := inviteMessage("https://app.test", "a@b.test", "Molino Alfa", role, "TOKEN", false)
 		check("invitation as "+role, m.Subject+"\n"+m.Body, "Molino Alfa", "con el rol "+label, "Elegí tu contraseña", "https://app.test/invitacion#token=TOKEN", "72 horas")
 	}
