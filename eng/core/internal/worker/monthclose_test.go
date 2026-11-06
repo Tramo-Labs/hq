@@ -74,11 +74,66 @@ func TestMonthCloseEnqueuesEveryTenantOnce(t *testing.T) {
 	}
 	noMore(t, events, matching.MonthArgs{}.Kind(), 2*time.Second)
 
+	// qa's repro: River forgets completed jobs after 24 hours, and the
+	// schedule tries the same month every hour. Forget them now: the same
+	// month is enqueued again and runs, but the durable mark stops it.
+	if _, err := e.db.Pool.Exec(ctx, `delete from river.river_job where state = 'completed'`); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := jobs.Insert(ctx, inserter, close); err != nil || !ok {
+		t.Fatalf("after River forgot it, the month enqueues again: %v %v", ok, err)
+	}
+	completed(t, events, close.Kind(), 1, 15*time.Second)
+	noMore(t, events, matching.MonthArgs{}.Kind(), 2*time.Second)
+	var marks, marked int
+	if err := e.db.Pool.QueryRow(ctx, `select count(*), coalesce(max(tenants), 0) from platform.month_closes where period = '2026-10'`).Scan(&marks, &marked); err != nil || marks != 1 || marked != len(tenants) {
+		t.Fatalf("marks of 2026-10: %d (tenants %d), %v; want 1 for %d tenants", marks, marked, err, len(tenants))
+	}
+
 	// One run of October per tenant, under its own scope.
 	for _, id := range tenants {
 		var n int
 		if err := e.db.Pool.QueryRow(ctx, `select count(*) from matching.runs where tenant_id = $1 and period = '2026-10'`, id).Scan(&n); err != nil || n != 1 {
 			t.Fatalf("tenant %s: %d runs of 2026-10 (%v), want 1", id, n, err)
 		}
+	}
+}
+
+// The mark commits only with the whole fan out: if enqueueing a tenant
+// fails, nothing is marked and the retry closes the month for everyone.
+func TestMonthCloseMarksOnlyAWholeFanOut(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	for i := 0; i < 2; i++ {
+		if _, err := e.db.Pool.Exec(ctx, `insert into tenants (id, slug, name) values ($1, $2, 'x')`, uuid.New(), "molino-mcf-"+string(rune('a'+i))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var calls int
+	failSecond := func(context.Context, river.JobArgs) (bool, error) {
+		calls++
+		if calls == 2 {
+			return false, context.DeadlineExceeded
+		}
+		return true, nil
+	}
+	job := &river.Job[worker.MonthCloseArgs]{Args: worker.MonthCloseArgs{Period: "2026-09"}}
+	if err := (&worker.MonthCloseWorker{DB: e.db, Insert: failSecond}).Work(ctx, job); err == nil {
+		t.Fatal("a failed enqueue did not fail the fan out")
+	}
+	marks := func() int {
+		var n int
+		if err := e.db.Pool.QueryRow(ctx, `select count(*) from platform.month_closes`).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if n := marks(); n != 0 {
+		t.Fatalf("a partial fan out left %d marks", n)
+	}
+	var enqueued int
+	ok := func(context.Context, river.JobArgs) (bool, error) { enqueued++; return true, nil }
+	if err := (&worker.MonthCloseWorker{DB: e.db, Insert: ok}).Work(ctx, job); err != nil || enqueued != 2 || marks() != 1 {
+		t.Fatalf("retry: %v, enqueued %d, marks %d", err, enqueued, marks())
 	}
 }

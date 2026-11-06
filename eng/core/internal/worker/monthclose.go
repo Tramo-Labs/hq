@@ -59,20 +59,48 @@ func (w *MonthCloseWorker) Work(ctx context.Context, job *river.Job[MonthCloseAr
 		}
 		insert = func(ctx context.Context, args river.JobArgs) (bool, error) { return jobs.Insert(ctx, c, args) }
 	}
-	tenants, err := identity.TenantIDs(ctx, w.DB)
+	// The durable mark (platform.month_closes) decides, not River's unique
+	// key: River forgets completed jobs after 24 hours, and the schedule
+	// tries the same month every hour. Inserting the mark takes the period
+	// (a concurrent fan out of the same month waits on it, then finds it);
+	// it commits only if every tenant's run was enqueued, otherwise the
+	// retry does the whole month again.
+	var tenants, enqueued int
+	var already bool
+	err := w.DB.System(ctx, func(tx pgx.Tx) error {
+		ids, err := identity.TenantIDsTx(ctx, tx)
+		if err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx,
+			`insert into platform.month_closes (period, tenants) values ($1, $2) on conflict (period) do nothing`,
+			job.Args.Period, len(ids))
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			already = true
+			return nil
+		}
+		tenants = len(ids)
+		for _, id := range ids {
+			ok, err := insert(ctx, matching.MonthArgs{Tenant: id, Period: job.Args.Period})
+			if err != nil {
+				return fmt.Errorf("platform.month_close %s: tenant %s: %w", job.Args.Period, id, err)
+			}
+			if ok {
+				enqueued++
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	enqueued := 0
-	for _, id := range tenants {
-		ok, err := insert(ctx, matching.MonthArgs{Tenant: id, Period: job.Args.Period})
-		if err != nil {
-			return fmt.Errorf("platform.month_close %s: tenant %s: %w", job.Args.Period, id, err)
-		}
-		if ok {
-			enqueued++
-		}
+	if already {
+		slog.Info("month close: already closed", "period", job.Args.Period)
+		return nil
 	}
-	slog.Info("month close", "period", job.Args.Period, "tenants", len(tenants), "enqueued", enqueued)
+	slog.Info("month close", "period", job.Args.Period, "tenants", tenants, "enqueued", enqueued)
 	return nil
 }

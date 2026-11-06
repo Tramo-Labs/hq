@@ -393,10 +393,15 @@ func TenantIDs(ctx context.Context, d *db.DB) ([]uuid.UUID, error) {
 	var ids []uuid.UUID
 	err := d.System(ctx, func(tx pgx.Tx) error {
 		var err error
-		ids, err = store.New(tx).ListTenantIDs(ctx)
+		ids, err = TenantIDsTx(ctx, tx)
 		return err
 	})
 	return ids, err
+}
+
+// TenantIDsTx is TenantIDs inside a system transaction the caller holds.
+func TenantIDsTx(ctx context.Context, tx pgx.Tx) ([]uuid.UUID, error) {
+	return store.New(tx).ListTenantIDs(ctx)
 }
 
 // ListMembers returns the members of the caller's tenant (under RLS).
