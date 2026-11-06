@@ -25,6 +25,14 @@ var ErrInvalidName = errors.New("invalid name")
 // (U+3164, U+115F, U+1160, U+FFA0) and the Braille blank (U+2800).
 var blankLooking = map[rune]bool{0x3164: true, 0x115F: true, 0x1160: true, 0xFFA0: true, 0x2800: true}
 
+// invisible reports characters that change how text reads without showing
+// themselves: controls, format characters (Cf: zero width, soft hyphen,
+// the bidi controls), line and paragraph separators, and the characters
+// that look blank. No name or email may carry one.
+func invisible(r rune) bool {
+	return unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) || blankLooking[r]
+}
+
 // normalizeName trims the name and refuses what cannot be shown: nothing
 // left, more than MaxName characters, or control characters (line breaks
 // included, which would also break a CSV cell or a mail header).
@@ -39,7 +47,7 @@ func normalizeName(s string) (string, error) {
 		// that flip how a name reads in the audit or the members list),
 		// line or paragraph separators, and characters that look blank
 		// never belong in a name.
-		if unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) || blankLooking[r] {
+		if invisible(r) {
 			return "", ErrInvalidName
 		}
 		if unicode.In(r, unicode.L, unicode.N) {

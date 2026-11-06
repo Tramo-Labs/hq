@@ -65,3 +65,22 @@ func TestAddingAMemberNeverRewritesTheStoredEmail(t *testing.T) {
 		t.Fatalf("registered email stored as %q (%v)", e, err)
 	}
 }
+
+// F30: an email with an invisible or bidi character would create a second
+// account that looks identical to the real one. Refused with 400, on every
+// input that takes an email.
+func TestEmailsRefuseInvisibleCharacters(t *testing.T) {
+	c := client{t, server(t)}
+	own := c.registerAndLogin("molino-f30", "owner@f30.test")
+	for _, e := range []string{"owner\u200b@f30.test", "owner@f30\u202e.test", "own\u2028er@f30.test", "owner\u3164@f30.test", "owner\u00ad@f30.test"} {
+		if r := c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": e, "role": "viewer"}, idem()...); r.status != 400 {
+			t.Errorf("add %q: %d %s", e, r.status, r.raw)
+		}
+		r := c.do("POST", "/v1/auth/register", "", map[string]any{
+			"email": e, "password": "a long enough password", "tenantName": "Molino x", "tenantSlug": "molino-f30-x",
+		}, idem()...)
+		if r.status != 400 {
+			t.Errorf("register %q: %d %s", e, r.status, r.raw)
+		}
+	}
+}

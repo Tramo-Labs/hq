@@ -616,10 +616,17 @@ func validRole(r string) bool {
 }
 
 // normalizeEmail trims and lowercases an email, so one person is one
-// account whatever the case typed (F25). Every input that takes an email
-// goes through here.
+// account whatever the case typed (F25), and refuses an email with an
+// invisible or bidi character, which would make a second account look
+// identical to the real one (F30). Every input that takes an email goes
+// through here.
 func normalizeEmail(s string) (string, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
+	for _, r := range s {
+		if invisible(r) {
+			return "", ErrInvalidEmail
+		}
+	}
 	a, err := mail.ParseAddress(s)
 	if err != nil || a.Name != "" || a.Address != s {
 		return "", ErrInvalidEmail
