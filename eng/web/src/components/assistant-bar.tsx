@@ -45,7 +45,7 @@ export function AssistantBar() {
       <span className="hidden size-2 shrink-0 rounded-full bg-accent sm:block" aria-hidden />
       <input value={value} onChange={(e) => setValue(e.target.value)} placeholder={shown + (reduced ? "" : "▍")}
         className="min-w-0 flex-1 bg-transparent font-mono text-[13.5px] text-white placeholder:text-white/50 focus:outline-none" />
-      <button type="submit" className="shrink-0 rounded-full bg-paper px-4 py-2 text-[13px] font-medium text-ink">{site.assistant.cta}</button>
+      <button type="submit" className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-paper px-4 text-[13px] font-medium text-ink">{site.assistant.cta}</button>
     </motion.form>
   );
 }
