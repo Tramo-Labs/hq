@@ -27,6 +27,7 @@ import (
 
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"github.com/jackc/pgx/v5"
+	"github.com/riverqueue/river"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/app"
 	"github.com/Tramo-Labs/hq/eng/core/internal/arca"
@@ -136,7 +137,9 @@ func run() error {
 		return err
 	}
 	defer jpool.Close()
-	setup, err := worker.New(d)
+	// The worker sends the magic links (D-17) to the same private outbox.
+	setup, err := worker.New(d, worker.Options{Mailer: &mail.Outbox{Path: filepath.Join(dir, "outbox")},
+		AppBaseURL: env("DEV_APP_BASE_URL", "http://localhost:3000")})
 	if err != nil {
 		return err
 	}
@@ -155,6 +158,10 @@ func run() error {
 	}
 	ids, err := identity.NewService(d, signer, kr, identity.DefaultArgon2)
 	if err != nil {
+		return err
+	}
+	ids.Enqueue = func(ctx context.Context, args river.JobArgs) error {
+		_, err := jobs.Insert(ctx, wk, args)
 		return err
 	}
 	h, err := newAPI(d, ids, filepath.Join(dir, "outbox"))

@@ -14,6 +14,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 )
 
 // MaintenanceArgs is the daily platform clean up. Its natural key is the
@@ -74,10 +75,26 @@ type Setup struct {
 	Periodic []*river.PeriodicJob
 }
 
+// Options are what some jobs need beyond the database.
+type Options struct {
+	// Mailer and AppBaseURL send the magic links (identity). A nil Mailer
+	// logs that a link was not delivered, like invitations.
+	Mailer     mail.Sender
+	AppBaseURL string
+}
+
 // New registers the workers and the schedule. Modules add their jobs here.
-func New(d *db.DB) (Setup, error) {
+func New(d *db.DB, opts ...Options) (Setup, error) {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	ws := river.NewWorkers()
 	if err := river.AddWorkerSafely(ws, &MaintenanceWorker{DB: d}); err != nil {
+		return Setup{}, err
+	}
+	// identity: magic links are sent here, never in the request (D-17).
+	if err := river.AddWorkerSafely(ws, &identity.MagicLinkWorker{DB: d, Mailer: o.Mailer, AppBaseURL: o.AppBaseURL}); err != nil {
 		return Setup{}, err
 	}
 	// datos: the monthly matching run of one tenant (internal/matching).

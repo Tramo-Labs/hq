@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/riverqueue/river"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/cuit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity/store"
@@ -68,8 +69,12 @@ type Service struct {
 	Mailer mailer.Sender
 	// AppBaseURL is the web app's origin, for invitation links.
 	AppBaseURL string
-	now        func() time.Time
-	dummy      string // hash compared when the email is unknown (constant time login)
+	// Enqueue puts a job on the queue (River, jobs.Insert in the api).
+	// Magic links are sent from a job so a request never looks the email
+	// up (D-17); without it RequestMagicLink fails with ErrNoQueue.
+	Enqueue func(ctx context.Context, args river.JobArgs) error
+	now     func() time.Time
+	dummy   string // hash compared when the email is unknown (constant time login)
 
 	// watch follows failures per email across IPs (D-17). Built on first
 	// use from Limits, so a caller may adjust Limits after NewService.

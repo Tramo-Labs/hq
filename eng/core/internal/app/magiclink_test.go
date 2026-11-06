@@ -6,28 +6,75 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/riverqueue/river"
+
+	"github.com/Tramo-Labs/hq/eng/core/internal/app"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/ratelimit"
 )
 
+// jobQueue stands in for River: the api only enqueues; run plays the
+// worker, as a separate step, like the worker process does.
+type jobQueue struct {
+	mu      sync.Mutex
+	pending []identity.MagicLinkArgs
+	worker  *identity.MagicLinkWorker
+}
+
+func (q *jobQueue) enqueue(_ context.Context, args river.JobArgs) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.pending = append(q.pending, args.(identity.MagicLinkArgs))
+	return nil
+}
+
+func (q *jobQueue) size() int { q.mu.Lock(); defer q.mu.Unlock(); return len(q.pending) }
+
+func (q *jobQueue) run(t *testing.T) {
+	t.Helper()
+	q.mu.Lock()
+	jobs := q.pending
+	q.pending = nil
+	q.mu.Unlock()
+	for _, a := range jobs {
+		if err := q.worker.Work(context.Background(), &river.Job[identity.MagicLinkArgs]{Args: a}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// withMagicLinks wires deps like cmd/api and cmd/worker: mail to an outbox,
+// requests enqueued, the worker sending.
+func withMagicLinks(t *testing.T, deps app.Deps) (*jobQueue, string) {
+	t.Helper()
+	outbox := filepath.Join(t.TempDir(), "outbox")
+	m := &mail.Outbox{Path: outbox}
+	deps.Identity.Mailer, deps.Identity.AppBaseURL = m, "https://app.example.test"
+	q := &jobQueue{worker: &identity.MagicLinkWorker{DB: deps.DB, Mailer: m, AppBaseURL: "https://app.example.test"}}
+	deps.Identity.Enqueue = q.enqueue
+	return q, outbox
+}
+
 // magicServer: mail lands in an outbox, the test client plays our Caddy
 // (loopback is the trusted proxy, the client IP comes from
-// X-Forwarded-For), and limits may be adjusted per test.
+// X-Forwarded-For), and limits may be adjusted per test. tokens runs the
+// queued jobs first, then reads the outbox.
 func magicServer(t *testing.T, adjust func(*identity.Limits)) (client, func() map[string][]string) {
 	t.Helper()
 	deps := newDeps(t)
 	deps.TrustedProxies = loopback
-	outbox := filepath.Join(t.TempDir(), "outbox")
-	deps.Identity.Mailer, deps.Identity.AppBaseURL = &mail.Outbox{Path: outbox}, "https://app.example.test"
+	q, outbox := withMagicLinks(t, deps)
 	if adjust != nil {
 		adjust(&deps.Identity.Limits)
 	}
 	c := client{t, serve(t, deps)}
 	tokens := func() map[string][]string {
+		q.run(t)
 		b, err := os.ReadFile(outbox)
 		if err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)
@@ -215,16 +262,70 @@ func TestAskingForAMagicLink(t *testing.T) {
 	}
 }
 
+// Asking for a link must not tell, even by timing, whether the email has an
+// account. Not by measuring times: by checking that the request does the
+// same work for both, and that everything that depends on the email
+// existing (the lookup, the link row, the outbox) happens in the job.
+func TestAskingDoesTheSameWorkForKnownAndUnknownEmails(t *testing.T) {
+	deps := newDeps(t)
+	q, outbox := withMagicLinks(t, deps)
+	c := client{t, serve(t, deps)}
+	own := c.registerAndLogin("molino-same", "owner@same.test")
+
+	links := func() int {
+		var n int
+		if err := deps.DB.Pool.QueryRow(context.Background(), `select count(*) from magic_links`).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	for _, email := range []string{own.email, "nadie@same.test"} {
+		r := c.askLink("198.51.100.1", email)
+		if r.status != 202 || r.raw != "" {
+			t.Fatalf("%s: %d %q", email, r.status, r.raw)
+		}
+		if _, err := os.Stat(outbox); !os.IsNotExist(err) {
+			t.Fatalf("%s: the request wrote the outbox", email)
+		}
+		if n := links(); n != 0 {
+			t.Fatalf("%s: the request stored a link", email)
+		}
+	}
+	// One job per request, the same for both: only the email differs.
+	q.mu.Lock()
+	got := append([]identity.MagicLinkArgs(nil), q.pending...)
+	q.mu.Unlock()
+	if len(got) != 2 {
+		t.Fatalf("%d jobs, want one per request", len(got))
+	}
+	a, b := got[0], got[1]
+	a.Email, b.Email, a.RequestID, b.RequestID = "", "", "", ""
+	if a != b {
+		t.Fatalf("the jobs differ beyond the email: %+v vs %+v", got[0], got[1])
+	}
+
+	q.run(t)
+	if n := links(); n != 1 {
+		t.Fatalf("%d links after the jobs, want 1 (known email only)", n)
+	}
+	if b, _ := os.ReadFile(outbox); strings.Contains(string(b), "nadie@same.test") || !strings.Contains(string(b), own.email) {
+		t.Fatalf("outbox after the jobs: %s", b)
+	}
+	if q.size() != 0 {
+		t.Fatal("jobs left")
+	}
+}
+
 // A link works for 15 minutes; after that it is refused like an unknown one.
 func TestAnExpiredMagicLinkIsRefused(t *testing.T) {
 	deps := newDeps(t)
-	outbox := filepath.Join(t.TempDir(), "outbox")
-	deps.Identity.Mailer = &mail.Outbox{Path: outbox}
+	q, outbox := withMagicLinks(t, deps)
 	c := client{t, serve(t, deps)}
 	own := c.registerAndLogin("molino-exp", "owner@exp.test")
 	if r := c.askLink("198.51.100.1", own.email); r.status != 202 {
 		t.Fatalf("ask: %d %s", r.status, r.raw)
 	}
+	q.run(t)
 	b, _ := os.ReadFile(outbox)
 	m := tokenInMail.FindStringSubmatch(string(b))
 	if m == nil {

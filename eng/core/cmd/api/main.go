@@ -18,12 +18,15 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/riverqueue/river"
+
 	"github.com/Tramo-Labs/hq/eng/core/internal/app"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/config"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/jobs"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 )
 
@@ -101,6 +104,20 @@ func serve() error {
 		return err
 	}
 	ids.AppBaseURL = cfg.AppBaseURL
+	// The api only inserts jobs; the worker runs them (magic links, D-17).
+	jpool, err := jobs.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer jpool.Close()
+	queue, err := jobs.NewInserter(jpool)
+	if err != nil {
+		return err
+	}
+	ids.Enqueue = func(ctx context.Context, args river.JobArgs) error {
+		_, err := jobs.Insert(ctx, queue, args)
+		return err
+	}
 	if cfg.MailOutbox != "" {
 		ids.Mailer = &mail.Outbox{Path: cfg.MailOutbox}
 	}

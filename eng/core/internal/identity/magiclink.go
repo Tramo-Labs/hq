@@ -3,11 +3,13 @@ package identity
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/riverqueue/river"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
@@ -23,22 +25,79 @@ const MagicLinkTTL = 15 * time.Minute
 // used or expired. One answer for all.
 var ErrInvalidMagicLink = errors.New("invalid or expired link")
 
-// RequestMagicLink emails a one time login link if the email has an
-// account, and does nothing otherwise; the caller answers the same either
-// way (202), so it does not reveal which emails exist. Throttled per IP and
-// per email before anything else, known emails or not. The token goes only
-// into the email: never in a response, a log or the audit log.
+// ErrNoQueue means the service was built without a job queue (Enqueue).
+var ErrNoQueue = errors.New("identity: no job queue configured")
+
+// MagicLinkArgs is the job that sends one magic link. It carries the
+// request id and IP so the audit row of the job matches the request.
+type MagicLinkArgs struct {
+	Email     string     `json:"email"`
+	Tenant    *uuid.UUID `json:"tenant,omitempty"`
+	RequestID string     `json:"request_id"`
+	IP        string     `json:"ip,omitempty"`
+}
+
+// Kind is the stable job name stored in the queue.
+func (MagicLinkArgs) Kind() string { return "identity.magic_link" }
+
+// InsertOpts: unique by its arguments, which include the request id, so a
+// retried insert of the same request is not sent twice. The per email limit
+// (three per 15 minutes) is enforced in the request, before the insert.
+func (MagicLinkArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{UniqueOpts: river.UniqueOpts{ByArgs: true}, MaxAttempts: 3}
+}
+
+// RequestMagicLink asks for a one time login link. It only checks the
+// throttles (per IP and per email, known emails or not) and enqueues a job;
+// it never looks the email up. So the request does the same work, and
+// takes the same time, whether or not the email has an account, and the
+// caller answers 202 either way (D-17). The job sends the link if there is
+// an account and does nothing otherwise.
 func (s *Service) RequestMagicLink(ctx context.Context, email string, tenant *uuid.UUID) error {
 	email = strings.TrimSpace(email)
 	if err := s.checkMagicLinkRequest(ctx, email); err != nil {
 		return err
 	}
+	if s.Enqueue == nil {
+		return ErrNoQueue
+	}
+	args := MagicLinkArgs{Email: email, Tenant: tenant}
+	if m, ok := httpx.MetaFrom(ctx); ok {
+		args.RequestID = m.RequestID
+		if m.IP.IsValid() {
+			args.IP = m.IP.String()
+		}
+	}
+	return s.Enqueue(ctx, args)
+}
+
+// MagicLinkWorker sends the links asked for with RequestMagicLink.
+type MagicLinkWorker struct {
+	river.WorkerDefaults[MagicLinkArgs]
+	DB         *db.DB
+	Mailer     mail.Sender
+	AppBaseURL string
+}
+
+// Work sends the link of one request. A retry after the email went out
+// sends a second link; both work once and expire in 15 minutes.
+func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs]) error {
+	m := httpx.Meta{RequestID: job.Args.RequestID}
+	if ip, err := netip.ParseAddr(job.Args.IP); err == nil {
+		m.IP = ip
+	}
+	return sendMagicLink(httpx.WithMeta(ctx, m), w.DB, w.Mailer, w.AppBaseURL, job.Args.Email, job.Args.Tenant, time.Now())
+}
+
+// sendMagicLink stores and mails a link if email has an account. The token
+// goes only into the email: never in a log or the audit log.
+func sendMagicLink(ctx context.Context, d *db.DB, m mail.Sender, base, email string, tenant *uuid.UUID, now time.Time) error {
 	token, hash, err := newRefreshToken()
 	if err != nil {
 		return err
 	}
 	var sent bool
-	err = s.DB.System(ctx, func(tx pgx.Tx) error {
+	err = d.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
 		u, err := q.GetUserForLogin(ctx, email)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -48,7 +107,7 @@ func (s *Service) RequestMagicLink(ctx context.Context, email string, tenant *uu
 			return err
 		}
 		if err := q.InsertMagicLink(ctx, store.InsertMagicLinkParams{UserID: u.ID, TenantID: tenant,
-			TokenHash: hash, ExpiresAt: s.now().Add(MagicLinkTTL)}); err != nil {
+			TokenHash: hash, ExpiresAt: now.Add(MagicLinkTTL)}); err != nil {
 			return err
 		}
 		sent = true
@@ -57,11 +116,11 @@ func (s *Service) RequestMagicLink(ctx context.Context, email string, tenant *uu
 	if err != nil || !sent {
 		return err
 	}
-	if s.Mailer == nil {
+	if m == nil {
 		httpx.Logger(ctx).Warn("magic link not delivered: no mail transport configured")
 		return nil
 	}
-	if err := s.Mailer.Send(ctx, magicLinkMessage(s.AppBaseURL, email, token)); err != nil {
+	if err := m.Send(ctx, magicLinkMessage(base, email, token)); err != nil {
 		httpx.Logger(ctx).Error("magic link not delivered", "err", err)
 	}
 	return nil

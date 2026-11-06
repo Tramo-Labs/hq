@@ -168,8 +168,16 @@ expired more than 7 days ago. All run in the worker's daily
   exists only in the email (the outbox file in dev and tests), in the URL
   fragment so it never reaches a server log. Never in a response.
 - Asking for a magic link answers 202 for any email; known or not, it
-  counts against the same send limits. A known email takes longer to answer
-  (it writes the outbox), a timing difference not closed yet.
+  counts against the same send limits. The request never looks the email
+  up: it checks the throttles and enqueues one `identity.magic_link` job,
+  the same for both, so neither the answer nor its timing tells whether an
+  account exists. The job (worker) looks it up, stores the link and mails
+  it, or does nothing (`TestAskingDoesTheSameWorkForKnownAndUnknownEmails`:
+  no outbox write and no link row during the request, one identical job
+  per request but the email; mutations checked: sending in the request, and
+  skipping the queue for unknown emails, each fail a test). The job's
+  arguments hold the email, request id and IP until River's retention
+  removes the finished job.
 - The signing key lives only in the environment. Rotating it invalidates
   access tokens (10 minutes) but not refresh tokens.
 - Audit (`audit_log`): `identity.register`, `identity.login`,
