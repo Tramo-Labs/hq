@@ -133,6 +133,18 @@ func (s *Service) AcceptInvite(ctx context.Context, token, password string, name
 		case !s.now().Before(inv.ExpiresAt):
 			return reject(subject, inv.TenantID, "expired")
 		}
+		// Still a member of the inviting tenant? Checked before anything is
+		// written: a person removed before getting in must not end up with a
+		// password (F29). Re-adding them sends a new invitation.
+		if _, err := q.GetMembershipRole(ctx, store.GetMembershipRoleParams{UserID: inv.UserID, TenantID: inv.TenantID}); errors.Is(err, pgx.ErrNoRows) {
+			if err := reject(subject, inv.TenantID, "no membership"); err != nil {
+				return err
+			}
+			outcome = ErrNotAMember
+			return nil
+		} else if err != nil {
+			return err
+		}
 		if err := q.MarkInviteUsed(ctx, inv.ID); err != nil {
 			return err
 		}

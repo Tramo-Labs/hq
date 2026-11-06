@@ -74,6 +74,13 @@ before who never accepted) sends an invitation:
   stored, in `invites`, with the person, the tenant, who invited and the
   expiry: **72 hours, single use**. A new invitation for the same person,
   from any tenant, revokes the earlier unused ones.
+- Accepting first checks, in the same transaction and before writing
+  anything, that the person is still a member of the inviting tenant. If
+  they were removed, the answer is 403 `not_a_member` and no password is
+  saved; adding them again sends a new invitation, and the old link then
+  answers 401 (F29, `TestRemovedInviteeCannotSetAPassword`, which reads
+  `users.password_hash`: the login of a removed person is a 403 anyway, so
+  it cannot tell).
 - The token goes **only into the email**: never in the API response, a log
   or the audit log. Handing it to the inviter would let one tenant's owner
   set the password of a person who also belongs to another tenant.
