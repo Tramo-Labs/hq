@@ -94,11 +94,17 @@ Who decides what (product spec sections 1 and 5), enforced in `Record`:
 | Tray | Who | Actions |
 |------|-----|---------|
 | Automatic | nobody (listed for review) | none |
-| Suggested | operator | approve, reject, escalate to Exceptions |
-| Exceptions (escalated matches) | owner, approver | approve, reject, other (note required, back to the operator) |
+| Suggested | operator | approve, reject (note required), escalate to Exceptions |
+| Exceptions (escalated matches) | owner, approver | approve, reject (note required), other (note required, back to the operator) |
 | Exceptions (movements with no candidate) | owner, approver | other (note required), link by hand (exact sum) |
 | Suggested (movements the client marked other) | operator | resolve (note required), link by hand, return to the client (note required) |
 | Any of the above | who decides that tray | revert the decision in effect |
+
+Every note that is required (reject and other here; other, resolve and
+return on movements) is checked by the server: missing or blank is 400
+`note_required`. A rejection is stored with its reason (`matching.decisions`
+note). No list or export shows that reason yet, neither to the operator nor
+in the matches export: open item for whoever builds the operator's view.
 
 Nothing about the decider is input: the user is the scope's; the role is
 read from `memberships` in the same transaction (a token can be ten minutes

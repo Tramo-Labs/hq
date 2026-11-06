@@ -323,7 +323,7 @@ func TestPGConcurrentMatchDecisions(t *testing.T) {
 	e.barrier(t, 2)
 	decide := func(a Action) func() error {
 		return func() error {
-			_, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: m, Action: a})
+			_, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: m, Action: a, Note: "why"})
 			return err
 		}
 	}

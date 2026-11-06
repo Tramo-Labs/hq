@@ -535,7 +535,9 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			if !actionFits(d.Action, d.Tray) {
 				return ErrActionNotInTray
 			}
-			if d.Action == Other && noteMissing(d.Note) {
+			// "Other" says what it is; "reject" says why (product spec
+			// section 4). Both in either tray, never optional.
+			if (d.Action == Other || d.Action == Reject) && noteMissing(d.Note) {
 				return ErrNoteRequired
 			}
 			target = states[d.Tray]
