@@ -99,7 +99,7 @@ func (s *Signer) Verify(token string) (Principal, error) {
 	}
 	user, err1 := uuid.Parse(c.Subject)
 	tenant, err2 := uuid.Parse(c.TenantID)
-	if err1 != nil || err2 != nil || c.Role == "" {
+	if err1 != nil || err2 != nil || !validRole(c.Role) {
 		return Principal{}, errToken
 	}
 	return Principal{UserID: user, TenantID: tenant, Role: c.Role}, nil

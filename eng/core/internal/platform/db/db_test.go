@@ -113,6 +113,29 @@ func TestTenantRoleCannotReadSecrets(t *testing.T) {
 	}
 }
 
+// The role of the scope reaches the database as app.role, for policies and
+// triggers that need it.
+func TestInTenantSetsRole(t *testing.T) {
+	d := dbtest.New(t)
+	a, _ := seed(t, d)
+	a.Role = "viewer"
+	ctx := db.WithScope(context.Background(), a)
+	var role, tenant string
+	err := d.InTenant(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `select current_setting('app.role', true), current_setting('app.tenant_id', true)`).Scan(&role, &tenant)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if role != "viewer" || tenant != a.TenantID.String() {
+		t.Fatalf("app.role=%q app.tenant_id=%q", role, tenant)
+	}
+	got, _ := db.ScopeFrom(ctx)
+	if got.Role != "viewer" {
+		t.Fatalf("ScopeFrom lost the role: %+v", got)
+	}
+}
+
 func TestInTenantWithoutScopeFails(t *testing.T) {
 	d := dbtest.New(t)
 	err := d.InTenant(context.Background(), func(pgx.Tx) error { return nil })
@@ -170,6 +193,10 @@ func TestApplicationRolesCannotBypassRLS(t *testing.T) {
 // The roles may already exist with dangerous attributes (created by hand, by
 // an older migration, by another app on the same server). Migrating must
 // leave them NOSUPERUSER NOBYPASSRLS anyway.
+//
+// NEVER mark this test t.Parallel(): it makes server wide roles SUPERUSER for
+// a moment and restores them in cleanup, so any test running at the same
+// time would run with dangerous roles and could pass for the wrong reason.
 func TestMigrationFixesPreexistingRoleAttributes(t *testing.T) {
 	d := dbtest.NewEmpty(t)
 	ctx := context.Background()

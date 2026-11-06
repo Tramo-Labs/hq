@@ -24,10 +24,11 @@ func PrincipalFrom(ctx context.Context) (Principal, bool) {
 	return p, ok
 }
 
-// WithPrincipal stores p and its tenant scope in ctx.
+// WithPrincipal stores p and its tenant scope, role included, in ctx. The
+// scope it writes replaces any scope already in the context.
 func WithPrincipal(ctx context.Context, p Principal) context.Context {
 	ctx = context.WithValue(ctx, principalKey{}, p)
-	return db.WithScope(ctx, db.Scope{TenantID: p.TenantID, UserID: p.UserID})
+	return db.WithScope(ctx, db.Scope{TenantID: p.TenantID, UserID: p.UserID, Role: p.Role})
 }
 
 // Authenticate verifies a bearer access token when one is sent. A bad token

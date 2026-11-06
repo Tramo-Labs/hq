@@ -36,6 +36,14 @@ func TestSomething(t *testing.T) {
 }
 ```
 
+Who is acting comes from `db.ScopeFrom(ctx)`: `TenantID`, `UserID` and
+`Role`. The auth middleware fills it from the verified access token only;
+nothing in the request (body, headers, query) can change it
+(`identity.TestRequestCannotOverrideRole`). Never take a role or tenant from
+the request. Inside `InTenant` the role is also `current_setting('app.role',
+true)` for policies. The token lives 10 minutes: an action that must see a
+demotion right away re-reads the membership in its transaction.
+
 New tables (migrations 00100 to 00199 for datos) must have `tenant_id uuid not null
 references tenants(id)` and:
 

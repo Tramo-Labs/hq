@@ -82,16 +82,26 @@ func (d *DB) Migrate(ctx context.Context) error {
 	return nil
 }
 
-// Scope is who is acting and on which tenant.
+// Scope is who is acting, on which tenant and with which role.
+//
+// Role is the caller's role in TenantID as stated by the verified access
+// token (identity.Authenticate). It never comes from the request body,
+// headers or query: modules that need it (who may approve, who decided)
+// read it from here and nowhere else. Empty for jobs. The token is valid
+// for up to 10 minutes, so a demotion takes effect at the next refresh; an
+// action that must see the role as of now re-reads the membership in its
+// tenant transaction.
 type Scope struct {
 	TenantID uuid.UUID
 	UserID   uuid.UUID // uuid.Nil for jobs acting on behalf of the tenant
+	Role     string
 }
 
 type scopeKey struct{}
 
-// WithScope stores the tenant scope in the context. The auth middleware and
-// the job runner call it; modules never build a scope by hand.
+// WithScope stores the tenant scope in the context. Only the auth
+// middleware (identity.Authenticate) and the job runner call it; modules
+// never build a scope by hand.
 func WithScope(ctx context.Context, s Scope) context.Context {
 	return context.WithValue(ctx, scopeKey{}, s)
 }
@@ -116,9 +126,11 @@ func (d *DB) InTenant(ctx context.Context, fn func(pgx.Tx) error) error {
 		if s.UserID != uuid.Nil {
 			user = s.UserID.String()
 		}
+		// app.role lets policies and triggers check the role too:
+		// current_setting('app.role', true).
 		if _, err := tx.Exec(ctx,
-			"select set_config('app.tenant_id', $1, true), set_config('app.user_id', $2, true)",
-			s.TenantID.String(), user); err != nil {
+			"select set_config('app.tenant_id', $1, true), set_config('app.user_id', $2, true), set_config('app.role', $3, true)",
+			s.TenantID.String(), user, s.Role); err != nil {
 			return fmt.Errorf("db: set scope: %w", err)
 		}
 		return fn(tx)
