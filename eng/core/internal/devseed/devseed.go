@@ -232,20 +232,20 @@ func seedLedger(ctx context.Context, d *db.DB, t Tenant, data []byte) error {
 // cap), one for two identical transfers (ambiguous, suggested). Every other
 // movement has no candidate (exception).
 //
-// HandLinkItems are two August invoices (CLIENTE TRES) that add up exactly
+// HandLinkItems are two August invoices of one client (CUIT 30000000074) that add up exactly
 // to the cash deposit of 6 October (45.000,00). They are outside the
 // matching window, so the deposit stays in Exceptions with no candidate,
 // and an operator or the client can link it by hand to both.
 var seedItems = append([]matching.ItemIn{
-	{SourceID: "dev-inv-1", Kind: "invoice", Date: day(1), Due: day(1), Amount: 25000000, Refs: []string{"0001-00000101"}, Confidence: 1, Party: "CLIENTE UNO"},
-	{SourceID: "dev-inv-2", Kind: "invoice", Date: day(9), Due: day(9), Amount: 31025000, Refs: []string{"0001-00000108"}, Confidence: 1, Party: "ECHEQ"},
-	{SourceID: "dev-inv-3", Kind: "invoice", Date: day(6), Due: day(6), Amount: 10000000, Refs: []string{"0001-00000106"}, Confidence: 1, Party: "CLIENTE DOS"},
+	{SourceID: "dev-inv-1", Kind: "invoice", Date: day(1), Due: day(1), Amount: 25000000, Refs: []string{"0001-00000101"}, Confidence: 1, Party: "30000000031"},
+	{SourceID: "dev-inv-2", Kind: "invoice", Date: day(9), Due: day(9), Amount: 31025000, Refs: []string{"0001-00000108"}, Confidence: 1, Party: "30000000058"},
+	{SourceID: "dev-inv-3", Kind: "invoice", Date: day(6), Due: day(6), Amount: 10000000, Refs: []string{"0001-00000106"}, Confidence: 1, Party: "30000000066"},
 }, HandLinkItems...)
 
 // HandLinkItems: see seedItems.
 var HandLinkItems = []matching.ItemIn{
-	{SourceID: "dev-inv-4", Kind: "invoice", Date: aug(10), Due: aug(10), Amount: 3000000, Refs: []string{"0001-00000201"}, Confidence: 1, Party: "CLIENTE TRES"},
-	{SourceID: "dev-inv-5", Kind: "invoice", Date: aug(20), Due: aug(20), Amount: 1500000, Refs: []string{"0001-00000202"}, Confidence: 1, Party: "CLIENTE TRES"},
+	{SourceID: "dev-inv-4", Kind: "invoice", Date: aug(10), Due: aug(10), Amount: 3000000, Refs: []string{"0001-00000201"}, Confidence: 1, Party: "30000000074"},
+	{SourceID: "dev-inv-5", Kind: "invoice", Date: aug(20), Due: aug(20), Amount: 1500000, Refs: []string{"0001-00000202"}, Confidence: 1, Party: "30000000074"},
 }
 
 // HandLinkAmount is the deposit those two items add up to (45.000,00).

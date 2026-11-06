@@ -58,7 +58,7 @@ movements) and a matching run for 2026-10 (the job's own `RunMonth`). Every
 tray has items: 1 automatic, 1 suggested match plus 2 suggested movements,
 6 exceptions. One exception is there to be linked by hand: the cash deposit
 of 6 October (45.000,00) has no candidate, and two open August invoices of
-CLIENTE TRES (30.000,00 and 15.000,00, outside the matching window) add up
+one client (synthetic CUIT 30000000074; 30.000,00 and 15.000,00, outside the matching window) add up
 to it exactly; the client links the deposit to both. The
 onboarding shows ARCA pending, bank verified, ERP pending.
 

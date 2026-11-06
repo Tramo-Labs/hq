@@ -95,6 +95,20 @@ func TestIdempotencyKeyIsBoundToTheCallerNotOnlyTheTenant(t *testing.T) {
 		t.Fatalf("viewer with the approver's key: %d %s", r.status, r.raw)
 	}
 
+	// 3) Same tenant, same role, same key and body: two approvers. Only the
+	// user tells them apart, so the second runs its own handler, no replay.
+	approver2 := c.member(own, own.tenant, "approver2-f1", "approver2@f1.test", "approver")
+	mv2 := items[len(items)-1].(map[string]any)["movementId"].(string)
+	k4 := []string{"Idempotency-Key", uuid.NewString()}
+	first := c.do("POST", "/v1/matching/movements/"+mv2+"/decision", approver.access, dec, k4...)
+	if first.status != 201 {
+		t.Fatalf("first approver: %d %s", first.status, first.raw)
+	}
+	second := c.do("POST", "/v1/matching/movements/"+mv2+"/decision", approver2.access, dec, k4...)
+	if second.header.Get("Idempotent-Replayed") != "" || second.raw == first.raw {
+		t.Fatalf("second approver got the first one's answer: %d %s (replayed=%q)", second.status, second.raw, second.header.Get("Idempotent-Replayed"))
+	}
+
 	// The same caller still gets its own replay.
 	if r := c.do("POST", "/v1/ledger/accounts", own.access, body, k...); r.status != 201 || r.header.Get("Idempotent-Replayed") != "true" {
 		t.Fatalf("owner's own replay: %d %v", r.status, r.header)

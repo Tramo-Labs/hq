@@ -4,13 +4,16 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/cuit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/devseed"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
@@ -222,6 +225,52 @@ func handLink(t *testing.T, store *matching.PGStore, ctx context.Context, tn dev
 		Key: uuid.NewString(), MovementID: deposit.MovementID, Action: matching.MovementLink, ItemIDs: ids})
 	if err != nil || dec.MatchID == "" {
 		t.Fatalf("%s: link by hand: %+v %v", tn.Slug, dec, err)
+	}
+}
+
+// The contract says an item's party is the CUIT on the other side, and the
+// portal formats it as one. Every seeded item, as stored, has either no
+// party or an 11 digit CUIT with a valid check digit; never a name.
+func TestSeedItemsFollowTheContract(t *testing.T) {
+	ctx := context.Background()
+	d := dbtest.New(t)
+	s, _ := devseed.LoadSecrets(t.TempDir())
+	kr, _ := crypto.NewKeyring(s.MasterKey)
+	if err := devseed.Seed(ctx, d, kr, s, fixtures); err != nil {
+		t.Fatal(err)
+	}
+	digits := regexp.MustCompile(`^\d{11}$`)
+	seen := 0
+	for _, tn := range devseed.Tenants {
+		tctx := jobs.TenantContext(ctx, tn.ID)
+		err := d.InTenant(tctx, func(tx pgx.Tx) error {
+			rows, err := tx.Query(tctx, `select source_id, coalesce(party, '') from matching.items`)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var id, party string
+				if err := rows.Scan(&id, &party); err != nil {
+					return err
+				}
+				seen++
+				if party == "" {
+					continue
+				}
+				n, _ := strconv.ParseInt(party, 10, 64)
+				if !digits.MatchString(party) || !cuit.Valid(n) {
+					t.Errorf("%s %s: party %q is not a CUIT", tn.Slug, id, party)
+				}
+			}
+			return rows.Err()
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if seen == 0 {
+		t.Fatal("no items seeded: the check is not looking")
 	}
 }
 
