@@ -152,19 +152,17 @@ func PurgeStaleMagicLinkRequests(ctx context.Context, d *db.DB) (int64, error) {
 	return n, err
 }
 
-// magicLinkMessage is the login link email.
-//
-// DRAFT COPY, English, for producto to rewrite (and translate to Spanish
-// with voseo) before any real email goes out.
+// magicLinkMessage is the login link email, in Spanish with voseo (F31).
+// Copy written by backend; producto owns it from here.
 func magicLinkMessage(base, to, token string) mail.Message {
 	// The token rides in the URL fragment: browsers do not send it to any
 	// server, so it never lands in access logs or Referer headers.
 	link := strings.TrimRight(base, "/") + "/ingresar#token=" + token
 	return mail.Message{
 		To:      to,
-		Subject: "Your sign in link",
-		Body: "Sign in with this link. It works once and expires in 15 minutes:\n" + link + "\n\n" +
-			"If you did not ask for it, ignore this email: nobody can use it but you.",
+		Subject: "Tu enlace para entrar",
+		Body: "Entrá con este enlace. Sirve una sola vez y vence en 15 minutos:\n" + link + "\n\n" +
+			"Si no lo pediste, ignorá este mail: nadie más que vos puede usarlo.",
 	}
 }
 

@@ -115,8 +115,10 @@ invitation; adding an active member is 409 `already_member`.
   email leaves the machine. `make dev` writes to `DEV_DATA_DIR/outbox`.
   Without `MAIL_OUTBOX` the invitation is created but not delivered, and
   that is logged. A real transport is a separate item.
-- **Copy.** The email text in `invite.go` is an English draft for producto
-  to rewrite (and put in Spanish with voseo) before any real email goes out.
+- **Copy.** Invitation and magic link emails are in Spanish with voseo
+  (F31, `TestEmailsAreInSpanish`), roles named as the portal names them
+  (titular, aprobador, lectura, contador, operador). Backend wrote the
+  text; producto owns it from here.
 
 ## Removing a member
 
@@ -308,8 +310,7 @@ with `Retry-After`.
 
 ## Not built yet
 
-TOTP (required for approvers of payments), API keys for integrations. The
-magic link email copy is a draft for producto (English, no voseo yet).
+TOTP (required for approvers of payments), API keys for integrations.
 
 ## How it is tested
 

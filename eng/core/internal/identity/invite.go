@@ -73,26 +73,42 @@ func (s *Service) invite(ctx context.Context, p Principal, user uuid.UUID, email
 	return nil
 }
 
-// inviteMessage is the invitation email. A person with an account only
-// accepts; one without also sets a password.
-//
-// DRAFT COPY, English, for producto to rewrite (and translate to Spanish
-// with voseo) before any real email goes out.
+// inviteMessage is the invitation email, in Spanish with voseo (F31). A
+// person with an account only accepts; one without also sets a password.
+// Copy written by backend; producto owns it from here.
 func inviteMessage(base, to, tenantName, role, token string, hasPassword bool) mail.Message {
 	// The token rides in the URL fragment: browsers do not send it to any
 	// server, so it never lands in access logs or Referer headers.
 	link := strings.TrimRight(base, "/") + "/invitacion#token=" + token
-	action := "Set your password and join here"
+	action := "Elegí tu contraseña y entrá desde este enlace"
 	if hasPassword {
-		action = "Accept here, with your account"
+		action = "Aceptá la invitación con tu cuenta desde este enlace"
 	}
 	return mail.Message{
 		To:      to,
-		Subject: "Your invitation",
-		Body: fmt.Sprintf("You were invited to %s as %s. You are not in until you accept.\n\n"+
-			"%s. The link works once and expires in 72 hours:\n%s\n\n"+
-			"If you did not expect this email, ignore it.", tenantName, role, action, link),
+		Subject: "Tu invitación",
+		Body: fmt.Sprintf("Te sumaron a %s con el rol %s. Hasta que aceptes no tenés acceso.\n\n"+
+			"%s. Sirve una sola vez y vence en 72 horas:\n%s\n\n"+
+			"Si no esperabas este mail, ignoralo.", tenantName, roleLabel(role), action, link),
 	}
+}
+
+// roleLabel is a role's name in the product's Spanish, the same the portal
+// shows (eng/web/src/content/app.ts).
+func roleLabel(role string) string {
+	switch role {
+	case RoleOwner:
+		return "titular"
+	case RoleApprover:
+		return "aprobador"
+	case RoleViewer:
+		return "lectura"
+	case RoleAccountant:
+		return "contador"
+	case RoleOperator:
+		return "operador"
+	}
+	return role
 }
 
 // AcceptInvite turns the pending membership into a membership and opens a
