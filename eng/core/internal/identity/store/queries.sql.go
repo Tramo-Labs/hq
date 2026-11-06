@@ -138,6 +138,24 @@ func (q *Queries) GetRefreshTokenForUpdate(ctx context.Context, tokenHash []byte
 	return i, err
 }
 
+const getTenant = `-- name: GetTenant :one
+select id, name, cuit from tenants where id = $1
+`
+
+type GetTenantRow struct {
+	ID   uuid.UUID
+	Name string
+	Cuit *int64
+}
+
+// Runs in a tenant transaction: RLS only lets the scoped tenant through.
+func (q *Queries) GetTenant(ctx context.Context, id uuid.UUID) (GetTenantRow, error) {
+	row := q.db.QueryRow(ctx, getTenant, id)
+	var i GetTenantRow
+	err := row.Scan(&i.ID, &i.Name, &i.Cuit)
+	return i, err
+}
+
 const getUserEmail = `-- name: GetUserEmail :one
 select email from users where id = $1
 `

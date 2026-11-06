@@ -142,6 +142,42 @@ func (e DecisionRequestAction) Valid() bool {
 	}
 }
 
+// Defines values for ExportInfoFormat.
+const (
+	ExportCSV ExportInfoFormat = "csv"
+)
+
+// Valid indicates whether the value is a known member of the ExportInfoFormat enum.
+func (e ExportInfoFormat) Valid() bool {
+	switch e {
+	case ExportCSV:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportInfoKind.
+const (
+	ExportAudit     ExportInfoKind = "audit"
+	ExportMatches   ExportInfoKind = "matches"
+	ExportMovements ExportInfoKind = "movements"
+)
+
+// Valid indicates whether the value is a known member of the ExportInfoKind enum.
+func (e ExportInfoKind) Valid() bool {
+	switch e {
+	case ExportAudit:
+		return true
+	case ExportMatches:
+		return true
+	case ExportMovements:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IngestResultReason.
 const (
 	AccountMismatch IngestResultReason = "account_mismatch"
@@ -244,6 +280,33 @@ func (e MatchTray) Valid() bool {
 	}
 }
 
+// Defines values for MetricUnit.
+const (
+	UnitCents   MetricUnit = "cents"
+	UnitCount   MetricUnit = "count"
+	UnitDays    MetricUnit = "days"
+	UnitHours   MetricUnit = "hours"
+	UnitPercent MetricUnit = "percent"
+)
+
+// Valid indicates whether the value is a known member of the MetricUnit enum.
+func (e MetricUnit) Valid() bool {
+	switch e {
+	case UnitCents:
+		return true
+	case UnitCount:
+		return true
+	case UnitDays:
+		return true
+	case UnitHours:
+		return true
+	case UnitPercent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MovementDecisionAction.
 const (
 	MovementDecisionActionLink   MovementDecisionAction = "link"
@@ -280,6 +343,48 @@ func (e MovementDecisionRequestAction) Valid() bool {
 	case MovementDecisionRequestActionOther:
 		return true
 	case MovementDecisionRequestActionRevert:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OnboardingStepKind.
+const (
+	StepArca OnboardingStepKind = "arca"
+	StepBank OnboardingStepKind = "bank"
+	StepErp  OnboardingStepKind = "erp"
+)
+
+// Valid indicates whether the value is a known member of the OnboardingStepKind enum.
+func (e OnboardingStepKind) Valid() bool {
+	switch e {
+	case StepArca:
+		return true
+	case StepBank:
+		return true
+	case StepErp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OnboardingStepStatus.
+const (
+	StepFailed   OnboardingStepStatus = "failed"
+	StepPending  OnboardingStepStatus = "pending"
+	StepVerified OnboardingStepStatus = "verified"
+)
+
+// Valid indicates whether the value is a known member of the OnboardingStepStatus enum.
+func (e OnboardingStepStatus) Valid() bool {
+	switch e {
+	case StepFailed:
+		return true
+	case StepPending:
+		return true
+	case StepVerified:
 		return true
 	default:
 		return false
@@ -391,6 +496,27 @@ func (e TokensTokenType) Valid() bool {
 	}
 }
 
+// Defines values for GetExportParamsKind.
+const (
+	KindAudit     GetExportParamsKind = "audit"
+	KindMatches   GetExportParamsKind = "matches"
+	KindMovements GetExportParamsKind = "movements"
+)
+
+// Valid indicates whether the value is a known member of the GetExportParamsKind enum.
+func (e GetExportParamsKind) Valid() bool {
+	switch e {
+	case KindAudit:
+		return true
+	case KindMatches:
+		return true
+	case KindMovements:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListMatchesParamsTray.
 const (
 	ListMatchesParamsTrayAuto      ListMatchesParamsTray = "auto"
@@ -483,7 +609,7 @@ type CreateAccountRequest struct {
 
 // Cuit CUIT, 11 digits without dashes. The check digit is verified.
 //
-// Example: 30712345674
+// Example: 30000000015
 type Cuit = string
 
 // Decision defines model for Decision.
@@ -514,6 +640,21 @@ type DecisionRequest struct {
 
 // DecisionRequestAction defines model for DecisionRequest.Action.
 type DecisionRequestAction string
+
+// ExportInfo defines model for ExportInfo.
+type ExportInfo struct {
+	Available bool             `json:"available"`
+	Format    ExportInfoFormat `json:"format"`
+	Kind      ExportInfoKind   `json:"kind"`
+	Rows      *int             `json:"rows,omitempty"`
+	UpdatedAt *time.Time       `json:"updatedAt,omitempty"`
+}
+
+// ExportInfoFormat defines model for ExportInfo.Format.
+type ExportInfoFormat string
+
+// ExportInfoKind defines model for ExportInfo.Kind.
+type ExportInfoKind string
 
 // IngestResult defines model for IngestResult.
 type IngestResult struct {
@@ -625,6 +766,24 @@ type Membership struct {
 	TenantName string             `json:"tenantName"`
 }
 
+// Metric defines model for Metric.
+type Metric struct {
+	// Key Example: automation_rate
+	Key   string `json:"key"`
+	Label string `json:"label"`
+
+	// Period Example: 2026-11
+	Period string `json:"period"`
+
+	// Source Where the number comes from, shown next to it.
+	Source string     `json:"source"`
+	Unit   MetricUnit `json:"unit"`
+	Value  float32    `json:"value"`
+}
+
+// MetricUnit defines model for Metric.Unit.
+type MetricUnit string
+
 // MovementDecision defines model for MovementDecision.
 type MovementDecision struct {
 	Action MovementDecisionAction `json:"action"`
@@ -651,6 +810,21 @@ type MovementDecisionRequest struct {
 
 // MovementDecisionRequestAction defines model for MovementDecisionRequest.Action.
 type MovementDecisionRequestAction string
+
+// OnboardingStep defines model for OnboardingStep.
+type OnboardingStep struct {
+	// Detail Why the step has this status, in English, for the UI to translate.
+	Detail     string               `json:"detail"`
+	Kind       OnboardingStepKind   `json:"kind"`
+	Status     OnboardingStepStatus `json:"status"`
+	VerifiedAt *time.Time           `json:"verifiedAt,omitempty"`
+}
+
+// OnboardingStepKind defines model for OnboardingStep.Kind.
+type OnboardingStepKind string
+
+// OnboardingStepStatus defines model for OnboardingStep.Status.
+type OnboardingStepStatus string
 
 // Password defines model for Password.
 type Password = string
@@ -715,7 +889,7 @@ type RefreshRequest struct {
 type RegisterRequest struct {
 	// Cuit CUIT, 11 digits without dashes. The check digit is verified.
 	//
-	// Example: 30712345674
+	// Example: 30000000015
 	Cuit       *Cuit               `json:"cuit,omitempty"`
 	Email      openapi_types.Email `json:"email"`
 	Password   Password            `json:"password"`
@@ -746,6 +920,23 @@ type RunSummary struct {
 	Pending    int                `json:"pending"`
 	Period     string             `json:"period"`
 	RunId      openapi_types.UUID `json:"runId"`
+}
+
+// TenantStatus defines model for TenantStatus.
+type TenantStatus struct {
+	Cuit *Cuit              `json:"cuit,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
+
+	// OpenExceptions Matches and movements waiting for the client in Exceptions.
+	OpenExceptions int `json:"openExceptions"`
+
+	// OpenExceptionsCapped True when the count stopped at its cap (1000 of each kind).
+	OpenExceptionsCapped bool `json:"openExceptionsCapped"`
+
+	// Role The caller's role in this tenant.
+	Role  Role             `json:"role"`
+	Steps []OnboardingStep `json:"steps"`
 }
 
 // TokenDelivery defines model for TokenDelivery.
@@ -812,6 +1003,15 @@ type UploadInvoiceParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
+// GetExportParams defines parameters for GetExport.
+type GetExportParams struct {
+	From *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+	To   *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+}
+
+// GetExportParamsKind defines parameters for GetExport.
+type GetExportParamsKind string
+
 // CreateAccountParams defines parameters for CreateAccount.
 type CreateAccountParams struct {
 	// IdempotencyKey Client generated UUID. Same key and same body replays the first
@@ -871,6 +1071,11 @@ type RunMatchingParams struct {
 	// response for 24 hours; same key with another body is 422; a key
 	// whose first request is still running is 409.
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// ListMetricsParams defines parameters for ListMetrics.
+type ListMetricsParams struct {
+	Period string `form:"period" json:"period"`
 }
 
 // AddMemberParams defines parameters for AddMember.
@@ -940,6 +1145,12 @@ type ServerInterface interface {
 	// GetInvoice An invoice with every field's source and confidence
 	// (GET /v1/documents/invoices/{invoiceId})
 	GetInvoice(w http.ResponseWriter, r *http.Request, invoiceId openapi_types.UUID)
+	// ListExports What the client can download, with row counts
+	// (GET /v1/exports)
+	ListExports(w http.ResponseWriter, r *http.Request)
+	// GetExport Download one export as CSV
+	// (GET /v1/exports/{kind})
+	GetExport(w http.ResponseWriter, r *http.Request, kind GetExportParamsKind, params GetExportParams)
 	// ListAccounts Accounts of the active tenant
 	// (GET /v1/ledger/accounts)
 	ListAccounts(w http.ResponseWriter, r *http.Request)
@@ -970,12 +1181,21 @@ type ServerInterface interface {
 	// GetMe The caller, the active tenant and every membership
 	// (GET /v1/me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// GetMyTenant Onboarding status of the active tenant (portal home)
+	// (GET /v1/me/tenant)
+	GetMyTenant(w http.ResponseWriter, r *http.Request)
+	// ListMetrics Results panel of the active tenant for a month
+	// (GET /v1/metrics)
+	ListMetrics(w http.ResponseWriter, r *http.Request, params ListMetricsParams)
 	// ListMembers Members of the active tenant
 	// (GET /v1/tenant/members)
 	ListMembers(w http.ResponseWriter, r *http.Request)
 	// AddMember Add a person to the active tenant (owner or operator)
 	// (POST /v1/tenant/members)
 	AddMember(w http.ResponseWriter, r *http.Request, params AddMemberParams)
+	// ListTenants Tenants where the caller is operator or accountant (operator console)
+	// (GET /v1/tenants)
+	ListTenants(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -1027,6 +1247,18 @@ func (_ Unimplemented) UploadInvoice(w http.ResponseWriter, r *http.Request, par
 // GetInvoice An invoice with every field's source and confidence
 // (GET /v1/documents/invoices/{invoiceId})
 func (_ Unimplemented) GetInvoice(w http.ResponseWriter, r *http.Request, invoiceId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListExports What the client can download, with row counts
+// (GET /v1/exports)
+func (_ Unimplemented) ListExports(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetExport Download one export as CSV
+// (GET /v1/exports/{kind})
+func (_ Unimplemented) GetExport(w http.ResponseWriter, r *http.Request, kind GetExportParamsKind, params GetExportParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1090,6 +1322,18 @@ func (_ Unimplemented) GetMe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// GetMyTenant Onboarding status of the active tenant (portal home)
+// (GET /v1/me/tenant)
+func (_ Unimplemented) GetMyTenant(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMetrics Results panel of the active tenant for a month
+// (GET /v1/metrics)
+func (_ Unimplemented) ListMetrics(w http.ResponseWriter, r *http.Request, params ListMetricsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ListMembers Members of the active tenant
 // (GET /v1/tenant/members)
 func (_ Unimplemented) ListMembers(w http.ResponseWriter, r *http.Request) {
@@ -1099,6 +1343,12 @@ func (_ Unimplemented) ListMembers(w http.ResponseWriter, r *http.Request) {
 // AddMember Add a person to the active tenant (owner or operator)
 // (POST /v1/tenant/members)
 func (_ Unimplemented) AddMember(w http.ResponseWriter, r *http.Request, params AddMemberParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListTenants Tenants where the caller is operator or accountant (operator console)
+// (GET /v1/tenants)
+func (_ Unimplemented) ListTenants(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1330,6 +1580,75 @@ func (siw *ServerInterfaceWrapper) GetInvoice(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetInvoice(w, r, invoiceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListExports operation middleware
+func (siw *ServerInterfaceWrapper) ListExports(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListExports(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetExport operation middleware
+func (siw *ServerInterfaceWrapper) GetExport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "kind" -------------
+	var kind GetExportParamsKind
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kind", chi.URLParam(r, "kind"), &kind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetExportParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetExport(w, r, kind, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1699,6 +2018,53 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 	handler.ServeHTTP(w, r)
 }
 
+// GetMyTenant operation middleware
+func (siw *ServerInterfaceWrapper) GetMyTenant(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMyTenant(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMetrics operation middleware
+func (siw *ServerInterfaceWrapper) ListMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMetricsParams
+
+	// ------------- Required query parameter "period" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "period", r.URL.Query(), &params.Period, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "period"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "period", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMetrics(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListMembers operation middleware
 func (siw *ServerInterfaceWrapper) ListMembers(w http.ResponseWriter, r *http.Request) {
 
@@ -1749,6 +2115,20 @@ func (siw *ServerInterfaceWrapper) AddMember(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AddMember(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTenants operation middleware
+func (siw *ServerInterfaceWrapper) ListTenants(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTenants(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1931,6 +2311,21 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/v1/matching/movements/{movementId}/decision", wrapper.DecideMovement)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/me/tenant", wrapper.GetMyTenant)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/tenants", wrapper.ListTenants)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/metrics", wrapper.ListMetrics)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/exports", wrapper.ListExports)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/exports/{kind}", wrapper.GetExport)
+	})
 
 	return r
 }
@@ -2043,6 +2438,30 @@ func (response Login401ApplicationProblemPlusJSONResponse) VisitLoginResponse(w 
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login429ResponseHeaders struct {
+	RetryAfter *int
+}
+
+type Login429ApplicationProblemPlusJSONResponse struct {
+	Body    Problem
+	Headers Login429ResponseHeaders
+}
+
+func (response Login429ApplicationProblemPlusJSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -2177,6 +2596,30 @@ func (response Register422ApplicationProblemPlusJSONResponse) VisitRegisterRespo
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Register429ResponseHeaders struct {
+	RetryAfter *int
+}
+
+type Register429ApplicationProblemPlusJSONResponse struct {
+	Body    Problem
+	Headers Register429ResponseHeaders
+}
+
+func (response Register429ApplicationProblemPlusJSONResponse) VisitRegisterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	if response.Headers.RetryAfter != nil {
+		w.Header().Set("Retry-After", fmt.Sprint(*response.Headers.RetryAfter))
+	}
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -2324,6 +2767,126 @@ func (response GetInvoice404ApplicationProblemPlusJSONResponse) VisitGetInvoiceR
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListExportsRequestObject struct {
+}
+
+type ListExportsResponseObject interface {
+	VisitListExportsResponse(w http.ResponseWriter) error
+}
+
+type ListExports200JSONResponse struct {
+	Items []ExportInfo `json:"items"`
+}
+
+func (response ListExports200JSONResponse) VisitListExportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListExports401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListExports401ApplicationProblemPlusJSONResponse) VisitListExportsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetExportRequestObject struct {
+	Kind   GetExportParamsKind `json:"kind"`
+	Params GetExportParams
+}
+
+type GetExportResponseObject interface {
+	VisitGetExportResponse(w http.ResponseWriter) error
+}
+
+type GetExport200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type GetExport200TextcsvResponse struct {
+	Body          io.Reader
+	Headers       GetExport200ResponseHeaders
+	ContentLength int64
+}
+
+func (response GetExport200TextcsvResponse) VisitGetExportResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/csv")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetExport400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetExport400ApplicationProblemPlusJSONResponse) VisitGetExportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetExport401ApplicationProblemPlusJSONResponse Problem
+
+func (response GetExport401ApplicationProblemPlusJSONResponse) VisitGetExportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetExport501ApplicationProblemPlusJSONResponse Problem
+
+func (response GetExport501ApplicationProblemPlusJSONResponse) VisitGetExportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(501)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -2991,6 +3554,111 @@ func (response GetMe401ApplicationProblemPlusJSONResponse) VisitGetMeResponse(w 
 	return err
 }
 
+type GetMyTenantRequestObject struct {
+}
+
+type GetMyTenantResponseObject interface {
+	VisitGetMyTenantResponse(w http.ResponseWriter) error
+}
+
+type GetMyTenant200JSONResponse TenantStatus
+
+func (response GetMyTenant200JSONResponse) VisitGetMyTenantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyTenant401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetMyTenant401ApplicationProblemPlusJSONResponse) VisitGetMyTenantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMetricsRequestObject struct {
+	Params ListMetricsParams
+}
+
+type ListMetricsResponseObject interface {
+	VisitListMetricsResponse(w http.ResponseWriter) error
+}
+
+type ListMetrics200JSONResponse struct {
+	Items []Metric `json:"items"`
+}
+
+func (response ListMetrics200JSONResponse) VisitListMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMetrics400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListMetrics400ApplicationProblemPlusJSONResponse) VisitListMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMetrics401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListMetrics401ApplicationProblemPlusJSONResponse) VisitListMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMetrics501ApplicationProblemPlusJSONResponse Problem
+
+func (response ListMetrics501ApplicationProblemPlusJSONResponse) VisitListMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(501)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListMembersRequestObject struct {
 }
 
@@ -3126,6 +3794,60 @@ func (response AddMember422ApplicationProblemPlusJSONResponse) VisitAddMemberRes
 	return err
 }
 
+type ListTenantsRequestObject struct {
+}
+
+type ListTenantsResponseObject interface {
+	VisitListTenantsResponse(w http.ResponseWriter) error
+}
+
+type ListTenants200JSONResponse struct {
+	Items      []TenantStatus `json:"items"`
+	NextCursor *string        `json:"nextCursor,omitempty"`
+}
+
+func (response ListTenants200JSONResponse) VisitListTenantsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTenants401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListTenants401ApplicationProblemPlusJSONResponse) VisitListTenantsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTenants403ApplicationProblemPlusJSONResponse Problem
+
+func (response ListTenants403ApplicationProblemPlusJSONResponse) VisitListTenantsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Healthz Liveness
@@ -3152,6 +3874,12 @@ type StrictServerInterface interface {
 	// GetInvoice An invoice with every field's source and confidence
 	// (GET /v1/documents/invoices/{invoiceId})
 	GetInvoice(ctx context.Context, request GetInvoiceRequestObject) (GetInvoiceResponseObject, error)
+	// ListExports What the client can download, with row counts
+	// (GET /v1/exports)
+	ListExports(ctx context.Context, request ListExportsRequestObject) (ListExportsResponseObject, error)
+	// GetExport Download one export as CSV
+	// (GET /v1/exports/{kind})
+	GetExport(ctx context.Context, request GetExportRequestObject) (GetExportResponseObject, error)
 	// ListAccounts Accounts of the active tenant
 	// (GET /v1/ledger/accounts)
 	ListAccounts(ctx context.Context, request ListAccountsRequestObject) (ListAccountsResponseObject, error)
@@ -3182,12 +3910,21 @@ type StrictServerInterface interface {
 	// GetMe The caller, the active tenant and every membership
 	// (GET /v1/me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// GetMyTenant Onboarding status of the active tenant (portal home)
+	// (GET /v1/me/tenant)
+	GetMyTenant(ctx context.Context, request GetMyTenantRequestObject) (GetMyTenantResponseObject, error)
+	// ListMetrics Results panel of the active tenant for a month
+	// (GET /v1/metrics)
+	ListMetrics(ctx context.Context, request ListMetricsRequestObject) (ListMetricsResponseObject, error)
 	// ListMembers Members of the active tenant
 	// (GET /v1/tenant/members)
 	ListMembers(ctx context.Context, request ListMembersRequestObject) (ListMembersResponseObject, error)
 	// AddMember Add a person to the active tenant (owner or operator)
 	// (POST /v1/tenant/members)
 	AddMember(ctx context.Context, request AddMemberRequestObject) (AddMemberResponseObject, error)
+	// ListTenants Tenants where the caller is operator or accountant (operator console)
+	// (GET /v1/tenants)
+	ListTenants(ctx context.Context, request ListTenantsRequestObject) (ListTenantsResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -3465,6 +4202,57 @@ func (sh *strictHandler) GetInvoice(w http.ResponseWriter, r *http.Request, invo
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetInvoiceResponseObject); ok {
 		if err := validResponse.VisitGetInvoiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListExports operation middleware
+func (sh *strictHandler) ListExports(w http.ResponseWriter, r *http.Request) {
+	var request ListExportsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListExports(ctx, request.(ListExportsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListExports")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListExportsResponseObject); ok {
+		if err := validResponse.VisitListExportsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetExport operation middleware
+func (sh *strictHandler) GetExport(w http.ResponseWriter, r *http.Request, kind GetExportParamsKind, params GetExportParams) {
+	var request GetExportRequestObject
+
+	request.Kind = kind
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetExport(ctx, request.(GetExportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetExport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetExportResponseObject); ok {
+		if err := validResponse.VisitGetExportResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3764,6 +4552,56 @@ func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetMyTenant operation middleware
+func (sh *strictHandler) GetMyTenant(w http.ResponseWriter, r *http.Request) {
+	var request GetMyTenantRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyTenant(ctx, request.(GetMyTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyTenant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMyTenantResponseObject); ok {
+		if err := validResponse.VisitGetMyTenantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMetrics operation middleware
+func (sh *strictHandler) ListMetrics(w http.ResponseWriter, r *http.Request, params ListMetricsParams) {
+	var request ListMetricsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMetrics(ctx, request.(ListMetricsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMetrics")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMetricsResponseObject); ok {
+		if err := validResponse.VisitListMetricsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListMembers operation middleware
 func (sh *strictHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
 	var request ListMembersRequestObject
@@ -3821,108 +4659,157 @@ func (sh *strictHandler) AddMember(w http.ResponseWriter, r *http.Request, param
 	}
 }
 
+// ListTenants operation middleware
+func (sh *strictHandler) ListTenants(w http.ResponseWriter, r *http.Request) {
+	var request ListTenantsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTenants(ctx, request.(ListTenantsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTenants")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTenantsResponseObject); ok {
+		if err := validResponse.VisitListTenantsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"I1Dm5aiDlkAhjgrvru7+ZwA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

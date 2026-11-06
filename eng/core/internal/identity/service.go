@@ -370,6 +370,46 @@ func (s *Service) AddMember(ctx context.Context, p Principal, email, role string
 	return store.ListMembersRow{ID: user, Email: email, Role: store.Role(role)}, nil
 }
 
+// TenantInfo is the active tenant as stored.
+type TenantInfo struct {
+	ID   uuid.UUID
+	Name string
+	CUIT *int64
+}
+
+// Tenant reads the tenant of the scope in ctx, under RLS.
+func (s *Service) Tenant(ctx context.Context) (TenantInfo, error) {
+	scope, ok := db.ScopeFrom(ctx)
+	if !ok {
+		return TenantInfo{}, db.ErrNoScope
+	}
+	var t TenantInfo
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		row, err := store.New(tx).GetTenant(ctx, scope.TenantID)
+		t = TenantInfo{ID: row.ID, Name: row.Name, CUIT: row.Cuit}
+		return err
+	})
+	return t, err
+}
+
+// ConsolePrincipals returns, for the caller, one principal per tenant where
+// the caller is operator or accountant, with that membership's role. The
+// operator console reads each tenant under its own scope
+// (WithPrincipal). Built only from the caller's own memberships.
+func (s *Service) ConsolePrincipals(ctx context.Context, p Principal) ([]Principal, error) {
+	me, err := s.Me(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	var out []Principal
+	for _, m := range me.Memberships {
+		if r := string(m.Role); r == RoleOperator || r == RoleAccountant {
+			out = append(out, Principal{UserID: p.UserID, TenantID: m.TenantID, Role: r})
+		}
+	}
+	return out, nil
+}
+
 // CanManageMembers reports whether role may add people to a tenant.
 func CanManageMembers(role string) bool { return role == RoleOwner || role == RoleOperator }
 

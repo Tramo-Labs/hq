@@ -56,3 +56,7 @@ update refresh_tokens set revoked_at = now() where family_id = $1 and revoked_at
 
 -- name: DeleteExpiredRefreshTokens :execrows
 delete from refresh_tokens where expires_at < now() - interval '7 days';
+
+-- name: GetTenant :one
+-- Runs in a tenant transaction: RLS only lets the scoped tenant through.
+select id, name, cuit from tenants where id = $1;
