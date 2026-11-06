@@ -277,6 +277,43 @@ func TestMovementKeysStable(t *testing.T) {
 	}
 }
 
+// F3: the same movement with another description (an edited cell, a bank
+// that rewrote the concept) is never stored twice. The file goes to
+// quarantine naming the line; a change of case or spacing alone is the
+// same movement.
+func TestDescriptionIsNotPartOfTheIdentity(t *testing.T) {
+	s := NewMemStore()
+	in := &Ingester{Store: s}
+	if r := ingest(t, in, Galicia, "acc", "galicia_ok.csv"); r.Status != Accepted || r.New != 10 {
+		t.Fatalf("first upload %s new %d", r.Status, r.New)
+	}
+	upload := func(data []byte) Result {
+		t.Helper()
+		r, err := in.Ingest(context.Background(), Upload{TenantID: "t1", AccountID: "acc", Bank: Galicia, Data: data})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	orig := string(fixture(t, "galicia_ok.csv"))
+	for _, desc := range []string{"=1+1 CLIENTE UNO", "@SUM(A1) CLIENTE UNO", "TRANSFERENCIA RECIBIDA CLIENTE TRES"} {
+		r := upload([]byte(strings.Replace(orig, "TRANSFERENCIA RECIBIDA CLIENTE UNO", desc, 1)))
+		if r.Status != Quarantined || r.Reason != ReasonMovementConflict || !strings.Contains(r.Detail, "line 11") {
+			t.Errorf("%q: %s %s %q", desc, r.Status, r.Reason, r.Detail)
+		}
+		if strings.Contains(r.Detail, "CLIENTE") || strings.Contains(r.Detail, "250") {
+			t.Errorf("detail carries data from the file: %q", r.Detail)
+		}
+	}
+	r := upload([]byte(strings.Replace(orig, "TRANSFERENCIA RECIBIDA CLIENTE UNO", "Transferencia  recibida cliente uno", 1)))
+	if r.Status != Accepted || r.New != 0 || r.AlreadyPresent != 10 {
+		t.Errorf("cosmetic change: %s new %d already %d (%s)", r.Status, r.New, r.AlreadyPresent, r.Detail)
+	}
+	if n := len(s.Movements("t1", "acc")); n != 10 {
+		t.Errorf("%d movements stored; want 10", n)
+	}
+}
+
 // Identical movements without a running balance still get distinct keys.
 func TestTwinsWithoutBalance(t *testing.T) {
 	m := Movement{Description: "X", Amount: 100}

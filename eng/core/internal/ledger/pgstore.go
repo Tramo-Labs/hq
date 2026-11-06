@@ -55,21 +55,21 @@ func (s *PGStore) FileSeen(ctx context.Context, tenantID, fileHash string) (bool
 	return seen, err
 }
 
-func (s *PGStore) MovementsSeen(ctx context.Context, tenantID, accountID string, keys []string) (map[string]bool, error) {
-	out := map[string]bool{}
+func (s *PGStore) MovementsSeen(ctx context.Context, tenantID, accountID string, keys []string) (map[string]string, error) {
+	out := map[string]string{}
 	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx,
-			`select key from ledger.movements where account_id = $1 and key = any($2)`, accountID, keys)
+			`select key, description from ledger.movements where account_id = $1 and key = any($2)`, accountID, keys)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 		for rows.Next() {
-			var k string
-			if err := rows.Scan(&k); err != nil {
+			var k, d string
+			if err := rows.Scan(&k, &d); err != nil {
 				return err
 			}
-			out[k] = true
+			out[k] = d
 		}
 		return rows.Err()
 	})

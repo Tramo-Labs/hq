@@ -1,12 +1,16 @@
 package matching
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 )
 
 var metricsNow = time.Date(2026, 11, 6, 15, 0, 0, 0, time.UTC)
@@ -216,5 +220,50 @@ func TestPGMatchRows(t *testing.T) {
 	}
 	if rows, _ := e.store.MatchRows(e.ctx, day(20), day(31)); len(rows) != 1 {
 		t.Errorf("rows outside the dates: %d", len(rows)-1)
+	}
+}
+
+// F3 end to end: the Bancor file again with one description edited goes
+// to quarantine through the Postgres store, and the panel still counts the
+// month's ten movements. A cosmetic change enters with nothing new.
+func TestPGEditedDescriptionCountsOnce(t *testing.T) {
+	e := newPGEnv(t)
+	var acct string
+	if err := e.d.InTenant(e.ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(e.ctx, `select id::text from ledger.accounts`).Scan(&acct)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	orig, err := os.ReadFile("../ledger/testdata/bancor_ok.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := &ledger.Ingester{Store: &ledger.PGStore{DB: e.d}}
+	upload := func(from, to string) ledger.Result {
+		t.Helper()
+		r, err := in.Ingest(e.ctx, ledger.Upload{TenantID: e.a.TenantID.String(), AccountID: acct, Bank: ledger.Bancor,
+			Data: []byte(strings.Replace(string(orig), from, to, 1))})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	if r := upload("COMISION MANTENIMIENTO CUENTA", "=1+1 COMISION"); r.Status != ledger.Quarantined ||
+		r.Reason != ledger.ReasonMovementConflict {
+		t.Fatalf("edited description: %s %s %s", r.Status, r.Reason, r.Detail)
+	}
+	if r := upload("COMISION MANTENIMIENTO CUENTA", "comision  mantenimiento cuenta"); r.Status != ledger.Accepted || r.New != 0 {
+		t.Fatalf("cosmetic change: %s new %d (%s)", r.Status, r.New, r.Detail)
+	}
+	if n := e.count(t, e.ctx, `select count(*) from ledger.movements`); n != 10 {
+		t.Fatalf("%d movements stored; want 10", n)
+	}
+	e.run(t)
+	k := byKey(t, mustMetrics(t, e, "2026-10"))
+	if v := value(t, k["automation_rate"]); v != 20 || !strings.Contains(k["automation_rate"].Source, "(10)") {
+		t.Errorf("automation_rate %v from %q; want 20 of 10 movements", v, k["automation_rate"].Source)
+	}
+	if v := value(t, k["open_exception_movements"]); v != 7 {
+		t.Errorf("open_exception_movements %v; want 7", v)
 	}
 }
