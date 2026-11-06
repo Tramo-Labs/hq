@@ -1556,8 +1556,11 @@ components:
           description: |
             Set when quarantined. movement_conflict: a line has the identity of a stored movement
             (account, date, amount, running balance, references) but another description; it is
-            never stored twice and never overwritten, an operator looks at it.
-          enum: [unknown_layout, bank_mismatch, account_mismatch, row_parse, incomplete, balance_mismatch, chain_gap, empty, movement_conflict]
+            never stored twice and never overwritten, an operator looks at it. unsupported_format:
+            not a file kind statements come in. unrouted: arrived without an account (by mail) and
+            no single account of the tenant matches its bank and number. period_closed: it brings
+            new movements dated in a closed period; nothing enters (the detail names the range).
+          enum: [unknown_layout, bank_mismatch, account_mismatch, row_parse, incomplete, balance_mismatch, chain_gap, empty, movement_conflict, unsupported_format, unrouted, period_closed]
         detail: { type: string }
         fileHash: { type: string, description: SHA-256 of the file in hex. }
         fingerprint: { type: string }
