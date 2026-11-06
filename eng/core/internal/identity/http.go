@@ -96,7 +96,11 @@ func (h *Handlers) Login(ctx context.Context, req apigen.LoginRequestObject) (ap
 
 // AcceptInvite sets the password with an invitation and opens a session.
 func (h *Handlers) AcceptInvite(ctx context.Context, req apigen.AcceptInviteRequestObject) (apigen.AcceptInviteResponseObject, error) {
-	sess, err := h.s.AcceptInvite(ctx, req.Body.Token, req.Body.Password, req.Body.Name)
+	password := ""
+	if req.Body.Password != nil {
+		password = string(*req.Body.Password)
+	}
+	sess, err := h.s.AcceptInvite(ctx, req.Body.Token, password, req.Body.Name)
 	if err != nil {
 		return nil, problem(err)
 	}
@@ -197,7 +201,7 @@ func (h *Handlers) ListMembers(ctx context.Context, _ apigen.ListMembersRequestO
 	}
 	out := apigen.ListMembers200JSONResponse{Items: make([]apigen.Member, 0, len(rows))}
 	for _, m := range rows {
-		out.Items = append(out.Items, apigen.Member{UserId: m.ID, Email: m.Email, Name: m.DisplayName, Role: apigen.Role(m.Role)})
+		out.Items = append(out.Items, apigen.Member{UserId: m.ID, Email: m.Email, Name: m.DisplayName, Role: apigen.Role(m.Role), Status: apigen.Active})
 	}
 	return out, nil
 }
@@ -209,7 +213,7 @@ func (h *Handlers) AddMember(ctx context.Context, req apigen.AddMemberRequestObj
 	if err != nil {
 		return nil, problem(err)
 	}
-	return apigen.AddMember201JSONResponse{UserId: m.ID, Email: m.Email, Role: apigen.Role(m.Role)}, nil
+	return apigen.AddMember201JSONResponse{UserId: m.ID, Email: m.Email, Role: apigen.Role(m.Role), Status: apigen.Active}, nil
 }
 
 // RemoveMember takes a person out of the active tenant.

@@ -132,13 +132,16 @@ paths:
     post:
       operationId: acceptInvite
       tags: [identity]
-      summary: Set the password with an invitation and open a session
+      summary: Accept an invitation, join the tenant and open a session
       description: |
-        The token comes only in the invitation email. It is single use,
-        expires in 72 hours and works only while the person has no
-        password. Unknown, used and expired tokens all answer 401
-        invalid_invite. Rate limited per IP. Opens a session on the tenant
-        that invited the person.
+        The token comes only in the invitation email. It is single use and
+        expires in 72 hours. Accepting turns the pending membership into a
+        membership and opens a session on that tenant. A person without a
+        password sets one here (400 password_required without it); an
+        existing account does not, and its password is never changed here.
+        Unknown, used, revoked and expired tokens all answer 401
+        invalid_invite; an invitation whose pending membership was removed
+        answers 403 not_a_member. Rate limited per IP.
       security: []
       requestBody:
         required: true
@@ -351,9 +354,14 @@ paths:
         An owner grants `owner`, `approver`, `viewer` or `accountant`. An
         operator grants only `owner`, and only while the tenant has none.
         Nobody grants `operator` here (the first one comes from the
-        `api create-operator` command). Anything else is 403. When the
-        person has no password yet, an invitation goes to the email (never
-        in this response) and they set one with POST /v1/auth/invite/accept.
+        `api create-operator` command). Anything else is 403.
+
+        Adding is always an invitation (D-19), for a new email and for an
+        existing account alike: the membership stays pending, giving no
+        access and not showing in the person's switcher, until they accept
+        with the single use link mailed to them (never in this response,
+        POST /v1/auth/invite/accept). Nothing in the person's account is
+        written. Adding someone already pending sends a fresh invitation.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -363,7 +371,7 @@ paths:
             schema: { $ref: "#/components/schemas/AddMemberRequest" }
       responses:
         "201":
-          description: added
+          description: invited; the member has status pending
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Member" }
@@ -1222,7 +1230,7 @@ components:
         tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
     AcceptInviteRequest:
       type: object
-      required: [token, password]
+      required: [token]
       additionalProperties: false
       properties:
         token: { type: string, minLength: 43, maxLength: 64 }
@@ -1296,7 +1304,7 @@ components:
           items: { $ref: "#/components/schemas/Membership" }
     Member:
       type: object
-      required: [userId, email, name, role]
+      required: [userId, email, name, role, status]
       properties:
         userId: { type: string, format: uuid }
         email: { type: string }
@@ -1305,6 +1313,10 @@ components:
           nullable: true
           description: The person's name, null until they set one.
         role: { $ref: "#/components/schemas/Role" }
+        status:
+          type: string
+          enum: [active, pending]
+          description: pending until the person accepts the invitation (D-19).
     AddMemberRequest:
       type: object
       required: [email, role]
