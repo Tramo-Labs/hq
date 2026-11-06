@@ -174,11 +174,18 @@ export default function Home() {
           </Reveal>
           <Reveal delay={0.1}>
             <form action={`mailto:${site.email}`} method="post" encType="text/plain" className="grid gap-3">
+              {/* Visible labels: a placeholder alone disappears while typing and is not a label. */}
               {(["name", "email", "company"] as const).map((k) => (
-                <input key={k} name={k} type={k === "email" ? "email" : "text"} required={k !== "company"} placeholder={site.contact.fields[k]}
-                  className="rounded-lg border border-white/15 bg-white/[0.04] px-4 py-3 text-[15px] placeholder:text-white/40 focus:border-white/40 focus:outline-none" />
+                <label key={k} className="grid gap-1.5 text-[14px] text-white/70">
+                  {site.contact.fields[k]}
+                  <input name={k} type={k === "email" ? "email" : "text"} required={k !== "company"} autoComplete={{ name: "name", email: "email", company: "organization" }[k]}
+                    className="min-h-11 rounded-lg border border-white/15 bg-white/[0.04] px-4 py-3 text-[15px] text-white focus:border-white/40 focus:outline-none" />
+                </label>
               ))}
-              <textarea name="message" rows={4} placeholder={site.contact.fields.message} className="rounded-lg border border-white/15 bg-white/[0.04] px-4 py-3 text-[15px] placeholder:text-white/40 focus:border-white/40 focus:outline-none" />
+              <label className="grid gap-1.5 text-[14px] text-white/70">
+                {site.contact.fields.message}
+                <textarea name="message" rows={4} className="rounded-lg border border-white/15 bg-white/[0.04] px-4 py-3 text-[15px] text-white focus:border-white/40 focus:outline-none" />
+              </label>
               <button type="submit" className={`${primary} w-fit`}>{site.contact.submit} <span aria-hidden>→</span></button>
             </form>
           </Reveal>
