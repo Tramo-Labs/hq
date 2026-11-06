@@ -278,3 +278,96 @@ Una aclaración para leer los 429: en la primera mitad, los scripts de la API ga
 Después de mandar el link, el botón "Entrar con un enlace por mail" desaparece. Si el mail no llega, la persona tiene que recargar para pedirlo de nuevo. No lo cuento como falla, pero vale tenerlo en cuenta.
 
 Por IP, los cupos son 10 pedidos de link y 10 aceptaciones de invitación cada 15 minutos. Ahora que el link es la vía normal para quien no tiene contraseña (F32), un estudio contable con una sola IP de salida puede llegar a ese techo en un día de altas.
+
+## Tanda 6: `make dev` de main ea9f592 (06/11/2026)
+
+Levanté `make dev` con un directorio de datos nuevo, en disco (`TMPDIR=~/.cache/tramo-tmp-cliente`, Postgres en 54360). La web es un build de producción (`PORTAL_ENABLED=1 NEXT_PUBLIC_API_BASE=http://localhost:18080 next build`, `next start -p 13100`). Recorrí la API con scripts y la web con Playwright a 390 px. Cada bloque de la API salió de su propia IP de loopback (127.0.0.31 a .42), así los cupos por IP no se mezclan. Los usuarios nuevos son `*-sint.test`. En el bloque D de la web, el pedido de link desde 127.0.0.1 dio 429 porque el rechequeo de la tanda 4 ya había gastado ese cupo, como corresponde. Por eso lo repetí: pedí el link desde 127.0.0.39 y lo abrí en el navegador.
+
+### 1. Invitación con D-19
+
+| Escenario | Pasos exactos | Esperado | Pasó |
+|-----------|---------------|----------|------|
+| Cuenta existente, por API | owner de beta: `POST /v1/tenant/members {"email":"viewer@alfa.test","role":"approver"}`. El viewer: `GET /v1/me`, login con `tenantId` de beta y `switch-tenant` a beta. Después, `POST /v1/auth/invite/accept {"token":…}` sin contraseña. | La membresía queda pendiente y sin acceso. Se acepta solo con el link. | 201 `status: pending`. El `/v1/me` del viewer sigue mostrando solo Molino Alfa, y el email y el nombre no cambian. El login y el switch a beta dan 403 `not_a_member`. Aceptar sin contraseña da 200. Su contraseña vieja sigue andando y ahora entra a beta. **OK** |
+| Cuenta existente, por web | owner de alfa invita a `owner@beta.test` como contador. Abrir el link en un navegador limpio a 390 px y tocar "Aceptar la invitación". | Entra sin que le pidan contraseña. | La página tiene un solo botón y ningún campo. Hace `200 …/invite/accept` y entra a `/operador` como "owner@beta.test · contador / Molino Alfa (dev)". Al recargar sigue adentro. La contraseña vieja sigue andando (200). **OK** |
+| Cuenta existente que manda contraseña | approver@alfa.test acepta la invitación de beta mandando un `password` nuevo. | La contraseña no cambia. | 200. La vieja da 200 y la que mandó da 401. **OK** |
+| Persona nueva, por API | owner invita a `nueva-…@alfa-sint.test`. La persona acepta sin contraseña y después con contraseña. | Le pide contraseña. | Sin contraseña: 400 `password_required`. Con contraseña: 200, y después entra con login. Antes de aceptar, el login da 401. **OK** |
+| Persona nueva, por web | Abrir el link, tocar "Aceptar la invitación" y completar. | Le pide contraseña. | Hace `400 …/accept` y aparece "Sumate a Tramo." con Tu nombre, Contraseña y Repetí la contraseña. Con todo bien: 200 y entra a `/app` como "webnueva-… · lectura". **OK** |
+| La invitación pendiente no da acceso a otra empresa | beta invita a `owner@alfa.test`. Él intenta `switch-tenant` a beta y pide un link mágico con el `tenantId` de beta. | No entra a beta. | El switch da 403. El link llega, pero al aceptarlo da 403. **OK** (ver F36 por el mail que se manda igual) |
+| No toca la cuenta ajena (F25) | beta invita a `VIEWER@ALFA.TEST` y a `Approver@Alfa.Test`. | La cuenta no cambia. | 201 las dos veces, y el email queda guardado en minúscula. La lista de alfa y el `/v1/me` de los dos siguen en minúscula. **OK** |
+| Volver a invitar a alguien pendiente | Invitar a `otra-…` como viewer y después como approver. | Le llega un link nuevo y el viejo deja de servir. | Llegan 2 mails y el token viejo da 401. Acepta con el nuevo y queda `approver, active`. **OK** |
+
+### 2. Miembros a 390 px
+
+| Escenario | Pasos exactos | Esperado | Pasó |
+|-----------|---------------|----------|------|
+| Activos y pendientes | owner entra y abre `/app/miembros`. | Dos listas separadas. | Una lista "Con acceso" (9 personas, cada una con Quitar) y otra "Invitaciones pendientes" ("Todavía no la aceptaron: hasta entonces no ven nada de la empresa."), con la etiqueta pendiente y el botón "Cancelar invitación". `scrollWidth` 390. **OK** |
+| Invitar sin operador | Abrir el desplegable Rol. | No ofrece operador. | Ofrece titular, aprobador, lectura y contador, cada uno con su ayuda ("Todo, incluido quién entra.", "Decide las excepciones.", "Solo mira.", "Mira y descarga."). **OK** |
+| Invitar | Invitar a `  WEB-…@ALFA-SINT.TEST ` (con espacios y mayúsculas) como aprobador. Después a `approver@alfa.test` y a `APPROVER@ALFA.TEST`. | Mensajes claros. | La primera: 201, "Le mandamos la invitación a web-…@alfa-sint.test. Queda pendiente hasta que la acepte." y aparece en pendientes. Las otras dos: 409 y "Esa persona ya tiene acceso a esta empresa.". Si el email está vacío o no es válido, el navegador frena el envío y no llega ningún pedido a la API. **OK** |
+| Quitar con confirmación | Quitar → "¿Quitar a otra-…? Deja de entrar a esta empresa en, como mucho, 10 minutos." → Sí, quitar. Lo mismo, pero con "No". | Pide confirmación dentro de la página, sin diálogo del navegador. | Con "No" no se manda nada. Con "Sí, quitar": `204 DELETE` y la persona desaparece de la lista. Cancelar una invitación da `204` y deja de estar en pendientes. **OK** (ver F37 por el texto) |
+| Último titular | En su propia fila, "(vos)", el owner toca Quitar → Sí, quitar. | Que le expliquen por qué no puede. | Primero aparece "¿Quitarte a vos? Vas a dejar de entrar a esta empresa y se cierra tu sesión.". Después hay un `409` y la misma fila dice "No se puede quitar al único titular: la empresa necesita al menos uno. Invitá a otro titular y, cuando acepte, quitá a este.". **OK** |
+| Otros roles en la web | approver, viewer, accountant y operator entran y abren `/app/miembros`. | No pueden invitar ni quitar. | Ninguno tiene el link Miembros en la navegación. approver y viewer ven "Solo el titular ve y cambia quién entra a esta empresa." y no hay controles ni pedidos a members. accountant y operator ven "Tu cuenta trabaja desde la consola.". **OK** |
+| Otros roles en la API | Cada rol prueba `POST /v1/tenant/members` (con viewer y con owner) y `DELETE /v1/tenant/members/{id}`. El owner prueba con `role: operator`. | 403, y que quede en el audit. | Los 12 intentos dan 403 `forbidden`, y el del owner también. El audit tiene 9 filas `authz.denied` (`operation:addMember` y `removeMember`) con user_id, IP y `repeated`: los dos addMember seguidos de un mismo rol quedan en una sola fila con `repeated=1`. Si el owner de alfa borra el id de alguien de beta, da 404. **OK** |
+
+### 3. Mails del outbox
+
+Hubo 15 mails en la tanda, todos "Tu invitación" o "Tu enlace para entrar", y todos en castellano con voseo. Por ejemplo: "Te sumaron a Molino Beta (dev) con el rol aprobador. Hasta que aceptes no tenés acceso.", "Aceptá la invitación con tu cuenta desde este enlace…" (cuenta existente), "Elegí tu contraseña y entrá desde este enlace…" (persona nueva), "Entrá con este enlace. Sirve una sola vez y vence en 15 minutos" y "Si no lo pediste, ignorá este mail: nadie más que vos puede usarlo.". No queda nada en inglés. **F31 resuelta.**
+
+### 4. F35
+
+`POST /v1/auth/magic-link {"email":"  VIEWER@ALFA.TEST  "}` sale a `To: viewer@alfa.test`, y con `Approver@Alfa.Test` sale a `To: approver@alfa.test`. **F35 resuelta.**
+
+### 5. Estado de las tandas 1 a 5
+
+| # | Estado | Evidencia |
+|---|--------|-----------|
+| F1 | resuelta | El owner crea una cuenta con la clave K. El viewer manda el mismo body con K y recibe 403. |
+| F2 | resuelta | `GET /v1/matching/items` trae partidas, y el seed corre el mes con `matches=1`. |
+| F3 | resuelta | Con una descripción cambiada: `quarantined`, "line 11 has the date, amount, balance and references of a movement already stored, with another description". |
+| F4 | resuelta | El approver hace `other`: 201. Aparece en el Sugerido del operador. El operator hace `resolve`: 201 (revision 2). Con `other`: 403. |
+| F5 | resuelta | Los 403 de members quedan como `authz.denied` (sección 2). |
+| F6 | resuelta | viewer y approver piden audit, movements y matches: 403 en los seis casos. |
+| F7 | resuelta | El owner da accountant, owner, approver y viewer: 201 `pending`. Si da operator: 403. |
+| F8 | resuelta | La persona nueva acepta con contraseña y entra (sección 1). |
+| F9 | resuelta | El Galicia subido a la cuenta Santander da `bank_mismatch`. |
+| F10 | resuelta | Seis contraseñas malas desde 127.0.0.41: `[401×5, 429]`. La buena desde .42: 200. |
+| F11 | resuelta | El owner de beta saca al viewer (204) y el switch a beta da 403 `not_a_member`. |
+| F12 | resuelta | `GET /v1/ledger/files` y `GET /v1/ledger/movements?period=2026-10` dan 200. |
+| F13 | resuelta | El operator da accountant, operator, owner o approver: 403 en los cuatro. |
+| F14 | sin repetir | Esta tanda no recorrió las decisiones del portal. |
+| F15 | resuelta | `other` sin nota: 400 `note_required`. |
+| F16 | resuelta | Una comilla suelta da `row_parse` "line 2: bare \" in non-quoted-field". Una comilla sin cerrar da "line 11: extraneous or missing \" in quoted-field". |
+| F17 | resuelta | `period=2026-13` da "invalid parameter \"period\"". Un body sin name da "invalid request body: /name". |
+| F18 | resuelta | El owner de beta con el `tenantId` de alfa: 403 `not_a_member`. |
+| F19 | sin repetir | No hubo cambios en la zona. En la tanda 5 daba 400 `note_required`. |
+| F20 | resuelta | owner, viewer y approver piden Sugerido, en matches y en pending: 403 en los seis casos. |
+| F21 | resuelta | Factura con el CUIT de beta: 201 `autoEligible: false`. |
+| F22 | resuelta | Refresh por cookie con un Origin ajeno, sin Origin, con `null` o con `…13100.evil.example`: 403 `origin_not_allowed`. Con el origen de la web: 200. `switch-tenant` por cookie se comporta igual. |
+| F23 | resuelta | La invitación a 390 px entra a `/app` (sección 1). |
+| F24 | resuelta | Con el cupo gastado, `/entrar` muestra "Hubo demasiados intentos. Probá de nuevo en 9 minutos.". |
+| F25 | **resuelta** | Si otra empresa invita con otras mayúsculas, el email de la cuenta no cambia. Un 409 `already_member` con `VIEWER@Alfa.test` tampoco lo cambia (sección 1). |
+| F26 | **resuelta** | Invitar a una cuenta existente deja la membresía pendiente, manda el mail y no da acceso hasta que acepta (sección 1). |
+| F27 | **resuelta** | `register` con un `tenantName` de solo ZWSP, con RLO, de solo relleno Hangul o de solo NBSP: 400 `invalid_tenant_name`. Con un nombre normal: 201. |
+| F28 | sin repetir | No hubo cambios en la zona. |
+| F29 | **resuelta** | Si la sacan antes de aceptar y abre la invitación, recibe 403. Esa contraseña da 401: no quedó guardada. Cuando la vuelven a sumar llega un mail nuevo (son 2 en total), el token viejo da 401 y el nuevo da 200. |
+| F30 | **sigue en parte** | ZWSP, RLO y la arroba de ancho completo dan 400. Pero `{"email":"owner @alfa.test"}` (con NBSP) da 201: crea un usuario pendiente `owner @alfa.test` y la invitación sale a `To: owner\xa0@alfa.test`. En Miembros aparece como "owner @alfa.test", casi igual que el titular. |
+| F31 | **resuelta** | Ver la sección 3. |
+| F32 | **resuelta, pero ver F36** | `/entrar` sigue ofreciendo el link. Desde D-19, a quien tiene la invitación pendiente el link no le sirve. |
+| F33 | **resuelta** | Con el owner adentro, otra pestaña abre la invitación de otra persona y muestra "Ya hay una sesión abierta. En este navegador está adentro owner@alfa.test (titular en Molino Alfa (dev)). Para aceptar la invitación hay que cerrar esa sesión primero…", con los botones "Cerrar esa sesión y seguir" y "Cancelar y volver". Al cerrarla, la pestaña del owner pasa enseguida a `/entrar?motivo=otra-pestana` con el aviso "En otra pestaña de este navegador se cerr…". |
+| F34 | **resuelta** | Con dos contraseñas distintas dice "Las dos contraseñas no coinciden.". Si después pone `123`/`123`, cambia a "La contraseña tiene que tener al menos 12 caracteres.". |
+| F35 | **resuelta** | Ver la sección 4. |
+
+### Fallas nuevas
+
+| # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
+|---|------|-----------|---------------|----------|------|------|
+| F36 | API + Web | La persona invitada que perdió el mail pide un link y le llega uno que no sirve, con un mensaje falso | 1) owner de alfa: `POST /v1/tenant/members {"email":"webperdida2-…@alfa-sint.test","role":"approver"}`. La invitación queda pendiente. 2) Esa persona va a `/entrar`, escribe su email y toca "Entrar con un enlace por mail" (por API: `POST /v1/auth/magic-link`, 202). 3) Abre el link de "Tu enlace para entrar". | Que le llegue de nuevo la invitación, o que el link la lleve a aceptarla. Como mínimo, que le digan que tiene una invitación pendiente. | En el outbox está "Tu enlace para entrar", que apunta a `/ingresar`. Al abrirlo hay un `403 POST /v1/auth/magic-link/accept` y la pantalla dice "Ese enlace era para una empresa en la que ya no tenés acceso." con el botón "Ir a entrar". Es falso, porque nunca tuvo acceso, y no le da ninguna salida: solo le queda pedirle al titular que la vuelva a invitar. Pasa lo mismo cuando alguien con cuenta activa pide un link con el `tenantId` de una empresa donde está pendiente. Este camino era el arreglo de F32 en la tanda 5. | media |
+| F37 | Web | Cancelar una invitación se confirma con "Sí, quitar" | En Miembros, en una invitación pendiente, tocar "Cancelar invitación". | Un botón que diga lo mismo que la pregunta, por ejemplo "Sí, cancelar". | La pregunta es "¿Cancelar la invitación a nuevo-espacio@alfa-sint.test? El enlace que le llegó deja de servir." y los botones son "Sí, quitar" y "No". | baja |
+| F38 | Web | La página de invitación no dice a qué empresa ni con qué rol | Abrir cualquier link de invitación a 390 px. | Ver la empresa y el rol antes de aceptar, sobre todo con una cuenta existente, que acepta con un solo toque. | La página dice solo "Te invitaron a Tramo. Si ya tenés cuenta en Tramo, entrás con ella al aceptar…" y el botón "Aceptar la invitación". La empresa y el rol aparecen únicamente en el mail. | baja |
+
+### Notas
+
+En Miembros, el aviso "Le mandamos la invitación a …" sigue en pantalla mientras el owner quita o cancela a otras personas. No confunde, pero ya no corresponde a la última acción.
+
+El último titular primero ve "¿Quitarte a vos? Vas a dejar de entrar…" y se entera de que no puede recién después de confirmar. Se podría explicar antes. Lo que se pidió, que se explique, está.
+
+El contador ve "Tu cuenta trabaja desde la consola." en `/app/miembros`. Es coherente con su rol, que no gestiona miembros.
