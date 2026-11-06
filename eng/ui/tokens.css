@@ -1,0 +1,12 @@
+@theme {
+  --color-ink: #0a0b0b;
+  --color-ink-2: #111312;
+  --color-paper: #ffffff;
+  --color-accent: #f5b342;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+}
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body { background: var(--color-ink); color: var(--color-paper); font-family: var(--font-sans); }
+h1, h2, h3 { text-wrap: balance; }
+p, dd, li { text-wrap: pretty; }

@@ -1,0 +1,10 @@
+{
+  "name": "@tramo/ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Design tokens and the brand shared by the landing (eng/web) and the app (eng/app).",
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./brand": "./brand.ts"
+  }
+}

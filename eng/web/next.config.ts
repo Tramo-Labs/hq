@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import path from "node:path";
+
+/** eng/: next dev and next build run from eng/web, locally, in CI and on Vercel. */
+const eng = path.resolve(process.cwd(), "..");
 
 /**
  * PORTAL_ENABLED decides whether the portal (/app), the console (/operador) and the pages
@@ -45,6 +49,9 @@ export default function config(phase: string): NextConfig {
   }
 
   return {
+    // eng/ is the root: the shared package eng/ui (D-21) lives outside this app.
+    turbopack: { root: eng },
+    outputFileTracingRoot: eng,
     pageExtensions: portal ? ["portal.tsx", "tsx", "ts"] : ["tsx", "ts"],
     // Only the mode and the public API origin reach the browser; CORE_API_URL never does.
     env: { TRAMO_CORE_MODE: apiBase || core ? "live" : "sample", TRAMO_API_BASE: apiBase ?? "" },
