@@ -512,16 +512,34 @@ func TestPGSuggestedIsTheOperatorsOnly(t *testing.T) {
 }
 
 // F4: after the client's "other" the operator answers: resolve (note),
-// return to the client (note, back in Exceptions with it) or link. Each
-// side reverts only its own row; reverting the operator's answer puts the
-// client's "other" back. A resolved movement stays out of both trays on
-// the next run.
-func TestPGOperatorAnswersClientOther(t *testing.T) {
+// return to the client (note, back in Exceptions with it) or link. One
+// test per rule, so a failure names the rule that broke.
+
+// clientOther runs the month and has the approver mark the bank fee as
+// "other". It returns the env, the fee and the open exceptions before.
+func clientOther(t *testing.T) (pgEnv, string, float64) {
+	t.Helper()
 	e := newPGEnv(t)
 	e.run(t)
 	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
-	open := func() float64 { return value(t, byKey(t, mustMetrics(t, e, "2026-10"))["open_exception_movements"]) }
-	before := open()
+	before := e.openExceptions(t)
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "retiro de socio"); err != nil {
+		t.Fatal(err)
+	}
+	return e, fee, before
+}
+
+func (e pgEnv) openExceptions(t *testing.T) float64 {
+	t.Helper()
+	return value(t, byKey(t, mustMetrics(t, e, "2026-10"))["open_exception_movements"])
+}
+
+// Only the operator answers, only after the client's "other", and resolve
+// and return need a note.
+func TestPGOperatorTurnFollowsClientOther(t *testing.T) {
+	e := newPGEnv(t)
+	e.run(t)
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
 	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, "x"); !errors.Is(err, ErrNotWithOperator) {
 		t.Errorf("operator answered before the client: %v", err)
 	}
@@ -539,8 +557,13 @@ func TestPGOperatorAnswersClientOther(t *testing.T) {
 	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementReturn, ""); !errors.Is(err, ErrNoteRequired) {
 		t.Errorf("return without a note: %v", err)
 	}
+}
 
-	// Return: back in the client's Exceptions with the operator's note.
+// Return: back in the client's Exceptions with the operator's note, open
+// again in the panel; the client cannot revert the operator's row, and the
+// operator no longer has the turn.
+func TestPGOperatorReturnsToTheClient(t *testing.T) {
+	e, fee, before := clientOther(t)
 	if d, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementReturn, "¿de qué socio? pasame el acta"); err != nil || d.Revision != 2 || d.Role != identity.RoleOperator {
 		t.Fatalf("return: %v %+v", err, d)
 	}
@@ -550,8 +573,8 @@ func TestPGOperatorAnswersClientOther(t *testing.T) {
 	if r, ok := e.pendingIDs(t, Exception)[fee]; !ok || r.Reason != ReasonOperatorReturned || r.Note != "¿de qué socio? pasame el acta" {
 		t.Errorf("not back with the client: %+v", r)
 	}
-	if got := open(); got != before {
-		t.Errorf("a returned movement is open again for the client: %v; want %v", got, before)
+	if got := e.openExceptions(t); got != before {
+		t.Errorf("a returned movement is not open for the client: %v; want %v", got, before)
 	}
 	if _, err := e.decideMovementAs(t, identity.RoleOwner, fee, MovementRevert, ""); !errors.Is(err, ErrForbidden) {
 		t.Errorf("the client reverted the operator's return: %v", err)
@@ -559,15 +582,20 @@ func TestPGOperatorAnswersClientOther(t *testing.T) {
 	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, "x"); !errors.Is(err, ErrNotWithOperator) {
 		t.Errorf("operator resolved a movement it returned: %v", err)
 	}
-
-	// The client answers again; the operator resolves it.
+	// The client answers again: back with the operator, with the new note.
 	if _, err := e.decideMovementAs(t, identity.RoleOwner, fee, MovementOther, "retiro de Juan, acta 12"); err != nil {
 		t.Fatal(err)
 	}
 	if r := e.operatorQueue(t)[fee]; r.Reason != ReasonClientOther || r.Note != "retiro de Juan, acta 12" {
 		t.Errorf("second other: %+v", r)
 	}
-	if d, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, "asiento manual de retiro"); err != nil || d.Revision != 4 {
+}
+
+// Resolve: in neither tray, also after the next run, no longer open in the
+// panel, and the client cannot decide on it again.
+func TestPGOperatorResolves(t *testing.T) {
+	e, fee, before := clientOther(t)
+	if d, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, "asiento manual de retiro"); err != nil || d.Revision != 2 {
 		t.Fatalf("resolve: %v %+v", err, d)
 	}
 	e.run(t) // the state is per movement, not per run
@@ -577,25 +605,36 @@ func TestPGOperatorAnswersClientOther(t *testing.T) {
 	if _, ok := e.pendingIDs(t, Exception)[fee]; ok {
 		t.Error("resolved movement back with the client")
 	}
-	if got := open(); got != before-1 {
+	if got := e.openExceptions(t); got != before-1 {
 		t.Errorf("open exceptions after resolve: %v; want %v", got, before-1)
 	}
 	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "y"); !errors.Is(err, ErrAlreadyDecided) {
 		t.Errorf("client decided a resolved movement: %v", err)
 	}
+}
 
-	// Reverting the operator's answer puts the client's other back.
+// Reverting the operator's answer puts the client's "other" back in
+// effect, note included; the operator cannot revert the client's row.
+func TestPGRevertingTheOperatorRestoresClientOther(t *testing.T) {
+	e, fee, _ := clientOther(t)
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, "asiento manual de retiro"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementRevert, ""); err != nil {
 		t.Fatal(err)
 	}
-	if r := e.operatorQueue(t)[fee]; r.Reason != ReasonClientOther || r.Note != "retiro de Juan, acta 12" {
+	if r := e.operatorQueue(t)[fee]; r.Reason != ReasonClientOther || r.Note != "retiro de socio" {
 		t.Errorf("the client's other is not back in effect: %+v", r)
 	}
 	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementRevert, ""); !errors.Is(err, ErrForbidden) {
 		t.Errorf("the operator reverted the client's other: %v", err)
 	}
+}
 
-	// The operator links it to an open item that adds up exactly.
+// Link: the operator links it to an open item that adds up exactly, and
+// it leaves the operator's tray.
+func TestPGOperatorLinksClientOther(t *testing.T) {
+	e, fee, _ := clientOther(t)
 	e.setMembership(t, e.a, identity.RoleOwner) // items are loaded as the client
 	ids, err := e.store.UpsertItems(e.ctx, "erp", []ItemIn{
 		{SourceID: "ND-1", Kind: "invoice", Date: day(2), Amount: -850000, Confidence: 1}})
