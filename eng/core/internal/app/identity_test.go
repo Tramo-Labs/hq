@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/app"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
 
 // client is a tiny JSON client for the end to end tests.
@@ -220,23 +221,75 @@ func TestRefreshRotationAndReuseRevokesFamily(t *testing.T) {
 	}
 }
 
+const portalOrigin = "https://app.tramo.test"
+
+// serveWithPortal is a server whose CORS list (and F22 Origin check) holds
+// the portal's origin.
+func serveWithPortal(t *testing.T) client {
+	t.Helper()
+	deps := newDeps(t)
+	origins, err := httpx.ParseOrigins(portalOrigin, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deps.CORSOrigins = origins
+	return client{t, serve(t, deps)}
+}
+
 func TestRefreshByCookieAndLogout(t *testing.T) {
-	c := client{t, server(t)}
+	c := serveWithPortal(t)
 	a := c.registerAndLogin("alfa", "ana@alfa.test")
 	l := c.do("POST", "/v1/auth/login", "", map[string]any{"email": a.email, "password": a.password})
 	cookie := strings.SplitN(l.header.Get("Set-Cookie"), ";", 2)[0]
 
-	r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", cookie)
+	r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", cookie, "Origin", portalOrigin)
 	if r.status != 200 || !strings.HasPrefix(r.header.Get("Set-Cookie"), "tramo_refresh=") {
 		t.Fatalf("cookie refresh: %d %s", r.status, r.raw)
 	}
 	next := strings.SplitN(r.header.Get("Set-Cookie"), ";", 2)[0]
-	out := c.do("POST", "/v1/auth/logout", "", nil, "Cookie", next)
+	out := c.do("POST", "/v1/auth/logout", "", nil, "Cookie", next, "Origin", portalOrigin)
 	if out.status != 204 || !strings.Contains(out.header.Get("Set-Cookie"), "Max-Age=0") {
 		t.Fatalf("logout: %d %v", out.status, out.header)
 	}
-	if r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", next); r.status != 401 {
+	if r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", next, "Origin", portalOrigin); r.status != 401 {
 		t.Fatalf("refresh after logout: %d", r.status)
+	}
+}
+
+// F22: the refresh cookie alone authorizes refresh and logout, so with the
+// cookie the request must come from an allowed origin. A foreign or missing
+// Origin is 403 and the token is left as it was: it still rotates from the
+// portal afterwards (a refused refresh did not consume it, a refused logout
+// did not revoke it). A token in the body, with no cookie, needs no Origin.
+func TestRefreshAndLogoutByCookieNeedAnAllowedOrigin(t *testing.T) {
+	c := serveWithPortal(t)
+	a := c.registerAndLogin("beta", "bea@beta.test")
+	l := c.do("POST", "/v1/auth/login", "", map[string]any{"email": a.email, "password": a.password})
+	cookie := strings.SplitN(l.header.Get("Set-Cookie"), ";", 2)[0]
+
+	for _, path := range []string{"/v1/auth/refresh", "/v1/auth/logout"} {
+		for _, origin := range []string{"", "https://evil.test", "https://app.tramo.test.evil.test", "null", "http://app.tramo.test"} {
+			h := []string{"Cookie", cookie}
+			if origin != "" {
+				h = append(h, "Origin", origin)
+			}
+			r := c.do("POST", path, "", nil, h...)
+			if r.status != 403 || r.str("code") != "origin_not_allowed" {
+				t.Errorf("%s from %q: %d %s", path, origin, r.status, r.raw)
+			}
+			if sc := r.header.Get("Set-Cookie"); sc != "" {
+				t.Errorf("%s from %q set a cookie: %s", path, origin, sc)
+			}
+		}
+	}
+	r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", cookie, "Origin", portalOrigin)
+	if r.status != 200 {
+		t.Fatalf("the refused calls touched the token: %d %s", r.status, r.raw)
+	}
+
+	// A refresh token in the body is not ambient: no Origin needed.
+	if b := c.do("POST", "/v1/auth/refresh", "", map[string]any{"refreshToken": a.refresh, "tokenDelivery": "body"}); b.status != 200 {
+		t.Fatalf("body refresh without origin: %d %s", b.status, b.raw)
 	}
 }
 

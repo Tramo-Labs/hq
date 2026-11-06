@@ -16,7 +16,7 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 | `POST /v1/tenant/members` | bearer, owner or operator | required | Adds a person under the grant rules below. |
 | `DELETE /v1/tenant/members/{userId}` | bearer, owner | | Removes a person (204). 404 if not a member, 409 `last_owner` for the last owner. |
 
-Errors (problem `code`): `unauthorized`, `refresh_token_reused`, `email_taken`,
+Errors (problem `code`): `unauthorized`, `refresh_token_reused`, `origin_not_allowed`, `email_taken`,
 `slug_taken`, `cuit_taken`, `already_member`, `invalid_email`, `invalid_cuit`,
 `forbidden`, `not_a_member`, plus the platform codes.
 
@@ -124,6 +124,15 @@ as `identity.member_removed` with the removed role.
 - **Delivery**: `tokenDelivery: cookie` (default, browsers) puts the refresh
   token only in `tramo_refresh`, `HttpOnly; Secure; SameSite=Strict;
   Path=/v1/auth`. `body` (API clients) returns it in the JSON.
+- **Origin check (F22, ADR 0007)**: the cookie alone authorizes refresh and
+  logout, so a request to either that carries `tramo_refresh` must have an
+  Origin on the CORS list (`CORS_ALLOWED_ORIGINS`). A missing or foreign
+  Origin is 403 `origin_not_allowed`, checked before the handler: the token
+  is neither rotated nor revoked. A token in the body, without the cookie,
+  needs no Origin (`TestRefreshAndLogoutByCookieNeedAnAllowedOrigin`;
+  mutations checked: letting a missing Origin through, and leaving logout
+  out, each fail it). The check is not audited: these calls have no tenant
+  scope yet.
 - **Passwords**: argon2id, RFC 9106 second recommendation (64 MiB, t=3, p=4),
   PHC string with its parameters so they can be raised later. Verification is
   constant time and bounds the parameters a stored hash may demand. Unknown

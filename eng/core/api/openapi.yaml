@@ -152,7 +152,10 @@ paths:
       description: |
         Send the refresh token in the cookie or in the body. A refresh token
         that was already used revokes its whole family (theft detected) and
-        answers 401.
+        answers 401. When the refresh cookie is sent, the request must come
+        from an allowed browser origin (the CORS list, ADR 0007): a missing
+        or foreign Origin answers 403 origin_not_allowed and the token is
+        not touched. A token in the body (no cookie) needs no Origin.
       security: []
       parameters:
         - $ref: "#/components/parameters/RefreshCookie"
@@ -164,11 +167,15 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/Tokens" }
         "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
   /v1/auth/logout:
     post:
       operationId: logout
       tags: [identity]
       summary: Revoke the refresh token family of this session
+      description: |
+        Same Origin rule as refresh: with the refresh cookie, a missing or
+        foreign Origin answers 403 origin_not_allowed and nothing is revoked.
       security: []
       parameters:
         - $ref: "#/components/parameters/RefreshCookie"
@@ -182,6 +189,7 @@ paths:
           description: logged out
           headers:
             Set-Cookie: { schema: { type: string }, description: clears the refresh cookie }
+        "403": { $ref: "#/components/responses/Problem" }
   /v1/me:
     get:
       operationId: getMe
