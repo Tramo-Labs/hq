@@ -59,20 +59,20 @@ func TestParseQRURLOfficialExample(t *testing.T) {
 
 func TestParseQRURLRejects(t *testing.T) {
 	bad := map[string]string{
-		"other host":       "https://www.example.com/fe/qr/?p=" + strings.TrimPrefix(qrURL(goodPayload), "https://www.arca.gob.ar/fe/qr/?p="),
-		"no payload":       "https://www.arca.gob.ar/fe/qr/",
-		"not base64":       "https://www.arca.gob.ar/fe/qr/?p=%%%%",
-		"bad check digit":  qrURL(strings.Replace(goodPayload, "30000000015", "30000000016", 1)),
-		"short codAut":     qrURL(strings.Replace(goodPayload, "76451234567890", "7645123456789", 1)),
-		"three decimals":   qrURL(strings.Replace(goodPayload, "121000.5", "121000.505", 1)),
-		"exponent":         qrURL(strings.Replace(goodPayload, "121000.5", "1.21e5", 1)),
-		"negative total":   qrURL(strings.Replace(goodPayload, "121000.5", "-1", 1)),
-		"version 2":        qrURL(strings.Replace(goodPayload, `"ver":1`, `"ver":2`, 1)),
-		"unknown field":    qrURL(strings.Replace(goodPayload, `"ver":1`, `"ver":1,"x":1`, 1)),
-		"auth type":        qrURL(strings.Replace(goodPayload, `"E"`, `"X"`, 1)),
-		"bad date":         qrURL(strings.Replace(goodPayload, "2026-11-05", "05/11/2026", 1)),
-		"point of sale 0":  qrURL(strings.Replace(goodPayload, `"ptoVta":2`, `"ptoVta":0`, 1)),
-		"currency length":  qrURL(strings.Replace(goodPayload, "PES", "PESO", 1)),
+		"other host":      "https://www.example.com/fe/qr/?p=" + strings.TrimPrefix(qrURL(goodPayload), "https://www.arca.gob.ar/fe/qr/?p="),
+		"no payload":      "https://www.arca.gob.ar/fe/qr/",
+		"not base64":      "https://www.arca.gob.ar/fe/qr/?p=%%%%",
+		"bad check digit": qrURL(strings.Replace(goodPayload, "30000000015", "30000000016", 1)),
+		"short codAut":    qrURL(strings.Replace(goodPayload, "76451234567890", "7645123456789", 1)),
+		"three decimals":  qrURL(strings.Replace(goodPayload, "121000.5", "121000.505", 1)),
+		"exponent":        qrURL(strings.Replace(goodPayload, "121000.5", "1.21e5", 1)),
+		"negative total":  qrURL(strings.Replace(goodPayload, "121000.5", "-1", 1)),
+		"version 2":       qrURL(strings.Replace(goodPayload, `"ver":1`, `"ver":2`, 1)),
+		"unknown field":   qrURL(strings.Replace(goodPayload, `"ver":1`, `"ver":1,"x":1`, 1)),
+		"auth type":       qrURL(strings.Replace(goodPayload, `"E"`, `"X"`, 1)),
+		"bad date":        qrURL(strings.Replace(goodPayload, "2026-11-05", "05/11/2026", 1)),
+		"point of sale 0": qrURL(strings.Replace(goodPayload, `"ptoVta":2`, `"ptoVta":0`, 1)),
+		"currency length": qrURL(strings.Replace(goodPayload, "PES", "PESO", 1)),
 	}
 	for name, u := range bad {
 		if q, err := ParseQRURL(u); err == nil {

@@ -94,13 +94,13 @@ func (e *RowError) Unwrap() error { return e.Err }
 
 // columns describes a row oriented layout where each movement is one row.
 type columns struct {
-	Date, Desc, Ref     int
-	Debit, Credit       int // separate unsigned columns, -1 if the layout uses Signed
-	Signed              int // one signed column, -1 if the layout uses Debit and Credit
-	Balance             int // running balance, -1 if absent
-	Style               money.Style
-	NewestFirst         bool
-	StopAtLabel         []string // first cell of trailer rows that end the data
+	Date, Desc, Ref int
+	Debit, Credit   int // separate unsigned columns, -1 if the layout uses Signed
+	Signed          int // one signed column, -1 if the layout uses Debit and Credit
+	Balance         int // running balance, -1 if absent
+	Style           money.Style
+	NewestFirst     bool
+	StopAtLabel     []string // first cell of trailer rows that end the data
 }
 
 // parseColumns reads the data rows after the header until a blank row or a

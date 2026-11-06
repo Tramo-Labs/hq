@@ -10,7 +10,7 @@ import (
 // per account and key, quarantined files kept apart.
 type MemStore struct {
 	mu          sync.Mutex
-	files       map[string]bool               // tenant|hash
+	files       map[string]bool                // tenant|hash
 	movements   map[string]map[string]Movement // tenant|account -> key -> movement
 	statements  map[string][]StatementSummary  // tenant|account
 	Quarantine  []Result
