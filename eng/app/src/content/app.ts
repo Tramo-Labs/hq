@@ -1,4 +1,4 @@
-import type { Bank, ExportKind, PendingReason, Role, StepKind, StepStatus } from "@/lib/api/types";
+import type { Bank, ExportKind, PendingReason, QuarantineReason, Role, StepKind, StepStatus } from "@/lib/api/types";
 
 /**
  * Copy for the client portal (/app) and the operator console (/operador).
@@ -185,7 +185,12 @@ export const app = {
       balance_mismatch: "Los saldos no cierran: puede faltar un tramo de movimientos.",
       chain_gap: "Falta un tramo entre este extracto y el anterior.",
       empty: "El archivo está vacío.",
-    } as Record<string, string>,
+      // Draft for producto: the four reasons below had no text yet.
+      movement_conflict: "Un movimiento ya estaba cargado con otra descripción. No lo pisamos: lo revisa el operador.",
+      unsupported_format: "No es un tipo de archivo de extracto que podamos leer.",
+      unrouted: "Llegó por mail y no pudimos saber de cuál de tus cuentas es: el banco y el número no coinciden con una sola.",
+      period_closed: "Trae movimientos de un período ya cerrado, así que no entró ninguno.",
+    } satisfies Record<QuarantineReason, string> as Record<string, string>,
     otherReason: "No entró.",
   },
   clients: {

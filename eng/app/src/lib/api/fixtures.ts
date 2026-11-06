@@ -86,6 +86,10 @@ export const quarantine: Record<string, QuarantinedFile[]> = {
   [T.agro]: [
     { id: id(201), accountId: id(102), filename: "macro-usd-octubre.xls", reason: "balance_mismatch",
       detail: "closing balance of line 41 does not follow from the opening balance", receivedAt: "2026-11-03T14:02:00Z" },
+    { id: id(203), accountId: id(101), filename: "galicia-octubre.docx", reason: "unsupported_format",
+      detail: "docx is not a statement file kind", receivedAt: "2026-11-04T10:15:00Z" },
+    { id: id(204), accountId: id(101), filename: "galicia-septiembre.csv", reason: "period_closed",
+      detail: "new movements dated in the closed period 2026-09-16..2026-09-30", receivedAt: "2026-11-05T16:40:00Z" },
   ],
   [T.ferr]: [
     { id: id(202), accountId: id(103), filename: "bancor-octubre.pdf", reason: "unknown_layout",

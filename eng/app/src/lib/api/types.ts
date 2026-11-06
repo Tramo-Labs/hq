@@ -122,6 +122,13 @@ export type Bank = "galicia" | "santander" | "bancor" | "macro" | "mercadopago";
 
 export type Account = { id: string; bank: Bank; number?: string; name: string; currency: string };
 
+/** Ingest quarantine reasons, as in the reason enum of the upload result in openapi.yaml. */
+export const quarantineReasons = [
+  "unknown_layout", "bank_mismatch", "account_mismatch", "row_parse", "incomplete", "balance_mismatch",
+  "chain_gap", "empty", "movement_conflict", "unsupported_format", "unrouted", "period_closed",
+] as const;
+export type QuarantineReason = (typeof quarantineReasons)[number];
+
 export type QuarantinedFile = {
   id: string;
   accountId: string;
