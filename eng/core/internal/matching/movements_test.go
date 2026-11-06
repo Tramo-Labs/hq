@@ -845,4 +845,26 @@ func TestPGOpenItems(t *testing.T) {
 		got.Items[0].Confidence != 1 || got.Items[0].Refs == nil || got.Items[0].Date.Format("2006-01-02") != "2026-10-02" {
 		t.Errorf("api: %+v", got)
 	}
+
+	// Same date: the tie breaks by source id, never by the random UUID.
+	// Fixed ids in the opposite order make an id tie break fail every run.
+	e.setMembership(t, e.a, identity.RoleOwner)
+	if err := e.d.InTenant(e.ctx, func(tx pgx.Tx) error {
+		for _, it := range []struct{ id, source string }{
+			{"ffffffff-ffff-4fff-bfff-ffffffffffff", "AA-1"},
+			{"00000000-0000-4000-8000-000000000001", "ZZ-1"},
+		} {
+			if _, err := tx.Exec(e.ctx,
+				`insert into matching.items (tenant_id, id, source, source_id, kind, date, amount, confidence)
+				 values (app_current_tenant(), $1, 'erp', $2, 'invoice', $3, 123400, 1)`, it.id, it.source, day(20)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.openSources(t, e.ctx, "", "in"); !slices.Equal(got, []string{"FC-A-2", "AA-1", "ZZ-1"}) {
+		t.Errorf("same date ties: %v; want by source id", got)
+	}
 }
