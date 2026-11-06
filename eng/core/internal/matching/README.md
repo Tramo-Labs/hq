@@ -89,6 +89,32 @@ and tray.
 the period read from `ledger.movements`, items, settled and turned down
 matches), `SaveRun` (returns how many matches are new), and `Record`.
 
+### Where the SQL lives
+
+Every query is in `queries.sql`, compiled by sqlc (`make gen`) into
+`store/`; nothing in the module writes SQL or row mapping by hand. Two
+definitions are shared by several queries and live in the database
+(migration 00117), because sqlc cannot splice a fragment into several
+queries and a copy per query would let the trays and the panel drift apart:
+
+- `matching.matches_in_effect`: the matches that settle their movements and
+  items now (automatic, approved in either tray, or a manual link in
+  effect). Used by the engine input, the open items, the "item taken" check
+  and the pending view.
+- `matching.waiting`: what waits in each tray, by period. The tray lists and
+  the results panel both read it, and `TestPGTraysAndPanelAgree` checks that
+  their counts agree after each kind of decision.
+
+Both are `security_invoker` views, so row level security of every table
+underneath applies (`TestPGEveryViewIsSecurityInvoker` in ledger;
+`TestPGTenantIsolation` checks tenant B sees none of A's rows through them;
+mutation checked: without `security_invoker`, B sees 7 rows of
+`matching.waiting`). Tried and dropped: `matches_in_effect` as a SQL
+function. A scalar SQL function with a subquery is never inlined, so it runs
+once per row: the Suggested tray went from about 58 ms to seconds on the
+benchmark. A view is inlined like the SQL it replaced: same plans and
+buffers on the benchmark data (`BenchmarkPGHeavyQueries`).
+
 Who decides what (product spec sections 1 and 5), enforced in `Record`:
 
 | Tray | Who | Actions |
@@ -149,8 +175,8 @@ on the movement itself with `DecideMovement`
 What `link` can offer comes from `GET /v1/matching/items` (`OpenItems`,
 any member): the items no match in effect settles. A match is in effect
 when it is automatic, approved in either tray, or a manual link in effect
-(`matchInEffect`, the same rule the items guard of migration 00104
-applies). A suggested match not yet approved does not settle its items.
+(`matching.matches_in_effect`, the same rule the items guard of migration
+00104 applies). A suggested match not yet approved does not settle its items.
 Filters: `period` (item date in that month; without it every open item,
 since an invoice of one month is often paid in the next) and `direction`
 (`in` positive, `out` negative). Oldest first, up to 500 with `truncated`.
@@ -181,8 +207,8 @@ reversion and that nobody reverted, so reverting the operator's answer puts
 the client's `other` back in effect instead of erasing it.
 `open_exception_movements` counts returned movements as open.
 
-What each tray lists is one SQL definition (`pendingRowsSQL`) used by the
-lists and by the metrics: the latest run's pending rows of movements with
+What each tray lists is one definition (the view `matching.waiting`) used
+by the lists and by the metrics: the latest run's pending rows of movements with
 no decision in effect, plus the movements a decision hands to a side
 (`other` and `rejected` to the operator, `return` to the client) whatever
 the runs say, unless a match in effect settles them now.

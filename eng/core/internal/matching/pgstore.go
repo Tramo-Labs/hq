@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/matching/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -52,19 +53,14 @@ func (s *PGStore) UpsertItems(ctx context.Context, source string, items []ItemIn
 	ids := map[string]uuid.UUID{}
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		for _, it := range items {
-			var id uuid.UUID
 			refs := it.Refs
 			if refs == nil {
 				refs = []string{}
 			}
-			err := tx.QueryRow(ctx,
-				`insert into matching.items (tenant_id, source, source_id, kind, date, due, amount, refs, confidence, party)
-				 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9)
-				 on conflict (tenant_id, source, source_id) do update set kind = excluded.kind, date = excluded.date,
-				   due = excluded.due, amount = excluded.amount, refs = excluded.refs,
-				   confidence = excluded.confidence, party = excluded.party
-				 returning id`,
-				source, it.SourceID, it.Kind, it.Date, nullTime(it.Due), int64(it.Amount), refs, it.Confidence, it.Party).Scan(&id)
+			id, err := store.New(tx).UpsertItem(ctx, store.UpsertItemParams{
+				Source: source, SourceID: it.SourceID, Kind: it.Kind, Date: it.Date, Due: nullTime(it.Due),
+				Amount: int64(it.Amount), Refs: refs, Confidence: float32(it.Confidence), Party: it.Party,
+			})
 			if err != nil {
 				return fmt.Errorf("matching: upsert item: %w", err)
 			}
@@ -85,13 +81,10 @@ func (s *PGStore) InvoiceItemTx(ctx context.Context, tx pgx.Tx, invoiceID uuid.U
 	if refs == nil {
 		refs = []string{}
 	}
-	_, err := tx.Exec(ctx,
-		`insert into matching.items (tenant_id, source, source_id, invoice_id, kind, date, amount, refs, confidence, party)
-		 values (app_current_tenant(), 'document', $1, $2, $3, $4, $5, $6, $7, $8)
-		 on conflict (tenant_id, source, source_id) do update set kind = excluded.kind, date = excluded.date,
-		   amount = excluded.amount, refs = excluded.refs, confidence = excluded.confidence, party = excluded.party`,
-		invoiceID.String(), invoiceID, d.Kind, d.Date, int64(d.Amount), refs, d.Confidence, d.Party)
-	return err
+	return store.New(tx).UpsertInvoiceItem(ctx, store.UpsertInvoiceItemParams{
+		InvoiceID: invoiceID, Kind: d.Kind, Date: d.Date, Amount: int64(d.Amount), Refs: refs,
+		Confidence: float32(d.Confidence), Party: d.Party,
+	})
 }
 
 // LoadInput builds the engine input for movements dated in [from, to]:
@@ -102,109 +95,61 @@ func (s *PGStore) LoadInput(ctx context.Context, from, to time.Time, cfg Config)
 	var in Input
 	pad := time.Duration(cfg.WindowDays) * 24 * time.Hour
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx,
-			`select id, account_id, date, amount, description, reference, external_ref, gross, fees
-			   from ledger.movements where date between $1 and $2`, from, to)
+		q := store.New(tx)
+		mvs, err := q.InputMovements(ctx, store.InputMovementsParams{DateFrom: from, DateTo: to})
 		if err != nil {
 			return err
 		}
-		for rows.Next() {
-			var m Movement
-			var id, acct uuid.UUID
-			var amount int64
-			var gross *int64
-			var fees []byte
-			if err := rows.Scan(&id, &acct, &m.Date, &amount, &m.Description, &m.Reference, &m.ExternalRef, &gross, &fees); err != nil {
-				rows.Close()
-				return err
-			}
-			m.ID, m.AccountID, m.Amount = id.String(), acct.String(), money.Amount(amount)
-			if gross != nil {
-				g := money.Amount(*gross)
+		for _, r := range mvs {
+			m := Movement{ID: r.ID.String(), AccountID: r.AccountID.String(), Date: r.Date, Amount: money.Amount(r.Amount),
+				Description: r.Description, Reference: r.Reference, ExternalRef: r.ExternalRef}
+			if r.Gross != nil {
+				g := money.Amount(*r.Gross)
 				m.Gross = &g
 			}
-			if len(fees) > 0 {
-				if err := json.Unmarshal(fees, &m.Fees); err != nil {
-					rows.Close()
+			if len(r.Fees) > 0 {
+				if err := json.Unmarshal(r.Fees, &m.Fees); err != nil {
 					return err
 				}
 			}
 			in.Movements = append(in.Movements, m)
 		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
 
 		// Items from long before the period stay candidates for the
 		// reference pass (Duotach case 5); the date window is the engine's.
-		rows, err = tx.Query(ctx,
-			`select id, kind, date, due, amount, refs, confidence, party from matching.items
-			  where coalesce(due, date) <= $1`, to.Add(pad))
+		its, err := q.InputItems(ctx, to.Add(pad))
 		if err != nil {
 			return err
 		}
-		for rows.Next() {
-			var it Item
-			var id uuid.UUID
-			var due *time.Time
-			var amount int64
-			var conf float32
-			if err := rows.Scan(&id, &it.Kind, &it.Date, &due, &amount, &it.Refs, &conf, &it.Party); err != nil {
-				rows.Close()
-				return err
-			}
-			it.ID, it.Amount, it.Confidence = id.String(), money.Amount(amount), float64(conf)
-			if due != nil {
-				it.Due = *due
+		for _, r := range its {
+			it := Item{ID: r.ID.String(), Kind: r.Kind, Date: r.Date, Amount: money.Amount(r.Amount), Refs: r.Refs,
+				Confidence: float64(r.Confidence), Party: r.Party}
+			if r.Due != nil {
+				it.Due = *r.Due
 			}
 			in.Items = append(in.Items, it)
 		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
 
-		// By the decisions in effect (reverted ones do not count):
-		// settled is automatic, approved in either tray, or a manual link in
-		// effect; turned down is rejected in either tray or "other" from the
-		// client. Escalated and undecided is neither: it waits in Exceptions.
-		rows, err = tx.Query(ctx,
-			`select m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids,
-			        coalesce(bool_or(d.action = 'approve'), false)
-			          or (m.tray = 'manual' and exists (select 1 from matching.movement_decision_state s
-			              where s.tenant_id = m.tenant_id and s.match_id = m.id and s.action = 'link')),
-			        coalesce(bool_or(d.action in ('reject', 'other')), false)
-			   from matching.matches m left join matching.decision_state d on d.tenant_id = m.tenant_id and d.match_id = m.id
-			  group by m.tenant_id, m.id`)
+		// By the decisions in effect (reverted ones do not count): settled
+		// is a match in effect (matching.matches_in_effect); turned down is
+		// rejected in either tray or "other" from the client. Escalated and
+		// undecided is neither: it waits in Exceptions.
+		ms, err := q.InputMatches(ctx)
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var m Match
-			var tray string
-			var approved, turnedDown bool
-			var mv, it []uuid.UUID
-			if err := rows.Scan(&m.Rule.ID, &m.Rule.Version, &tray, &mv, &it, &approved, &turnedDown); err != nil {
-				return err
-			}
-			m.Tray = Tray(tray)
-			for _, u := range mv {
-				m.MovementIDs = append(m.MovementIDs, u.String())
-			}
-			for _, u := range it {
-				m.ItemIDs = append(m.ItemIDs, u.String())
-			}
+		for _, r := range ms {
+			m := Match{Rule: Rule{ID: r.RuleID, Version: int(r.RuleVersion)}, Tray: Tray(r.Tray),
+				MovementIDs: strs(r.MovementIds), ItemIDs: strs(r.ItemIds)}
 			m.ID = matchID(m.Rule, m.MovementIDs, m.ItemIDs)
 			switch {
-			case turnedDown:
+			case r.TurnedDown:
 				in.Rejected = append(in.Rejected, m)
-			case approved || m.Tray == Auto:
+			case r.InEffect:
 				in.Settled = append(in.Settled, m)
 			}
 		}
-		return rows.Err()
+		return nil
 	})
 	return in, err
 }
@@ -219,9 +164,9 @@ func (s *PGStore) SaveRun(ctx context.Context, period string, cfg Config, r Resu
 		return runID, 0, err
 	}
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx,
-			`insert into matching.runs (tenant_id, period, config) values (app_current_tenant(), $1, $2) returning id`,
-			period, cfgJSON).Scan(&runID); err != nil {
+		q := store.New(tx)
+		var err error
+		if runID, err = q.InsertRun(ctx, store.InsertRunParams{Period: period, Config: cfgJSON}); err != nil {
 			return err
 		}
 		for _, m := range r.Matches {
@@ -243,15 +188,16 @@ func (s *PGStore) SaveRun(ctx context.Context, period string, cfg Config, r Resu
 			if err != nil {
 				return err
 			}
-			tag, err := tx.Exec(ctx,
-				`insert into matching.matches (tenant_id, id, run_id, rule_id, rule_version, tray, movement_ids, item_ids, adjustments, evidence)
-				 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9)
-				 on conflict (tenant_id, id) do nothing`,
-				m.ID, runID, m.Rule.ID, m.Rule.Version, string(m.Tray), mv, it, adj, ev)
+			ver, err := int32Of(m.Rule.Version)
+			if err != nil {
+				return err
+			}
+			n, err := q.InsertMatch(ctx, store.InsertMatchParams{ID: m.ID, RunID: &runID, RuleID: m.Rule.ID,
+				RuleVersion: ver, Tray: string(m.Tray), MovementIds: mv, ItemIds: it, Adjustments: adj, Evidence: ev})
 			if err != nil {
 				return fmt.Errorf("matching: insert match: %w", err)
 			}
-			inserted += int(tag.RowsAffected())
+			inserted += int(n)
 		}
 		for _, p := range append(append([]Pending{}, r.Pending...), r.Exceptions...) {
 			mid, err := uuid.Parse(p.MovementID)
@@ -262,10 +208,8 @@ func (s *PGStore) SaveRun(ctx context.Context, period string, cfg Config, r Resu
 			if err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx,
-				`insert into matching.pending (tenant_id, run_id, movement_id, tray, reason, candidates)
-				 values (app_current_tenant(), $1, $2, $3, $4, $5)`,
-				runID, mid, string(p.Tray), string(p.Reason), cands); err != nil {
+			if err := q.InsertPending(ctx, store.InsertPendingParams{RunID: runID, MovementID: mid,
+				Tray: string(p.Tray), Reason: string(p.Reason), Candidates: cands}); err != nil {
 				return fmt.Errorf("matching: insert pending: %w", err)
 			}
 		}
@@ -357,9 +301,7 @@ func (s *PGStore) closed(ctx context.Context, tx pgx.Tx, periods []string) (bool
 // token: a token can be up to ten minutes old, and someone whose role was
 // lowered cannot decide for one more minute.
 func memberRole(ctx context.Context, tx pgx.Tx) (string, error) {
-	var role string
-	err := tx.QueryRow(ctx,
-		`select role::text from memberships where user_id = app_current_user() and tenant_id = app_current_tenant()`).Scan(&role)
+	role, err := store.New(tx).MemberRole(ctx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrForbidden
 	}
@@ -407,33 +349,23 @@ type trayState struct {
 // matchState reads the stored tray of a match, the decision in effect in
 // each tray, and the periods of its movements.
 func matchState(ctx context.Context, tx pgx.Tx, id string) (Tray, map[Tray]trayState, []string, error) {
-	var stored string
-	var periods []string
-	err := tx.QueryRow(ctx,
-		`select tray, coalesce(array(select jsonb_array_elements_text(evidence->'movement_periods')), '{}')
-		   from matching.matches where id = $1`, id).Scan(&stored, &periods)
+	q := store.New(tx)
+	tp, err := q.MatchTrayAndPeriods(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil, nil, fmt.Errorf("%w: unknown match", ErrInvalid)
 	}
 	if err != nil {
 		return "", nil, nil, err
 	}
-	states := map[Tray]trayState{}
-	rows, err := tx.Query(ctx, `select tray, id, revision, coalesce(action, '') from matching.decision_state where match_id = $1`, id)
+	rows, err := q.MatchDecisionStates(ctx, id)
 	if err != nil {
 		return "", nil, nil, err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var tray, action string
-		var st trayState
-		if err := rows.Scan(&tray, &st.id, &st.revision, &action); err != nil {
-			return "", nil, nil, err
-		}
-		st.action = Action(action)
-		states[Tray(tray)] = st
+	states := map[Tray]trayState{}
+	for _, r := range rows {
+		states[Tray(r.Tray)] = trayState{id: r.ID, revision: int(r.Revision), action: Action(r.Action)}
 	}
-	return Tray(stored), states, periods, rows.Err()
+	return Tray(tp.Tray), states, tp.Periods, nil
 }
 
 // Record stores a human decision on a match, or the reversion of the one in
@@ -487,14 +419,11 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 		}
 		// Then the replay: the same key, match, action and user answers what
 		// was stored, before anything else is looked at again.
-		var prevMatch, prevAction, prevRole, prevNote, prevTray string
-		var prevUser uuid.UUID
-		var prevAt time.Time
-		err = tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note, tray from matching.decisions where key = $1`, key).
-			Scan(&prevMatch, &prevAction, &prevUser, &prevRole, &prevAt, &prevNote, &prevTray)
+		q := store.New(tx)
+		prev, err := q.DecisionByKey(ctx, key)
 		if err == nil {
-			if prevMatch == d.MatchID && prevAction == string(d.Action) && prevUser == sc.UserID {
-				d.At, d.Role, d.Note, d.Tray = prevAt, prevRole, prevNote, Tray(prevTray)
+			if prev.MatchID == d.MatchID && prev.Action == string(d.Action) && prev.UserID == sc.UserID {
+				d.At, d.Role, d.Note, d.Tray = prev.At, prev.Role, prev.Note, Tray(prev.Tray)
 				return nil
 			}
 			return ErrKeyReused
@@ -559,10 +488,13 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			s.beforeInsert()
 		}
 
-		err = tx.QueryRow(ctx,
-			`insert into matching.decisions (tenant_id, key, match_id, tray, revision, action, user_id, role, note, snapshot, reverts)
-			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning at`,
-			key, d.MatchID, string(d.Tray), d.Revision, string(d.Action), sc.UserID, d.Role, d.Note, snap, reverts).Scan(&d.At)
+		rev, err := int32Of(d.Revision)
+		if err != nil {
+			return err
+		}
+		d.At, err = q.InsertDecision(ctx, store.InsertDecisionParams{Key: key, MatchID: d.MatchID, Tray: string(d.Tray),
+			Revision: rev, Action: string(d.Action), UserID: sc.UserID, Role: d.Role, Note: d.Note, Snapshot: snap,
+			Reverts: reverts})
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "decisions_tenant_id_match_id_tray_revision_key" {
 			return ErrAlreadyDecided // another decision landed on the same revision first
@@ -603,22 +535,24 @@ var ErrOperatorAnswered = errors.New("matching: the operator already answered th
 // with the same turn as after "other". Each row's key derives from the
 // decision's, so the rows are as idempotent as the decision.
 func rejectToOperator(ctx context.Context, tx pgx.Tx, d Decision, key, user uuid.UUID) error {
+	q := store.New(tx)
 	for _, mv := range d.Match.MovementIDs {
-		var rev int
-		var action string
-		err := tx.QueryRow(ctx,
-			`select revision, coalesce(action, '') from matching.movement_decision_state where movement_id = $1`, mv).
-			Scan(&rev, &action)
+		mid, err := uuid.Parse(mv)
+		if err != nil {
+			return ErrInvalid
+		}
+		cur, err := q.MovementState(ctx, mid)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
-		if action != "" {
+		if cur.Action != "" {
 			return ErrAlreadyDecided
 		}
-		if _, err := tx.Exec(ctx,
-			`insert into matching.movement_decisions (tenant_id, key, movement_id, revision, action, match_id, note, user_id, role)
-			 values (app_current_tenant(), $1, $2, $3, 'rejected', $4, $5, $6, $7)`,
-			uuid.NewSHA1(key, []byte(mv)), mv, rev+1, d.MatchID, d.Note, user, d.Role); err != nil {
+		matchID := d.MatchID
+		if _, err := q.InsertMovementDecision(ctx, store.InsertMovementDecisionParams{
+			Key: uuid.NewSHA1(key, []byte(mv)), MovementID: mid, Revision: cur.Revision + 1, Action: string(MovementRejected),
+			MatchID: &matchID, Note: d.Note, UserID: user, Role: d.Role,
+		}); err != nil {
 			return err
 		}
 	}
@@ -628,26 +562,27 @@ func rejectToOperator(ctx context.Context, tx pgx.Tx, d Decision, key, user uuid
 // takeBackReject reverts the 'rejected' rows of a reject the client is
 // reverting. If the operator answered any of them, nothing is reverted.
 func takeBackReject(ctx context.Context, tx pgx.Tx, d Decision, key, user uuid.UUID) error {
+	q := store.New(tx)
 	for _, mv := range d.Match.MovementIDs {
-		var id int64
-		var rev int
-		var action, match string
-		if err := tx.QueryRow(ctx,
-			`select coalesce(id, 0), revision, coalesce(action, ''), coalesce(match_id, '')
-			   from matching.movement_decision_state where movement_id = $1`, mv).
-			Scan(&id, &rev, &action, &match); err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return ErrOperatorAnswered
-			}
-			return err
+		mid, err := uuid.Parse(mv)
+		if err != nil {
+			return ErrInvalid
 		}
-		if action != string(MovementRejected) || match != d.MatchID {
+		cur, err := q.MovementState(ctx, mid)
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrOperatorAnswered
 		}
-		if _, err := tx.Exec(ctx,
-			`insert into matching.movement_decisions (tenant_id, key, movement_id, revision, action, user_id, role, reverts)
-			 values (app_current_tenant(), $1, $2, $3, 'revert', $4, $5, $6)`,
-			uuid.NewSHA1(key, []byte(mv)), mv, rev+1, user, d.Role, id); err != nil {
+		if err != nil {
+			return err
+		}
+		if cur.Action != string(MovementRejected) || cur.MatchID != d.MatchID {
+			return ErrOperatorAnswered
+		}
+		id := cur.ID
+		if _, err := q.InsertMovementDecision(ctx, store.InsertMovementDecisionParams{
+			Key: uuid.NewSHA1(key, []byte(mv)), MovementID: mid, Revision: cur.Revision + 1, Action: string(MovementRevert),
+			UserID: user, Role: d.Role, Reverts: &id,
+		}); err != nil {
 			return err
 		}
 	}
@@ -657,48 +592,22 @@ func takeBackReject(ctx context.Context, tx pgx.Tx, d Decision, key, user uuid.U
 // ErrNotFound means the match does not exist for the tenant in the context.
 var ErrNotFound = errors.New("matching: not found")
 
-const matchColumns = `id, rule_id, rule_version, tray, movement_ids, item_ids, adjustments, evidence`
-
-func scanMatch(row pgx.Row) (Match, error) {
-	var m Match
-	var tray string
-	var mv, it []uuid.UUID
-	var adj, ev []byte
-	if err := row.Scan(&m.ID, &m.Rule.ID, &m.Rule.Version, &tray, &mv, &it, &adj, &ev); err != nil {
-		return m, err
-	}
-	m.Tray = Tray(tray)
-	for _, u := range mv {
-		m.MovementIDs = append(m.MovementIDs, u.String())
-	}
-	for _, u := range it {
-		m.ItemIDs = append(m.ItemIDs, u.String())
-	}
-	if err := json.Unmarshal(adj, &m.Adjustments); err != nil {
-		return m, err
-	}
-	var e struct {
-		Reference     string   `json:"reference"`
-		DateDiffDays  int      `json:"date_diff_days"`
-		CrossPeriod   bool     `json:"cross_period"`
-		MovePeriods   []string `json:"movement_periods"`
-		ItemPeriods   []string `json:"item_periods"`
-		LowConfidence bool     `json:"low_confidence"`
-	}
-	if err := json.Unmarshal(ev, &e); err != nil {
-		return m, err
-	}
-	m.Reference, m.DateDiffDays, m.CrossPeriod = e.Reference, e.DateDiffDays, e.CrossPeriod
-	m.MovePeriods, m.ItemPeriods, m.LowConfidence = e.MovePeriods, e.ItemPeriods, e.LowConfidence
-	return m, nil
+// storedMatch builds a Match from its stored columns.
+func storedMatch(id, ruleID string, ruleVersion int32, tray string, mv, it []uuid.UUID, adj, ev []byte) (Match, error) {
+	m := Match{ID: id, Rule: Rule{ID: ruleID, Version: int(ruleVersion)}, Tray: Tray(tray),
+		MovementIDs: strs(mv), ItemIDs: strs(it)}
+	return m, unmarshalEvidence(adj, ev, &m)
 }
 
 // GetMatch returns a stored match of the tenant in the context.
 func (s *PGStore) GetMatch(ctx context.Context, id string) (Match, error) {
 	var m Match
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		var err error
-		m, err = scanMatch(tx.QueryRow(ctx, `select `+matchColumns+` from matching.matches where id = $1`, id))
+		r, err := store.New(tx).GetMatch(ctx, id)
+		if err != nil {
+			return err
+		}
+		m, err = storedMatch(r.ID, r.RuleID, r.RuleVersion, r.Tray, r.MovementIds, r.ItemIds, r.Adjustments, r.Evidence)
 		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -720,33 +629,21 @@ func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, lim
 		if err := mustSeeTray(ctx, tx, tray); err != nil {
 			return err
 		}
-		// auto: nobody decides, listed for review. suggested: no operator
-		// decision yet. exception: escalated, no client decision yet.
-		rows, err := tx.Query(ctx, `select `+matchColumns+` from matching.matches m
-			where case $1
-			  when 'auto' then m.tray = 'auto'
-			  when 'suggested' then m.tray = 'suggested' and not exists (select 1 from matching.decision_state d
-			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'suggested' and d.action is not null)
-			  when 'exception' then exists (select 1 from matching.decision_state d
-			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'suggested' and d.action = 'escalate')
-			    and not exists (select 1 from matching.decision_state d
-			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception' and d.action is not null)
-			  else false end
-			  and ($3 = '' or exists (select 1 from ledger.movements mv
-			    where mv.id = any(m.movement_ids) and to_char(mv.date, 'YYYY-MM') = $3))
-			order by created_at, id limit $2`, string(tray), limit, period)
+		// See the query: which matches each tray lists as undecided.
+		rows, err := store.New(tx).UndecidedMatches(ctx, store.UndecidedMatchesParams{
+			Tray: string(tray), Period: period, MaxRows: rowLimit(limit),
+		})
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
-		for rows.Next() {
-			m, err := scanMatch(rows)
+		for _, r := range rows {
+			m, err := storedMatch(r.ID, r.RuleID, r.RuleVersion, r.Tray, r.MovementIds, r.ItemIds, r.Adjustments, r.Evidence)
 			if err != nil {
 				return err
 			}
 			out = append(out, m)
 		}
-		return rows.Err()
+		return nil
 	})
 	return out, err
 }
@@ -781,46 +678,6 @@ const ReasonOperatorReturned PendingReason = "operator_returned"
 // movement; it is back with the operator, with the client's reason.
 const ReasonClientRejected PendingReason = "client_rejected"
 
-// pendingRowsSQL is the one definition of what waits in each tray, for the
-// lists and for the metrics, so the panel and the trays never disagree.
-// It defines the CTE "waiting" (run_id, movement_id, tray, reason,
-// candidates, note, match_id) for the period in the parameter given
-// ("" means every period):
-//   - what the latest run of each period left pending, for movements with
-//     no decision in effect;
-//   - movements whose decision in effect hands them to a side, whatever
-//     the runs say: the client's "other" or reject to the operator
-//     (Suggested), the operator's return to the client (Exceptions). Unless
-//     a match in effect settles the movement now.
-//
-// Resolved and linked movements are in neither tray.
-func pendingRowsSQL(periodParam string) string {
-	return strings.ReplaceAll(`
-		with latest as (select distinct on (period) id from matching.runs
-		                 where $P = '' or period = $P order by period, started_at desc, id),
-		     st as (select movement_id, action, note, match_id from matching.movement_decision_state where action is not null),
-		     waiting as (
-		       select p.run_id, p.movement_id, p.tray, p.reason, p.candidates, ''::text as note, null::text as match_id
-		         from matching.pending p
-		        where p.run_id in (select id from latest)
-		          and not exists (select 1 from st where st.movement_id = p.movement_id)
-		       union all
-		       select coalesce((select r.id from matching.runs r where r.period = to_char(l.date, 'YYYY-MM')
-		                         order by r.started_at desc, r.id limit 1),
-		                       (select r.id from matching.runs r order by r.started_at desc, r.id limit 1)),
-		              st.movement_id,
-		              case st.action when 'return' then 'exception' else 'suggested' end,
-		              case st.action when 'other' then 'client_other' when 'rejected' then 'client_rejected'
-		                             else 'operator_returned' end,
-		              '[]'::jsonb, st.note, case when st.action = 'rejected' then st.match_id end
-		         from st
-		         join ledger.movements l on l.id = st.movement_id
-		        where st.action in ('other', 'rejected', 'return')
-		          and ($P = '' or to_char(l.date, 'YYYY-MM') = $P)
-		          and not exists (select 1 from matching.matches m where st.movement_id = any(m.movement_ids) and `+matchInEffect+`))
-	`, "$P", periodParam)
-}
-
 // LatestPending lists the movements waiting in a tray according to the
 // latest run of each period.
 func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]PendingRow, error) {
@@ -835,37 +692,24 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 		if err := mustSeeTray(ctx, tx, tray); err != nil {
 			return err
 		}
-		// See pendingRowsSQL: what each tray holds, decisions included.
-		rows, err := tx.Query(ctx, pendingRowsSQL("$3")+`
-			select w.run_id, w.movement_id, w.tray, w.reason, w.candidates, w.note, coalesce(w.match_id, ''),
-			       l.date, l.amount, l.description, a.id, a.name, a.bank
-			  from waiting w
-			  join ledger.movements l on l.id = w.movement_id
-			  join ledger.accounts a on a.id = l.account_id
-			 where w.tray = $1
-			 order by w.movement_id limit $2`, string(tray), limit, period)
+		// What each tray holds, decisions included: matching.waiting, the
+		// same definition the results panel counts.
+		rows, err := store.New(tx).Waiting(ctx, store.WaitingParams{
+			Tray: string(tray), Period: period, MaxRows: rowLimit(limit),
+		})
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var r PendingRow
-			var mid uuid.UUID
-			var t, reason string
-			var cands []byte
-			var amount int64
-			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands, &r.Note, &r.MatchID,
-				&r.Date, &amount, &r.Description, &r.AccountID, &r.AccountName, &r.Bank); err != nil {
-				return err
-			}
-			r.Amount = money.Amount(amount)
-			r.MovementID, r.Tray, r.Reason = mid.String(), Tray(t), PendingReason(reason)
-			if err := json.Unmarshal(cands, &r.Candidates); err != nil {
+		for _, w := range rows {
+			r := PendingRow{RunID: w.RunID, Note: w.Note, MatchID: w.MatchID, Date: w.Date, Amount: money.Amount(w.Amount),
+				Description: w.Description, AccountID: w.AccountID, AccountName: w.AccountName, Bank: w.Bank,
+				Pending: Pending{MovementID: w.MovementID.String(), Tray: Tray(w.Tray), Reason: PendingReason(w.Reason)}}
+			if err := json.Unmarshal(w.Candidates, &r.Candidates); err != nil {
 				return err
 			}
 			out = append(out, r)
 		}
-		return rows.Err()
+		return nil
 	})
 	return out, err
 }
@@ -887,4 +731,31 @@ func nullTime(t time.Time) *time.Time {
 		return nil
 	}
 	return &t
+}
+
+// strs turns stored ids into the engine's strings (nil when there are none).
+func strs(ids []uuid.UUID) []string {
+	var out []string
+	for _, u := range ids {
+		out = append(out, u.String())
+	}
+	return out
+}
+
+// int32Of refuses a value the int columns cannot hold.
+func int32Of(n int) (int32, error) {
+	if n < math.MinInt32 || n > math.MaxInt32 {
+		return 0, fmt.Errorf("matching: %d out of range", n)
+	}
+	return int32(n), nil
+}
+
+// rowLimit clamps a list limit to what the query's int parameter holds.
+func rowLimit(limit int) int32 {
+	return int32(min(max(limit, 0), math.MaxInt32)) // #nosec G115 -- clamped
+}
+
+// maxRows asks for one row past limit, to tell whether there were more.
+func maxRows(limit int) int32 {
+	return int32(min(max(limit, 0), math.MaxInt32-1) + 1) // #nosec G115 -- clamped
 }

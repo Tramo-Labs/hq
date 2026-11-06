@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/Tramo-Labs/hq/eng/core/internal/matching/store"
 )
 
 // Metric is one number of the results panel for a tenant and a month.
@@ -70,78 +72,57 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 		var oldest *time.Time
 		pending := map[PendingReason]int{}
 
-		if err := tx.QueryRow(ctx, `
-			select (select count(*) from ledger.movements where date between $1 and $2),
-			       exists (select 1 from matching.runs where period = $3),
-			       (select count(distinct l.id) from matching.matches m
-			          join ledger.movements l on l.id = any(m.movement_ids)
-			         where m.tray = 'auto' and l.date between $1 and $2)`,
-			from, to, period).Scan(&movements, &hasRun, &autoMoves); err != nil {
-			return err
-		}
-
-		// Suggested matches of the month decided by the operator, by the
-		// decision in effect (a reverted one does not count).
-		if err := tx.QueryRow(ctx, `
-			select count(*) filter (where d.action = 'approve'), count(*) filter (where d.action = 'reject')
-			  from matching.matches m
-			  join matching.decision_state d on d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'suggested'
-			 where m.tray = 'suggested'
-			   and exists (select 1 from ledger.movements l where l.id = any(m.movement_ids) and l.date between $1 and $2)`,
-			from, to).Scan(&approved, &rejected); err != nil {
-			return err
-		}
-
-		// Open exceptions: the movements the client's Exceptions list shows
-		// for the month (pendingRowsSQL, the same definition), and escalated
-		// matches of the month the client has not decided.
-		if err := tx.QueryRow(ctx, pendingRowsSQL("$1")+`
-			select count(*), min(l.date)
-			  from waiting w join ledger.movements l on l.id = w.movement_id
-			 where w.tray = 'exception'`,
-			period).Scan(&openMoves, &oldest); err != nil {
-			return err
-		}
-		if err := tx.QueryRow(ctx, `
-			select count(*) from matching.matches m
-			 where exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id
-			                and d.tray = 'suggested' and d.action = 'escalate')
-			   and not exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id
-			                and d.tray = 'exception' and d.action is not null)
-			   and exists (select 1 from ledger.movements l where l.id = any(m.movement_ids) and l.date between $1 and $2)`,
-			from, to).Scan(&openMatches); err != nil {
-			return err
-		}
-
-		// Pending by reason in Suggested: what the operator's list shows.
-		rows, err := tx.Query(ctx, pendingRowsSQL("$1")+`
-			select w.reason, count(*) from waiting w where w.tray = 'suggested' group by 1`, period)
+		q := store.New(tx)
+		mc, err := q.MonthCounts(ctx, store.MonthCountsParams{DateFrom: from, DateTo: to, Period: period})
 		if err != nil {
 			return err
 		}
-		for rows.Next() {
-			var reason string
-			var n int
-			if err := rows.Scan(&reason, &n); err != nil {
-				rows.Close()
+		movements, hasRun, autoMoves = int(mc.Movements), mc.HasRun, int(mc.AutoMovements)
+
+		// Suggested matches of the month decided by the operator, by the
+		// decision in effect (a reverted one does not count).
+		sd, err := q.SuggestedDecided(ctx, store.SuggestedDecidedParams{DateFrom: from, DateTo: to})
+		if err != nil {
+			return err
+		}
+		approved, rejected = int(sd.Approved), int(sd.Rejected)
+
+		// Open exceptions: the movements the client's Exceptions list shows
+		// for the month (matching.waiting, the same definition), and
+		// escalated matches of the month the client has not decided.
+		oe, err := q.OpenExceptionMovements(ctx, period)
+		if err != nil {
+			return err
+		}
+		openMoves = int(oe.Count)
+		if oe.Oldest != "" {
+			d, err := time.Parse("2006-01-02", oe.Oldest)
+			if err != nil {
 				return err
 			}
-			pending[PendingReason(reason)] = n
+			oldest = &d
 		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
+		om, err := q.OpenEscalatedMatches(ctx, store.OpenEscalatedMatchesParams{DateFrom: from, DateTo: to})
+		if err != nil {
 			return err
+		}
+		openMatches = int(om)
+
+		// Pending by reason in Suggested: what the operator's list shows.
+		byReason, err := q.SuggestedPendingByReason(ctx, period)
+		if err != nil {
+			return err
+		}
+		for _, r := range byReason {
+			pending[PendingReason(r.Reason)] = int(r.Count)
 		}
 
 		// Invoices stored in the month (Argentina time), and how many need review.
-		if err := tx.QueryRow(ctx, `
-			select exists (select 1 from documents.invoices),
-			       count(*) filter (where to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1),
-			       count(*) filter (where to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1
-			                          and (not auto_eligible or item_reason is not null))
-			  from documents.invoices`, period).Scan(&invoicesEver, &invoices, &held); err != nil {
+		ic, err := q.InvoiceCounts(ctx, period)
+		if err != nil {
 			return err
 		}
+		invoicesEver, invoices, held = ic.Ever, int(ic.Month), int(ic.Held)
 
 		noRun := "El mes todavía no se corrió"
 		m := func(key, label, unit, list string, v *float64, source string) {
@@ -250,56 +231,37 @@ func (s *PGStore) MatchRows(ctx context.Context, from, to time.Time) ([][]string
 		if err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `
-			select m.id, m.rule_id, m.rule_version, m.tray, m.movement_ids::text[], m.item_ids::text[], m.adjustments, m.evidence,
-			       coalesce(dx.tray, ds.tray, ''), coalesce(dx.action, ds.action, ms.action, ''),
-			       coalesce(dd.user_id::text, md.user_id::text, ''), coalesce(dd.role, md.role, ''),
-			       coalesce(dd.at, md.at), coalesce(dd.revision, md.revision)
-			  from matching.matches m
-			  left join matching.decision_state dx on dx.tenant_id = m.tenant_id and dx.match_id = m.id
-			        and dx.tray = 'exception' and dx.action is not null
-			  left join matching.decision_state ds on ds.tenant_id = m.tenant_id and ds.match_id = m.id
-			        and ds.tray = 'suggested' and ds.action is not null
-			  left join matching.decisions dd on dd.id = coalesce(dx.id, ds.id)
-			  left join matching.movement_decision_state ms on ms.tenant_id = m.tenant_id and ms.match_id = m.id and ms.action = 'link'
-			  left join matching.movement_decisions md on md.id = ms.id
-			 where exists (select 1 from ledger.movements l where l.id = any(m.movement_ids) and l.date between $1 and $2)
-			   and ($3 or m.tray = 'auto' or ms.action = 'link' or ds.action in ('approve', 'escalate') or dx.action is not null)
-			 order by m.created_at, m.id`, from, to, operator)
+		rows, err := store.New(tx).MatchExportRows(ctx, store.MatchExportRowsParams{DateFrom: from, DateTo: to, Operator: operator})
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var id, rule, tray, dTray, action, by, role string
-			var version int
-			var mv, it []string
-			var adjJSON, evJSON []byte
-			var at *time.Time
-			var rev *int
-			if err := rows.Scan(&id, &rule, &version, &tray, &mv, &it, &adjJSON, &evJSON, &dTray, &action, &by, &role, &at, &rev); err != nil {
-				return err
-			}
+		for _, r := range rows {
 			m := Match{}
-			if err := unmarshalEvidence(adjJSON, evJSON, &m); err != nil {
+			if err := unmarshalEvidence(r.Adjustments, r.Evidence, &m); err != nil {
 				return err
 			}
 			var adj []string
 			for _, a := range m.Adjustments {
 				adj = append(adj, a.Kind+":"+a.Amount.String())
 			}
+			// The decision in effect, else the client's link.
+			at, rev := r.DecisionAt, r.DecisionRevision
+			if at == nil {
+				at, rev = r.LinkAt, r.LinkRevision
+			}
 			atS, revS := "", ""
 			if at != nil {
 				atS = at.UTC().Format(time.RFC3339)
 			}
 			if rev != nil {
-				revS = strconv.Itoa(*rev)
+				revS = strconv.Itoa(int(*rev))
 			}
-			out = append(out, []string{id, rule, strconv.Itoa(version), tray, strings.Join(mv, " "), strings.Join(it, " "),
-				strings.Join(adj, " "), m.Reference, strconv.Itoa(m.DateDiffDays), strconv.FormatBool(m.CrossPeriod),
-				strconv.FormatBool(m.LowConfidence), dTray, action, by, role, atS, revS})
+			out = append(out, []string{r.ID, r.RuleID, strconv.Itoa(int(r.RuleVersion)), r.Tray, strings.Join(r.MovementIds, " "),
+				strings.Join(r.ItemIds, " "), strings.Join(adj, " "), m.Reference, strconv.Itoa(m.DateDiffDays),
+				strconv.FormatBool(m.CrossPeriod), strconv.FormatBool(m.LowConfidence), r.DecisionTray, r.Decision,
+				r.DecidedBy, r.DecidedRole, atS, revS})
 		}
-		return rows.Err()
+		return nil
 	})
 	return out, err
 }

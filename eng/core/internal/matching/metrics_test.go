@@ -267,3 +267,64 @@ func TestPGEditedDescriptionCountsOnce(t *testing.T) {
 		t.Errorf("open_exception_movements %v; want 7", v)
 	}
 }
+
+// The tray lists and the results panel read the same definition
+// (matching.waiting, and the escalated matches): on the same data their
+// counts agree, whatever state the decisions leave the month in.
+func TestPGTraysAndPanelAgree(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	const period = "2026-10"
+	agree := func(step string) (exceptions, suggestedRows, escalated int) {
+		t.Helper()
+		// The operator sees every tray and every metric.
+		e.setMembership(t, e.a, identity.RoleOperator)
+		k := byKey(t, mustMetrics(t, e, period))
+		exc, err := e.store.LatestPendingIn(e.ctx, Exception, period, 1000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sug, err := e.store.LatestPendingIn(e.ctx, Suggested, period, 1000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		esc, err := e.store.UndecidedIn(e.ctx, Exception, period, 1000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := value(t, k["open_exception_movements"]); int(v) != len(exc) {
+			t.Errorf("%s: panel open_exception_movements %v, Exceptions list %d", step, v, len(exc))
+		}
+		sum := 0
+		for _, reason := range pendingReasons {
+			sum += int(value(t, k["pending_"+string(reason)]))
+		}
+		if sum != len(sug) {
+			t.Errorf("%s: panel pending in Suggested %d, Suggested list %d", step, sum, len(sug))
+		}
+		if v := value(t, k["open_exception_matches"]); int(v) != len(esc) {
+			t.Errorf("%s: panel open_exception_matches %v, escalated list %d", step, v, len(esc))
+		}
+		return len(exc), len(sug), len(esc)
+	}
+
+	agree("after the run")
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "gasto bancario"); err != nil {
+		t.Fatal(err)
+	}
+	_, sug, _ := agree("after the client's other")
+	if _, err := e.decideAs(t, identity.RoleOperator, suggested(r), Escalate, ""); err != nil {
+		t.Fatal(err)
+	}
+	_, _, esc := agree("after an escalation")
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementReturn, "es tuyo"); err != nil {
+		t.Fatal(err)
+	}
+	exc, _, _ := agree("after the operator's return")
+	// Each tray had something in it at some step, or the agreement proves
+	// nothing.
+	if sug == 0 || esc == 0 || exc == 0 {
+		t.Errorf("empty trays: suggested %d, escalated %d, exceptions %d", sug, esc, exc)
+	}
+}

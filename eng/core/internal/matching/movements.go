@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/matching/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -136,12 +137,7 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 	d := MovementDecision{MovementID: mid.String(), Action: in.Action, Note: in.Note, By: sc.UserID.String()}
 	applied := false
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		var prevMove uuid.UUID
-		var prevAction, prevRole, prevNote string
-		var prevMatch *string
-		var prevUser uuid.UUID
-		var prevRev int
-		var prevAt time.Time
+		q := store.New(tx)
 		// The role first (see Record): someone who decides on no movement
 		// is 403 whatever key it sends.
 		var err error
@@ -152,14 +148,12 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		if !client && !operator {
 			return ErrForbidden
 		}
-		err = tx.QueryRow(ctx,
-			`select movement_id, action, user_id, role, note, match_id, revision, at from matching.movement_decisions where key = $1`, key).
-			Scan(&prevMove, &prevAction, &prevUser, &prevRole, &prevNote, &prevMatch, &prevRev, &prevAt)
+		prev, err := q.MovementDecisionByKey(ctx, key)
 		if err == nil {
-			if prevMove == mid && prevAction == string(in.Action) && prevUser == sc.UserID {
-				d.Role, d.Note, d.Revision, d.At = prevRole, prevNote, prevRev, prevAt
-				if prevMatch != nil {
-					d.MatchID = *prevMatch
+			if prev.MovementID == mid && prev.Action == string(in.Action) && prev.UserID == sc.UserID {
+				d.Role, d.Note, d.Revision, d.At = prev.Role, prev.Note, int(prev.Revision), prev.At
+				if prev.MatchID != nil {
+					d.MatchID = *prev.MatchID
 				}
 				return nil
 			}
@@ -169,29 +163,19 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 			return err
 		}
 
-		var amount int64
-		var date time.Time
-		err = tx.QueryRow(ctx, `select amount, date from ledger.movements where id = $1`, mid).Scan(&amount, &date)
+		mv, err := q.MovementAmountDate(ctx, mid)
+		amount, date := mv.Amount, mv.Date
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrUnknownMovement
 		}
 		if err != nil {
 			return err
 		}
-		var cur struct {
-			id       int64
-			revision int
-			action   string
-			role     string
-		}
-		err = tx.QueryRow(ctx,
-			`select coalesce(id, 0), revision, coalesce(action, ''), coalesce(role, '')
-			   from matching.movement_decision_state where movement_id = $1`, mid).
-			Scan(&cur.id, &cur.revision, &cur.action, &cur.role)
+		cur, err := q.MovementState(ctx, mid)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
-		if err := movementTurn(in.Action, client, MovementAction(cur.action), cur.role); err != nil {
+		if err := movementTurn(in.Action, client, MovementAction(cur.Action), cur.Role); err != nil {
 			return err
 		}
 
@@ -206,19 +190,15 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 			if isClosed {
 				return ErrClosed
 			}
-			reverts = &cur.id
+			reverts = &cur.ID
 		default:
 			// The first decision on a movement needs it waiting in the
 			// client's Exceptions without a candidate. After that the turn
 			// is the decision in effect (movementTurn): a rejected match's
 			// movement, or one the operator returned, need not be pending.
-			waiting := cur.action != ""
+			waiting := cur.Action != ""
 			if !waiting {
-				if err := tx.QueryRow(ctx, `
-				with latest as (select distinct on (period) id from matching.runs order by period, started_at desc, id)
-				select exists (select 1 from matching.pending
-				                where run_id in (select id from latest) and movement_id = $1
-				                  and tray = 'exception' and reason = 'no_candidate')`, mid).Scan(&waiting); err != nil {
+				if waiting, err = q.WaitsWithNoCandidate(ctx, mid); err != nil {
 					return err
 				}
 			}
@@ -233,15 +213,19 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 				matchID, d.MatchID = &id, id
 			}
 		}
-		d.Revision = cur.revision + 1
+		d.Revision = int(cur.Revision) + 1
 		if s.beforeInsert != nil {
 			s.beforeInsert()
 		}
 
-		err = tx.QueryRow(ctx,
-			`insert into matching.movement_decisions (tenant_id, key, movement_id, revision, action, match_id, note, user_id, role, reverts)
-			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9) returning at`,
-			key, mid, d.Revision, string(d.Action), matchID, d.Note, sc.UserID, d.Role, reverts).Scan(&d.At)
+		rev, err := int32Of(d.Revision)
+		if err != nil {
+			return err
+		}
+		d.At, err = q.InsertMovementDecision(ctx, store.InsertMovementDecisionParams{
+			Key: key, MovementID: mid, Revision: rev, Action: string(d.Action), MatchID: matchID,
+			Note: d.Note, UserID: sc.UserID, Role: d.Role, Reverts: reverts,
+		})
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "movement_decisions_tenant_id_movement_id_revision_key" {
 			return ErrAlreadyDecided
@@ -249,9 +233,11 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		if err != nil {
 			return err
 		}
-		if in.Action == MovementRevert && cur.action == string(MovementLink) {
-			var linked *string
-			_ = tx.QueryRow(ctx, `select match_id from matching.movement_decisions where id = $1`, cur.id).Scan(&linked)
+		if in.Action == MovementRevert && cur.Action == string(MovementLink) {
+			linked, err := q.MovementDecisionMatch(ctx, cur.ID)
+			if err != nil {
+				return err
+			}
 			if linked != nil {
 				d.MatchID = *linked // the manual match that stops being in effect
 			}
@@ -309,15 +295,6 @@ func movementTurn(a MovementAction, client bool, cur MovementAction, curRole str
 	return nil
 }
 
-// matchInEffect is the SQL condition, on a match aliased m, of a match
-// that settles its items now: automatic, approved in either tray, or a
-// manual link in effect. The database guard on items (migration 00104)
-// states the same rule.
-const matchInEffect = `(m.tray = 'auto'
-	or exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id and d.action = 'approve')
-	or (m.tray = 'manual' and exists (select 1 from matching.movement_decision_state s
-	     where s.tenant_id = m.tenant_id and s.match_id = m.id and s.action = 'link')))`
-
 // OpenItem is an item no match in effect settles.
 type OpenItem struct {
 	ID         uuid.UUID
@@ -341,30 +318,16 @@ type OpenItem struct {
 func (s *PGStore) OpenItems(ctx context.Context, period, direction string, limit int) ([]OpenItem, bool, error) {
 	var out []OpenItem
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `
-			select i.id, i.source, i.source_id, i.kind, i.date, i.due, i.amount, i.refs, i.party, i.confidence, i.invoice_id
-			  from matching.items i
-			 where not exists (select 1 from matching.matches m where i.id = any(m.item_ids) and `+matchInEffect+`)
-			   and ($1 = '' or to_char(i.date, 'YYYY-MM') = $1)
-			   and ($2 = '' or ($2 = 'in' and i.amount > 0) or ($2 = 'out' and i.amount < 0))
-			 order by i.date, i.source_id, i.id
-			 limit $3`, period, direction, limit+1)
-		if err != nil {
-			return err
+		rows, err := store.New(tx).OpenItems(ctx, store.OpenItemsParams{
+			Period: period, Direction: direction, MaxRows: maxRows(limit),
+		})
+		for _, r := range rows {
+			out = append(out, OpenItem{ID: r.ID, Source: r.Source, SourceID: r.SourceID, Kind: r.Kind, Date: r.Date,
+				Due: r.Due, Amount: money.Amount(r.Amount), Refs: r.Refs, Party: r.Party,
+				Confidence: math.Round(float64(r.Confidence)*1e4) / 1e4, // real column: no float32 noise
+				InvoiceID:  r.InvoiceID})
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var it OpenItem
-			var amount int64
-			var conf float32
-			if err := rows.Scan(&it.ID, &it.Source, &it.SourceID, &it.Kind, &it.Date, &it.Due, &amount, &it.Refs,
-				&it.Party, &conf, &it.InvoiceID); err != nil {
-				return err
-			}
-			it.Amount, it.Confidence = money.Amount(amount), math.Round(float64(conf)*1e4)/1e4 // real column: no float32 noise
-			out = append(out, it)
-		}
-		return rows.Err()
+		return err
 	})
 	if err != nil {
 		return nil, false, err
@@ -379,21 +342,20 @@ func (s *PGStore) OpenItems(ctx context.Context, period, direction string, limit
 func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amount, date time.Time, items []uuid.UUID) (string, error) {
 	slices.SortFunc(items, func(a, b uuid.UUID) int { return compareUUID(a, b) })
 	items = slices.Compact(items)
-	var found int
-	var sum int64
-	if err := tx.QueryRow(ctx, `select count(*), coalesce(sum(amount), 0) from matching.items where id = any($1)`, items).
-		Scan(&found, &sum); err != nil {
+	q := store.New(tx)
+	cs, err := q.ItemsCountAndSum(ctx, items)
+	if err != nil {
 		return "", err
 	}
-	if found != len(items) {
+	found, sum := cs.Count, cs.Total
+	if found != int64(len(items)) {
 		return "", ErrUnknownItem
 	}
 	if money.Amount(sum) != amount {
 		return "", ErrLinkDoesNotAdd
 	}
-	var taken bool
-	if err := tx.QueryRow(ctx,
-		`select exists (select 1 from matching.matches m where m.item_ids && $1 and `+matchInEffect+`)`, items).Scan(&taken); err != nil {
+	taken, err := q.AnyItemTaken(ctx, items)
+	if err != nil {
 		return "", err
 	}
 	if taken {
@@ -408,12 +370,12 @@ func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amou
 	if err != nil {
 		return "", err
 	}
-	_, err = tx.Exec(ctx,
-		`insert into matching.matches (tenant_id, id, run_id, rule_id, rule_version, tray, movement_ids, item_ids, adjustments, evidence)
-		 values (app_current_tenant(), $1, null, $2, $3, 'manual', $4, $5, '[]', $6)
-		 on conflict (tenant_id, id) do nothing`,
-		id, RuleManual.ID, RuleManual.Version, []uuid.UUID{mid}, items, ev)
-	return id, err
+	ver, err := int32Of(RuleManual.Version)
+	if err != nil {
+		return "", err
+	}
+	return id, q.InsertManualMatch(ctx, store.InsertManualMatchParams{ID: id, RuleID: RuleManual.ID, RuleVersion: ver,
+		MovementIds: []uuid.UUID{mid}, ItemIds: items, Evidence: ev})
 }
 
 func compareUUID(a, b uuid.UUID) int {
