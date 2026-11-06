@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { site } from "@/content/site";
 import { app } from "@/content/app";
-import { areaAllows, getMode, homeFor, type Session } from "@/lib/api";
+import { ApiError, areaAllows, getMode, homeFor, updateName, type Session } from "@/lib/api";
+import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 import { SessionGate, useSignOut } from "@/components/app/session";
 import { Notice } from "@/components/app/ui";
 
@@ -33,14 +34,20 @@ function Account({ session }: { session: Session }) {
   const path = usePathname();
   const signOut = useSignOut();
   const [leaving, setLeaving] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const nameId = useId();
   function out() {
     setLeaving(true);
     signOut();
   }
   return (
     <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-white/70 sm:w-auto">
-      <span className="min-w-0 break-all">{s.signedAs(session.email, app.roles[session.role])}</span>
+      <span className="min-w-0 break-all">{s.signedAs(session.name ?? session.email, app.roles[session.role])}</span>
       <span className="text-white">{session.tenantName}</span>
+      <button type="button" onClick={() => setNaming((v) => !v)} aria-expanded={naming} aria-controls={nameId}
+        className="inline-flex min-h-11 items-center underline decoration-white/40 underline-offset-4 hover:text-white">
+        {s.name.open}
+      </button>
       {session.memberships.length > 1 && (
         <Link href={`/entrar?cambiar=1&volver=${encodeURIComponent(path)}`} className="inline-flex min-h-11 items-center underline decoration-white/40 underline-offset-4 hover:text-white">
           {s.switchTitle}
@@ -50,7 +57,44 @@ function Account({ session }: { session: Session }) {
         className="inline-flex min-h-11 items-center rounded-full border border-white/25 px-3 text-paper hover:bg-white/10 disabled:opacity-60">
         {leaving ? s.loggingOut : s.logout}
       </button>
+      {naming && <NameForm id={nameId} current={session.name} onDone={() => setNaming(false)} />}
     </div>
+  );
+}
+
+/** "Tu nombre": PATCH /v1/me with the person's own name; the header shows it at once. */
+function NameForm({ id, current, onDone }: { id: string; current: string | null; onDone: () => void }) {
+  const n = app.session.name;
+  const inputId = useId();
+  const [value, setValue] = useState(current ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    if (!value.trim()) return setError(n.invalid);
+    setBusy(true);
+    setError(null);
+    try {
+      await updateName(value);
+      onDone();
+    } catch (err) {
+      setError(err instanceof ApiError && err.status === 400 ? n.invalid : n.failed);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form id={id} onSubmit={save} className="grid w-full gap-2 py-2">
+      <label htmlFor={inputId} className="text-[13px] text-white/85">{n.label}</label>
+      <div className="flex flex-wrap gap-2">
+        <input id={inputId} autoComplete="name" maxLength={120} value={value} onChange={(e) => setValue(e.target.value)} placeholder={n.placeholder}
+          className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none" />
+        <button type="submit" disabled={busy} aria-busy={busy} className={primaryBtn}>{n.save}</button>
+        <button type="button" disabled={busy} className={ghostBtn} onClick={onDone}>{app.approvals.cancel}</button>
+      </div>
+      {error && <p role="alert" className="text-[13.5px] text-accent">{error}</p>}
+    </form>
   );
 }
 

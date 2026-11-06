@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { app } from "@/content/app";
-import { ApiError, areaAllows, getMode, getSession, homeFor, login, logout, type Membership, type Session } from "@/lib/api";
+import { ApiError, areaAllows, getMode, getSession, homeFor, login, requestMagicLink, restore, switchTenant, type Membership, type Session } from "@/lib/api";
 import { primaryBtn, ghostBtn } from "@/components/app/buttons";
 
 const s = app.session;
@@ -42,8 +42,13 @@ function safeBack(back: string | undefined, role: Session["role"]) {
   return area && areaAllows(area, role) ? u.pathname + u.search + u.hash : homeFor(role);
 }
 
+/** Login answers that still let the person in by an emailed link. */
+const offersLink = (e: unknown) => e instanceof ApiError && ((e.status === 429 && e.magicLink) || e.code === "magic_link_required");
+
 function explain(e: unknown) {
   if (e instanceof ApiError) {
+    if (e.code === "magic_link_required") return s.magic.required;
+    if (e.code === "not_a_member") return s.notMember;
     if (e.status === 401) return s.wrong;
     if (e.status === 429) return e.retryAfter ? s.rateLimited(e.retryAfter) : s.rateLimitedNoWait;
     if (e.status === 400) return s.invalid;
@@ -72,20 +77,54 @@ function SampleAccounts() {
 
 /**
  * /entrar. Email and password; with several memberships, the person picks the company.
- * The token is for one tenant, so picking another one logs in again with its tenantId
- * (the first session is revoked first). The password lives in this component's state
- * only while the form is open, and the access token only in memory (lib/api/session.ts).
+ * The token is for one tenant, so picking another one (or "Cambiar de empresa" later) moves
+ * the session there with /v1/auth/switch-tenant, without asking for the password again. The
+ * password lives in this component's state only while the form is open, and the access
+ * token only in memory (lib/api/session.ts).
  */
-export function Login({ back, switching, tenantId, expired }: { back?: string; switching: boolean; tenantId?: string; expired: boolean }) {
+type LoginProps = { back?: string; switching: boolean; tenantId?: string; expired: boolean };
+
+export function Login(props: LoginProps) {
+  // "Cambiar de empresa" opened directly or reloaded: the session is not in memory yet, so it
+  // is restored from the refresh cookie first; only with no session at all does it ask to log in.
+  const [current, setCurrent] = useState<Session | null | undefined>(() => (props.switching ? getSession() ?? undefined : null));
+  useEffect(() => {
+    if (current !== undefined) return;
+    let live = true;
+    restore("portal").then((s) => { if (live) setCurrent(s); }, () => { if (live) setCurrent(null); });
+    return () => { live = false; };
+  }, [current]);
+  if (current === undefined) return <p role="status" className="text-[15px] text-white/70">{app.load.loading}</p>;
+  return <LoginForm {...props} current={current} />;
+}
+
+function LoginForm({ back, tenantId, expired, current }: LoginProps & { current: Session | null }) {
   const router = useRouter();
   const ids = { email: useId(), password: useId(), error: useId() };
-  const [current] = useState<Session | null>(() => (switching ? getSession() : null));
   const [email, setEmail] = useState(current?.email ?? "");
   const [password, setPassword] = useState("");
   const [choices, setChoices] = useState<Membership[] | null>(current && current.memberships.length > 1 ? current.memberships : null);
   const [chosen, setChosen] = useState(tenantId ?? current?.tenantId ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "Mandame un enlace": offered after a 429 with magicLink or a 401 magic_link_required.
+  const [linkOffer, setLinkOffer] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+  const [linkKey] = useState(() => crypto.randomUUID());
+
+  async function sendLink() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await requestMagicLink(email.trim(), linkKey, tenantId);
+      setLinkSent(true);
+    } catch (err) {
+      setError(explain(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function go(session: Session) {
     setPassword("");
@@ -98,16 +137,12 @@ export function Login({ back, switching, tenantId, expired }: { back?: string; s
     setBusy(true);
     setError(null);
     try {
-      if (current) {
-        // Switching company: log in again for the chosen tenant (needs the password).
-        go(await login(email.trim(), password, chosen));
-        return;
-      }
-      if (choices) {
+      if (current || choices) {
+        // Choosing or switching company: the session moves there with the refresh cookie,
+        // no password (it also works for people who sign in by emailed link).
         const active = getSession();
         if (active && active.tenantId === chosen) return go(active);
-        await logout();
-        go(await login(email.trim(), password, chosen));
+        go(await switchTenant(chosen));
         return;
       }
       const session = await login(email.trim(), password, tenantId);
@@ -119,6 +154,7 @@ export function Login({ back, switching, tenantId, expired }: { back?: string; s
       go(session);
     } catch (err) {
       setError(explain(err));
+      if (offersLink(err)) setLinkOffer(true);
     } finally {
       setBusy(false);
     }
@@ -126,7 +162,7 @@ export function Login({ back, switching, tenantId, expired }: { back?: string; s
 
   const title = current ? s.switchTitle : choices ? s.chooseTitle : s.title;
   const body = current ? s.switchBody : choices ? s.chooseBody : s.body;
-  const askCredentials = !choices || !!current;
+  const askCredentials = !choices && !current;
 
   return (
     <>
@@ -170,6 +206,19 @@ export function Login({ back, switching, tenantId, expired }: { back?: string; s
           {current && <button type="button" className={ghostBtn} onClick={() => router.back()}>{s.cancel}</button>}
         </div>
       </form>
+
+      {linkOffer && !current && (
+        <div className="mt-6 grid gap-3 rounded-xl border border-white/15 p-4">
+          {linkSent ? (
+            <p role="status" className="text-[14.5px] text-white/85">{s.magic.sent}</p>
+          ) : (
+            <>
+              <p className="text-[14.5px] text-white/80">{s.magic.offer}</p>
+              <button type="button" disabled={busy || !email.trim()} aria-busy={busy} className={`${ghostBtn} w-fit`} onClick={sendLink}>{s.magic.send}</button>
+            </>
+          )}
+        </div>
+      )}
 
       {getMode() === "sample" && !current && <SampleAccounts />}
     </>

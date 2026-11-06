@@ -21,10 +21,23 @@ function session() {
   return s;
 }
 
+/** Names set in this tab, by email (sample people start with none, like a new account). */
+const names = new Map<string, string>();
+
+/** Like the core: trimmed, 1 to 120 characters, no control characters (else 400 invalid_name). */
+export async function updateName(name: string) {
+  const s = session();
+  const v = name.trim();
+  if (!v || v.length > 120 || /[\u0000-\u001f\u007f]/.test(v)) throw new ApiError(400, "invalid_name");
+  names.set(s.email, v);
+  setSession({ ...s, name: v });
+  return v;
+}
+
 function open(email: string, tenantId?: string): Session {
   const ms = fx.memberships(email);
   const m = ms.find((x) => x.tenantId === tenantId) ?? ms[0];
-  const s: Session = { accessToken: "", tenantId: m.tenantId, tenantName: m.tenantName, role: m.role, email, memberships: ms };
+  const s: Session = { accessToken: "", tenantId: m.tenantId, tenantName: m.tenantName, role: m.role, email, name: names.get(email) ?? null, memberships: ms };
   setSession(s);
   return s;
 }
@@ -44,6 +57,26 @@ export async function login(email: string, password: string, tenantId?: string) 
   }
   failures.delete(key);
   return open(key, tenantId);
+}
+
+/** Sample mode sends no email; it answers like the core (202, nothing to report). */
+export async function requestMagicLink() {}
+
+/** Sample mode issues no links, so any token is unknown, as the core answers for one. */
+export async function acceptMagicLink(): Promise<Session> {
+  throw new ApiError(401, "invalid_magic_link");
+}
+
+/** Like the core: a tenant the person does not belong to is 403 not_a_member. */
+export async function switchTenant(tenantId: string) {
+  const s = session();
+  if (!fx.memberships(s.email).some((m) => m.tenantId === tenantId)) throw new ApiError(403, "not_a_member");
+  return open(s.email, tenantId);
+}
+
+/** Sample mode sends no invitations either: any token is unknown (401 invalid_invite). */
+export async function acceptInvite(): Promise<Session> {
+  throw new ApiError(401, "invalid_invite");
 }
 
 /** Sample mode has no cookie: before any login, the area's default person is in. */

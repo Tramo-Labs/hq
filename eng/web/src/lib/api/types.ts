@@ -17,6 +17,8 @@ export type Problem = {
   code: string;
   detail?: string;
   requestId?: string;
+  /** On login's 429 for the email and IP pair: the person can still get in by magic link. */
+  magicLink?: boolean;
 };
 
 export type Role = "owner" | "approver" | "viewer" | "operator" | "accountant";
@@ -51,6 +53,8 @@ export type Membership = { tenantId: string; tenantName: string; role: Role };
 export type Me = {
   userId: string;
   email: string;
+  /** Null until the person sets one; show the email then. */
+  name: string | null;
   activeTenantId: string;
   role: Role;
   memberships: Membership[];

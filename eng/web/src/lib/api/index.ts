@@ -11,18 +11,20 @@ export { ApiError, SessionExpired } from "./errors";
 export { getMode, getSession, subscribe, type Mode, type Session } from "./session";
 
 /**
- * The only door the screens use to reach data. Two modes, chosen at build on the server by
- * CORE_API_URL (next.config.ts inlines only the mode, never the URL):
+ * The only door the screens use to reach data. Two modes, chosen at build (next.config.ts):
  *
- * - live: same-origin fetches to /v1/*, which next.config.ts rewrites to the core. Access
+ * - live: fetches to the core's API origin (NEXT_PUBLIC_API_BASE, production, D-18) or to the
+ *   web's own /v1 rewrite (CORE_API_URL, local development), credentials 'include'. Access
  *   token in memory, refresh token in the core's HttpOnly cookie.
  * - sample: the fixtures, in the same shapes, loaded on demand so live mode never ships them.
  *
  * Paths used (eng/core/api/openapi.yaml):
- *   POST /v1/auth/login | refresh | logout       GET /v1/me
- *   GET  /v1/me/tenant                           GET /v1/tenants (operator, accountant)
- *   GET  /v1/ledger/accounts                     GET /v1/ledger/quarantine
+ *   POST /v1/auth/login | refresh | logout | switch-tenant
+ *   POST /v1/auth/magic-link | magic-link/accept | invite/accept
+ *   GET  /v1/me, PATCH /v1/me                    GET /v1/me/tenant
+ *   GET  /v1/tenants (operator, accountant)      GET /v1/ledger/accounts, /v1/ledger/quarantine
  *   GET  /v1/matching/matches?tray=&period=      GET /v1/matching/pending?tray=&period=
+ *   GET  /v1/matching/items?direction=&period=
  *   POST /v1/matching/matches/{id}/decision      POST /v1/matching/movements/{id}/decision
  *   GET  /v1/metrics?period=                     GET /v1/exports, GET /v1/exports/{kind}
  * Every POST except auth carries an Idempotency-Key the caller created for that user action.
@@ -39,6 +41,31 @@ const q = (params: Record<string, string | undefined>) => {
 
 export async function login(email: string, password: string, tenantId?: string) {
   return isLive() ? live.login(email, password, tenantId) : (await sample()).login(email, password, tenantId);
+}
+
+/** POST /v1/auth/magic-link: always 202, so it never tells whether the email has an account. */
+export async function requestMagicLink(email: string, idempotencyKey: string, tenantId?: string) {
+  return isLive() ? live.requestMagicLink(email, idempotencyKey, tenantId) : (await sample()).requestMagicLink();
+}
+
+/** POST /v1/auth/magic-link/accept with the token from the link, and the session it opens. */
+export async function acceptMagicLink(token: string) {
+  return isLive() ? live.acceptMagicLink(token) : (await sample()).acceptMagicLink();
+}
+
+/** POST /v1/auth/invite/accept: the invited person sets a password (and a name) and is in. */
+export async function acceptInvite(token: string, password: string, name?: string) {
+  return isLive() ? live.acceptInvite(token, password, name) : (await sample()).acceptInvite();
+}
+
+/** PATCH /v1/me: sets the person's own name and returns it as stored (trimmed). */
+export async function updateName(name: string) {
+  return isLive() ? live.updateName(name) : (await sample()).updateName(name);
+}
+
+/** POST /v1/auth/switch-tenant: another of the person's companies, without the password. */
+export async function switchTenant(tenantId: string) {
+  return isLive() ? live.switchTenant(tenantId) : (await sample()).switchTenant(tenantId);
 }
 
 /** After a reload: a new access token from the refresh cookie (live) or the default person (sample). */
