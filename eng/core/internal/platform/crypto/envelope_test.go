@@ -59,6 +59,33 @@ func TestSealOpen(t *testing.T) {
 	}
 }
 
+// A nonce reused under one GCM key leaks the XOR of the plaintexts and lets
+// an attacker forge tags, so every seal must draw a fresh one.
+func TestSealUsesAFreshNoncePerCall(t *testing.T) {
+	k := key(t)
+	const nonceStart, nonceEnd = 1 + 4, 1 + 4 + 12
+	seen := map[string]bool{}
+	blobs := map[string]bool{}
+	for i := 0; i < 64; i++ {
+		blob, err := crypto.Seal(k, []byte("same text"), []byte("ctx"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		nonce := string(blob[nonceStart:nonceEnd])
+		if seen[nonce] {
+			t.Fatalf("seal %d reused a nonce", i)
+		}
+		seen[nonce] = true
+		if blobs[string(blob)] {
+			t.Fatalf("seal %d produced the same blob for the same text", i)
+		}
+		blobs[string(blob)] = true
+		if pt, err := crypto.Open(k, blob, []byte("ctx")); err != nil || string(pt) != "same text" {
+			t.Fatalf("seal %d does not open: %q, %v", i, pt, err)
+		}
+	}
+}
+
 func TestNewKeyringRejectsShortKeys(t *testing.T) {
 	if _, err := crypto.NewKeyring(make([]byte, 16)); err == nil {
 		t.Fatal("accepted a 16 byte master key")
