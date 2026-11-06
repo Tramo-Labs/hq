@@ -486,7 +486,7 @@ func TestPGTenantIsolation(t *testing.T) {
 	}
 	for _, table := range []string{"matching.items", "matching.runs", "matching.matches", "matching.pending",
 		"matching.decisions", "matching.movement_decisions", "matching.decision_state",
-		"matching.movement_decision_state", "ledger.movements"} {
+		"matching.movement_decision_state", "matching.matches_in_effect", "matching.waiting", "ledger.movements"} {
 		if n := e.count(t, e.ctx, "select count(*) from "+table); n == 0 {
 			t.Errorf("tenant a sees no rows of %s: nothing to leak, the check proves nothing", table)
 		}

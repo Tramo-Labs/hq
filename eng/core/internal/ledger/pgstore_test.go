@@ -310,12 +310,50 @@ func TestPGEveryViewIsSecurityInvoker(t *testing.T) {
 				t.Errorf("%s: view without security_invoker leaks rows across tenants", name)
 			}
 		}
-		// decision_state and movement_decision_state (00103). A new view
-		// makes this fail on purpose: check it, then count it.
-		if seen != 2 {
-			t.Errorf("%d views in the datos schemas; want 2", seen)
+		// decision_state and movement_decision_state (00103),
+		// matches_in_effect and waiting (00117). A new view makes this fail
+		// on purpose: check it, then count it.
+		if seen != 4 {
+			t.Errorf("%d views in the datos schemas; want 4", seen)
 		}
-		return rows.Err()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		// Functions run with the caller's rights too, so RLS holds inside
+		// them; one a query calls fixes its search_path.
+		frows, err := tx.Query(ctx, `
+			select p.oid::regprocedure::text, p.prosecdef, p.prorettype = 'trigger'::regtype,
+			       coalesce(exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%'), false)
+			  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+			 where n.nspname in ('ledger', 'documents', 'matching')
+			 order by 1`)
+		if err != nil {
+			return err
+		}
+		defer frows.Close()
+		callable := 0
+		for frows.Next() {
+			var name string
+			var definer, trigger, path bool
+			if err := frows.Scan(&name, &definer, &trigger, &path); err != nil {
+				return err
+			}
+			if definer {
+				t.Errorf("%s: security definer skips row level security", name)
+			}
+			if !trigger {
+				callable++
+				if !path {
+					t.Errorf("%s: no fixed search_path", name)
+				}
+			}
+		}
+		// None today: a function a query calls fixes its search_path. A new
+		// one makes this fail on purpose: check it, then count it.
+		if callable != 0 {
+			t.Errorf("%d callable functions in the datos schemas; want 0", callable)
+		}
+		return frows.Err()
 	})
 	if err != nil {
 		t.Fatal(err)
