@@ -139,7 +139,13 @@ func (in *Ingester) Ingest(ctx context.Context, u Upload) (Result, error) {
 		fresh = append(fresh, st.Movements[i])
 	}
 	res.Status, res.Statement, res.New = Accepted, st, len(fresh)
-	return res, in.Store.SaveAccepted(ctx, u, res, fresh)
+	if err := in.Store.SaveAccepted(ctx, u, res, fresh); err != nil {
+		if errors.Is(err, ErrRaced) {
+			return Result{Status: Duplicate, FileHash: res.FileHash, Detail: "this exact file was already uploaded"}, nil
+		}
+		return res, err
+	}
+	return res, nil
 }
 
 func (in *Ingester) checks(ctx context.Context, u Upload, st *Statement) (string, string, error) {
