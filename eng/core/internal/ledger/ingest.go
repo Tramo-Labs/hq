@@ -43,7 +43,25 @@ const (
 	// (different layouts, overlapping dates, movements under an unknown
 	// header next to known sheets).
 	ReasonUnsupportedFormat = "unsupported_format"
+	// ReasonPeriodClosed: the file brings new movements dated in a closed
+	// period. Nothing enters; Result.ClosedPeriod names the period.
+	ReasonPeriodClosed = "period_closed"
 )
+
+// ClosedPeriod is a closed period of the tenant, [Start, End): End is the
+// day after its last day.
+type ClosedPeriod struct {
+	Start, End time.Time
+}
+
+// PeriodClosedError is what a store's SaveAccepted returns when some new
+// movement falls in a closed period: nothing was written.
+type PeriodClosedError struct{ Period ClosedPeriod }
+
+func (e *PeriodClosedError) Error() string {
+	return fmt.Sprintf("ledger: new movements in the closed period from %s to %s",
+		day(e.Period.Start), day(e.Period.End.AddDate(0, 0, -1)))
+}
 
 // Upload is a file a tenant sent for one of its accounts.
 type Upload struct {
@@ -64,9 +82,10 @@ type Result struct {
 	FileHash       string
 	Fingerprint    string
 	LayoutID       string
-	Statement      *Statement // set when accepted
-	New            int        // movements stored by this upload
-	AlreadyPresent int        // movements skipped because an earlier upload had them
+	Statement      *Statement    // set when accepted
+	New            int           // movements stored by this upload
+	AlreadyPresent int           // movements skipped because an earlier upload had them
+	ClosedPeriod   *ClosedPeriod // with ReasonPeriodClosed, the period the new movements hit
 }
 
 // Store persists files and movements. The Postgres implementation enforces
@@ -170,6 +189,17 @@ func (in *Ingester) Ingest(ctx context.Context, u Upload) (Result, error) {
 	if err := in.Store.SaveAccepted(ctx, u, res, fresh); err != nil {
 		if errors.Is(err, ErrRaced) {
 			return Result{Status: Duplicate, FileHash: res.FileHash, Detail: "this exact file was already uploaded"}, nil
+		}
+		// New movements in a closed period: the close froze it, so nothing
+		// of the file enters. Movements already stored do not count: a
+		// file that only repeats them is accepted as before.
+		var pc *PeriodClosedError
+		if errors.As(err, &pc) {
+			res.Statement, res.New, res.AlreadyPresent = nil, 0, 0
+			res.ClosedPeriod = &pc.Period
+			return quarantine(ReasonPeriodClosed, fmt.Sprintf(
+				"the file brings new movements dated in the period from %s to %s, which is closed",
+				day(pc.Period.Start), day(pc.Period.End.AddDate(0, 0, -1))))
 		}
 		return res, err
 	}

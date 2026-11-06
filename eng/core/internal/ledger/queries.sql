@@ -23,8 +23,10 @@ values (app_current_tenant(), $1, $2, $3, 'accepted', $4, $5, app_current_user()
 returning id;
 
 -- name: InsertQuarantinedFile :one
-insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id, uploaded_by)
-values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7, app_current_user())
+insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id, uploaded_by,
+                          closed_start, closed_end)
+values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7, app_current_user(),
+        sqlc.narg(closed_start)::date, sqlc.narg(closed_end)::date)
 returning id;
 
 -- name: InsertStatement :one
@@ -74,7 +76,8 @@ select f.id, f.account_id, a.name as account_name, a.bank, coalesce(f.filename, 
        coalesce(f.layout_id, '')::text as layout_id,
        st.period_from, st.period_to,
        (select count(*) from ledger.movements m where m.statement_id = st.id) as movements,
-       f.received_at, f.uploaded_by, coalesce(u.email, '')::text as uploaded_by_email
+       f.received_at, f.uploaded_by, coalesce(u.email, '')::text as uploaded_by_email,
+       f.closed_start, f.closed_end
   from ledger.files f
   join ledger.accounts a on a.id = f.account_id
   left join ledger.statements st on st.file_id = f.id

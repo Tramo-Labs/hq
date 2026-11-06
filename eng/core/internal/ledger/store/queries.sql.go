@@ -96,8 +96,10 @@ func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (u
 }
 
 const insertQuarantinedFile = `-- name: InsertQuarantinedFile :one
-insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id, uploaded_by)
-values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7, app_current_user())
+insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id, uploaded_by,
+                          closed_start, closed_end)
+values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7, app_current_user(),
+        $8::date, $9::date)
 returning id
 `
 
@@ -109,6 +111,8 @@ type InsertQuarantinedFileParams struct {
 	Detail      *string
 	Fingerprint *string
 	LayoutID    *string
+	ClosedStart *time.Time
+	ClosedEnd   *time.Time
 }
 
 func (q *Queries) InsertQuarantinedFile(ctx context.Context, arg InsertQuarantinedFileParams) (uuid.UUID, error) {
@@ -120,6 +124,8 @@ func (q *Queries) InsertQuarantinedFile(ctx context.Context, arg InsertQuarantin
 		arg.Detail,
 		arg.Fingerprint,
 		arg.LayoutID,
+		arg.ClosedStart,
+		arg.ClosedEnd,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -229,7 +235,8 @@ select f.id, f.account_id, a.name as account_name, a.bank, coalesce(f.filename, 
        coalesce(f.layout_id, '')::text as layout_id,
        st.period_from, st.period_to,
        (select count(*) from ledger.movements m where m.statement_id = st.id) as movements,
-       f.received_at, f.uploaded_by, coalesce(u.email, '')::text as uploaded_by_email
+       f.received_at, f.uploaded_by, coalesce(u.email, '')::text as uploaded_by_email,
+       f.closed_start, f.closed_end
   from ledger.files f
   join ledger.accounts a on a.id = f.account_id
   left join ledger.statements st on st.file_id = f.id
@@ -263,6 +270,8 @@ type ListFilesRow struct {
 	ReceivedAt      time.Time
 	UploadedBy      *uuid.UUID
 	UploadedByEmail string
+	ClosedStart     *time.Time
+	ClosedEnd       *time.Time
 }
 
 // The "Archivos" list (F12), newest first. period is YYYY-MM received in
@@ -292,6 +301,8 @@ func (q *Queries) ListFiles(ctx context.Context, arg ListFilesParams) ([]ListFil
 			&i.ReceivedAt,
 			&i.UploadedBy,
 			&i.UploadedByEmail,
+			&i.ClosedStart,
+			&i.ClosedEnd,
 		); err != nil {
 			return nil, err
 		}

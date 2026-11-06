@@ -55,6 +55,17 @@ uploaded again. Then balances, chain and movement keys.
    `movement_conflict`, with the line, and nothing of it enters. The stored
    movement is never overwritten. In doubt, quarantine: never money counted
    twice.
+8. **Closed period.** When the new movements (not those already stored)
+   include one dated in a closed period of the tenant, the whole file is
+   `period_closed` and nothing enters: a close froze that period. Asked in
+   the transaction that would store the movements, through
+   `closes.ClosedPeriodOf`, which holds the close's lock, so a close never
+   counts a period while a statement is entering it. The file keeps the
+   closed period it hit (migration 00118, `[closed_start, closed_end)`),
+   and the upload's answer and `GET /v1/ledger/files` name it as
+   `closedPeriod`, last day included. `TestStatementInAClosedPeriod`
+   (internal/app) runs it against a real close; dropping the check, or the
+   period in the list, fails it.
 
    Known limit: with no running balance and no voucher, two movements of
    the same day and amount are told apart only by their order in the file.

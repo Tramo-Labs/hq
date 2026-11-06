@@ -25,7 +25,8 @@ type FileRow struct {
 	Movements       int        // movements this file stored, accepted only
 	ReceivedAt      time.Time
 	UploadedBy      *uuid.UUID
-	UploadedByEmail string // empty when the uploader is no longer a member
+	UploadedByEmail string        // empty when the uploader is no longer a member
+	ClosedPeriod    *ClosedPeriod // with reason period_closed, the closed period it hit
 }
 
 // FileFilter narrows Files. Empty values mean any.
@@ -43,10 +44,14 @@ func (s *PGStore) Files(ctx context.Context, f FileFilter, limit int) ([]FileRow
 			Period: f.Period, Status: string(f.Status), MaxRows: maxRows(limit),
 		})
 		for _, r := range rows {
-			out = append(out, FileRow{ID: r.ID, AccountID: r.AccountID, AccountName: r.AccountName, Bank: Bank(r.Bank),
+			row := FileRow{ID: r.ID, AccountID: r.AccountID, AccountName: r.AccountName, Bank: Bank(r.Bank),
 				Filename: r.Filename, Status: Status(r.Status), Reason: r.Reason, Detail: r.Detail, LayoutID: r.LayoutID,
 				From: r.PeriodFrom, To: r.PeriodTo, Movements: int(r.Movements), ReceivedAt: r.ReceivedAt,
-				UploadedBy: r.UploadedBy, UploadedByEmail: r.UploadedByEmail})
+				UploadedBy: r.UploadedBy, UploadedByEmail: r.UploadedByEmail}
+			if r.ClosedStart != nil && r.ClosedEnd != nil {
+				row.ClosedPeriod = &ClosedPeriod{Start: *r.ClosedStart, End: *r.ClosedEnd}
+			}
+			out = append(out, row)
 		}
 		return err
 	})
