@@ -70,6 +70,51 @@ func TestLoginPerIPCountsWrongPasswordsOnly(t *testing.T) {
 	}
 }
 
+// A person locked out, by the pair's cap or by magic link mode, who keeps
+// retrying is refused without the password being checked, and that spends
+// nothing of the per IP limit: someone else behind the same address still
+// signs in. The pair's or the email's limit holds the locked out one.
+func TestALockedOutPersonRetryingSpendsNothingOfTheIP(t *testing.T) {
+	login := func(c client, email, password string) resp {
+		return c.do("POST", "/v1/auth/login", "", map[string]any{"email": email, "password": password, "tokenDelivery": "body"})
+	}
+	t.Run("pair cap", func(t *testing.T) {
+		c := client{t, server(t)} // default limits: 30 per IP, 5 per pair
+		locked := c.registerAndLogin("molino-lk1", "bloqueada@lk1.test")
+		other := c.registerAndLogin("molino-lk1b", "otra@lk1.test")
+		for i := 0; i < 5; i++ {
+			login(c, locked.email, "a wrong guess, long")
+		}
+		for i := 0; i < 40; i++ {
+			if r := login(c, locked.email, "a wrong guess, long"); r.status != 429 {
+				t.Fatalf("retry %d: %d %s", i, r.status, r.raw)
+			}
+		}
+		if r := login(c, other.email, other.password); r.status != 200 {
+			t.Fatalf("someone else from the same address: %d %s", r.status, r.raw)
+		}
+	})
+	t.Run("magic link mode", func(t *testing.T) {
+		deps := newDeps(t)
+		deps.Identity.Limits.AttackFails = ratelimit.Rule{Limit: 3, Window: time.Hour}
+		deps.Identity.Limits.AttackIPs = 1
+		c := client{t, serve(t, deps)}
+		locked := c.registerAndLogin("molino-lk2", "bloqueada@lk2.test")
+		other := c.registerAndLogin("molino-lk2b", "otra@lk2.test")
+		for i := 0; i < 3; i++ {
+			login(c, locked.email, "a wrong guess, long")
+		}
+		for i := 0; i < 40; i++ {
+			if r := login(c, locked.email, locked.password); r.status != 401 || r.str("code") != "magic_link_required" {
+				t.Fatalf("retry %d in the mode: %d %s", i, r.status, r.raw)
+			}
+		}
+		if r := login(c, other.email, other.password); r.status != 200 {
+			t.Fatalf("someone else from the same address: %d %s", r.status, r.raw)
+		}
+	})
+}
+
 // What D-20 must not open: over the cap, a guess is not even checked, so
 // the right password gets 429 too, on the pair and on the per IP limit.
 func TestOverTheCapTheRightPasswordIsRefusedToo(t *testing.T) {

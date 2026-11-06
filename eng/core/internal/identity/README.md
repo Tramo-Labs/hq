@@ -346,7 +346,13 @@ before checking is what keeps the cap a cap: over it a guess is not even
 checked, so the right password gets 429 too, on the pair and on the IP
 (`TestOverTheCapTheRightPasswordIsRefusedToo`; mutations checked:
 counting a successful accept, preview or login, and letting a request
-over the pair's cap through, each fail a test). Checking before and
+over the pair's cap through, each fail a test). A login refused without
+checking the password, by the pair's cap or by magic link mode, gives the
+IP's unit back too: someone locked out who keeps retrying does not spend
+the address's limit for everyone behind it, and the pair's or the email's
+limit already holds them (`TestALockedOutPersonRetryingSpendsNothingOfTheIP`:
+40 retries, someone else from the same address signs in; mutations
+checked: keeping the unit on either refusal fails it). Checking before and
 counting after let a burst of guesses through: 20 at once against a cap of
 5 all got an answer (`TestLoginFailureCapHoldsUnderABurst`). The limiter
 has no separate check and count any more; `Allow` and `Take` do both

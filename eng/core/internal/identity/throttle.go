@@ -118,13 +118,19 @@ func (s *Service) checkLogin(ctx context.Context, email string) (notAFailure fun
 	if !ok {
 		return func() {}, limited(retry)
 	}
+	// Refused without checking the password (the pair's cap, or the email
+	// in magic link mode): no guess was made, so the IP's unit goes back.
+	// Otherwise someone locked out who keeps retrying would spend the
+	// address's limit for everyone behind it; the pair's or the email's
+	// limit already holds them.
 	ok, retry, pairBack := s.Limiter.Take(pairKey(email, ip), s.Limits.FailPerEmailIP)
 	if !ok {
+		ipBack()
 		return func() {}, &RateLimitedError{RetryAfter: retry, MagicLink: true}
 	}
 	back := func() { ipBack(); pairBack() }
 	if s.attacks().inMode(emailKey(email), s.now()) {
-		pairBack() // the password is not checked: no guess on this pair
+		back()
 		return func() {}, ErrMagicLinkRequired
 	}
 	return back, nil
