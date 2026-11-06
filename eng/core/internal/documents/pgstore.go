@@ -115,6 +115,59 @@ func (s *PGStore) OwnCUIT(ctx context.Context) (string, error) {
 	return fmt.Sprintf("%011d", *cuit), nil
 }
 
+// Summary is a stored invoice as listed: its key columns (filled only from
+// trusted fields), whether it qualifies for automatic, and what is missing.
+type Summary struct {
+	ID            uuid.UUID
+	IssuerCUIT    *string
+	DocType       *int32
+	PointOfSale   *int32
+	Number        *int64
+	IssueDate     *time.Time
+	Total         *int64
+	AutoEligible  bool
+	MinConfidence float64
+	Missing       []Name
+	CreatedAt     time.Time
+}
+
+// List returns the invoices of the tenant in the context, newest first.
+// period (YYYY-MM, Argentina time) keeps those stored in that month; "" all.
+// autoEligible, when set, keeps only those that do or do not qualify.
+func (s *PGStore) List(ctx context.Context, period string, autoEligible *bool, limit int) ([]Summary, error) {
+	var out []Summary
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			select id, issuer_cuit, doc_type, point_of_sale, number, issue_date, total, auto_eligible, min_confidence, fields, created_at
+			  from documents.invoices
+			 where ($1 = '' or to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1)
+			   and ($2::boolean is null or auto_eligible = $2)
+			 order by created_at desc, id limit $3`, period, autoEligible, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var sm Summary
+			var conf float32
+			var fields []byte
+			if err := rows.Scan(&sm.ID, &sm.IssuerCUIT, &sm.DocType, &sm.PointOfSale, &sm.Number, &sm.IssueDate, &sm.Total,
+				&sm.AutoEligible, &conf, &fields, &sm.CreatedAt); err != nil {
+				return err
+			}
+			sm.MinConfidence = float64(conf)
+			inv := newInvoice()
+			if err := json.Unmarshal(fields, &inv.Fields); err != nil {
+				return err
+			}
+			sm.Missing = inv.Missing()
+			out = append(out, sm)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
 // ErrNotFound means the invoice does not exist for the tenant in the context.
 var ErrNotFound = errors.New("documents: not found")
 

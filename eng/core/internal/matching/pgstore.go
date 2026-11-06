@@ -563,6 +563,12 @@ func (s *PGStore) GetMatch(ctx context.Context, id string) (Match, error) {
 
 // Undecided lists the matches of a tray that nobody decided on yet.
 func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match, error) {
+	return s.UndecidedIn(ctx, tray, "", limit)
+}
+
+// UndecidedIn is Undecided restricted to matches with a movement dated in
+// period (YYYY-MM); "" means every period.
+func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, limit int) ([]Match, error) {
 	var out []Match
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		// auto: nobody decides, listed for review. suggested: no operator
@@ -577,7 +583,9 @@ func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match,
 			    and not exists (select 1 from matching.decision_state d
 			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception' and d.action is not null)
 			  else false end
-			order by created_at, id limit $2`, string(tray), limit)
+			  and ($3 = '' or exists (select 1 from ledger.movements mv
+			    where mv.id = any(m.movement_ids) and to_char(mv.date, 'YYYY-MM') = $3))
+			order by created_at, id limit $2`, string(tray), limit, period)
 		if err != nil {
 			return err
 		}
@@ -608,13 +616,20 @@ const ReasonClientOther PendingReason = "client_other"
 // LatestPending lists the movements waiting in a tray according to the
 // latest run of each period.
 func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]PendingRow, error) {
+	return s.LatestPendingIn(ctx, tray, "", limit)
+}
+
+// LatestPendingIn is LatestPending for the latest run of one period
+// (YYYY-MM); "" means the latest run of every period.
+func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string, limit int) ([]PendingRow, error) {
 	var out []PendingRow
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		// A movement the client decided leaves the Exceptions tray; if the
 		// decision in effect is "other", it shows in Suggested for the
 		// operator with the client's note. A reverted decision puts it back.
 		rows, err := tx.Query(ctx, `
-			with latest as (select distinct on (period) id from matching.runs order by period, started_at desc, id),
+			with latest as (select distinct on (period) id from matching.runs
+			                 where $3 = '' or period = $3 order by period, started_at desc, id),
 			     cur as (select p.*, s.action as decided, s.note as client_note from matching.pending p
 			               left join matching.movement_decision_state s on s.tenant_id = p.tenant_id and s.movement_id = p.movement_id
 			              where p.run_id in (select id from latest))
@@ -627,7 +642,7 @@ func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]Pe
 			         when 'exception' then tray = 'exception' and decided is null
 			         when 'suggested' then tray = 'suggested' or (tray = 'exception' and decided = 'other')
 			         else false end
-			 order by movement_id limit $2`, string(tray), limit)
+			 order by movement_id limit $2`, string(tray), limit, period)
 		if err != nil {
 			return err
 		}

@@ -52,7 +52,7 @@ func (h *Handlers) RunMatching(ctx context.Context, req apigen.RunMatchingReques
 }
 
 func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesRequestObject) (apigen.ListMatchesResponseObject, error) {
-	ms, err := h.store.Undecided(ctx, Tray(req.Params.Tray), listLimit)
+	ms, err := h.store.UndecidedIn(ctx, Tray(req.Params.Tray), periodOf(req.Params.Period), listLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesReques
 }
 
 func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingRequestObject) (apigen.ListPendingResponseObject, error) {
-	rows, err := h.store.LatestPending(ctx, Tray(req.Params.Tray), listLimit)
+	rows, err := h.store.LatestPendingIn(ctx, Tray(req.Params.Tray), periodOf(req.Params.Period), listLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -216,4 +216,12 @@ func toAPIMatch(m Match) (apigen.Match, error) {
 		out.DateDiffDays = &d
 	}
 	return out, nil
+}
+
+// periodOf reads an optional period filter ("" when absent).
+func periodOf(p *apigen.PeriodFilter) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

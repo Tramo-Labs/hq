@@ -302,6 +302,35 @@ paths:
                   nextCursor: { type: string, nullable: true }
         "401": { $ref: "#/components/responses/Problem" }
   /v1/documents/invoices:
+    get:
+      operationId: listInvoices
+      tags: [documents]
+      summary: Invoices of the active tenant, newest first
+      description: |
+        `period` keeps the invoices stored in that month; `autoEligible=false`
+        keeps the ones that need review (some required field missing, not
+        trusted or in conflict). The rows behind the invoice metrics.
+      parameters:
+        - $ref: "#/components/parameters/PeriodFilter"
+        - name: autoEligible
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/InvoiceSummary" }
+                  nextCursor: { type: string, nullable: true }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
     post:
       operationId: uploadInvoice
       tags: [documents]
@@ -384,11 +413,13 @@ paths:
         `auto`: registered by an exact rule, listed for review; nobody
         decides on them. `suggested`: no operator decision yet.
         `exception`: escalated by an operator, no client decision yet.
+        `period` keeps the matches with a movement dated in that month.
       parameters:
         - name: tray
           in: query
           required: true
           schema: { type: string, enum: [auto, suggested, exception] }
+        - $ref: "#/components/parameters/PeriodFilter"
       responses:
         "200":
           description: ok
@@ -412,11 +443,13 @@ paths:
       description: |
         `suggested`: ambiguous or partial evidence, with every candidate,
         for an operator. `exception`: no candidate, for the client.
+        `period` keeps only the latest run of that month.
       parameters:
         - name: tray
           in: query
           required: true
           schema: { type: string, enum: [suggested, exception] }
+        - $ref: "#/components/parameters/PeriodFilter"
       responses:
         "200":
           description: ok
@@ -560,10 +593,11 @@ paths:
       tags: [portal]
       summary: Results panel of the active tenant for a month
       description: |
-        Not implemented yet (501 `not_implemented`): the automation rates
-        come from matching and have to be measured there first. Declared so
-        clients can build against the shape. Every metric carries `source`,
-        where the number comes from.
+        Numbers of this tenant for one month, computed from what is stored
+        for the tenant (internal/matching/README.md, "Metrics"). Each metric
+        says what it counts (`source`) and where its rows are (`list`). With
+        nothing to measure the status is `no_data` and the value is null,
+        never zero. They describe this tenant's data, not the product.
       parameters:
         - name: period
           in: query
@@ -608,8 +642,10 @@ paths:
       tags: [portal]
       summary: Download one export as CSV
       description: |
-        `movements` and `audit` are available; `matches` answers 501 for
-        now. Optional `from` and `to` (dates, inclusive) bound the rows.
+        `movements`, `matches` and `audit`. Optional `from` and `to` (dates,
+        inclusive) bound the rows; for `matches`, by the date of their
+        movements. A match row carries its rule and version, tray, links,
+        adjustments and the decision in effect (who, role, when, revision).
         Cells that a spreadsheet would read as a formula are prefixed with
         a quote.
       parameters:
@@ -662,6 +698,12 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    PeriodFilter:
+      name: period
+      in: query
+      required: false
+      description: A month, YYYY-MM.
+      schema: { type: string, pattern: "^20[0-9]{2}-(0[1-9]|1[0-2])$", example: "2026-11" }
     RefreshCookie:
       name: tramo_refresh
       in: cookie
@@ -736,11 +778,22 @@ components:
           description: True when the count stopped at its cap (1000 of each kind).
     Metric:
       type: object
-      required: [key, label, value, unit, period, source]
+      required: [key, label, status, value, unit, period, source, list]
       properties:
         key: { type: string, example: automation_rate }
         label: { type: string }
-        value: { type: number }
+        status:
+          type: string
+          description: |
+            `no_data` when there is nothing to measure yet (no movements, no
+            run, nothing decided). It is not zero and is shown differently.
+          enum: [measured, no_data]
+          x-enum-varnames: [MetricMeasured, MetricNoData]
+        value:
+          type: number
+          format: double
+          nullable: true
+          description: Null when status is no_data.
         unit:
           type: string
           enum: [percent, count, cents, days, hours]
@@ -748,7 +801,28 @@ components:
         period: { type: string, example: "2026-11" }
         source:
           type: string
-          description: Where the number comes from, shown next to it.
+          description: What the number counts, over which rows, shown next to it.
+        list:
+          type: string
+          description: API path that returns the rows behind the number (a list or a CSV export).
+          example: /v1/matching/matches?tray=auto&period=2026-11
+    InvoiceSummary:
+      type: object
+      required: [id, autoEligible, minConfidence, missing, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        issuerCuit: { type: string }
+        docType: { type: integer }
+        pointOfSale: { type: integer }
+        number: { type: integer, format: int64 }
+        issueDate: { type: string, format: date }
+        total: { $ref: "#/components/schemas/Cents" }
+        autoEligible: { type: boolean }
+        minConfidence: { type: number, format: double }
+        missing:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
     ExportInfo:
       type: object
       required: [kind, format, available]

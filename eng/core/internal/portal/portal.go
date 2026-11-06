@@ -131,9 +131,24 @@ func (h *Handlers) bankStep(ctx context.Context, tenant uuid.UUID) (apigen.Onboa
 	return step, nil
 }
 
-// ListMetrics is declared but not built: the rates come from matching.
-func (h *Handlers) ListMetrics(context.Context, apigen.ListMetricsRequestObject) (apigen.ListMetricsResponseObject, error) {
-	return nil, errNotImplemented
+// ListMetrics returns the results panel of the active tenant for a month,
+// computed by matching from the tenant's stored data. A metric with nothing
+// to measure comes back no_data with a null value, never zero.
+func (h *Handlers) ListMetrics(ctx context.Context, req apigen.ListMetricsRequestObject) (apigen.ListMetricsResponseObject, error) {
+	ms, err := h.Matching.Metrics(ctx, req.Params.Period, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.ListMetrics200JSONResponse{Items: make([]apigen.Metric, 0, len(ms))}
+	for _, m := range ms {
+		item := apigen.Metric{Key: m.Key, Label: m.Label, Unit: apigen.MetricUnit(m.Unit), Period: m.Period,
+			Source: m.Source, List: m.List, Status: apigen.MetricMeasured, Value: m.Value}
+		if m.Value == nil {
+			item.Status = apigen.MetricNoData
+		}
+		out.Items = append(out.Items, item)
+	}
+	return out, nil
 }
 
 var (
@@ -151,10 +166,14 @@ func (h *Handlers) ListExports(ctx context.Context, _ apigen.ListExportsRequestO
 	if err != nil {
 		return nil, err
 	}
-	nm, na := len(movements), audits
+	matches, err := h.Matching.MatchRows(ctx, allFrom, allTo)
+	if err != nil {
+		return nil, err
+	}
+	nm, nx, na := len(movements), len(matches)-1, audits // MatchRows starts with its header
 	return apigen.ListExports200JSONResponse{Items: []apigen.ExportInfo{
 		{Kind: apigen.ExportMovements, Format: apigen.ExportCSV, Available: true, Rows: &nm},
-		{Kind: apigen.ExportMatches, Format: apigen.ExportCSV, Available: false},
+		{Kind: apigen.ExportMatches, Format: apigen.ExportCSV, Available: true, Rows: &nx},
 		{Kind: apigen.ExportAudit, Format: apigen.ExportCSV, Available: true, Rows: &na},
 	}}, nil
 }
@@ -178,6 +197,8 @@ func (h *Handlers) GetExport(ctx context.Context, req apigen.GetExportRequestObj
 		rows, err = h.movementRows(ctx, from, to)
 	case apigen.KindAudit:
 		rows, err = h.auditRows(ctx, from, to)
+	case apigen.KindMatches:
+		rows, err = h.Matching.MatchRows(ctx, from, to)
 	default:
 		return nil, errNotImplemented
 	}

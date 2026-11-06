@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
@@ -72,6 +73,40 @@ func (h *Handlers) GetInvoice(ctx context.Context, req apigen.GetInvoiceRequestO
 		return nil, err
 	}
 	return apigen.GetInvoice200JSONResponse(ToAPI(req.InvoiceId, inv)), nil
+}
+
+// ListInvoices lists the tenant's invoices (the rows behind the invoice
+// metrics).
+func (h *Handlers) ListInvoices(ctx context.Context, req apigen.ListInvoicesRequestObject) (apigen.ListInvoicesResponseObject, error) {
+	period := ""
+	if req.Params.Period != nil {
+		period = *req.Params.Period
+	}
+	list, err := h.store.List(ctx, period, req.Params.AutoEligible, 500)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.ListInvoices200JSONResponse{Items: []apigen.InvoiceSummary{}}
+	for _, s := range list {
+		item := apigen.InvoiceSummary{Id: s.ID, IssuerCuit: s.IssuerCUIT, Number: s.Number, AutoEligible: s.AutoEligible,
+			MinConfidence: s.MinConfidence, Missing: []string{}, CreatedAt: s.CreatedAt, Total: s.Total}
+		if s.DocType != nil {
+			v := int(*s.DocType)
+			item.DocType = &v
+		}
+		if s.PointOfSale != nil {
+			v := int(*s.PointOfSale)
+			item.PointOfSale = &v
+		}
+		if s.IssueDate != nil {
+			item.IssueDate = &openapi_types.Date{Time: *s.IssueDate}
+		}
+		for _, n := range s.Missing {
+			item.Missing = append(item.Missing, string(n))
+		}
+		out.Items = append(out.Items, item)
+	}
+	return out, nil
 }
 
 // ToAPI renders an invoice for the API.
