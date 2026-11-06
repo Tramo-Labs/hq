@@ -17,6 +17,12 @@ servers:
 tags:
   - name: platform
   - name: identity
+  - name: ledger
+    description: Bank and Mercado Pago accounts, statement uploads, quarantine.
+  - name: documents
+    description: Supplier invoices with the source and confidence of every field.
+  - name: matching
+    description: Runs of the matching engine, the three trays and human decisions.
 paths:
   /healthz:
     get:
@@ -177,6 +183,269 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+  /v1/ledger/accounts:
+    get:
+      operationId: listAccounts
+      tags: [ledger]
+      summary: Accounts of the active tenant
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Account" }
+                  nextCursor: { type: string, nullable: true }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createAccount
+      tags: [ledger]
+      summary: Register a bank or Mercado Pago account (owner or operator)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAccountRequest" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /v1/ledger/accounts/{accountId}/statements:
+    post:
+      operationId: uploadStatement
+      tags: [ledger]
+      summary: Upload a statement export of the account
+      description: |
+        The file enters whole or not at all (internal/ledger/README.md).
+        201 with status `accepted` or `quarantined`: the file was recorded.
+        200 with status `duplicate`: the same file was already accepted and
+        nothing was created. Quarantined files never reach matching.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AccountId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: recorded (accepted or quarantined)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestResult" }
+        "200":
+          description: duplicate file, nothing created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestResult" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "413": { $ref: "#/components/responses/Problem" }
+  /v1/ledger/quarantine:
+    get:
+      operationId: listQuarantine
+      tags: [ledger]
+      summary: Files that did not enter, with the reason
+      description: Newest first. The detail names lines, columns and fingerprints, never cell contents.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/QuarantinedFile" }
+                  nextCursor: { type: string, nullable: true }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/documents/invoices:
+    post:
+      operationId: uploadInvoice
+      tags: [documents]
+      summary: Upload a supplier invoice (PDF or image)
+      description: |
+        Read in order: ARCA QR, PDF text. OCR and language model are not
+        configured. 409 `conflict` when the same file or the same invoice
+        (issuer, type, point of sale and number, from trusted fields) is
+        already stored.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "413": { $ref: "#/components/responses/Problem" }
+  /v1/documents/invoices/{invoiceId}:
+    get:
+      operationId: getInvoice
+      tags: [documents]
+      summary: An invoice with every field's source and confidence
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /v1/matching/runs:
+    post:
+      operationId: runMatching
+      tags: [matching]
+      summary: Run the matching engine over a month (owner or operator)
+      description: |
+        Matches already stored are not stored again: running the same month
+        twice creates nothing new. `new` counts the matches this run added.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RunRequest" }
+      responses:
+        "201":
+          description: run stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunSummary" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /v1/matching/matches:
+    get:
+      operationId: listMatches
+      tags: [matching]
+      summary: Matches waiting in a tray
+      description: |
+        `auto`: registered by an exact rule, listed for review; nobody
+        decides on them. `suggested`: no operator decision yet.
+        `exception`: escalated by an operator, no client decision yet.
+      parameters:
+        - name: tray
+          in: query
+          required: true
+          schema: { type: string, enum: [auto, suggested, exception] }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Match" }
+                  nextCursor: { type: string, nullable: true }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/matching/pending:
+    get:
+      operationId: listPending
+      tags: [matching]
+      summary: Movements waiting for a person, from the latest run of each one
+      description: |
+        `suggested`: ambiguous or partial evidence, with every candidate,
+        for an operator. `exception`: no candidate, for the client.
+      parameters:
+        - name: tray
+          in: query
+          required: true
+          schema: { type: string, enum: [suggested, exception] }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/PendingMovement" }
+                  nextCursor: { type: string, nullable: true }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/matching/matches/{matchId}/decision:
+    post:
+      operationId: decideMatch
+      tags: [matching]
+      summary: Decide on a match in the Suggested or Exceptions tray
+      description: |
+        Suggested is decided by an operator: approve, reject, or escalate to
+        Exceptions. Exceptions is decided by an owner or approver: approve,
+        reject, or other (note required; back to the operator). Automatic
+        matches are not decided. The tray is the stored one and the role is
+        the caller's current membership, read when deciding. A decision is
+        never edited: a second decision in the same tray is 409 `conflict`;
+        an action the tray does not offer is 400.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: matchId
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DecisionRequest" }
+      responses:
+        "201":
+          description: recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Decision" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
 security:
   - bearer: []
 components:
@@ -194,6 +463,11 @@ components:
         Client generated UUID. Same key and same body replays the first
         response for 24 hours; same key with another body is 422; a key
         whose first request is still running is 409.
+      schema: { type: string, format: uuid }
+    AccountId:
+      name: accountId
+      in: path
+      required: true
       schema: { type: string, format: uuid }
     RefreshCookie:
       name: tramo_refresh
@@ -325,3 +599,165 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         role: { $ref: "#/components/schemas/Role" }
+    Cents:
+      type: integer
+      format: int64
+      description: Amount in cents. Credits positive, debits negative.
+    Bank:
+      type: string
+      enum: [galicia, santander, bancor, macro, mercadopago]
+    Account:
+      type: object
+      required: [id, bank, name, currency]
+      properties:
+        id: { type: string, format: uuid }
+        bank: { $ref: "#/components/schemas/Bank" }
+        number: { type: string }
+        name: { type: string }
+        currency: { type: string, example: ARS }
+    CreateAccountRequest:
+      type: object
+      required: [bank, name]
+      additionalProperties: false
+      properties:
+        bank: { $ref: "#/components/schemas/Bank" }
+        number:
+          type: string
+          maxLength: 40
+          description: When set, a file that states another account number is quarantined.
+        name: { type: string, minLength: 1, maxLength: 120 }
+    IngestResult:
+      type: object
+      required: [status, fileHash, new, alreadyPresent]
+      properties:
+        status: { type: string, enum: [accepted, duplicate, quarantined] }
+        reason:
+          type: string
+          description: Set when quarantined.
+          enum: [unknown_layout, bank_mismatch, account_mismatch, row_parse, incomplete, balance_mismatch, chain_gap, empty]
+        detail: { type: string }
+        fileHash: { type: string, description: SHA-256 of the file in hex. }
+        fingerprint: { type: string }
+        layoutId: { type: string, example: bancor/csv-v1 }
+        new: { type: integer, description: Movements stored by this upload. }
+        alreadyPresent: { type: integer, description: Movements an earlier upload already had. }
+    QuarantinedFile:
+      type: object
+      required: [id, accountId, reason, receivedAt]
+      properties:
+        id: { type: string, format: uuid }
+        accountId: { type: string, format: uuid }
+        filename: { type: string }
+        reason: { type: string }
+        detail: { type: string }
+        fingerprint: { type: string }
+        receivedAt: { type: string, format: date-time }
+    InvoiceField:
+      type: object
+      required: [value, source, confidence, trusted]
+      properties:
+        value: { type: string }
+        source: { type: string, enum: [arca_qr, pdf_text, ocr, llm, manual] }
+        confidence: { type: number, format: double, minimum: 0, maximum: 1 }
+        trusted: { type: boolean, description: Can feed registration or an automatic match on its own. }
+        conflictValue: { type: string, description: Another source read a different value. }
+        conflictSource: { type: string }
+        note: { type: string }
+    Invoice:
+      type: object
+      required: [id, fields, autoEligible, minConfidence, missing, trail]
+      properties:
+        id: { type: string, format: uuid }
+        fields:
+          type: object
+          description: By field name (issuer_cuit, doc_type, point_of_sale, number, issue_date, total, auth_code, ...).
+          additionalProperties: { $ref: "#/components/schemas/InvoiceField" }
+        autoEligible: { type: boolean }
+        minConfidence: { type: number, format: double }
+        missing:
+          type: array
+          items: { type: string }
+        trail:
+          type: array
+          items: { type: string }
+    RunRequest:
+      type: object
+      required: [period]
+      additionalProperties: false
+      properties:
+        period: { type: string, pattern: "^20[0-9]{2}-(0[1-9]|1[0-2])$", example: "2026-10" }
+    RunSummary:
+      type: object
+      required: [runId, period, matches, new, pending, exceptions]
+      properties:
+        runId: { type: string, format: uuid }
+        period: { type: string }
+        matches: { type: integer }
+        new: { type: integer }
+        pending: { type: integer }
+        exceptions: { type: integer }
+    Adjustment:
+      type: object
+      required: [kind, amount, source]
+      properties:
+        kind: { type: string, example: mp_fee }
+        amount: { $ref: "#/components/schemas/Cents" }
+        source: { type: string, enum: [documented_by_source, rounding_tolerance] }
+    Match:
+      type: object
+      required: [id, rule, ruleVersion, tray, movementIds, itemIds, adjustments, crossPeriod, lowConfidence]
+      properties:
+        id: { type: string }
+        rule: { type: string, example: reference_exact }
+        ruleVersion: { type: integer }
+        tray: { type: string, enum: [auto, suggested] }
+        movementIds:
+          type: array
+          items: { type: string, format: uuid }
+        itemIds:
+          type: array
+          items: { type: string, format: uuid }
+        adjustments:
+          type: array
+          items: { $ref: "#/components/schemas/Adjustment" }
+        reference: { type: string }
+        dateDiffDays: { type: integer }
+        crossPeriod: { type: boolean }
+        lowConfidence: { type: boolean }
+    Candidate:
+      type: object
+      required: [rule, itemIds]
+      properties:
+        rule: { type: string }
+        itemIds:
+          type: array
+          items: { type: string, format: uuid }
+    PendingMovement:
+      type: object
+      required: [movementId, runId, tray, reason, candidates]
+      properties:
+        movementId: { type: string, format: uuid }
+        runId: { type: string, format: uuid }
+        tray: { type: string, enum: [suggested, exception] }
+        reason: { type: string, enum: [ambiguous, combination_ambiguous, reference_amount_differs, no_candidate] }
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/Candidate" }
+    DecisionRequest:
+      type: object
+      required: [action]
+      additionalProperties: false
+      properties:
+        action: { type: string, enum: [approve, reject, escalate, other] }
+        note: { type: string, maxLength: 500 }
+    Decision:
+      type: object
+      required: [matchId, tray, action, userId, role, at]
+      properties:
+        matchId: { type: string }
+        tray: { type: string, enum: [suggested, exception] }
+        action: { type: string, enum: [approve, reject, escalate, other] }
+        userId: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/Role" }
+        at: { type: string, format: date-time }
+        note: { type: string }

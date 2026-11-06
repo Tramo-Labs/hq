@@ -14,6 +14,11 @@ type Action string
 const (
 	Approve Action = "approve"
 	Reject  Action = "reject"
+	// Escalate sends a suggested match to the Exceptions tray (operator).
+	Escalate Action = "escalate"
+	// Other: the client says it is something else; back to the operator
+	// with the note (Exceptions tray only, note required).
+	Other Action = "other"
 )
 
 // Decision is a human decision on a match: who, when and on what. Decisions
@@ -25,7 +30,8 @@ type Decision struct {
 	Match   Match // snapshot of what was decided on
 	Action  Action
 	By      string // user id
-	Role    string // operator for Suggested, approver (client) for Exception
+	Role    string // operator for Suggested, owner or approver for Exception
+	Tray    Tray   // where the item was when decided (set by the Postgres store)
 	At      time.Time
 	Note    string
 }

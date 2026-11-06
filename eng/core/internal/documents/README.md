@@ -61,10 +61,20 @@ local OCR (running on our own machine) is a separate decision too.
 
 ## Endpoints, tables, jobs, events
 
-Not wired yet; goes in the same separate change as ledger's store, on top of
-backend's platform. Planned: `documents.invoices` with the fields as JSON,
-the trail, `auto_eligible` and a unique key on issuer, type, point of sale
-and number (duplicate invoices caught by the database).
+Table (migration 00101): `documents.invoices`, RLS enabled and forced.
+Every field with its source and confidence as JSON, the trail, and
+`auto_eligible`. The key columns (issuer, type, point of sale, number, date,
+total) are filled only from trusted fields: the same invoice in a second
+file is `ErrDuplicateInvoice`, the same file is `ErrSameDocument`, and an
+uncertain reading is never called a duplicate. `PGStore` uses
+`db.InTenant` only; audit action `documents.invoice_stored`.
+
+Endpoints (tag `documents`): `POST /v1/documents/invoices` (multipart
+`file`, PDF or image up to 15 MiB; every role but viewer; 201 with every
+field, its source, confidence and whether it is trusted; 409 for the same
+file or the same invoice; 400 for bytes that are neither a PDF nor an
+image) and `GET /v1/documents/invoices/{invoiceId}`. The tenant's own CUIT
+is read from the tenant and excluded from the issuer candidates.
 
 ## Sensitive data
 

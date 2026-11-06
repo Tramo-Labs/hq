@@ -25,7 +25,10 @@ import (
 	middleware "github.com/oapi-codegen/nethttp-middleware"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
+	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
+	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
@@ -45,13 +48,27 @@ type Deps struct {
 type Handlers struct {
 	platformHandlers
 	*identity.Handlers
+	*ledgerAPI
+	*documentsAPI
+	*matchingAPI
 }
+
+// Aliases give each embedded module handler set its own field name.
+type (
+	ledgerAPI    = ledger.Handlers
+	documentsAPI = documents.Handlers
+	matchingAPI  = matching.Handlers
+)
 
 // NewHandlers builds the module handlers.
 func NewHandlers(d Deps) *Handlers {
 	return &Handlers{
 		platformHandlers: platformHandlers{ready: d.DB.Ping},
 		Handlers:         identity.NewHandlers(d.Identity),
+		// Data modules: every query through db.InTenant.
+		ledgerAPI:    ledger.NewHandlers(&ledger.PGStore{DB: d.DB}),
+		documentsAPI: documents.NewHandlers(&documents.PGStore{DB: d.DB}),
+		matchingAPI:  matching.NewHandlers(&matching.PGStore{DB: d.DB}),
 	}
 }
 

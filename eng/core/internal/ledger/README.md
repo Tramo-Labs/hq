@@ -66,12 +66,32 @@ the movement so matching can explain the difference without inventing it.
 
 ## Endpoints, tables, jobs, events
 
-Not wired yet. The HTTP paths (upload, list, quarantine) and the Postgres
-store go in a separate change on top of backend's platform (migrations
-00100 to 00199, RLS policy per table, `db.InTenant`, `audit.Record`). Until
-then `Store` is an interface and `MemStore` is its reference behavior.
-Planned: upload job unique by file hash; events `ledger.statement_accepted`
-and `ledger.file_quarantined` (the quarantine notice to the operator).
+Tables (migration 00100, schema `ledger`): `accounts`, `files` (accepted
+or quarantined, with reason and detail), `statements`, `movements`. Every
+table has RLS enabled and forced with the platform tenant policy, and
+references its parents by `(tenant_id, id)` so no row can point at another
+tenant's. Unique: accepted file per tenant and hash; movement per account
+and key.
+
+`PGStore` implements `Store` on `db.InTenant` only. Each accepted file is
+one transaction (file, statement, movements, audit entry). Audit actions:
+`ledger.account_created`, `ledger.statement_accepted`,
+`ledger.file_quarantined` (the quarantine notice the operator console
+reads). `MemStore` stays as the reference behavior for the domain tests.
+
+Endpoints (`api/openapi.yaml`, tag `ledger`):
+
+| Method and path | Who | Answer |
+|---|---|---|
+| `GET /v1/ledger/accounts` | any member | accounts of the tenant |
+| `POST /v1/ledger/accounts` | owner, operator | 201 account |
+| `POST /v1/ledger/accounts/{accountId}/statements` | owner, approver, operator, accountant | 201 accepted or quarantined, 200 duplicate; multipart `file`, up to 20 MiB |
+| `GET /v1/ledger/quarantine` | any member | quarantined files, newest first |
+
+Every POST requires `Idempotency-Key`. A retry with the same key replays the
+first answer only when the body bytes are the same: a client that rebuilds
+the multipart body (new boundary) gets 422 and should send a new key, which
+then answers `duplicate`.
 
 ## Sensitive data
 

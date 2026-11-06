@@ -12,16 +12,273 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for AdjustmentSource.
+const (
+	DocumentedBySource AdjustmentSource = "documented_by_source"
+	RoundingTolerance  AdjustmentSource = "rounding_tolerance"
+)
+
+// Valid indicates whether the value is a known member of the AdjustmentSource enum.
+func (e AdjustmentSource) Valid() bool {
+	switch e {
+	case DocumentedBySource:
+		return true
+	case RoundingTolerance:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Bank.
+const (
+	Bancor      Bank = "bancor"
+	Galicia     Bank = "galicia"
+	Macro       Bank = "macro"
+	Mercadopago Bank = "mercadopago"
+	Santander   Bank = "santander"
+)
+
+// Valid indicates whether the value is a known member of the Bank enum.
+func (e Bank) Valid() bool {
+	switch e {
+	case Bancor:
+		return true
+	case Galicia:
+		return true
+	case Macro:
+		return true
+	case Mercadopago:
+		return true
+	case Santander:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DecisionAction.
+const (
+	DecisionActionApprove  DecisionAction = "approve"
+	DecisionActionEscalate DecisionAction = "escalate"
+	DecisionActionOther    DecisionAction = "other"
+	DecisionActionReject   DecisionAction = "reject"
+)
+
+// Valid indicates whether the value is a known member of the DecisionAction enum.
+func (e DecisionAction) Valid() bool {
+	switch e {
+	case DecisionActionApprove:
+		return true
+	case DecisionActionEscalate:
+		return true
+	case DecisionActionOther:
+		return true
+	case DecisionActionReject:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DecisionTray.
+const (
+	DecisionTrayException DecisionTray = "exception"
+	DecisionTraySuggested DecisionTray = "suggested"
+)
+
+// Valid indicates whether the value is a known member of the DecisionTray enum.
+func (e DecisionTray) Valid() bool {
+	switch e {
+	case DecisionTrayException:
+		return true
+	case DecisionTraySuggested:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DecisionRequestAction.
+const (
+	DecisionRequestActionApprove  DecisionRequestAction = "approve"
+	DecisionRequestActionEscalate DecisionRequestAction = "escalate"
+	DecisionRequestActionOther    DecisionRequestAction = "other"
+	DecisionRequestActionReject   DecisionRequestAction = "reject"
+)
+
+// Valid indicates whether the value is a known member of the DecisionRequestAction enum.
+func (e DecisionRequestAction) Valid() bool {
+	switch e {
+	case DecisionRequestActionApprove:
+		return true
+	case DecisionRequestActionEscalate:
+		return true
+	case DecisionRequestActionOther:
+		return true
+	case DecisionRequestActionReject:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IngestResultReason.
+const (
+	AccountMismatch IngestResultReason = "account_mismatch"
+	BalanceMismatch IngestResultReason = "balance_mismatch"
+	BankMismatch    IngestResultReason = "bank_mismatch"
+	ChainGap        IngestResultReason = "chain_gap"
+	Empty           IngestResultReason = "empty"
+	Incomplete      IngestResultReason = "incomplete"
+	RowParse        IngestResultReason = "row_parse"
+	UnknownLayout   IngestResultReason = "unknown_layout"
+)
+
+// Valid indicates whether the value is a known member of the IngestResultReason enum.
+func (e IngestResultReason) Valid() bool {
+	switch e {
+	case AccountMismatch:
+		return true
+	case BalanceMismatch:
+		return true
+	case BankMismatch:
+		return true
+	case ChainGap:
+		return true
+	case Empty:
+		return true
+	case Incomplete:
+		return true
+	case RowParse:
+		return true
+	case UnknownLayout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IngestResultStatus.
+const (
+	Accepted    IngestResultStatus = "accepted"
+	Duplicate   IngestResultStatus = "duplicate"
+	Quarantined IngestResultStatus = "quarantined"
+)
+
+// Valid indicates whether the value is a known member of the IngestResultStatus enum.
+func (e IngestResultStatus) Valid() bool {
+	switch e {
+	case Accepted:
+		return true
+	case Duplicate:
+		return true
+	case Quarantined:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvoiceFieldSource.
+const (
+	ArcaQr  InvoiceFieldSource = "arca_qr"
+	Llm     InvoiceFieldSource = "llm"
+	Manual  InvoiceFieldSource = "manual"
+	Ocr     InvoiceFieldSource = "ocr"
+	PdfText InvoiceFieldSource = "pdf_text"
+)
+
+// Valid indicates whether the value is a known member of the InvoiceFieldSource enum.
+func (e InvoiceFieldSource) Valid() bool {
+	switch e {
+	case ArcaQr:
+		return true
+	case Llm:
+		return true
+	case Manual:
+		return true
+	case Ocr:
+		return true
+	case PdfText:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MatchTray.
+const (
+	MatchTrayAuto      MatchTray = "auto"
+	MatchTraySuggested MatchTray = "suggested"
+)
+
+// Valid indicates whether the value is a known member of the MatchTray enum.
+func (e MatchTray) Valid() bool {
+	switch e {
+	case MatchTrayAuto:
+		return true
+	case MatchTraySuggested:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PendingMovementReason.
+const (
+	Ambiguous              PendingMovementReason = "ambiguous"
+	CombinationAmbiguous   PendingMovementReason = "combination_ambiguous"
+	NoCandidate            PendingMovementReason = "no_candidate"
+	ReferenceAmountDiffers PendingMovementReason = "reference_amount_differs"
+)
+
+// Valid indicates whether the value is a known member of the PendingMovementReason enum.
+func (e PendingMovementReason) Valid() bool {
+	switch e {
+	case Ambiguous:
+		return true
+	case CombinationAmbiguous:
+		return true
+	case NoCandidate:
+		return true
+	case ReferenceAmountDiffers:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PendingMovementTray.
+const (
+	PendingMovementTrayException PendingMovementTray = "exception"
+	PendingMovementTraySuggested PendingMovementTray = "suggested"
+)
+
+// Valid indicates whether the value is a known member of the PendingMovementTray enum.
+func (e PendingMovementTray) Valid() bool {
+	switch e {
+	case PendingMovementTrayException:
+		return true
+	case PendingMovementTraySuggested:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for Role.
 const (
@@ -83,16 +340,183 @@ func (e TokensTokenType) Valid() bool {
 	}
 }
 
+// Defines values for ListMatchesParamsTray.
+const (
+	ListMatchesParamsTrayAuto      ListMatchesParamsTray = "auto"
+	ListMatchesParamsTrayException ListMatchesParamsTray = "exception"
+	ListMatchesParamsTraySuggested ListMatchesParamsTray = "suggested"
+)
+
+// Valid indicates whether the value is a known member of the ListMatchesParamsTray enum.
+func (e ListMatchesParamsTray) Valid() bool {
+	switch e {
+	case ListMatchesParamsTrayAuto:
+		return true
+	case ListMatchesParamsTrayException:
+		return true
+	case ListMatchesParamsTraySuggested:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPendingParamsTray.
+const (
+	ListPendingParamsTrayException ListPendingParamsTray = "exception"
+	ListPendingParamsTraySuggested ListPendingParamsTray = "suggested"
+)
+
+// Valid indicates whether the value is a known member of the ListPendingParamsTray enum.
+func (e ListPendingParamsTray) Valid() bool {
+	switch e {
+	case ListPendingParamsTrayException:
+		return true
+	case ListPendingParamsTraySuggested:
+		return true
+	default:
+		return false
+	}
+}
+
+// Account defines model for Account.
+type Account struct {
+	Bank Bank `json:"bank"`
+
+	// Currency Example: ARS
+	Currency string             `json:"currency"`
+	Id       openapi_types.UUID `json:"id"`
+	Name     string             `json:"name"`
+	Number   *string            `json:"number,omitempty"`
+}
+
 // AddMemberRequest defines model for AddMemberRequest.
 type AddMemberRequest struct {
 	Email openapi_types.Email `json:"email"`
 	Role  Role                `json:"role"`
 }
 
+// Adjustment defines model for Adjustment.
+type Adjustment struct {
+	// Amount Amount in cents. Credits positive, debits negative.
+	Amount Cents `json:"amount"`
+
+	// Kind Example: mp_fee
+	Kind   string           `json:"kind"`
+	Source AdjustmentSource `json:"source"`
+}
+
+// AdjustmentSource defines model for Adjustment.Source.
+type AdjustmentSource string
+
+// Bank defines model for Bank.
+type Bank string
+
+// Candidate defines model for Candidate.
+type Candidate struct {
+	ItemIds []openapi_types.UUID `json:"itemIds"`
+	Rule    string               `json:"rule"`
+}
+
+// Cents Amount in cents. Credits positive, debits negative.
+type Cents = int64
+
+// CreateAccountRequest defines model for CreateAccountRequest.
+type CreateAccountRequest struct {
+	Bank Bank   `json:"bank"`
+	Name string `json:"name"`
+
+	// Number When set, a file that states another account number is quarantined.
+	Number *string `json:"number,omitempty"`
+}
+
 // Cuit CUIT, 11 digits without dashes. The check digit is verified.
 //
 // Example: 30712345674
 type Cuit = string
+
+// Decision defines model for Decision.
+type Decision struct {
+	Action  DecisionAction     `json:"action"`
+	At      time.Time          `json:"at"`
+	MatchId string             `json:"matchId"`
+	Note    *string            `json:"note,omitempty"`
+	Role    Role               `json:"role"`
+	Tray    DecisionTray       `json:"tray"`
+	UserId  openapi_types.UUID `json:"userId"`
+}
+
+// DecisionAction defines model for Decision.Action.
+type DecisionAction string
+
+// DecisionTray defines model for Decision.Tray.
+type DecisionTray string
+
+// DecisionRequest defines model for DecisionRequest.
+type DecisionRequest struct {
+	Action DecisionRequestAction `json:"action"`
+	Note   *string               `json:"note,omitempty"`
+}
+
+// DecisionRequestAction defines model for DecisionRequest.Action.
+type DecisionRequestAction string
+
+// IngestResult defines model for IngestResult.
+type IngestResult struct {
+	// AlreadyPresent Movements an earlier upload already had.
+	AlreadyPresent int     `json:"alreadyPresent"`
+	Detail         *string `json:"detail,omitempty"`
+
+	// FileHash SHA-256 of the file in hex.
+	FileHash    string  `json:"fileHash"`
+	Fingerprint *string `json:"fingerprint,omitempty"`
+
+	// LayoutId Example: bancor/csv-v1
+	LayoutId *string `json:"layoutId,omitempty"`
+
+	// New Movements stored by this upload.
+	New int `json:"new"`
+
+	// Reason Set when quarantined.
+	Reason *IngestResultReason `json:"reason,omitempty"`
+	Status IngestResultStatus  `json:"status"`
+}
+
+// IngestResultReason Set when quarantined.
+type IngestResultReason string
+
+// IngestResultStatus defines model for IngestResult.Status.
+type IngestResultStatus string
+
+// Invoice defines model for Invoice.
+type Invoice struct {
+	AutoEligible bool `json:"autoEligible"`
+
+	// Fields By field name (issuer_cuit, doc_type, point_of_sale, number, issue_date, total, auth_code, ...).
+	Fields        map[string]InvoiceField `json:"fields"`
+	Id            openapi_types.UUID      `json:"id"`
+	MinConfidence float64                 `json:"minConfidence"`
+	Missing       []string                `json:"missing"`
+	Trail         []string                `json:"trail"`
+}
+
+// InvoiceField defines model for InvoiceField.
+type InvoiceField struct {
+	Confidence     float64 `json:"confidence"`
+	ConflictSource *string `json:"conflictSource,omitempty"`
+
+	// ConflictValue Another source read a different value.
+	ConflictValue *string            `json:"conflictValue,omitempty"`
+	Note          *string            `json:"note,omitempty"`
+	Source        InvoiceFieldSource `json:"source"`
+
+	// Trusted Can feed registration or an automatic match on its own.
+	Trusted bool   `json:"trusted"`
+	Value   string `json:"value"`
+}
+
+// InvoiceFieldSource defines model for InvoiceField.Source.
+type InvoiceFieldSource string
 
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
@@ -103,6 +527,26 @@ type LoginRequest struct {
 	TenantId      *openapi_types.UUID `json:"tenantId,omitempty"`
 	TokenDelivery *TokenDelivery      `json:"tokenDelivery,omitempty"`
 }
+
+// Match defines model for Match.
+type Match struct {
+	Adjustments   []Adjustment         `json:"adjustments"`
+	CrossPeriod   bool                 `json:"crossPeriod"`
+	DateDiffDays  *int                 `json:"dateDiffDays,omitempty"`
+	Id            string               `json:"id"`
+	ItemIds       []openapi_types.UUID `json:"itemIds"`
+	LowConfidence bool                 `json:"lowConfidence"`
+	MovementIds   []openapi_types.UUID `json:"movementIds"`
+	Reference     *string              `json:"reference,omitempty"`
+
+	// Rule Example: reference_exact
+	Rule        string    `json:"rule"`
+	RuleVersion int       `json:"ruleVersion"`
+	Tray        MatchTray `json:"tray"`
+}
+
+// MatchTray defines model for Match.Tray.
+type MatchTray string
 
 // Me defines model for Me.
 type Me struct {
@@ -130,6 +574,21 @@ type Membership struct {
 // Password defines model for Password.
 type Password = string
 
+// PendingMovement defines model for PendingMovement.
+type PendingMovement struct {
+	Candidates []Candidate           `json:"candidates"`
+	MovementId openapi_types.UUID    `json:"movementId"`
+	Reason     PendingMovementReason `json:"reason"`
+	RunId      openapi_types.UUID    `json:"runId"`
+	Tray       PendingMovementTray   `json:"tray"`
+}
+
+// PendingMovementReason defines model for PendingMovement.Reason.
+type PendingMovementReason string
+
+// PendingMovementTray defines model for PendingMovement.Tray.
+type PendingMovementTray string
+
 // Problem defines model for Problem.
 type Problem struct {
 	// Code Stable machine readable error code.
@@ -147,6 +606,17 @@ type Problem struct {
 
 	// Type Example: about:blank
 	Type string `json:"type"`
+}
+
+// QuarantinedFile defines model for QuarantinedFile.
+type QuarantinedFile struct {
+	AccountId   openapi_types.UUID `json:"accountId"`
+	Detail      *string            `json:"detail,omitempty"`
+	Filename    *string            `json:"filename,omitempty"`
+	Fingerprint *string            `json:"fingerprint,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+	Reason      string             `json:"reason"`
+	ReceivedAt  time.Time          `json:"receivedAt"`
 }
 
 // RefreshRequest defines model for RefreshRequest.
@@ -176,6 +646,22 @@ type RegisterResponse struct {
 // Role defines model for Role.
 type Role string
 
+// RunRequest defines model for RunRequest.
+type RunRequest struct {
+	// Period Example: 2026-10
+	Period string `json:"period"`
+}
+
+// RunSummary defines model for RunSummary.
+type RunSummary struct {
+	Exceptions int                `json:"exceptions"`
+	Matches    int                `json:"matches"`
+	New        int                `json:"new"`
+	Pending    int                `json:"pending"`
+	Period     string             `json:"period"`
+	RunId      openapi_types.UUID `json:"runId"`
+}
+
 // TokenDelivery defines model for TokenDelivery.
 type TokenDelivery string
 
@@ -197,6 +683,9 @@ type Tokens struct {
 
 // TokensTokenType defines model for Tokens.TokenType.
 type TokensTokenType string
+
+// AccountId defines model for AccountId.
+type AccountId = openapi_types.UUID
 
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
@@ -224,6 +713,72 @@ type RegisterParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
+// UploadInvoiceMultipartBody defines parameters for UploadInvoice.
+type UploadInvoiceMultipartBody struct {
+	File openapi_types.File `json:"file"`
+}
+
+// UploadInvoiceParams defines parameters for UploadInvoice.
+type UploadInvoiceParams struct {
+	// IdempotencyKey Client generated UUID. Same key and same body replays the first
+	// response for 24 hours; same key with another body is 422; a key
+	// whose first request is still running is 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// CreateAccountParams defines parameters for CreateAccount.
+type CreateAccountParams struct {
+	// IdempotencyKey Client generated UUID. Same key and same body replays the first
+	// response for 24 hours; same key with another body is 422; a key
+	// whose first request is still running is 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// UploadStatementMultipartBody defines parameters for UploadStatement.
+type UploadStatementMultipartBody struct {
+	File openapi_types.File `json:"file"`
+}
+
+// UploadStatementParams defines parameters for UploadStatement.
+type UploadStatementParams struct {
+	// IdempotencyKey Client generated UUID. Same key and same body replays the first
+	// response for 24 hours; same key with another body is 422; a key
+	// whose first request is still running is 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// ListMatchesParams defines parameters for ListMatches.
+type ListMatchesParams struct {
+	Tray ListMatchesParamsTray `form:"tray" json:"tray"`
+}
+
+// ListMatchesParamsTray defines parameters for ListMatches.
+type ListMatchesParamsTray string
+
+// DecideMatchParams defines parameters for DecideMatch.
+type DecideMatchParams struct {
+	// IdempotencyKey Client generated UUID. Same key and same body replays the first
+	// response for 24 hours; same key with another body is 422; a key
+	// whose first request is still running is 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// ListPendingParams defines parameters for ListPending.
+type ListPendingParams struct {
+	Tray ListPendingParamsTray `form:"tray" json:"tray"`
+}
+
+// ListPendingParamsTray defines parameters for ListPending.
+type ListPendingParamsTray string
+
+// RunMatchingParams defines parameters for RunMatching.
+type RunMatchingParams struct {
+	// IdempotencyKey Client generated UUID. Same key and same body replays the first
+	// response for 24 hours; same key with another body is 422; a key
+	// whose first request is still running is 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
 // AddMemberParams defines parameters for AddMember.
 type AddMemberParams struct {
 	// IdempotencyKey Client generated UUID. Same key and same body replays the first
@@ -243,6 +798,21 @@ type RefreshJSONRequestBody = RefreshRequest
 
 // RegisterJSONRequestBody defines body for Register for application/json ContentType.
 type RegisterJSONRequestBody = RegisterRequest
+
+// UploadInvoiceMultipartRequestBody defines body for UploadInvoice for multipart/form-data ContentType.
+type UploadInvoiceMultipartRequestBody UploadInvoiceMultipartBody
+
+// CreateAccountJSONRequestBody defines body for CreateAccount for application/json ContentType.
+type CreateAccountJSONRequestBody = CreateAccountRequest
+
+// UploadStatementMultipartRequestBody defines body for UploadStatement for multipart/form-data ContentType.
+type UploadStatementMultipartRequestBody UploadStatementMultipartBody
+
+// DecideMatchJSONRequestBody defines body for DecideMatch for application/json ContentType.
+type DecideMatchJSONRequestBody = DecisionRequest
+
+// RunMatchingJSONRequestBody defines body for RunMatching for application/json ContentType.
+type RunMatchingJSONRequestBody = RunRequest
 
 // AddMemberJSONRequestBody defines body for AddMember for application/json ContentType.
 type AddMemberJSONRequestBody = AddMemberRequest
@@ -267,6 +837,36 @@ type ServerInterface interface {
 	// Register Create an account, its first tenant and the owner membership
 	// (POST /v1/auth/register)
 	Register(w http.ResponseWriter, r *http.Request, params RegisterParams)
+	// UploadInvoice Upload a supplier invoice (PDF or image)
+	// (POST /v1/documents/invoices)
+	UploadInvoice(w http.ResponseWriter, r *http.Request, params UploadInvoiceParams)
+	// GetInvoice An invoice with every field's source and confidence
+	// (GET /v1/documents/invoices/{invoiceId})
+	GetInvoice(w http.ResponseWriter, r *http.Request, invoiceId openapi_types.UUID)
+	// ListAccounts Accounts of the active tenant
+	// (GET /v1/ledger/accounts)
+	ListAccounts(w http.ResponseWriter, r *http.Request)
+	// CreateAccount Register a bank or Mercado Pago account (owner or operator)
+	// (POST /v1/ledger/accounts)
+	CreateAccount(w http.ResponseWriter, r *http.Request, params CreateAccountParams)
+	// UploadStatement Upload a statement export of the account
+	// (POST /v1/ledger/accounts/{accountId}/statements)
+	UploadStatement(w http.ResponseWriter, r *http.Request, accountId AccountId, params UploadStatementParams)
+	// ListQuarantine Files that did not enter, with the reason
+	// (GET /v1/ledger/quarantine)
+	ListQuarantine(w http.ResponseWriter, r *http.Request)
+	// ListMatches Matches waiting in a tray
+	// (GET /v1/matching/matches)
+	ListMatches(w http.ResponseWriter, r *http.Request, params ListMatchesParams)
+	// DecideMatch Decide on a match in the Suggested or Exceptions tray
+	// (POST /v1/matching/matches/{matchId}/decision)
+	DecideMatch(w http.ResponseWriter, r *http.Request, matchId string, params DecideMatchParams)
+	// ListPending Movements waiting for a person, from the latest run of each one
+	// (GET /v1/matching/pending)
+	ListPending(w http.ResponseWriter, r *http.Request, params ListPendingParams)
+	// RunMatching Run the matching engine over a month (owner or operator)
+	// (POST /v1/matching/runs)
+	RunMatching(w http.ResponseWriter, r *http.Request, params RunMatchingParams)
 	// GetMe The caller, the active tenant and every membership
 	// (GET /v1/me)
 	GetMe(w http.ResponseWriter, r *http.Request)
@@ -315,6 +915,66 @@ func (_ Unimplemented) Refresh(w http.ResponseWriter, r *http.Request, params Re
 // Register Create an account, its first tenant and the owner membership
 // (POST /v1/auth/register)
 func (_ Unimplemented) Register(w http.ResponseWriter, r *http.Request, params RegisterParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UploadInvoice Upload a supplier invoice (PDF or image)
+// (POST /v1/documents/invoices)
+func (_ Unimplemented) UploadInvoice(w http.ResponseWriter, r *http.Request, params UploadInvoiceParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetInvoice An invoice with every field's source and confidence
+// (GET /v1/documents/invoices/{invoiceId})
+func (_ Unimplemented) GetInvoice(w http.ResponseWriter, r *http.Request, invoiceId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListAccounts Accounts of the active tenant
+// (GET /v1/ledger/accounts)
+func (_ Unimplemented) ListAccounts(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateAccount Register a bank or Mercado Pago account (owner or operator)
+// (POST /v1/ledger/accounts)
+func (_ Unimplemented) CreateAccount(w http.ResponseWriter, r *http.Request, params CreateAccountParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UploadStatement Upload a statement export of the account
+// (POST /v1/ledger/accounts/{accountId}/statements)
+func (_ Unimplemented) UploadStatement(w http.ResponseWriter, r *http.Request, accountId AccountId, params UploadStatementParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListQuarantine Files that did not enter, with the reason
+// (GET /v1/ledger/quarantine)
+func (_ Unimplemented) ListQuarantine(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMatches Matches waiting in a tray
+// (GET /v1/matching/matches)
+func (_ Unimplemented) ListMatches(w http.ResponseWriter, r *http.Request, params ListMatchesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DecideMatch Decide on a match in the Suggested or Exceptions tray
+// (POST /v1/matching/matches/{matchId}/decision)
+func (_ Unimplemented) DecideMatch(w http.ResponseWriter, r *http.Request, matchId string, params DecideMatchParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListPending Movements waiting for a person, from the latest run of each one
+// (GET /v1/matching/pending)
+func (_ Unimplemented) ListPending(w http.ResponseWriter, r *http.Request, params ListPendingParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RunMatching Run the matching engine over a month (owner or operator)
+// (POST /v1/matching/runs)
+func (_ Unimplemented) RunMatching(w http.ResponseWriter, r *http.Request, params RunMatchingParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -493,6 +1153,369 @@ func (siw *ServerInterfaceWrapper) Register(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Register(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadInvoice operation middleware
+func (siw *ServerInterfaceWrapper) UploadInvoice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UploadInvoiceParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadInvoice(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetInvoice operation middleware
+func (siw *ServerInterfaceWrapper) GetInvoice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "invoiceId" -------------
+	var invoiceId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "invoiceId", chi.URLParam(r, "invoiceId"), &invoiceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "invoiceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetInvoice(w, r, invoiceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAccounts operation middleware
+func (siw *ServerInterfaceWrapper) ListAccounts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAccounts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAccount operation middleware
+func (siw *ServerInterfaceWrapper) CreateAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateAccountParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadStatement operation middleware
+func (siw *ServerInterfaceWrapper) UploadStatement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", chi.URLParam(r, "accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UploadStatementParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadStatement(w, r, accountId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListQuarantine operation middleware
+func (siw *ServerInterfaceWrapper) ListQuarantine(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListQuarantine(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMatches operation middleware
+func (siw *ServerInterfaceWrapper) ListMatches(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMatchesParams
+
+	// ------------- Required query parameter "tray" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "tray", r.URL.Query(), &params.Tray, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "tray"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tray", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMatches(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DecideMatch operation middleware
+func (siw *ServerInterfaceWrapper) DecideMatch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "matchId" -------------
+	var matchId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "matchId", chi.URLParam(r, "matchId"), &matchId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "matchId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DecideMatchParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DecideMatch(w, r, matchId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPending operation middleware
+func (siw *ServerInterfaceWrapper) ListPending(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPendingParams
+
+	// ------------- Required query parameter "tray" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "tray", r.URL.Query(), &params.Tray, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "tray"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tray", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPending(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunMatching operation middleware
+func (siw *ServerInterfaceWrapper) RunMatching(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RunMatchingParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunMatching(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -714,6 +1737,36 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/v1/tenant/members", wrapper.AddMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/ledger/accounts", wrapper.ListAccounts)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/ledger/accounts", wrapper.CreateAccount)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/ledger/accounts/{accountId}/statements", wrapper.UploadStatement)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/ledger/quarantine", wrapper.ListQuarantine)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/documents/invoices", wrapper.UploadInvoice)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/documents/invoices/{invoiceId}", wrapper.GetInvoice)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/matching/runs", wrapper.RunMatching)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/matching/matches", wrapper.ListMatches)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/matching/pending", wrapper.ListPending)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/matching/matches/{matchId}/decision", wrapper.DecideMatch)
 	})
 
 	return r
@@ -965,6 +2018,683 @@ func (response Register422ApplicationProblemPlusJSONResponse) VisitRegisterRespo
 	return err
 }
 
+type UploadInvoiceRequestObject struct {
+	Params UploadInvoiceParams
+	Body   *multipart.Reader
+}
+
+type UploadInvoiceResponseObject interface {
+	VisitUploadInvoiceResponse(w http.ResponseWriter) error
+}
+
+type UploadInvoice201JSONResponse Invoice
+
+func (response UploadInvoice201JSONResponse) VisitUploadInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadInvoice400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UploadInvoice400ApplicationProblemPlusJSONResponse) VisitUploadInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadInvoice401ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadInvoice401ApplicationProblemPlusJSONResponse) VisitUploadInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadInvoice403ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadInvoice403ApplicationProblemPlusJSONResponse) VisitUploadInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadInvoice409ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadInvoice409ApplicationProblemPlusJSONResponse) VisitUploadInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadInvoice413ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadInvoice413ApplicationProblemPlusJSONResponse) VisitUploadInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetInvoiceRequestObject struct {
+	InvoiceId openapi_types.UUID `json:"invoiceId"`
+}
+
+type GetInvoiceResponseObject interface {
+	VisitGetInvoiceResponse(w http.ResponseWriter) error
+}
+
+type GetInvoice200JSONResponse Invoice
+
+func (response GetInvoice200JSONResponse) VisitGetInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetInvoice401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetInvoice401ApplicationProblemPlusJSONResponse) VisitGetInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetInvoice404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetInvoice404ApplicationProblemPlusJSONResponse) VisitGetInvoiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAccountsRequestObject struct {
+}
+
+type ListAccountsResponseObject interface {
+	VisitListAccountsResponse(w http.ResponseWriter) error
+}
+
+type ListAccounts200JSONResponse struct {
+	Items      []Account `json:"items"`
+	NextCursor *string   `json:"nextCursor,omitempty"`
+}
+
+func (response ListAccounts200JSONResponse) VisitListAccountsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAccounts401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListAccounts401ApplicationProblemPlusJSONResponse) VisitListAccountsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccountRequestObject struct {
+	Params CreateAccountParams
+	Body   *CreateAccountJSONRequestBody
+}
+
+type CreateAccountResponseObject interface {
+	VisitCreateAccountResponse(w http.ResponseWriter) error
+}
+
+type CreateAccount201JSONResponse Account
+
+func (response CreateAccount201JSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateAccount400ApplicationProblemPlusJSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAccount401ApplicationProblemPlusJSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAccount403ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateAccount403ApplicationProblemPlusJSONResponse) VisitCreateAccountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadStatementRequestObject struct {
+	AccountId AccountId `json:"accountId"`
+	Params    UploadStatementParams
+	Body      *multipart.Reader
+}
+
+type UploadStatementResponseObject interface {
+	VisitUploadStatementResponse(w http.ResponseWriter) error
+}
+
+type UploadStatement200JSONResponse IngestResult
+
+func (response UploadStatement200JSONResponse) VisitUploadStatementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadStatement201JSONResponse IngestResult
+
+func (response UploadStatement201JSONResponse) VisitUploadStatementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadStatement400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UploadStatement400ApplicationProblemPlusJSONResponse) VisitUploadStatementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadStatement401ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadStatement401ApplicationProblemPlusJSONResponse) VisitUploadStatementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadStatement403ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadStatement403ApplicationProblemPlusJSONResponse) VisitUploadStatementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadStatement404ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadStatement404ApplicationProblemPlusJSONResponse) VisitUploadStatementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadStatement413ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadStatement413ApplicationProblemPlusJSONResponse) VisitUploadStatementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListQuarantineRequestObject struct {
+}
+
+type ListQuarantineResponseObject interface {
+	VisitListQuarantineResponse(w http.ResponseWriter) error
+}
+
+type ListQuarantine200JSONResponse struct {
+	Items      []QuarantinedFile `json:"items"`
+	NextCursor *string           `json:"nextCursor,omitempty"`
+}
+
+func (response ListQuarantine200JSONResponse) VisitListQuarantineResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListQuarantine401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListQuarantine401ApplicationProblemPlusJSONResponse) VisitListQuarantineResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMatchesRequestObject struct {
+	Params ListMatchesParams
+}
+
+type ListMatchesResponseObject interface {
+	VisitListMatchesResponse(w http.ResponseWriter) error
+}
+
+type ListMatches200JSONResponse struct {
+	Items      []Match `json:"items"`
+	NextCursor *string `json:"nextCursor,omitempty"`
+}
+
+func (response ListMatches200JSONResponse) VisitListMatchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMatches400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListMatches400ApplicationProblemPlusJSONResponse) VisitListMatchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMatches401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListMatches401ApplicationProblemPlusJSONResponse) VisitListMatchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMatchRequestObject struct {
+	MatchId string `json:"matchId"`
+	Params  DecideMatchParams
+	Body    *DecideMatchJSONRequestBody
+}
+
+type DecideMatchResponseObject interface {
+	VisitDecideMatchResponse(w http.ResponseWriter) error
+}
+
+type DecideMatch201JSONResponse Decision
+
+func (response DecideMatch201JSONResponse) VisitDecideMatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMatch400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DecideMatch400ApplicationProblemPlusJSONResponse) VisitDecideMatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMatch401ApplicationProblemPlusJSONResponse Problem
+
+func (response DecideMatch401ApplicationProblemPlusJSONResponse) VisitDecideMatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMatch403ApplicationProblemPlusJSONResponse Problem
+
+func (response DecideMatch403ApplicationProblemPlusJSONResponse) VisitDecideMatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMatch404ApplicationProblemPlusJSONResponse Problem
+
+func (response DecideMatch404ApplicationProblemPlusJSONResponse) VisitDecideMatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMatch409ApplicationProblemPlusJSONResponse Problem
+
+func (response DecideMatch409ApplicationProblemPlusJSONResponse) VisitDecideMatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPendingRequestObject struct {
+	Params ListPendingParams
+}
+
+type ListPendingResponseObject interface {
+	VisitListPendingResponse(w http.ResponseWriter) error
+}
+
+type ListPending200JSONResponse struct {
+	Items      []PendingMovement `json:"items"`
+	NextCursor *string           `json:"nextCursor,omitempty"`
+}
+
+func (response ListPending200JSONResponse) VisitListPendingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPending400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListPending400ApplicationProblemPlusJSONResponse) VisitListPendingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPending401ApplicationProblemPlusJSONResponse Problem
+
+func (response ListPending401ApplicationProblemPlusJSONResponse) VisitListPendingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunMatchingRequestObject struct {
+	Params RunMatchingParams
+	Body   *RunMatchingJSONRequestBody
+}
+
+type RunMatchingResponseObject interface {
+	VisitRunMatchingResponse(w http.ResponseWriter) error
+}
+
+type RunMatching201JSONResponse RunSummary
+
+func (response RunMatching201JSONResponse) VisitRunMatchingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunMatching400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RunMatching400ApplicationProblemPlusJSONResponse) VisitRunMatchingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunMatching401ApplicationProblemPlusJSONResponse Problem
+
+func (response RunMatching401ApplicationProblemPlusJSONResponse) VisitRunMatchingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunMatching403ApplicationProblemPlusJSONResponse Problem
+
+func (response RunMatching403ApplicationProblemPlusJSONResponse) VisitRunMatchingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetMeRequestObject struct {
 }
 
@@ -1157,6 +2887,36 @@ type StrictServerInterface interface {
 	// Register Create an account, its first tenant and the owner membership
 	// (POST /v1/auth/register)
 	Register(ctx context.Context, request RegisterRequestObject) (RegisterResponseObject, error)
+	// UploadInvoice Upload a supplier invoice (PDF or image)
+	// (POST /v1/documents/invoices)
+	UploadInvoice(ctx context.Context, request UploadInvoiceRequestObject) (UploadInvoiceResponseObject, error)
+	// GetInvoice An invoice with every field's source and confidence
+	// (GET /v1/documents/invoices/{invoiceId})
+	GetInvoice(ctx context.Context, request GetInvoiceRequestObject) (GetInvoiceResponseObject, error)
+	// ListAccounts Accounts of the active tenant
+	// (GET /v1/ledger/accounts)
+	ListAccounts(ctx context.Context, request ListAccountsRequestObject) (ListAccountsResponseObject, error)
+	// CreateAccount Register a bank or Mercado Pago account (owner or operator)
+	// (POST /v1/ledger/accounts)
+	CreateAccount(ctx context.Context, request CreateAccountRequestObject) (CreateAccountResponseObject, error)
+	// UploadStatement Upload a statement export of the account
+	// (POST /v1/ledger/accounts/{accountId}/statements)
+	UploadStatement(ctx context.Context, request UploadStatementRequestObject) (UploadStatementResponseObject, error)
+	// ListQuarantine Files that did not enter, with the reason
+	// (GET /v1/ledger/quarantine)
+	ListQuarantine(ctx context.Context, request ListQuarantineRequestObject) (ListQuarantineResponseObject, error)
+	// ListMatches Matches waiting in a tray
+	// (GET /v1/matching/matches)
+	ListMatches(ctx context.Context, request ListMatchesRequestObject) (ListMatchesResponseObject, error)
+	// DecideMatch Decide on a match in the Suggested or Exceptions tray
+	// (POST /v1/matching/matches/{matchId}/decision)
+	DecideMatch(ctx context.Context, request DecideMatchRequestObject) (DecideMatchResponseObject, error)
+	// ListPending Movements waiting for a person, from the latest run of each one
+	// (GET /v1/matching/pending)
+	ListPending(ctx context.Context, request ListPendingRequestObject) (ListPendingResponseObject, error)
+	// RunMatching Run the matching engine over a month (owner or operator)
+	// (POST /v1/matching/runs)
+	RunMatching(ctx context.Context, request RunMatchingRequestObject) (RunMatchingResponseObject, error)
 	// GetMe The caller, the active tenant and every membership
 	// (GET /v1/me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
@@ -1391,6 +3151,299 @@ func (sh *strictHandler) Register(w http.ResponseWriter, r *http.Request, params
 	}
 }
 
+// UploadInvoice operation middleware
+func (sh *strictHandler) UploadInvoice(w http.ResponseWriter, r *http.Request, params UploadInvoiceParams) {
+	var request UploadInvoiceRequestObject
+
+	request.Params = params
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadInvoice(ctx, request.(UploadInvoiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadInvoice")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadInvoiceResponseObject); ok {
+		if err := validResponse.VisitUploadInvoiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetInvoice operation middleware
+func (sh *strictHandler) GetInvoice(w http.ResponseWriter, r *http.Request, invoiceId openapi_types.UUID) {
+	var request GetInvoiceRequestObject
+
+	request.InvoiceId = invoiceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetInvoice(ctx, request.(GetInvoiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetInvoice")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetInvoiceResponseObject); ok {
+		if err := validResponse.VisitGetInvoiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAccounts operation middleware
+func (sh *strictHandler) ListAccounts(w http.ResponseWriter, r *http.Request) {
+	var request ListAccountsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAccounts(ctx, request.(ListAccountsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAccounts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAccountsResponseObject); ok {
+		if err := validResponse.VisitListAccountsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAccount operation middleware
+func (sh *strictHandler) CreateAccount(w http.ResponseWriter, r *http.Request, params CreateAccountParams) {
+	var request CreateAccountRequestObject
+
+	request.Params = params
+
+	var body CreateAccountJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAccount(ctx, request.(CreateAccountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAccount")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAccountResponseObject); ok {
+		if err := validResponse.VisitCreateAccountResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadStatement operation middleware
+func (sh *strictHandler) UploadStatement(w http.ResponseWriter, r *http.Request, accountId AccountId, params UploadStatementParams) {
+	var request UploadStatementRequestObject
+
+	request.AccountId = accountId
+	request.Params = params
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadStatement(ctx, request.(UploadStatementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadStatement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadStatementResponseObject); ok {
+		if err := validResponse.VisitUploadStatementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListQuarantine operation middleware
+func (sh *strictHandler) ListQuarantine(w http.ResponseWriter, r *http.Request) {
+	var request ListQuarantineRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListQuarantine(ctx, request.(ListQuarantineRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListQuarantine")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListQuarantineResponseObject); ok {
+		if err := validResponse.VisitListQuarantineResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMatches operation middleware
+func (sh *strictHandler) ListMatches(w http.ResponseWriter, r *http.Request, params ListMatchesParams) {
+	var request ListMatchesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMatches(ctx, request.(ListMatchesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMatches")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMatchesResponseObject); ok {
+		if err := validResponse.VisitListMatchesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DecideMatch operation middleware
+func (sh *strictHandler) DecideMatch(w http.ResponseWriter, r *http.Request, matchId string, params DecideMatchParams) {
+	var request DecideMatchRequestObject
+
+	request.MatchId = matchId
+	request.Params = params
+
+	var body DecideMatchJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DecideMatch(ctx, request.(DecideMatchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DecideMatch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DecideMatchResponseObject); ok {
+		if err := validResponse.VisitDecideMatchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPending operation middleware
+func (sh *strictHandler) ListPending(w http.ResponseWriter, r *http.Request, params ListPendingParams) {
+	var request ListPendingRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPending(ctx, request.(ListPendingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPending")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPendingResponseObject); ok {
+		if err := validResponse.VisitListPendingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RunMatching operation middleware
+func (sh *strictHandler) RunMatching(w http.ResponseWriter, r *http.Request, params RunMatchingParams) {
+	var request RunMatchingRequestObject
+
+	request.Params = params
+
+	var body RunMatchingJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RunMatching(ctx, request.(RunMatchingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RunMatching")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RunMatchingResponseObject); ok {
+		if err := validResponse.VisitRunMatchingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetMe operation middleware
 func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	var request GetMeRequestObject
@@ -1477,48 +3530,94 @@ func (sh *strictHandler) AddMember(w http.ResponseWriter, r *http.Request, param
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
+	"AwA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

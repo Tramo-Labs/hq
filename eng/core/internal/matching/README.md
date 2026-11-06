@@ -75,10 +75,46 @@ the expected result from the post; cases 4 and 6 run through the ledger.
 
 ## Endpoints, tables, jobs, events
 
-Not wired yet; separate change on top of backend's platform. Planned:
-`matching.items`, `matching.matches` (unique by match ID), `matching.pending`,
-`matching.decisions` (append only by trigger), one job per tenant and period
-unique by its key, and the approval endpoint behind `Idempotency-Key`.
+Tables (migration 00102, schema `matching`, RLS enabled and forced on all):
+`items` (unique per source and source id, reloads update), `runs`,
+`matches` (primary key tenant and match ID: a rerun stores nothing twice),
+`pending`, and `decisions`: insert only for `tramo_app`, a trigger rejects
+UPDATE and DELETE for every role, unique per idempotency key and per match
+and tray.
+
+`PGStore`, on `db.InTenant` only: `UpsertItems`, `LoadInput` (movements of
+the period read from `ledger.movements`, items, settled and turned down
+matches), `SaveRun` (returns how many matches are new), and `Record`.
+
+Who decides what (product spec sections 1 and 5), enforced in `Record`:
+
+| Tray | Who | Actions |
+|------|-----|---------|
+| Automatic | nobody (listed for review) | none |
+| Suggested | operator | approve, reject, escalate to Exceptions |
+| Exceptions (escalated matches) | owner, approver | approve, reject, other (note required, back to the operator) |
+
+Nothing about the decider is input: the user is the scope's; the role is
+read from `memberships` in the same transaction (a token can be ten minutes
+old; a lowered role stops decisions at once); the tray is the stored one
+plus any escalation, never the caller's copy of the match. One decision per
+match and tray. For the next run, approved (either tray) is settled, and
+rejected or "other" is turned down and not proposed again; escalated and
+undecided by the client is neither. Audit actions: `matching.items_loaded`,
+`matching.run`, and `matching.<action>` with the tray.
+
+Endpoints (tag `matching`): `POST /v1/matching/runs` (owner or operator, a
+month), `GET /v1/matching/matches?tray=auto|suggested|exception`,
+`GET /v1/matching/pending?tray=suggested|exception` (movements of the latest
+run of each month), `POST /v1/matching/matches/{matchId}/decision` (409 when
+the tray already has a decision, 400 for an action the tray does not offer,
+403 for a role that does not decide that tray). Every POST requires
+`Idempotency-Key`.
+
+Still to do: the scheduled job per tenant and month; client decisions on
+movements without any candidate ("no_candidate" exceptions: there is no
+match to approve, only "other" or a link by hand); reverting a decision as
+a new recorded action (spec section 4).
 
 ## Sensitive data
 

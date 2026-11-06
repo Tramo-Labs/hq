@@ -26,8 +26,8 @@ const (
 // Fee is a deduction the source itself documents for a movement, such as
 // the Mercado Pago commission or a tax withheld on a settlement.
 type Fee struct {
-	Kind   string       // mp_fee, financing_fee, shipping_fee, taxes, coupon
-	Amount money.Amount // signed as it affects the net: deductions are negative
+	Kind   string       `json:"kind"`   // mp_fee, financing_fee, shipping_fee, taxes, coupon
+	Amount money.Amount `json:"amount"` // signed as it affects the net: deductions are negative
 }
 
 // Movement is one line of a statement, in chronological order.
