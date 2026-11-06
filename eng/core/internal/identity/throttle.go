@@ -127,12 +127,20 @@ func (s *Service) loginSucceeded(ctx context.Context, email string) {
 	s.Limiter.Reset(pairKey(email, clientIP(ctx)))
 }
 
+// checkInvite refuses when the IP spent its accepts; it does not count.
+// countInvite counts one, after the outcome is known (AcceptInvite).
 func (s *Service) checkInvite(ctx context.Context) error {
-	if ok, retry := s.Limiter.Allow("invite:ip:"+clientIP(ctx), s.Limits.InvitePerIP); !ok {
+	if ex, retry := s.Limiter.Exceeded(inviteKey(ctx), s.Limits.InvitePerIP); ex {
 		return limited(retry)
 	}
 	return nil
 }
+
+func (s *Service) countInvite(ctx context.Context) {
+	s.Limiter.Add(inviteKey(ctx), s.Limits.InvitePerIP)
+}
+
+func inviteKey(ctx context.Context) string { return "invite:ip:" + clientIP(ctx) }
 
 func (s *Service) checkRegister(ctx context.Context) error {
 	if ok, retry := s.Limiter.Allow("register:ip:"+clientIP(ctx), s.Limits.RegisterPerIP); !ok {

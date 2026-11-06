@@ -122,10 +122,24 @@ func roleLabel(role string) string {
 // invitation whose pending membership was removed answers ErrNotAMember
 // and writes nothing (F29). Any token that can not be used answers
 // ErrInvalidInvite. Every refusal is audited.
+//
+// Asking a new person for a password (ErrPasswordRequired) is a step, not a
+// refusal: the portal tries without one first. It is neither audited as a
+// rejection nor counted toward the per IP cap; it is only reachable with a
+// valid token, so it tells nothing to someone guessing. Every other
+// outcome, success included, counts.
 func (s *Service) AcceptInvite(ctx context.Context, token, password string, name *string) (Session, error) {
 	if err := s.checkInvite(ctx); err != nil {
 		return Session{}, err
 	}
+	sess, err := s.acceptInvite(ctx, token, password, name)
+	if !errors.Is(err, ErrPasswordRequired) {
+		s.countInvite(ctx)
+	}
+	return sess, err
+}
+
+func (s *Service) acceptInvite(ctx context.Context, token, password string, name *string) (Session, error) {
 	if n := len(password); n > 0 && (n < MinPassword || n > MaxPassword) {
 		return Session{}, ErrInvalidInvite
 	}
@@ -179,7 +193,8 @@ func (s *Service) AcceptInvite(ctx context.Context, token, password string, name
 			return err
 		}
 		if !hasPassword && password == "" {
-			return reject(subject, inv.TenantID, "password required", ErrPasswordRequired)
+			outcome = ErrPasswordRequired // a step, not a rejection
+			return nil
 		}
 		if !pending && hasPassword {
 			return reject(subject, inv.TenantID, "password already set", ErrInvalidInvite)

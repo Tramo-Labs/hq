@@ -104,11 +104,14 @@ invitation; adding an active member is 409 `already_member`.
   invitation used, moves the pending row into `memberships` and opens a
   session on that tenant. Unknown, used, revoked and expired tokens all
   answer the same 401 `invalid_invite`. 10 attempts per IP per 15 minutes,
-  checked before any hashing (429 `rate_limited`).
+  checked before any hashing (429 `rate_limited`). The portal tries without
+  a password first, so the 400 `password_required` a new person gets is a
+  step: it does not count toward that cap and is not audited as a rejection
+  (`TestPasswordRequiredIsAStepNotARejection`). Every other outcome counts
+  (`TestRealInviteRejectionsCountAndAreAudited`).
 - Audit: `identity.invite_created` (by the inviter, with the role),
   `identity.invite_accepted`, `identity.invite_rejected` (with the reason:
-  unknown, used, revoked, expired, no membership, password required,
-  password already set). Adding is `identity.member_invited`; removing a
+  unknown, used, revoked, expired, no membership, password already set). Adding is `identity.member_invited`; removing a
   pending person, `identity.member_removed` with `status: pending`.
 - **Delivery.** The only mail transport is a local outbox file
   (`MAIL_OUTBOX`, created and kept at mode 0600). There is **no SMTP**: no
