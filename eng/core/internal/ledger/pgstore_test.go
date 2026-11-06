@@ -207,7 +207,8 @@ func TestPGTenantIsolation(t *testing.T) {
 }
 
 // Every table of the datos schemas has RLS enabled and forced, and a
-// tenant policy for tramo_app. (Forcing cannot be shown with a query here:
+// tenant policy for tramo_app that filters reads (using) and writes (with
+// check). (Forcing cannot be shown with a query here:
 // the embedded server's owner is a superuser, and superusers bypass RLS.)
 func TestPGEveryTableForcesRLS(t *testing.T) {
 	d := dbtest.New(t)
@@ -216,7 +217,8 @@ func TestPGEveryTableForcesRLS(t *testing.T) {
 		rows, err := tx.Query(ctx, `
 			select n.nspname || '.' || c.relname, c.relrowsecurity, c.relforcerowsecurity,
 			       exists (select 1 from pg_policies p where p.schemaname = n.nspname and p.tablename = c.relname
-			               and 'tramo_app' = any(p.roles) and p.qual like '%app_current_tenant()%')
+			               and 'tramo_app' = any(p.roles) and p.qual like '%app_current_tenant()%'
+			               and p.with_check like '%app_current_tenant()%')
 			  from pg_class c join pg_namespace n on n.oid = c.relnamespace
 			 where n.nspname in ('ledger', 'documents', 'matching') and c.relkind = 'r'
 			 order by 1`)

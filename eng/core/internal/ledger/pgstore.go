@@ -244,6 +244,84 @@ func (s *PGStore) CreateAccount(ctx context.Context, bank Bank, number, name str
 	return id, err
 }
 
+// Account is a registered account.
+type Account struct {
+	ID       uuid.UUID
+	Bank     Bank
+	Number   string
+	Name     string
+	Currency string
+}
+
+// ErrNotFound means the row does not exist for the tenant in the context.
+var ErrNotFound = errors.New("ledger: not found")
+
+// Accounts lists the accounts of the tenant in the context.
+func (s *PGStore) Accounts(ctx context.Context) ([]Account, error) {
+	var out []Account
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `select id, bank, coalesce(number, ''), name, currency from ledger.accounts order by created_at, id`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var a Account
+			if err := rows.Scan(&a.ID, &a.Bank, &a.Number, &a.Name, &a.Currency); err != nil {
+				return err
+			}
+			out = append(out, a)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
+// GetAccount returns one account of the tenant in the context.
+func (s *PGStore) GetAccount(ctx context.Context, id uuid.UUID) (Account, error) {
+	a := Account{ID: id}
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `select bank, coalesce(number, ''), name, currency from ledger.accounts where id = $1`, id).
+			Scan(&a.Bank, &a.Number, &a.Name, &a.Currency)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return a, ErrNotFound
+	}
+	return a, err
+}
+
+// QuarantinedFile is a file that did not enter.
+type QuarantinedFile struct {
+	ID, AccountID  uuid.UUID
+	Filename       string
+	Reason, Detail string
+	Fingerprint    string
+	ReceivedAt     time.Time
+}
+
+// Quarantine lists the quarantined files of the tenant, newest first.
+func (s *PGStore) Quarantine(ctx context.Context, limit int) ([]QuarantinedFile, error) {
+	var out []QuarantinedFile
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx,
+			`select id, account_id, coalesce(filename, ''), reason, coalesce(detail, ''), coalesce(fingerprint, ''), received_at
+			   from ledger.files where status = 'quarantined' order by received_at desc, id limit $1`, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var f QuarantinedFile
+			if err := rows.Scan(&f.ID, &f.AccountID, &f.Filename, &f.Reason, &f.Detail, &f.Fingerprint, &f.ReceivedAt); err != nil {
+				return err
+			}
+			out = append(out, f)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
 func nullDate(t time.Time) *time.Time {
 	if t.IsZero() {
 		return nil

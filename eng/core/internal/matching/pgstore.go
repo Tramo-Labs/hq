@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -58,7 +59,8 @@ func (s *PGStore) UpsertItems(ctx context.Context, source string, items []ItemIn
 			}
 			ids[it.SourceID] = id
 		}
-		return nil
+		return audit.Record(ctx, tx, audit.Entry{Action: "matching.items_loaded", Subject: "matching.items:source=" + source,
+			Detail: map[string]any{"source": source, "items": len(items)}})
 	})
 	return ids, err
 }
@@ -239,11 +241,46 @@ func (s *PGStore) SaveRun(ctx context.Context, period string, cfg Config, r Resu
 // ErrNoUser means a decision was attempted without a person in the scope.
 var ErrNoUser = errors.New("matching: a decision needs a user in the scope")
 
+// ErrForbidden means the caller's role cannot decide on that tray.
+var ErrForbidden = errors.New("matching: your role cannot decide on this tray")
+
+// CanDecide is the decision column of the role table in
+// product/ESPECIFICACION.md section 1: matches (Auto and Suggested trays)
+// are decided by an operator only. The Exceptions tray (owner or approver)
+// has no match to approve; its actions are not built yet.
+func CanDecide(role string, tray Tray) bool {
+	switch tray {
+	case Auto, Suggested:
+		return role == identity.RoleOperator
+	}
+	return false
+}
+
+// callerRole is the role of the verified token of the request, and only if
+// it belongs to the same user and tenant as the database scope.
+func callerRole(ctx context.Context, sc db.Scope) (string, bool) {
+	p, ok := identity.PrincipalFrom(ctx)
+	if !ok || p.UserID != sc.UserID || p.TenantID != sc.TenantID {
+		return "", false
+	}
+	return p.Role, true
+}
+
+// DecisionInput is everything a caller may say about a decision. Who
+// decides and with which role are never input: they come from the
+// authenticated session.
+type DecisionInput struct {
+	Key    string // idempotency key
+	Match  Match
+	Action Action
+	Note   string
+}
+
 // Record stores a human decision with the same rules as Book: the same
 // decision sent twice is applied once, a decided match is not decided again,
-// a key is not reused for something else. The person is the scope's user,
-// never a value from the request.
-func (s *PGStore) Record(ctx context.Context, d Decision) (Decision, bool, error) {
+// a key is not reused for something else. The decider and the role are the
+// session's, and the role has to be allowed to decide on the match's tray.
+func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool, error) {
 	sc, ok := db.ScopeFrom(ctx)
 	if !ok {
 		return Decision{}, false, db.ErrNoScope
@@ -251,12 +288,20 @@ func (s *PGStore) Record(ctx context.Context, d Decision) (Decision, bool, error
 	if sc.UserID == uuid.Nil {
 		return Decision{}, false, ErrNoUser
 	}
-	key, err := uuid.Parse(d.Key)
-	if err != nil || d.Match.ID == "" || (d.Action != Approve && d.Action != Reject) ||
-		d.Match.ID != matchID(d.Match.Rule, d.Match.MovementIDs, d.Match.ItemIDs) {
+	role, ok := callerRole(ctx, sc)
+	if !ok {
+		return Decision{}, false, ErrNoUser
+	}
+	key, err := uuid.Parse(in.Key)
+	if err != nil || in.Match.ID == "" || (in.Action != Approve && in.Action != Reject) ||
+		in.Match.ID != matchID(in.Match.Rule, in.Match.MovementIDs, in.Match.ItemIDs) {
 		return Decision{}, false, ErrInvalid
 	}
-	d.MatchID, d.By = d.Match.ID, sc.UserID.String()
+	if !CanDecide(role, in.Match.Tray) {
+		return Decision{}, false, ErrForbidden
+	}
+	d := Decision{Key: in.Key, MatchID: in.Match.ID, Match: in.Match, Action: in.Action, Note: in.Note,
+		By: sc.UserID.String(), Role: role}
 	snap, err := json.Marshal(d.Match)
 	if err != nil {
 		return Decision{}, false, err
@@ -302,6 +347,121 @@ func (s *PGStore) Record(ctx context.Context, d Decision) (Decision, bool, error
 		return Decision{}, false, err
 	}
 	return d, applied, nil
+}
+
+// ErrNotFound means the match does not exist for the tenant in the context.
+var ErrNotFound = errors.New("matching: not found")
+
+const matchColumns = `id, rule_id, rule_version, tray, movement_ids, item_ids, adjustments, evidence`
+
+func scanMatch(row pgx.Row) (Match, error) {
+	var m Match
+	var tray string
+	var mv, it []uuid.UUID
+	var adj, ev []byte
+	if err := row.Scan(&m.ID, &m.Rule.ID, &m.Rule.Version, &tray, &mv, &it, &adj, &ev); err != nil {
+		return m, err
+	}
+	m.Tray = Tray(tray)
+	for _, u := range mv {
+		m.MovementIDs = append(m.MovementIDs, u.String())
+	}
+	for _, u := range it {
+		m.ItemIDs = append(m.ItemIDs, u.String())
+	}
+	if err := json.Unmarshal(adj, &m.Adjustments); err != nil {
+		return m, err
+	}
+	var e struct {
+		Reference     string   `json:"reference"`
+		DateDiffDays  int      `json:"date_diff_days"`
+		CrossPeriod   bool     `json:"cross_period"`
+		MovePeriods   []string `json:"movement_periods"`
+		ItemPeriods   []string `json:"item_periods"`
+		LowConfidence bool     `json:"low_confidence"`
+	}
+	if err := json.Unmarshal(ev, &e); err != nil {
+		return m, err
+	}
+	m.Reference, m.DateDiffDays, m.CrossPeriod = e.Reference, e.DateDiffDays, e.CrossPeriod
+	m.MovePeriods, m.ItemPeriods, m.LowConfidence = e.MovePeriods, e.ItemPeriods, e.LowConfidence
+	return m, nil
+}
+
+// GetMatch returns a stored match of the tenant in the context.
+func (s *PGStore) GetMatch(ctx context.Context, id string) (Match, error) {
+	var m Match
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		var err error
+		m, err = scanMatch(tx.QueryRow(ctx, `select `+matchColumns+` from matching.matches where id = $1`, id))
+		return err
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return m, ErrNotFound
+	}
+	return m, err
+}
+
+// Undecided lists the matches of a tray that nobody decided on yet.
+func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match, error) {
+	var out []Match
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `select `+matchColumns+` from matching.matches m
+			where tray = $1 and not exists (select 1 from matching.decisions d where d.tenant_id = m.tenant_id and d.match_id = m.id)
+			order by created_at, id limit $2`, string(tray), limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			m, err := scanMatch(rows)
+			if err != nil {
+				return err
+			}
+			out = append(out, m)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
+// PendingRow is a pending movement as stored by a run.
+type PendingRow struct {
+	RunID uuid.UUID
+	Pending
+}
+
+// LatestPending lists the movements waiting in a tray according to the
+// latest run of each period.
+func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]PendingRow, error) {
+	var out []PendingRow
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			with latest as (select distinct on (period) id from matching.runs order by period, started_at desc, id)
+			select p.run_id, p.movement_id, p.tray, p.reason, p.candidates from matching.pending p
+			 where p.run_id in (select id from latest) and p.tray = $1
+			 order by p.movement_id limit $2`, string(tray), limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var r PendingRow
+			var mid uuid.UUID
+			var t, reason string
+			var cands []byte
+			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands); err != nil {
+				return err
+			}
+			r.MovementID, r.Tray, r.Reason = mid.String(), Tray(t), PendingReason(reason)
+			if err := json.Unmarshal(cands, &r.Candidates); err != nil {
+				return err
+			}
+			out = append(out, r)
+		}
+		return rows.Err()
+	})
+	return out, err
 }
 
 func uuids(ids []string) ([]uuid.UUID, error) {

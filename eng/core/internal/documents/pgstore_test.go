@@ -81,10 +81,28 @@ func TestPGSaveAndDuplicates(t *testing.T) {
 	}); err != nil || n != 0 {
 		t.Errorf("tenant b sees %d invoices (%v)", n, err)
 	}
-	if _, err := s.Get(ctxB, id); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := s.Get(ctxB, id); !errors.Is(err, ErrNotFound) {
 		t.Errorf("tenant b reads a's invoice by id: %v", err)
 	}
 	if _, err := s.Save(ctxB, pdfQR, inv); err != nil {
 		t.Errorf("tenant b own copy: %v", err)
+	}
+	// B cannot write an invoice for A, nor change A's invoice.
+	err = d.InTenant(ctxB, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctxB, `insert into documents.invoices (tenant_id, sha256, fields, trail, auto_eligible, min_confidence)
+			values ($1, '\x00', '{}', '[]', false, 0)`, a.TenantID)
+		return err
+	})
+	if err == nil {
+		t.Error("tenant b wrote an invoice for tenant a")
+	}
+	var changed int64
+	err = d.InTenant(ctxB, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctxB, `update documents.invoices set auto_eligible = true where id = $1`, id)
+		changed = tag.RowsAffected()
+		return err
+	})
+	if err != nil || changed != 0 {
+		t.Errorf("tenant b changed a's invoice: %d rows, %v", changed, err)
 	}
 }

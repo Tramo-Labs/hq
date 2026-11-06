@@ -102,6 +102,22 @@ func (s *PGStore) Save(ctx context.Context, doc []byte, inv *Invoice) (uuid.UUID
 	return id, err
 }
 
+// OwnCUIT returns the CUIT of the tenant in the context ("" when not set).
+// The extractor excludes it from the issuer candidates.
+func (s *PGStore) OwnCUIT(ctx context.Context) (string, error) {
+	var cuit *int64
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `select cuit from tenants where id = app_current_tenant()`).Scan(&cuit)
+	})
+	if err != nil || cuit == nil {
+		return "", err
+	}
+	return fmt.Sprintf("%011d", *cuit), nil
+}
+
+// ErrNotFound means the invoice does not exist for the tenant in the context.
+var ErrNotFound = errors.New("documents: not found")
+
 // Get returns a stored invoice of the tenant in the context.
 func (s *PGStore) Get(ctx context.Context, id uuid.UUID) (*Invoice, error) {
 	inv := newInvoice()
@@ -115,6 +131,9 @@ func (s *PGStore) Get(ctx context.Context, id uuid.UUID) (*Invoice, error) {
 		}
 		return json.Unmarshal(trail, &inv.Trail)
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}

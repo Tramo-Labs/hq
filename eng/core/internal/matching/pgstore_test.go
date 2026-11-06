@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db/dbtest"
@@ -42,10 +44,17 @@ func seedTenants(t *testing.T, d *db.DB) (a, b db.Scope) {
 	return a, b
 }
 
+// session is what the API middleware builds from a verified access token:
+// the principal (user, tenant, role) and the database scope.
+func session(sc db.Scope, role string) context.Context {
+	return identity.WithPrincipal(context.Background(), identity.Principal{UserID: sc.UserID, TenantID: sc.TenantID, Role: role})
+}
+
 type pgEnv struct {
 	d         *db.DB
 	store     *PGStore
-	ctx, ctxB context.Context
+	a, b      db.Scope
+	ctx, ctxB context.Context // operators of tenant a and tenant b
 	from, to  time.Time
 }
 
@@ -55,8 +64,8 @@ type pgEnv struct {
 func newPGEnv(t *testing.T) pgEnv {
 	d := dbtest.New(t)
 	a, b := seedTenants(t, d)
-	e := pgEnv{d: d, store: &PGStore{DB: d}, ctx: db.WithScope(context.Background(), a), ctxB: db.WithScope(context.Background(), b),
-		from: day(1), to: day(31)}
+	e := pgEnv{d: d, store: &PGStore{DB: d}, a: a, b: b,
+		ctx: session(a, identity.RoleOperator), ctxB: session(b, identity.RoleOperator), from: day(1), to: day(31)}
 	ls := &ledger.PGStore{DB: d}
 	acct, err := ls.CreateAccount(e.ctx, ledger.Bancor, "", "Cuenta")
 	if err != nil {
@@ -95,6 +104,15 @@ func (e pgEnv) run(t *testing.T) (Result, int) {
 	return r, n
 }
 
+func (e pgEnv) count(t *testing.T, ctx context.Context, q string, args ...any) int {
+	t.Helper()
+	var n int
+	if err := e.d.InTenant(ctx, func(tx pgx.Tx) error { return tx.QueryRow(ctx, q, args...).Scan(&n) }); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
 // Spec: running the same period twice creates no new matches.
 func TestPGRunTwiceCreatesNothingNew(t *testing.T) {
 	e := newPGEnv(t)
@@ -118,18 +136,23 @@ func TestPGRunTwiceCreatesNothingNew(t *testing.T) {
 	if len(r2.Matches) != 1 || r2.Matches[0].Rule != RuleTolerance {
 		t.Errorf("second run proposed %+v", r2.Matches)
 	}
-	var stored int
-	e.d.InTenant(e.ctx, func(tx pgx.Tx) error {
-		return tx.QueryRow(e.ctx, `select count(*) from matching.matches`).Scan(&stored)
-	})
-	if stored != 3 {
-		t.Errorf("%d matches stored", stored)
+	if n := e.count(t, e.ctx, `select count(*) from matching.matches`); n != 3 {
+		t.Errorf("%d matches stored", n)
 	}
 }
 
 func suggested(r Result) Match {
 	for _, m := range r.Matches {
 		if m.Tray == Suggested {
+			return m
+		}
+	}
+	return Match{}
+}
+
+func auto(r Result) Match {
+	for _, m := range r.Matches {
+		if m.Tray == Auto {
 			return m
 		}
 	}
@@ -143,58 +166,106 @@ func TestPGDecisions(t *testing.T) {
 	r, _ := e.run(t)
 	m := suggested(r)
 	key := uuid.NewString()
-	d, applied, err := e.store.Record(e.ctx, Decision{Key: key, Match: m, Action: Approve, Role: "operator", Note: "ok"})
-	if err != nil || !applied || d.At.IsZero() || d.By == "" {
+	d, applied, err := e.store.Record(e.ctx, DecisionInput{Key: key, Match: m, Action: Approve, Note: "ok"})
+	if err != nil || !applied || d.At.IsZero() {
 		t.Fatalf("%v %v %+v", err, applied, d)
 	}
-	again, applied, err := e.store.Record(e.ctx, Decision{Key: key, Match: m, Action: Approve, Role: "operator"})
+	again, applied, err := e.store.Record(e.ctx, DecisionInput{Key: key, Match: m, Action: Approve})
 	if err != nil || applied || !again.At.Equal(d.At) {
 		t.Errorf("replay: %v %v", err, applied)
 	}
-	if _, _, err := e.store.Record(e.ctx, Decision{Key: uuid.NewString(), Match: m, Action: Reject, Role: "operator"}); !errors.Is(err, ErrAlreadyDecided) {
+	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: m, Action: Reject}); !errors.Is(err, ErrAlreadyDecided) {
 		t.Errorf("second decision: %v", err)
 	}
-	var auto Match
-	for _, x := range r.Matches {
-		if x.Tray == Auto {
-			auto = x
-		}
-	}
-	if _, _, err := e.store.Record(e.ctx, Decision{Key: key, Match: auto, Action: Approve}); !errors.Is(err, ErrKeyReused) {
+	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: key, Match: auto(r), Action: Approve}); !errors.Is(err, ErrKeyReused) {
 		t.Errorf("key reused for another match: %v", err)
-	}
-	for _, q := range []string{`update matching.decisions set action = 'reject'`, `delete from matching.decisions`} {
-		err := e.d.InTenant(e.ctx, func(tx pgx.Tx) error { _, err := tx.Exec(e.ctx, q); return err })
-		if err == nil {
-			t.Errorf("%q succeeded", q)
-		}
-	}
-	// The owner cannot edit it either: the trigger stops every role.
-	err = e.d.System(context.Background(), func(tx pgx.Tx) error {
-		_, err := tx.Exec(context.Background(), `update matching.decisions set note = 'x'`)
-		return err
-	})
-	if err == nil {
-		t.Error("owner edited a decision")
 	}
 	// Approved: the next run treats it as settled and proposes nothing.
 	r2, n2 := e.run(t)
 	if len(r2.Matches) != 0 || n2 != 0 {
 		t.Errorf("after approval: %+v", r2.Matches)
 	}
-	var audited int
-	e.d.InTenant(e.ctx, func(tx pgx.Tx) error {
-		return tx.QueryRow(e.ctx, `select count(*) from audit_log where action = 'matching.approve'`).Scan(&audited)
-	})
-	if audited != 1 {
-		t.Errorf("%d audit entries for the approval", audited)
+	if n := e.count(t, e.ctx, `select count(*) from audit_log where action = 'matching.approve'`); n != 1 {
+		t.Errorf("%d audit entries for the approval", n)
+	}
+}
+
+// The append only trigger holds by itself: through the owner connection,
+// which has every privilege and is a superuser here (so RLS does not stop
+// it either), UPDATE and DELETE still fail, and they fail on the trigger.
+func TestPGDecisionsTriggerStopsTheOwner(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for _, q := range []string{`update matching.decisions set note = 'edited'`, `delete from matching.decisions`} {
+		_, err := e.d.Pool.Exec(ctx, q)
+		if err == nil || !strings.Contains(err.Error(), "append only") {
+			t.Errorf("%q through the owner: %v; want the trigger to reject it", q, err)
+		}
+	}
+	var n int
+	if err := e.d.Pool.QueryRow(ctx, `select count(*) from matching.decisions`).Scan(&n); err != nil || n != 1 {
+		t.Errorf("decisions after the attempts: %d (%v)", n, err)
+	}
+	// And for tramo_app, UPDATE and DELETE are not even granted.
+	for _, q := range []string{`update matching.decisions set note = 'x'`, `delete from matching.decisions`} {
+		err := e.d.InTenant(e.ctx, func(tx pgx.Tx) error { _, err := tx.Exec(e.ctx, q); return err })
+		if err == nil {
+			t.Errorf("%q succeeded for tramo_app", q)
+		}
+	}
+}
+
+// The decider and the role stored are the session's, whatever the caller
+// tries; there is no input for them.
+func TestPGDeciderIsTheSession(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	got, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var user uuid.UUID
+	var role string
+	if err := e.d.InTenant(e.ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(e.ctx, `select user_id, role from matching.decisions`).Scan(&user, &role)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if user != e.a.UserID || role != identity.RoleOperator || got.By != e.a.UserID.String() {
+		t.Errorf("stored user %s role %s; want the session's %s operator", user, role, e.a.UserID)
+	}
+	// A principal that does not match the database scope is no session.
+	forged := identity.WithPrincipal(context.Background(),
+		identity.Principal{UserID: uuid.New(), TenantID: e.a.TenantID, Role: identity.RoleOperator})
+	forged = db.WithScope(forged, e.a)
+	if _, _, err := e.store.Record(forged, DecisionInput{Key: uuid.NewString(), Match: auto(r), Action: Approve}); !errors.Is(err, ErrNoUser) {
+		t.Errorf("principal and scope of different users: %v", err)
+	}
+}
+
+// Spec section 1: only an operator decides on matches.
+func TestPGOnlyOperatorDecides(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	for _, role := range []string{identity.RoleOwner, identity.RoleApprover, identity.RoleViewer, identity.RoleAccountant} {
+		_, _, err := e.store.Record(session(e.a, role), DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve})
+		if !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s decided: %v", role, err)
+		}
+	}
+	if n := e.count(t, e.ctx, `select count(*) from matching.decisions`); n != 0 {
+		t.Errorf("%d decisions stored by forbidden roles", n)
 	}
 }
 
 func TestPGRejectedIsNotProposedAgain(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
-	if _, _, err := e.store.Record(e.ctx, Decision{Key: uuid.NewString(), Match: suggested(r), Action: Reject, Role: "operator"}); err != nil {
+	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Reject}); err != nil {
 		t.Fatal(err)
 	}
 	r2, _ := e.run(t)
@@ -206,10 +277,17 @@ func TestPGRejectedIsNotProposedAgain(t *testing.T) {
 func TestPGDecisionNeedsAPerson(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
-	sc, _ := db.ScopeFrom(e.ctx)
-	job := db.WithScope(context.Background(), db.Scope{TenantID: sc.TenantID})
-	if _, _, err := e.store.Record(job, Decision{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); !errors.Is(err, ErrNoUser) {
+	job := db.WithScope(context.Background(), db.Scope{TenantID: e.a.TenantID})
+	if _, _, err := e.store.Record(job, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); !errors.Is(err, ErrNoUser) {
 		t.Errorf("decision without a user: %v", err)
+	}
+}
+
+// Every write of the store leaves an audit entry, item loads included.
+func TestPGItemLoadsAreAudited(t *testing.T) {
+	e := newPGEnv(t)
+	if n := e.count(t, e.ctx, `select count(*) from audit_log where action = 'matching.items_loaded'`); n != 1 {
+		t.Errorf("%d audit entries for the item load", n)
 	}
 }
 
@@ -218,13 +296,7 @@ func TestPGTenantIsolation(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
 	for _, table := range []string{"matching.items", "matching.runs", "matching.matches", "matching.pending", "ledger.movements"} {
-		var n int
-		if err := e.d.InTenant(e.ctxB, func(tx pgx.Tx) error {
-			return tx.QueryRow(e.ctxB, "select count(*) from "+table).Scan(&n)
-		}); err != nil {
-			t.Fatal(err)
-		}
-		if n != 0 {
+		if n := e.count(t, e.ctxB, "select count(*) from "+table); n != 0 {
 			t.Errorf("tenant b sees %d rows of %s", n, table)
 		}
 	}
@@ -233,7 +305,16 @@ func TestPGTenantIsolation(t *testing.T) {
 		t.Errorf("tenant b input %+v %v", in, err)
 	}
 	// B cannot decide on A's match: it does not exist for B.
-	if _, _, err := e.store.Record(e.ctxB, Decision{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); !errors.Is(err, ErrInvalid) {
+	if _, _, err := e.store.Record(e.ctxB, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); !errors.Is(err, ErrInvalid) {
 		t.Errorf("tenant b decided on a's match: %v", err)
+	}
+	// Nor write rows for A.
+	err = e.d.InTenant(e.ctxB, func(tx pgx.Tx) error {
+		_, err := tx.Exec(e.ctxB, `insert into matching.items (tenant_id, source, source_id, kind, date, amount, confidence)
+			values ($1, 'erp', 'x', 'invoice', '2026-10-01', 1, 1)`, e.a.TenantID)
+		return err
+	})
+	if err == nil {
+		t.Error("tenant b wrote an item for tenant a")
 	}
 }
