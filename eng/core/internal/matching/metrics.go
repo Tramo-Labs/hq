@@ -46,7 +46,7 @@ func monthRange(period string) (time.Time, time.Time, error) {
 }
 
 // pendingReasons are the reasons counted one by one in the Suggested tray.
-var pendingReasons = []PendingReason{ReasonAmbiguous, ReasonComboAmbiguous, ReasonRefAmountDiffers, ReasonClientOther}
+var pendingReasons = []PendingReason{ReasonAmbiguous, ReasonSharedCandidate, ReasonComboAmbiguous, ReasonRefAmountDiffers, ReasonClientOther}
 
 // Metrics computes the results panel of the tenant in the context for one
 // month, in one tenant transaction. now dates the age of open exceptions.
@@ -231,6 +231,7 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 
 var reasonLabel = map[PendingReason]string{
 	ReasonAmbiguous:        "dos candidatos iguales",
+	ReasonSharedCandidate:  "el candidato también le sirve a otro movimiento",
 	ReasonComboAmbiguous:   "más de una combinación posible",
 	ReasonRefAmountDiffers: "la referencia no cierra con el importe",
 	ReasonClientOther:      "el cliente dice que es otra cosa",

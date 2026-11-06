@@ -40,6 +40,13 @@ func TestSameReferenceTwice(t *testing.T) {
 	if len(r.Matches) != 0 || len(r.Pending) != 2 {
 		t.Fatalf("matches %+v pending %+v", r.Matches, r.Pending)
 	}
+	// Each movement has one candidate, the same invoice: the reason says
+	// the candidate is shared, not that there are two candidates.
+	for _, p := range r.Pending {
+		if p.Reason != ReasonSharedCandidate || len(p.Candidates) != 1 || p.Candidates[0].ItemIDs[0] != "f" {
+			t.Errorf("%s: %s with %+v; want shared_candidate with the invoice", p.MovementID, p.Reason, p.Candidates)
+		}
+	}
 }
 
 // An ambiguity found by a strong pass is not resolved by a weaker one.

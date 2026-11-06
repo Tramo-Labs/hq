@@ -30,10 +30,13 @@ low confidence, or unknown confidence) goes to Suggested, never Auto.
 - **Matches**, Auto or Suggested, with evidence: reference or counterparty,
   date distance, periods of movements and items and whether they differ
   (Duotach case 5), adjustments with their source.
-- **Pending** (Suggested tray, an operator decides): `ambiguous`,
-  `combination_ambiguous`, or `reference_amount_differs` (the movement names
-  an item whose amount does not close: partial payment, or a fee nobody
-  documented). Each with its candidates.
+- **Pending** (Suggested tray, an operator decides): `ambiguous` (two or
+  more equally good candidates), `shared_candidate` (one candidate, which
+  is also the only one of another movement: two equal transfers and one
+  invoice; who takes it is not guessed), `combination_ambiguous`, or
+  `reference_amount_differs` (the movement names an item whose amount does
+  not close: partial payment, or a fee nobody documented). Each with its
+  candidates.
 - **Exceptions** (the client decides): `no_candidate`.
 - **Open items**: nothing settled them yet. Not an exception.
 
@@ -194,7 +197,7 @@ shown as zero.
 | `open_exception_movements` | count | movements left in Exceptions without candidate by the latest run, with no client decision in effect | month not run | pending `tray=exception&period` |
 | `open_exception_matches` | count | escalated matches of the month the client has not decided | month not run | matches `tray=exception&period` |
 | `oldest_open_exception_days` | days | days since the oldest open exception movement | month not run, or none open | pending `tray=exception&period` |
-| `pending_<reason>` | count | movements in Suggested by reason (ambiguous, combination_ambiguous, reference_amount_differs, client_other) | month not run | pending `tray=suggested&period` |
+| `pending_<reason>` | count | movements in Suggested by reason (ambiguous, shared_candidate, combination_ambiguous, reference_amount_differs, client_other) | month not run | pending `tray=suggested&period` |
 | `invoices_processed` | count | invoices stored in the month (Argentina time) | no invoice ever stored | invoices `period` |
 | `invoices_held` | count | of those, the ones not eligible for automatic | no invoice ever stored | invoices `period&autoEligible=false` |
 

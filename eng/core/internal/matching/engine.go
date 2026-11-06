@@ -168,7 +168,11 @@ func (e *engine) pairPass(r Rule, ok func(Movement, Item) (bool, string)) {
 				cands = append(cands, Candidate{Rule: r, ItemIDs: []string{ed.i}})
 			}
 		}
-		e.recordPending(id, ReasonAmbiguous, cands)
+		reason := ReasonAmbiguous
+		if len(cands) == 1 {
+			reason = ReasonSharedCandidate // the doubt is on the item's side
+		}
+		e.recordPending(id, reason, cands)
 	}
 }
 
