@@ -89,6 +89,7 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
 | `refresh_tokens` | no access | identity only, through `System` (`tramo_system`) |
 | `invites` | no access | identity only, through `System`; token hashes only |
 | `audit_log` | read and insert for the current tenant | UPDATE and DELETE rejected by trigger, for every role |
+| `audit_denial_repeats` (00010) | read, insert and update for the current tenant | counter of repeated 403s on a denial's audit row |
 | `idempotency_requests` | current tenant | middleware uses `System` with explicit scope |
 | `tenant_keys` | read own key | wrapped data keys |
 
@@ -121,10 +122,19 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   resolved IP, request id, the operationId as subject (`operation:<id>`)
   and role, method and path as detail; never the body or query string. If
   that write fails the caller still gets the 403 and the failure is logged.
-  Rows are not throttled: a member hammering a forbidden operation grows
-  their own tenant's log (`TestEveryDenialIsAudited`; mutations checked:
-  without the middleware the test fails, auditing only the module 403s
-  misses identity and portal ones).
+  (`TestEveryDenialIsAudited`; mutations checked: without the middleware
+  the test fails, auditing only the module 403s misses identity and portal
+  ones.) **Repeats are coalesced**: the first 403 of a user on an
+  operation is the audit row; further ones within a minute
+  (`Deps.DenialWindow`) only bump a counter on that row in
+  `audit_denial_repeats` (migration 00010, forced RLS per tenant), since
+  `audit_log` is append only. Nothing is dropped: the count and the last
+  time are durable, and the audit export shows them (`repeated`,
+  `repeated_until`). A member hammering a forbidden operation writes at
+  most two rows a minute. Two first denials racing may both write a row;
+  accepted (`TestRepeatedDenialsAreCoalesced`; mutations checked: a row per
+  denial, the counter not bumped, the window ignored, not keyed by user,
+  the export without the count, each fails).
 - `X-Forwarded-For` is believed only when the TCP peer is in
   `TRUSTED_PROXIES` (our own proxies). Then its hops are read from the
   right, skipping those that are also our proxies; the first hop that is not

@@ -270,23 +270,33 @@ func (h *Handlers) auditCount(ctx context.Context) (int, error) {
 
 // auditRows lists the tenant's own trail (RLS keeps it to the tenant).
 func (h *Handlers) auditRows(ctx context.Context, from, to time.Time) ([][]string, error) {
-	rows := [][]string{{"at", "action", "subject", "user_id", "request_id", "ip"}}
+	// repeated and repeated_until: further identical 403s of the same user
+	// on the same operation, coalesced into this row (platform README).
+	rows := [][]string{{"at", "action", "subject", "user_id", "request_id", "ip", "repeated", "repeated_until"}}
 	err := h.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		rs, err := tx.Query(ctx, `
-			select at, action, subject, coalesce(user_id::text, ''), coalesce(request_id, ''), coalesce(host(ip), '')
-			from audit_log where at >= $1::timestamptz and at < $2::timestamptz + interval '1 day'
-			order by at, id`, from, to)
+			select a.at, a.action, a.subject, coalesce(a.user_id::text, ''), coalesce(a.request_id, ''), coalesce(host(a.ip), ''),
+			       coalesce(r.count, 0), r.last_at
+			from audit_log a left join audit_denial_repeats r on r.audit_id = a.id
+			where a.at >= $1::timestamptz and a.at < $2::timestamptz + interval '1 day'
+			order by a.at, a.id`, from, to)
 		if err != nil {
 			return err
 		}
 		defer rs.Close()
 		for rs.Next() {
 			var at time.Time
+			var last *time.Time
 			var action, subject, user, req, ip string
-			if err := rs.Scan(&at, &action, &subject, &user, &req, &ip); err != nil {
+			var repeated int
+			if err := rs.Scan(&at, &action, &subject, &user, &req, &ip, &repeated, &last); err != nil {
 				return err
 			}
-			rows = append(rows, []string{at.UTC().Format(time.RFC3339), action, subject, user, req, ip})
+			until := ""
+			if last != nil {
+				until = last.UTC().Format(time.RFC3339)
+			}
+			rows = append(rows, []string{at.UTC().Format(time.RFC3339), action, subject, user, req, ip, strconv.Itoa(repeated), until})
 		}
 		return rs.Err()
 	})

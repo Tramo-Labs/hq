@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/go-chi/chi/v5"
@@ -48,7 +49,13 @@ type Deps struct {
 	CORSOrigins httpx.Origins
 	// DocsDir serves the Swagger UI and the spec when set.
 	DocsDir string
+	// DenialWindow coalesces repeated 403s of one user on one operation
+	// into the first one's audit row (DefaultDenialWindow when zero).
+	DenialWindow time.Duration
 }
+
+// DefaultDenialWindow is how long repeats of a denial count on its row.
+const DefaultDenialWindow = time.Minute
 
 // Handlers implements the generated strict interface by embedding one
 // handler set per module.
@@ -115,7 +122,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 			ErrorHandlerWithOpts: validationError,
 		}))
 		r.Use(idempotency.Middleware(d.DB))
-		strict := apigen.NewStrictHandlerWithOptions(h, []apigen.StrictMiddlewareFunc{auditDenials(d.DB)}, apigen.StrictHTTPServerOptions{
+		strict := apigen.NewStrictHandlerWithOptions(h, []apigen.StrictMiddlewareFunc{auditDenials(d.DB, d.DenialWindow)}, apigen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "malformed request body")
 			},
@@ -164,7 +171,10 @@ func validationError(_ context.Context, err error, w http.ResponseWriter, r *htt
 // (httpx.MetaFrom, through audit.Record), the operationId as subject and the
 // role, method and path as detail. Never the body or the query string. A
 // failure to write it is logged and the caller still gets the 403.
-func auditDenials(d *db.DB) apigen.StrictMiddlewareFunc {
+func auditDenials(d *db.DB, window time.Duration) apigen.StrictMiddlewareFunc {
+	if window <= 0 {
+		window = DefaultDenialWindow
+	}
 	return func(next apigen.StrictHandlerFunc, operationID string) apigen.StrictHandlerFunc {
 		// The generator passes the Go name; the spec's operationId is the
 		// same with a lower case first letter.
@@ -181,8 +191,29 @@ func auditDenials(d *db.DB) apigen.StrictMiddlewareFunc {
 			if !ok {
 				return resp, err
 			}
+			subject := "operation:" + operationID
 			if aerr := d.InTenant(ctx, func(tx pgx.Tx) error {
-				return audit.Record(ctx, tx, audit.Entry{Action: "authz.denied", Subject: "operation:" + operationID,
+				// Within the window, a repeat only bumps the counter of the
+				// first denial's row (audit_log is append only). Two first
+				// denials racing may both write a row; that is accepted.
+				var first int64
+				err := tx.QueryRow(ctx, `
+					select id from audit_log
+					where action = 'authz.denied' and tenant_id = app_current_tenant()
+					  and user_id = $1 and subject = $2 and at > now() - make_interval(secs => $3)
+					order by at desc limit 1`, p.UserID, subject, window.Seconds()).Scan(&first)
+				if err == nil {
+					_, err = tx.Exec(ctx, `
+						insert into audit_denial_repeats (audit_id, tenant_id, count, last_at)
+						values ($1, app_current_tenant(), 1, now())
+						on conflict (audit_id) do update
+						  set count = audit_denial_repeats.count + 1, last_at = excluded.last_at`, first)
+					return err
+				}
+				if !errors.Is(err, pgx.ErrNoRows) {
+					return err
+				}
+				return audit.Record(ctx, tx, audit.Entry{Action: "authz.denied", Subject: subject,
 					Detail: map[string]any{"role": p.Role, "method": r.Method, "path": r.URL.Path}})
 			}); aerr != nil {
 				httpx.Logger(ctx).Error("audit denial", "err", aerr, "operation", operationID)
