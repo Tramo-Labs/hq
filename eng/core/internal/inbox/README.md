@@ -110,5 +110,18 @@ has no subject, body or headers.
 
 Mutations checked: granting `tramo_inbox` select on one table fails the
 role test; without the receive lock the concurrency test fails (3 of 3
-runs); reading attachments without the limit gets the test process killed
-by its 4 GB cap instead of passing.
+runs); reading attachments without the limit fails the size test by
+assertion after about 21 MB: the test's reader counts every byte and
+refuses to give more than the limits allow plus a small margin, so memory
+stays bounded even when the code under test is wrong.
+
+## Deploy
+
+`tramo_inbox` is created by migration 00201 itself (no login, no
+password, like `tramo_jobs`), run by the privileged migration URL, which
+also grants it to `tramo_runtime` when that role exists. The production
+init script creates `tramo_runtime` before the first migration, so nothing
+is added to Terraform or compose. A `tramo_runtime` created after 00201
+ran needs `grant tramo_inbox to tramo_runtime` by hand.
+`TestRuntimeLoginRoleReachesDataOnlyThroughTheRoleSwitch` checks the
+lookup works as `tramo_runtime`.

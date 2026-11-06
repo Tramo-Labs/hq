@@ -45,6 +45,12 @@ Decisions:
    bank and number, quarantine and dedupe are not repeated here. Until it
    exists, attachments are `not_delivered` and nothing is stored.
 
+7. **The migration creates `tramo_inbox`**, like `tramo_jobs` (00007):
+   no login, no password, so it needs nothing from the operator. It is
+   granted to `tramo_runtime` when that role exists, which in production
+   it does (the init script creates it before the first migration). No
+   change to Terraform or compose.
+
 Consequences: switching providers touches only the adapter. Rotating the
 address is the answer to a leaked one; the old address drops mail at once
 and leaves no receipt (there is no tenant to write it under).

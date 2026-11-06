@@ -168,7 +168,7 @@ func TestApplicationRolesCannotBypassRLS(t *testing.T) {
 	d := dbtest.New(t)
 	rows, err := d.Pool.Query(context.Background(),
 		`select rolname, rolsuper, rolbypassrls, rolcanlogin from pg_roles where rolname = any($1)`,
-		[]string{db.AppRole, db.SystemRole, "tramo_jobs"})
+		[]string{db.AppRole, db.SystemRole, "tramo_jobs", db.InboxRole})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,8 +185,8 @@ func TestApplicationRolesCannotBypassRLS(t *testing.T) {
 			t.Errorf("%s: rolsuper=%v rolbypassrls=%v rolcanlogin=%v, want all false", name, super, bypass, login)
 		}
 	}
-	if seen != 3 {
-		t.Fatalf("found %d of the 3 application roles", seen)
+	if seen != 4 {
+		t.Fatalf("found %d of the 4 application roles", seen)
 	}
 }
 
@@ -200,7 +200,7 @@ func TestApplicationRolesCannotBypassRLS(t *testing.T) {
 func TestMigrationFixesPreexistingRoleAttributes(t *testing.T) {
 	d := dbtest.NewEmpty(t)
 	ctx := context.Background()
-	roles := []string{db.AppRole, db.SystemRole, "tramo_jobs"}
+	roles := []string{db.AppRole, db.SystemRole, "tramo_jobs", db.InboxRole}
 	restore := func() {
 		for _, r := range roles {
 			_, _ = d.Pool.Exec(ctx, "alter role "+r+" nosuperuser nobypassrls nologin")
@@ -270,6 +270,11 @@ func TestRuntimeLoginRoleReachesDataOnlyThroughTheRoleSwitch(t *testing.T) {
 		if err := rt.Pool.QueryRow(ctx, q).Scan(&n); err == nil {
 			t.Errorf("raw pool as tramo_runtime: %q returned %d rows", q, n)
 		}
+	}
+	// The mailbox lookup works too: the migration granted tramo_inbox to
+	// tramo_runtime, nothing to add in deploy (ADR 0009).
+	if _, ok, err := rt.InboxTenant(ctx, "aaaaaaaaaaaaaaaaaaaaaaaaaa"); err != nil || ok {
+		t.Errorf("mailbox lookup as tramo_runtime: found %v, %v", ok, err)
 	}
 	// The tenant path still works and is scoped.
 	actx := db.WithScope(ctx, a)

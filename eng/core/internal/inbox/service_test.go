@@ -74,8 +74,16 @@ func (f *fakeIngest) IngestUnassigned(_ context.Context, a inbox.Unassigned) (le
 
 func (f *fakeIngest) n() int { f.mu.Lock(); defer f.mu.Unlock(); return len(f.calls) }
 
-// opened counts how many bytes the service read from attachments.
-type opened struct{ bytes atomic.Int64 }
+// opened counts how many bytes the service read from attachments. With
+// stop set, reading past stop bytes in total fails with errPastStop: a
+// service that ignored its limits fails a test by assertion, having read a
+// few bytes too many, instead of filling memory.
+type opened struct {
+	bytes atomic.Int64
+	stop  int64
+}
+
+var errPastStop = errors.New("test reader: read past the bytes the limits allow")
 
 type countingReader struct {
 	r io.Reader
@@ -83,6 +91,15 @@ type countingReader struct {
 }
 
 func (c countingReader) Read(p []byte) (int, error) {
+	if c.o.stop > 0 {
+		left := c.o.stop - c.o.bytes.Load()
+		if left <= 0 {
+			return 0, errPastStop
+		}
+		if int64(len(p)) > left {
+			p = p[:left]
+		}
+	}
 	n, err := c.r.Read(p)
 	c.o.bytes.Add(int64(n))
 	return n, err
@@ -274,33 +291,42 @@ func TestRefusalsReadNoAttachment(t *testing.T) {
 // A large attachment is cut at its limit, never read whole, and the rest
 // of the message goes on; past the message's total it is refused whole.
 func TestSizeLimitsCutTheReading(t *testing.T) {
-	lim := inbox.Limits{AttachmentsPerMessage: 10, BytesPerAttachment: 1 << 20, BytesPerMessage: 3 << 20,
-		MessagesPerDay: 100, MessagesPerSenderPerDay: 100, RefusedPerDay: 100}
-	f := setup(t, lim)
-	var o opened
+	// The default limits: a 500 MiB attachment, generated as it is read,
+	// is read to 20 MiB plus one byte and no further.
+	f := setup(t, inbox.Limits{})
+	lim := inbox.DefaultLimits
+	if lim.BytesPerAttachment != 20<<20 {
+		t.Fatalf("per attachment limit %d, want 20 MiB (the ledger's)", lim.BytesPerAttachment)
+	}
+	o := opened{stop: lim.BytesPerAttachment + 1 + int64(len(csv)) + 64<<10}
 	r, err := f.svc.Receive(context.Background(), msg(f.to, "banco@example.com", o.endless("grande.csv", 500<<20), o.att("ok.csv", csv)))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("receive: %v (read %d bytes)", err, o.bytes.Load())
 	}
 	if r.Status != inbox.Accepted || r.Attachments[0].Reason != inbox.ReasonTooLarge || r.Attachments[0].Size != lim.BytesPerAttachment ||
 		r.Attachments[1].Status != inbox.Delivered {
 		t.Fatalf("receipt: %+v", r)
 	}
-	if read := o.bytes.Load(); read > lim.BytesPerAttachment+1+int64(len(csv)) {
-		t.Fatalf("read %d bytes of a 500 MiB attachment", read)
+	if read := o.bytes.Load(); read != lim.BytesPerAttachment+1+int64(len(csv)) {
+		t.Fatalf("read %d bytes, want the limit plus one byte of the large one and all of ok.csv", read)
 	}
 
-	var o2 opened
+	// Past the message's total, refused whole, having read at most the
+	// total plus one byte (smaller limits keep the test light).
+	lim = inbox.Limits{AttachmentsPerMessage: 10, BytesPerAttachment: 1 << 20, BytesPerMessage: 3 << 20,
+		MessagesPerDay: 100, MessagesPerSenderPerDay: 100, RefusedPerDay: 100}
+	f2 := setup(t, lim)
+	o2 := opened{stop: lim.BytesPerMessage + 1 + 64<<10}
 	big := func(n string) inbox.Attachment { return o2.endless(n, 900<<10) }
-	r, err = f.svc.Receive(context.Background(), msg(f.to, "banco@example.com", big("1.csv"), big("2.csv"), big("3.csv"), big("4.csv"), big("5.csv")))
+	r, err = f2.svc.Receive(context.Background(), msg(f2.to, "banco@example.com", big("1.csv"), big("2.csv"), big("3.csv"), big("4.csv"), big("5.csv")))
 	if err != nil || r.Status != inbox.Refused || r.Reason != inbox.ReasonMessageTooLarge {
-		t.Fatalf("message over its total: %+v %v", r, err)
+		t.Fatalf("message over its total: %+v %v (read %d bytes)", r, err, o2.bytes.Load())
 	}
 	if read := o2.bytes.Load(); read > lim.BytesPerMessage+1 {
 		t.Fatalf("read %d bytes, past the message's total", read)
 	}
-	if f.ingest.n() != 1 {
-		t.Fatalf("ingested %d, want only ok.csv", f.ingest.n())
+	if f.ingest.n() != 1 || f2.ingest.n() != 0 {
+		t.Fatalf("ingested %d and %d, want only ok.csv", f.ingest.n(), f2.ingest.n())
 	}
 }
 
