@@ -18,9 +18,21 @@ const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04]
 const base = "http://tramo.invalid";
 function safeBack(back: string | undefined, role: Session["role"]) {
   if (!back || !back.startsWith("/")) return homeFor(role);
+  // Decode the path part (not the query, whose escapes carry meaning) until it stops changing,
+  // so "..%2f" or "%252e%252e" become real dot segments before the URL parser resolves them.
+  const cut = back.search(/[?#]/);
+  let path = cut < 0 ? back : back.slice(0, cut);
+  const rest = cut < 0 ? "" : back.slice(cut);
   let u: URL;
   try {
-    u = new URL(back, base);
+    for (let i = 0; ; i++) {
+      const next = decodeURIComponent(path);
+      if (next === path) break;
+      if (i === 3) return homeFor(role);
+      path = next;
+    }
+    if (!path.startsWith("/")) return homeFor(role);
+    u = new URL(path + rest, base);
   } catch {
     return homeFor(role);
   }
