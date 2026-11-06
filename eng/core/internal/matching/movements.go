@@ -310,7 +310,8 @@ type OpenItem struct {
 	InvoiceID  *uuid.UUID
 }
 
-// OpenItems lists the items no match in effect settles, oldest first: what
+// OpenItems lists the items no match in effect settles, oldest first and
+// then by source id, so the list always comes in the same order: what
 // "link by hand" offers. period (YYYY-MM) keeps the items dated in that
 // month, "" all; direction "in" keeps positive amounts, "out" negative, ""
 // both. Up to limit rows; the bool says there were more.
@@ -323,7 +324,7 @@ func (s *PGStore) OpenItems(ctx context.Context, period, direction string, limit
 			 where not exists (select 1 from matching.matches m where i.id = any(m.item_ids) and `+matchInEffect+`)
 			   and ($1 = '' or to_char(i.date, 'YYYY-MM') = $1)
 			   and ($2 = '' or ($2 = 'in' and i.amount > 0) or ($2 = 'out' and i.amount < 0))
-			 order by i.date, i.id
+			 order by i.date, i.source_id, i.id
 			 limit $3`, period, direction, limit+1)
 		if err != nil {
 			return err

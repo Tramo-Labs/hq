@@ -566,8 +566,8 @@ func (e pgEnv) operatorQueue(t *testing.T) map[string]PendingRow {
 	return e.pendingIDs(t, Suggested)
 }
 
-// openSources lists the source ids of the open items for the filters,
-// sorted: items of the same date come in id order, which is random.
+// openSources lists the source ids of the open items for the filters, in
+// the order the list gives them (date, then source id).
 func (e pgEnv) openSources(t *testing.T, ctx context.Context, period, direction string) []string {
 	t.Helper()
 	items, _, err := e.store.OpenItems(ctx, period, direction, 100)
@@ -578,7 +578,6 @@ func (e pgEnv) openSources(t *testing.T, ctx context.Context, period, direction 
 	for _, it := range items {
 		out = append(out, it.SourceID)
 	}
-	slices.Sort(out)
 	return out
 }
 
@@ -597,7 +596,7 @@ func TestPGOpenItems(t *testing.T) {
 		{SourceID: "ND-1", Kind: "payable", Date: day(2), Amount: -850000, Confidence: 1}}); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"FC-A-2", "ND-1"}) {
+	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"ND-1", "FC-A-2"}) {
 		t.Errorf("after the run: %v", got)
 	}
 	if got := e.openSources(t, e.ctx, "", "in"); !slices.Equal(got, []string{"FC-A-2"}) {
@@ -624,7 +623,7 @@ func TestPGOpenItems(t *testing.T) {
 	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementRevert, ""); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"FC-A-2", "ND-1"}) {
+	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"ND-1", "FC-A-2"}) {
 		t.Errorf("after reverting the link: %v", got)
 	}
 
