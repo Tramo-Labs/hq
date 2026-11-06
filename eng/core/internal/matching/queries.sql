@@ -31,9 +31,18 @@ on conflict (tenant_id, source, source_id) do update set kind = excluded.kind, d
 -- Items no match in effect settles, oldest first then by source id. period
 -- YYYY-MM keeps the items dated in that month (empty: all); direction "in"
 -- keeps positive amounts, "out" negative (empty: both).
+-- The settled items are unnested and read as one "not in" list, which
+-- Postgres builds once as a hash in every plan. Measured on the benchmark:
+-- "i.id = any(item_ids)" compared every item with every match (0.8 s, 2 to
+-- 5 s with the generic plan a prepared statement gets after five runs);
+-- "not exists" on the unnested ids was fast with a custom plan and 7 to 9 s
+-- with the generic one. Nulls are left out of the list: one null would make
+-- "not in" keep no item at all.
 select i.id, i.source, i.source_id, i.kind, i.date, i.due, i.amount, i.refs, i.party, i.confidence, i.invoice_id
   from matching.items i
- where not exists (select 1 from matching.matches_in_effect m where i.id = any(m.item_ids))
+ where i.id not in (select settled.item_id
+                      from matching.matches_in_effect m cross join lateral unnest(m.item_ids) as settled(item_id)
+                     where settled.item_id is not null)
    and (sqlc.arg(period)::text = '' or to_char(i.date, 'YYYY-MM') = sqlc.arg(period)::text)
    and (sqlc.arg(direction)::text = ''
         or (sqlc.arg(direction)::text = 'in' and i.amount > 0)

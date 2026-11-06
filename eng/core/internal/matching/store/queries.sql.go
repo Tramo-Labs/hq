@@ -774,7 +774,9 @@ func (q *Queries) OpenExceptionMovements(ctx context.Context, period string) (Op
 const openItems = `-- name: OpenItems :many
 select i.id, i.source, i.source_id, i.kind, i.date, i.due, i.amount, i.refs, i.party, i.confidence, i.invoice_id
   from matching.items i
- where not exists (select 1 from matching.matches_in_effect m where i.id = any(m.item_ids))
+ where i.id not in (select settled.item_id
+                      from matching.matches_in_effect m cross join lateral unnest(m.item_ids) as settled(item_id)
+                     where settled.item_id is not null)
    and ($1::text = '' or to_char(i.date, 'YYYY-MM') = $1::text)
    and ($2::text = ''
         or ($2::text = 'in' and i.amount > 0)
@@ -806,6 +808,13 @@ type OpenItemsRow struct {
 // Items no match in effect settles, oldest first then by source id. period
 // YYYY-MM keeps the items dated in that month (empty: all); direction "in"
 // keeps positive amounts, "out" negative (empty: both).
+// The settled items are unnested and read as one "not in" list, which
+// Postgres builds once as a hash in every plan. Measured on the benchmark:
+// "i.id = any(item_ids)" compared every item with every match (0.8 s, 2 to
+// 5 s with the generic plan a prepared statement gets after five runs);
+// "not exists" on the unnested ids was fast with a custom plan and 7 to 9 s
+// with the generic one. Nulls are left out of the list: one null would make
+// "not in" keep no item at all.
 func (q *Queries) OpenItems(ctx context.Context, arg OpenItemsParams) ([]OpenItemsRow, error) {
 	rows, err := q.db.Query(ctx, openItems, arg.Period, arg.Direction, arg.MaxRows)
 	if err != nil {

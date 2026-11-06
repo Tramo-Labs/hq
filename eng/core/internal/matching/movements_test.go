@@ -868,3 +868,28 @@ func TestPGOpenItems(t *testing.T) {
 		t.Errorf("same date ties: %v; want by source id", got)
 	}
 }
+
+// Open items read the settled ids as a "not in" list (performance). A null
+// inside a match's item ids must not empty the list: "not in" with a null
+// keeps nothing, so the query leaves nulls out.
+func TestPGOpenItemsIgnoreANullItemID(t *testing.T) {
+	e := newPGEnv(t)
+	e.run(t)
+	if _, err := e.store.UpsertItems(e.ctx, "erp", []ItemIn{
+		{SourceID: "ND-1", Kind: "payable", Date: day(2), Amount: -850000, Confidence: 1}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.d.InTenant(e.ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(e.ctx, `
+			insert into matching.matches (tenant_id, id, run_id, rule_id, rule_version, tray, movement_ids, item_ids, evidence)
+			select app_current_tenant(), 'null-inside', (select id from matching.runs limit 1), 'test', 1, 'auto', '{}',
+			       array[null, (select id from matching.items where source_id = 'ND-1')]::uuid[], '{}'`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// ND-1 is settled by the new automatic match; FC-A-2 stays open.
+	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"FC-A-2"}) {
+		t.Errorf("with a null item id in a match: %v; want [FC-A-2]", got)
+	}
+}
