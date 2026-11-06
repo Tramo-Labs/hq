@@ -142,12 +142,20 @@ func (q *Queries) DeleteStaleMagicLinkRequests(ctx context.Context) (int64, erro
 }
 
 const ensureUser = `-- name: EnsureUser :one
-insert into users (email) values ($1)
-on conflict (email) do update set email = excluded.email
-returning id
+with created as (
+  insert into users (email) values ($1)
+  on conflict (email) do nothing
+  returning id
+)
+select id from created
+union all
+select id from users where email = $1 and not exists (select 1 from created)
+limit 1
 `
 
-// Creates a user without password (magic link later) or returns the existing one.
+// Creates a user without password (magic link later) or returns the
+// existing one. Never updates an existing row: a tenant adding a member
+// must not write that person's account (F25).
 func (q *Queries) EnsureUser(ctx context.Context, email string) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, ensureUser, email)
 	var id uuid.UUID

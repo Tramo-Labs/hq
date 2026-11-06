@@ -54,7 +54,7 @@ func (MagicLinkArgs) InsertOpts() river.InsertOpts {
 // either way (D-17). The job sends the link if there is an account and
 // does nothing otherwise. A request whose enqueue failed is purged daily.
 func (s *Service) RequestMagicLink(ctx context.Context, email string, tenant *uuid.UUID) error {
-	email = strings.TrimSpace(email)
+	email = strings.ToLower(strings.TrimSpace(email))
 	if err := s.checkMagicLinkRequest(ctx, email); err != nil {
 		return err
 	}

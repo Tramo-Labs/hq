@@ -157,7 +157,7 @@ type Session struct {
 // Login checks the password and opens a session (new refresh family) on
 // tenant, or on the oldest membership when tenant is nil.
 func (s *Service) Login(ctx context.Context, email, password string, tenant *uuid.UUID) (Session, error) {
-	email = strings.TrimSpace(email)
+	email = strings.ToLower(strings.TrimSpace(email))
 	if err := s.checkLogin(ctx, email); err != nil {
 		return Session{}, err
 	}
@@ -615,9 +615,13 @@ func validRole(r string) bool {
 	return false
 }
 
+// normalizeEmail trims and lowercases an email, so one person is one
+// account whatever the case typed (F25). Every input that takes an email
+// goes through here.
 func normalizeEmail(s string) (string, error) {
-	a, err := mail.ParseAddress(strings.TrimSpace(s))
-	if err != nil || a.Name != "" || a.Address != strings.TrimSpace(s) {
+	s = strings.ToLower(strings.TrimSpace(s))
+	a, err := mail.ParseAddress(s)
+	if err != nil || a.Name != "" || a.Address != s {
 		return "", ErrInvalidEmail
 	}
 	return a.Address, nil

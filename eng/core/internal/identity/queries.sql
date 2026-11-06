@@ -20,10 +20,18 @@ update users set display_name = $2 where id = $1;
 update users set display_name = $2 where id = $1 and display_name is null;
 
 -- name: EnsureUser :one
--- Creates a user without password (magic link later) or returns the existing one.
-insert into users (email) values ($1)
-on conflict (email) do update set email = excluded.email
-returning id;
+-- Creates a user without password (magic link later) or returns the
+-- existing one. Never updates an existing row: a tenant adding a member
+-- must not write that person's account (F25).
+with created as (
+  insert into users (email) values ($1)
+  on conflict (email) do nothing
+  returning id
+)
+select id from created
+union all
+select id from users where email = $1 and not exists (select 1 from created)
+limit 1;
 
 -- name: CreateTenant :one
 insert into tenants (slug, name, cuit) values ($1, $2, $3) returning id;
