@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { app } from "@/content/app";
 import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, previewInvite, whoIsIn, type Session } from "@/lib/api";
 import { acceptStep, inviteStep, needsPreview, offersAccept, passwordProblem, previewFailed, type InviteStage, type PreviewState } from "@/components/app/invite-rules";
-import { tokenProblem } from "@/components/app/token-rules";
+import { tokenInFragment, tokenProblem, watchTokenFragment } from "@/components/app/token-rules";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
 const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none";
@@ -17,9 +17,20 @@ const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04]
  * anything else, so it does not linger in the URL, in a screenshot or in a later share.
  */
 export function readFragmentToken() {
-  const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
+  const token = tokenInFragment(window.location.hash);
   if (window.location.hash) window.history.replaceState(null, "", window.location.pathname);
   return token;
+}
+
+/**
+ * F39: a second emailed link opened in the same tab changes only the fragment, which does not
+ * mount the page again. Its children start over (a fresh mount: read and wipe the new token,
+ * ask again) each time the fragment brings a token.
+ */
+export function FreshPerLink({ children }: { children: ReactNode }) {
+  const [link, setLink] = useState(0);
+  useEffect(() => watchTokenFragment(window, () => window.location.hash, () => setLink((n) => n + 1)), []);
+  return <Fragment key={link}>{children}</Fragment>;
 }
 
 /** Errors shared by the pages that take an emailed token. */

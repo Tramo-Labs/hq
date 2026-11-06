@@ -2,7 +2,39 @@
 // invitation still pending. The message must be true in both cases.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tokenProblem } from "./token-rules";
+import { tokenInFragment, tokenProblem, watchTokenFragment } from "./token-rules";
+
+test("the token is read from the fragment, and only from a token parameter", () => {
+  assert.equal(tokenInFragment("#token=abc"), "abc");
+  assert.equal(tokenInFragment("token=abc"), "abc");
+  assert.equal(tokenInFragment("#x=1&token=abc"), "abc");
+  assert.equal(tokenInFragment(""), null);
+  assert.equal(tokenInFragment("#token="), null);
+  assert.equal(tokenInFragment("#seccion"), null);
+});
+
+test("a second link in the same tab starts the page over; other fragment changes do not (F39)", () => {
+  const tab = new EventTarget();
+  let hash = "";
+  let fresh = 0;
+  const stop = watchTokenFragment(tab, () => hash, () => fresh++);
+  hash = "#token=second";
+  tab.dispatchEvent(new Event("hashchange"));
+  assert.equal(fresh, 1, "a new link starts over");
+  hash = "#seccion";
+  tab.dispatchEvent(new Event("hashchange"));
+  hash = "";
+  tab.dispatchEvent(new Event("hashchange"));
+  assert.equal(fresh, 1, "a fragment without a token changes nothing");
+  hash = "#token=third";
+  tab.dispatchEvent(new Event("popstate"));
+  assert.equal(fresh, 1, "only the fragment change counts");
+  tab.dispatchEvent(new Event("hashchange"));
+  assert.equal(fresh, 2);
+  stop();
+  tab.dispatchEvent(new Event("hashchange"));
+  assert.equal(fresh, 2, "after unmount it stops listening");
+});
 import { ApiError } from "../../lib/api/errors";
 import { app } from "../../content/app";
 

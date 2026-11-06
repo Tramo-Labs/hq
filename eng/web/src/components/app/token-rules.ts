@@ -2,6 +2,27 @@
 // so node --test can check it without rendering React.
 import { ApiError } from "../../lib/api/errors";
 
+/** The token of an emailed link, from the URL fragment ("#token=…"), or null. */
+export function tokenInFragment(hash: string): string | null {
+  return new URLSearchParams(hash.replace(/^#/, "")).get("token") || null;
+}
+
+/**
+ * F39: opening a second link in the same tab changes only the fragment, so the page is not
+ * mounted again and would keep the first link's state with the new token left in the address
+ * bar. This calls onNewLink whenever the fragment changes to one that carries a token, so the
+ * page can start over (read and wipe the token, ask again). Returns the unsubscribe.
+ */
+export function watchTokenFragment(
+  target: Pick<EventTarget, "addEventListener" | "removeEventListener">,
+  readHash: () => string,
+  onNewLink: () => void,
+) {
+  const changed = () => { if (tokenInFragment(readHash())) onNewLink(); };
+  target.addEventListener("hashchange", changed);
+  return () => target.removeEventListener("hashchange", changed);
+}
+
 export type TokenProblem = "invalid" | "not_member" | "rate_limited" | "offline" | "failed";
 
 /**

@@ -135,6 +135,11 @@ nobody is in (it shares the per-IP cap with accept and does not spend the token)
 only after the preview answered; a dead link (401, 403) shows its message and a way to /entrar,
 a passing problem (429, offline) a retry. Sample mode answers 401, like its accept.
 
+A second emailed link opened in the same tab changes only the fragment, which does not mount the
+page again (F39). /invitacion and /ingresar wrap their content in FreshPerLink, which listens to
+hashchange and mounts it afresh when the new fragment carries a token: the new token is read and
+wiped from the address bar, and everything is asked again (who is in, the preview).
+
 Miembros (`/app/miembros`, owner only, spec §1, D-19): who has access and who is invited, apart;
 invite by email with the roles the core lets an owner give (owner, approver, viewer, accountant;
 never operator); remove an active person or cancel a pending invitation, each after a
