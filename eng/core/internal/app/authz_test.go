@@ -175,11 +175,13 @@ func TestGrantRules(t *testing.T) {
 		}
 	}
 
-	// An operator on a tenant left without owner grants the first owner,
-	// and only one.
-	if _, err := deps.DB.Pool.Exec(context.Background(),
-		`delete from memberships where tenant_id = $1 and role = 'owner'`, who["owner"].tenant); err != nil {
-		t.Fatal(err)
+	// An operator on a tenant left without owner, active or pending,
+	// invites the first owner, and only one.
+	for _, table := range []string{"memberships", "pending_memberships"} {
+		if _, err := deps.DB.Pool.Exec(context.Background(),
+			`delete from `+table+` where tenant_id = $1 and role = 'owner'`, who["owner"].tenant); err != nil {
+			t.Fatal(err)
+		}
 	}
 	op := who["operator"].access
 	for _, role := range []string{"approver", "viewer", "accountant", "operator"} {
@@ -193,9 +195,20 @@ func TestGrantRules(t *testing.T) {
 	if r := c.do("POST", "/v1/tenant/members", op, map[string]any{"email": "second-owner@f7.test", "role": "owner"}, idem()...); r.status != 403 {
 		t.Fatalf("operator grants a second owner: %d %s", r.status, r.raw)
 	}
+	// Inviting the same first owner again is a fresh invitation; once they
+	// accept, the operator grants nothing more.
+	if r := c.do("POST", "/v1/tenant/members", op, map[string]any{"email": "first-owner@f7.test", "role": "owner"}, idem()...); r.status != 201 {
+		t.Fatalf("operator invites the first owner again: %d %s", r.status, r.raw)
+	}
+	if r := c.join("first-owner@f7.test", map[string]any{"password": "a long enough password"}); r.status != 200 || r.str("role") != "owner" {
+		t.Fatalf("first owner accepts: %d %s", r.status, r.raw)
+	}
+	if r := c.do("POST", "/v1/tenant/members", op, map[string]any{"email": "second-owner@f7.test", "role": "owner"}, idem()...); r.status != 403 {
+		t.Fatalf("operator grants an owner after the first: %d %s", r.status, r.raw)
+	}
 }
 
-// Two operators granting the first owner at once: exactly one gets it.
+// Two operators inviting the first owner at once: exactly one invitation.
 func TestOperatorsRacingForTheFirstOwner(t *testing.T) {
 	deps := newDeps(t)
 	c := client{t, serve(t, deps)}
@@ -203,9 +216,11 @@ func TestOperatorsRacingForTheFirstOwner(t *testing.T) {
 	op1 := c.grant(deps, own.tenant, "op1-race", "op1@race.test", "operator")
 	op2 := c.grant(deps, own.tenant, "op2-race", "op2@race.test", "operator")
 	for i := 0; i < 10; i++ {
-		if _, err := deps.DB.Pool.Exec(context.Background(),
-			`delete from memberships where tenant_id = $1 and role = 'owner'`, own.tenant); err != nil {
-			t.Fatal(err)
+		for _, table := range []string{"memberships", "pending_memberships"} {
+			if _, err := deps.DB.Pool.Exec(context.Background(),
+				`delete from `+table+` where tenant_id = $1 and role = 'owner'`, own.tenant); err != nil {
+				t.Fatal(err)
+			}
 		}
 		var wg sync.WaitGroup
 		status := make([]int, 2)
@@ -220,7 +235,7 @@ func TestOperatorsRacingForTheFirstOwner(t *testing.T) {
 		wg.Wait()
 		var owners int
 		if err := deps.DB.Pool.QueryRow(context.Background(),
-			`select count(*) from memberships where tenant_id = $1 and role = 'owner'`, own.tenant).Scan(&owners); err != nil {
+			`select count(*) from pending_memberships where tenant_id = $1 and role = 'owner'`, own.tenant).Scan(&owners); err != nil {
 			t.Fatal(err)
 		}
 		if owners != 1 || status[0]+status[1] != 201+403 {

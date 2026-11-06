@@ -94,7 +94,7 @@ func (h *Handlers) Login(ctx context.Context, req apigen.LoginRequestObject) (ap
 	return apigen.Login200JSONResponse{TokensJSONResponse: tokens(sess, b.TokenDelivery)}, nil
 }
 
-// AcceptInvite sets the password with an invitation and opens a session.
+// AcceptInvite accepts an invitation and opens a session.
 func (h *Handlers) AcceptInvite(ctx context.Context, req apigen.AcceptInviteRequestObject) (apigen.AcceptInviteResponseObject, error) {
 	password := ""
 	if req.Body.Password != nil {
@@ -201,9 +201,17 @@ func (h *Handlers) ListMembers(ctx context.Context, _ apigen.ListMembersRequestO
 	}
 	out := apigen.ListMembers200JSONResponse{Items: make([]apigen.Member, 0, len(rows))}
 	for _, m := range rows {
-		out.Items = append(out.Items, apigen.Member{UserId: m.ID, Email: m.Email, Name: m.DisplayName, Role: apigen.Role(m.Role), Status: apigen.Active})
+		out.Items = append(out.Items, memberOut(m))
 	}
 	return out, nil
+}
+
+func memberOut(m Member) apigen.Member {
+	status := apigen.Active
+	if m.Pending {
+		status = apigen.Pending
+	}
+	return apigen.Member{UserId: m.ID, Email: m.Email, Name: m.DisplayName, Role: apigen.Role(m.Role), Status: status}
 }
 
 // AddMember adds a person to the active tenant.
@@ -213,7 +221,7 @@ func (h *Handlers) AddMember(ctx context.Context, req apigen.AddMemberRequestObj
 	if err != nil {
 		return nil, problem(err)
 	}
-	return apigen.AddMember201JSONResponse{UserId: m.ID, Email: m.Email, Role: apigen.Role(m.Role), Status: apigen.Active}, nil
+	return apigen.AddMember201JSONResponse(memberOut(m)), nil
 }
 
 // RemoveMember takes a person out of the active tenant.
@@ -286,6 +294,7 @@ func problem(err error) error {
 		ErrMemberNotFound:     {http.StatusNotFound, httpx.CodeNotFound},
 		ErrLastOwner:          {http.StatusConflict, "last_owner"},
 		ErrInvalidInvite:      {http.StatusUnauthorized, "invalid_invite"},
+		ErrPasswordRequired:   {http.StatusBadRequest, "password_required"},
 		ErrInvalidName:        {http.StatusBadRequest, "invalid_name"},
 		ErrInvalidTenantName:  {http.StatusBadRequest, "invalid_tenant_name"},
 		ErrMagicLinkRequired:  {http.StatusUnauthorized, "magic_link_required"},

@@ -21,25 +21,27 @@ import (
 const InviteTTL = 72 * time.Hour
 
 // ErrInvalidInvite answers every invitation that can not be used: unknown,
-// used, revoked, expired, or for a person who already has a password. One
-// answer for all, so the endpoint tells nothing about which.
+// used, revoked or expired. One answer for all, so the endpoint tells
+// nothing about which.
 var ErrInvalidInvite = errors.New("invalid or expired invitation")
 
-// inviteIfNoPassword sends an invitation to a member who has no password
-// yet. The token goes only into the email: never in a response, a log or
-// the audit log. A new invitation revokes the person's earlier unused
-// ones. A delivery failure is logged; the membership stays.
-func (s *Service) inviteIfNoPassword(ctx context.Context, p Principal, user uuid.UUID, email, role string) error {
+// invite mails the invitation to a pending member, with or without an
+// account (D-19). The token goes only into the email: never in a response,
+// a log or the audit log. It revokes the person's earlier unused
+// invitations to this tenant only: one from another tenant stays valid. A
+// delivery failure is logged; the pending membership stays, and adding the
+// person again sends a new invitation.
+func (s *Service) invite(ctx context.Context, p Principal, user uuid.UUID, email, role string) error {
 	token, hash, err := newRefreshToken()
 	if err != nil {
 		return err
 	}
-	var invited bool
+	var hasPassword bool
 	var tenantName string
 	err = s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
-		has, err := q.GetUserPasswordSet(ctx, user)
-		if err != nil || has {
+		var err error
+		if hasPassword, err = q.GetUserPasswordSet(ctx, user); err != nil {
 			return err
 		}
 		t, err := q.GetTenant(ctx, p.TenantID)
@@ -47,7 +49,7 @@ func (s *Service) inviteIfNoPassword(ctx context.Context, p Principal, user uuid
 			return err
 		}
 		tenantName = t.Name
-		if _, err := q.RevokeOpenInvites(ctx, user); err != nil {
+		if _, err := q.RevokeOpenTenantInvites(ctx, store.RevokeOpenTenantInvitesParams{UserID: user, TenantID: p.TenantID}); err != nil {
 			return err
 		}
 		inviter := p.UserID
@@ -55,56 +57,59 @@ func (s *Service) inviteIfNoPassword(ctx context.Context, p Principal, user uuid
 			TokenHash: hash, ExpiresAt: s.now().Add(InviteTTL)}); err != nil {
 			return err
 		}
-		invited = true
 		return audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_created", Subject: "users:" + user.String(),
 			TenantID: p.TenantID, UserID: p.UserID, Detail: map[string]any{"role": role}})
 	})
-	if err != nil || !invited {
+	if err != nil {
 		return err
 	}
 	if s.Mailer == nil {
 		httpx.Logger(ctx).Warn("invitation not delivered: no mail transport configured", "user", user)
 		return nil
 	}
-	if err := s.Mailer.Send(ctx, inviteMessage(s.AppBaseURL, email, tenantName, role, token)); err != nil {
+	if err := s.Mailer.Send(ctx, inviteMessage(s.AppBaseURL, email, tenantName, role, token, hasPassword)); err != nil {
 		httpx.Logger(ctx).Error("invitation not delivered", "user", user, "err", err)
 	}
 	return nil
 }
 
-// inviteMessage is the invitation email.
+// inviteMessage is the invitation email. A person with an account only
+// accepts; one without also sets a password.
 //
 // DRAFT COPY, English, for producto to rewrite (and translate to Spanish
 // with voseo) before any real email goes out.
-func inviteMessage(base, to, tenantName, role, token string) mail.Message {
+func inviteMessage(base, to, tenantName, role, token string, hasPassword bool) mail.Message {
 	// The token rides in the URL fragment: browsers do not send it to any
 	// server, so it never lands in access logs or Referer headers.
 	link := strings.TrimRight(base, "/") + "/invitacion#token=" + token
+	action := "Set your password and join here"
+	if hasPassword {
+		action = "Accept here, with your account"
+	}
 	return mail.Message{
 		To:      to,
 		Subject: "Your invitation",
-		Body: fmt.Sprintf("You were added to %s as %s.\n\n"+
-			"Set your password here. The link works once and expires in 72 hours:\n%s\n\n"+
-			"If you did not expect this email, ignore it.", tenantName, role, link),
+		Body: fmt.Sprintf("You were invited to %s as %s. You are not in until you accept.\n\n"+
+			"%s. The link works once and expires in 72 hours:\n%s\n\n"+
+			"If you did not expect this email, ignore it.", tenantName, role, action, link),
 	}
 }
 
-// AcceptInvite sets the password of the invited person and opens a session
-// on the inviting tenant (or, if that membership was removed meanwhile, on
-// their oldest one). Any token that can not be used answers
-// ErrInvalidInvite and the attempt is audited.
+// AcceptInvite turns the pending membership into a membership and opens a
+// session on that tenant. A person without a password sets one here
+// (ErrPasswordRequired without it, leaving the invitation usable); one
+// with an account does not, and their password is never changed. An
+// invitation whose pending membership was removed answers ErrNotAMember
+// and writes nothing (F29). Any token that can not be used answers
+// ErrInvalidInvite. Every refusal is audited.
 func (s *Service) AcceptInvite(ctx context.Context, token, password string, name *string) (Session, error) {
 	if err := s.checkInvite(ctx); err != nil {
 		return Session{}, err
 	}
-	if n := len(password); n < MinPassword || n > MaxPassword {
+	if n := len(password); n > 0 && (n < MinPassword || n > MaxPassword) {
 		return Session{}, ErrInvalidInvite
 	}
 	displayName, err := optionalName(name)
-	if err != nil {
-		return Session{}, err
-	}
-	hash, err := HashPassword(s.Argon, password)
 	if err != nil {
 		return Session{}, err
 	}
@@ -112,14 +117,14 @@ func (s *Service) AcceptInvite(ctx context.Context, token, password string, name
 	var outcome error
 	err = s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
-		reject := func(subject string, tenant uuid.UUID, reason string) error {
-			outcome = ErrInvalidInvite
+		reject := func(subject string, tenant uuid.UUID, reason string, answer error) error {
+			outcome = answer
 			return audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_rejected", Subject: subject, TenantID: tenant,
 				Detail: map[string]any{"reason": reason}})
 		}
 		inv, err := q.GetInviteForUpdate(ctx, hashRefresh(token))
 		if errors.Is(err, pgx.ErrNoRows) {
-			return reject("invites:unknown", uuid.Nil, "unknown")
+			return reject("invites:unknown", uuid.Nil, "unknown", ErrInvalidInvite)
 		}
 		if err != nil {
 			return err
@@ -127,37 +132,61 @@ func (s *Service) AcceptInvite(ctx context.Context, token, password string, name
 		subject := "invites:" + inv.ID.String()
 		switch {
 		case inv.UsedAt != nil:
-			return reject(subject, inv.TenantID, "used")
+			return reject(subject, inv.TenantID, "used", ErrInvalidInvite)
 		case inv.RevokedAt != nil:
-			return reject(subject, inv.TenantID, "revoked")
+			return reject(subject, inv.TenantID, "revoked", ErrInvalidInvite)
 		case !s.now().Before(inv.ExpiresAt):
-			return reject(subject, inv.TenantID, "expired")
+			return reject(subject, inv.TenantID, "expired", ErrInvalidInvite)
 		}
-		// Still a member of the inviting tenant? Checked before anything is
-		// written: a person removed before getting in must not end up with a
-		// password (F29). Re-adding them sends a new invitation.
-		if _, err := q.GetMembershipRole(ctx, store.GetMembershipRoleParams{UserID: inv.UserID, TenantID: inv.TenantID}); errors.Is(err, pgx.ErrNoRows) {
-			if err := reject(subject, inv.TenantID, "no membership"); err != nil {
+		// Everything is checked before anything is written: a refusal
+		// leaves no password and no membership behind (F29).
+		role, err := q.GetPendingMembershipForUpdate(ctx, store.GetPendingMembershipForUpdateParams{TenantID: inv.TenantID, UserID: inv.UserID})
+		pending := err == nil
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if !pending {
+			// An invitation mailed before D-19 came with the membership
+			// already active; any other is for a removed person.
+			if _, err := q.GetMembershipRole(ctx, store.GetMembershipRoleParams{UserID: inv.UserID, TenantID: inv.TenantID}); errors.Is(err, pgx.ErrNoRows) {
+				return reject(subject, inv.TenantID, "no membership", ErrNotAMember)
+			} else if err != nil {
 				return err
 			}
-			outcome = ErrNotAMember
-			return nil
-		} else if err != nil {
+		}
+		hasPassword, err := q.GetUserPasswordSet(ctx, inv.UserID)
+		if err != nil {
 			return err
+		}
+		if !hasPassword && password == "" {
+			return reject(subject, inv.TenantID, "password required", ErrPasswordRequired)
+		}
+		if !pending && hasPassword {
+			return reject(subject, inv.TenantID, "password already set", ErrInvalidInvite)
 		}
 		if err := q.MarkInviteUsed(ctx, inv.ID); err != nil {
 			return err
 		}
-		n, err := q.SetPasswordIfUnset(ctx, store.SetPasswordIfUnsetParams{ID: inv.UserID, PasswordHash: &hash})
-		if err != nil {
-			return err
+		if !hasPassword {
+			hash, err := HashPassword(s.Argon, password)
+			if err != nil {
+				return err
+			}
+			if _, err := q.SetPasswordIfUnset(ctx, store.SetPasswordIfUnsetParams{ID: inv.UserID, PasswordHash: &hash}); err != nil {
+				return err
+			}
+			// The name given here, by the person, if they have none yet.
+			if displayName != nil {
+				if err := q.SetUserNameIfUnset(ctx, store.SetUserNameIfUnsetParams{ID: inv.UserID, DisplayName: displayName}); err != nil {
+					return err
+				}
+			}
 		}
-		if n == 0 {
-			return reject(subject, inv.TenantID, "password already set")
-		}
-		// The name given here, if the person has none yet.
-		if displayName != nil {
-			if err := q.SetUserNameIfUnset(ctx, store.SetUserNameIfUnsetParams{ID: inv.UserID, DisplayName: displayName}); err != nil {
+		if pending {
+			if _, err := q.DeletePendingMembership(ctx, store.DeletePendingMembershipParams{TenantID: inv.TenantID, UserID: inv.UserID}); err != nil {
+				return err
+			}
+			if err := q.CreateMembership(ctx, store.CreateMembershipParams{UserID: inv.UserID, TenantID: inv.TenantID, Role: role}); err != nil {
 				return err
 			}
 		}
@@ -166,13 +195,6 @@ func (s *Service) AcceptInvite(ctx context.Context, token, password string, name
 			return err
 		}
 		p, err := s.pickTenant(ctx, q, inv.UserID, &inv.TenantID)
-		if errors.Is(err, ErrNotAMember) {
-			p, err = s.pickTenant(ctx, q, inv.UserID, nil)
-		}
-		if errors.Is(err, ErrNotAMember) {
-			outcome = ErrNotAMember // the password is set; no tenant to enter
-			return nil
-		}
 		if err != nil {
 			return err
 		}

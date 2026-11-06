@@ -290,6 +290,9 @@ func TestFilesAndMovementsLists(t *testing.T) {
 	if r := c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": viewer.email, "role": "viewer"}, idem()...); r.status != 201 {
 		t.Fatalf("add viewer: %d %s", r.status, r.raw)
 	}
+	if r := c.join(viewer.email, nil); r.status != 200 {
+		t.Fatalf("viewer accepts: %d %s", r.status, r.raw)
+	}
 	l := c.do("POST", "/v1/auth/login", "", map[string]any{"email": viewer.email, "password": viewer.password,
 		"tenantId": own.tenant, "tokenDelivery": "body"})
 	if l.status != 200 || l.str("role") != "viewer" {

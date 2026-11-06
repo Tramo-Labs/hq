@@ -23,6 +23,17 @@ func (q *Queries) CountOwners(ctx context.Context, tenantID uuid.UUID) (int64, e
 	return count, err
 }
 
+const countPendingOwners = `-- name: CountPendingOwners :one
+select count(*) from pending_memberships where tenant_id = $1 and role = 'owner'
+`
+
+func (q *Queries) CountPendingOwners(ctx context.Context, tenantID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countPendingOwners, tenantID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createMembership = `-- name: CreateMembership :exec
 insert into memberships (user_id, tenant_id, role) values ($1, $2, $3)
 `
@@ -129,6 +140,23 @@ func (q *Queries) DeleteMembership(ctx context.Context, arg DeleteMembershipPara
 	return role, err
 }
 
+const deletePendingMembership = `-- name: DeletePendingMembership :execrows
+delete from pending_memberships where tenant_id = $1 and user_id = $2
+`
+
+type DeletePendingMembershipParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}
+
+func (q *Queries) DeletePendingMembership(ctx context.Context, arg DeletePendingMembershipParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePendingMembership, arg.TenantID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteStaleMagicLinkRequests = `-- name: DeleteStaleMagicLinkRequests :execrows
 delete from magic_link_requests where created_at < now() - interval '1 day'
 `
@@ -230,6 +258,22 @@ type GetMembershipRoleParams struct {
 
 func (q *Queries) GetMembershipRole(ctx context.Context, arg GetMembershipRoleParams) (Role, error) {
 	row := q.db.QueryRow(ctx, getMembershipRole, arg.UserID, arg.TenantID)
+	var role Role
+	err := row.Scan(&role)
+	return role, err
+}
+
+const getPendingMembershipForUpdate = `-- name: GetPendingMembershipForUpdate :one
+select role from pending_memberships where tenant_id = $1 and user_id = $2 for update
+`
+
+type GetPendingMembershipForUpdateParams struct {
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}
+
+func (q *Queries) GetPendingMembershipForUpdate(ctx context.Context, arg GetPendingMembershipForUpdateParams) (Role, error) {
+	row := q.db.QueryRow(ctx, getPendingMembershipForUpdate, arg.TenantID, arg.UserID)
 	var role Role
 	err := row.Scan(&role)
 	return role, err
@@ -504,6 +548,36 @@ func (q *Queries) ListMembershipsForUser(ctx context.Context, userID uuid.UUID) 
 	return items, nil
 }
 
+const listPendingMembers = `-- name: ListPendingMembers :many
+select user_id, email, role from pending_memberships where tenant_id = $1 order by email
+`
+
+type ListPendingMembersRow struct {
+	UserID uuid.UUID
+	Email  string
+	Role   Role
+}
+
+func (q *Queries) ListPendingMembers(ctx context.Context, tenantID uuid.UUID) ([]ListPendingMembersRow, error) {
+	rows, err := q.db.Query(ctx, listPendingMembers, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPendingMembersRow
+	for rows.Next() {
+		var i ListPendingMembersRow
+		if err := rows.Scan(&i.UserID, &i.Email, &i.Role); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTenantIDs = `-- name: ListTenantIDs :many
 select id from tenants order by created_at, id
 `
@@ -587,6 +661,25 @@ where user_id = $1 and used_at is null and revoked_at is null
 
 func (q *Queries) RevokeOpenInvites(ctx context.Context, userID uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, revokeOpenInvites, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeOpenTenantInvites = `-- name: RevokeOpenTenantInvites :execrows
+update invites set revoked_at = now()
+where user_id = $1 and tenant_id = $2 and used_at is null and revoked_at is null
+`
+
+type RevokeOpenTenantInvitesParams struct {
+	UserID   uuid.UUID
+	TenantID uuid.UUID
+}
+
+// Only this tenant's: an invitation from another tenant stays valid.
+func (q *Queries) RevokeOpenTenantInvites(ctx context.Context, arg RevokeOpenTenantInvitesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeOpenTenantInvites, arg.UserID, arg.TenantID)
 	if err != nil {
 		return 0, err
 	}
@@ -680,4 +773,31 @@ func (q *Queries) TakeMagicLinkRequest(ctx context.Context, id uuid.UUID) (TakeM
 		&i.Ip,
 	)
 	return i, err
+}
+
+const upsertPendingMembership = `-- name: UpsertPendingMembership :exec
+insert into pending_memberships (tenant_id, user_id, email, role, invited_by)
+values ($1, $2, $3, $4, $5)
+on conflict (tenant_id, user_id) do update
+  set role = excluded.role, invited_by = excluded.invited_by, created_at = now()
+`
+
+type UpsertPendingMembershipParams struct {
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	Email     string
+	Role      Role
+	InvitedBy *uuid.UUID
+}
+
+// A new invitation to the same tenant replaces the pending role.
+func (q *Queries) UpsertPendingMembership(ctx context.Context, arg UpsertPendingMembershipParams) error {
+	_, err := q.db.Exec(ctx, upsertPendingMembership,
+		arg.TenantID,
+		arg.UserID,
+		arg.Email,
+		arg.Role,
+		arg.InvitedBy,
+	)
+	return err
 }

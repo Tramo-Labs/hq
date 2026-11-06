@@ -8,7 +8,7 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 |-----------------|------|-----------------|--------------|
 | `POST /v1/auth/register` | none | required | Creates user, tenant, owner membership and the tenant data key. Returns ids only. |
 | `POST /v1/auth/login` | none | no (returns tokens, stores nothing replayable) | Email and password to a 10 minute access token plus a 30 day refresh token. |
-| `POST /v1/auth/invite/accept` | invitation token | no (creates nothing; like login) | Sets the password of an invited person and opens a session on the inviting tenant. |
+| `POST /v1/auth/invite/accept` | invitation token | no (creates nothing; like login) | Accepts an invitation: the pending membership becomes active and a session opens on that tenant. A person without a password sets one here. |
 | `POST /v1/auth/magic-link` | none | required | Emails a one time login link (15 minutes) if the email has an account. Always 202, so it does not reveal which emails exist. |
 | `POST /v1/auth/magic-link/accept` | link token | no (creates nothing; like login) | Opens a session with the link, on the tenant asked for or the oldest membership. |
 | `POST /v1/auth/refresh` | refresh token | no | Rotates the refresh token. Reuse of an old one revokes the whole family. |
@@ -17,8 +17,8 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 | `GET /v1/me` | bearer | | The caller (with their name, null until set), active tenant and role, every membership. |
 | `PATCH /v1/me` | bearer, any role, only oneself | no (changes, creates nothing) | Sets the caller's own name: trimmed, 1 to 120 characters, no control characters (400 `invalid_name`). |
 | `GET /v1/tenant/members` | bearer | | Members of the active tenant. |
-| `POST /v1/tenant/members` | bearer, owner or operator | required | Adds a person under the grant rules below. |
-| `DELETE /v1/tenant/members/{userId}` | bearer, owner | | Removes a person (204). 404 if not a member, 409 `last_owner` for the last owner. |
+| `POST /v1/tenant/members` | bearer, owner or operator | required | Invites a person under the grant rules below; the member stays `pending` until they accept (D-19). |
+| `DELETE /v1/tenant/members/{userId}` | bearer, owner | | Removes a person, active or pending (204). 404 if neither, 409 `last_owner` for the last owner. |
 
 Errors (problem `code`): `unauthorized`, `refresh_token_reused`, `origin_not_allowed`,
 `magic_link_required`, `invalid_magic_link`, `invalid_name`, `invalid_tenant_name` (the company name, same rule as a person's name, F27), `email_taken`,
@@ -65,22 +65,34 @@ nothing. Audited as `identity.operator_created` (or
 step 1). Today `register` makes the registering person the owner, so the
 operator's "first owner" grant applies only to a tenant left without one.
 
-## Invitations (F8)
+## Invitations (F8, F26, D-19)
 
-Adding a person who has no password yet (a new email, or one invited
-before who never accepted) sends an invitation:
+Adding a person is **always an invitation**, for a new email and for an
+existing account alike (D-19). The membership waits in
+`pending_memberships` until the person accepts: everything that grants
+access, fills the switcher (`/v1/me`) or counts owners reads `memberships`,
+so a pending row gives nothing by construction, and nothing in the person's
+account is written (F25). `GET /v1/tenant/members` lists pending people with
+`status: pending` and `name: null`: the inviting tenant does not see their
+account. Adding someone already pending replaces the role and mails a fresh
+invitation; adding an active member is 409 `already_member`.
 
 - Token: 256 random bits, base64url (43 characters). Only its SHA-256 is
   stored, in `invites`, with the person, the tenant, who invited and the
-  expiry: **72 hours, single use**. A new invitation for the same person,
-  from any tenant, revokes the earlier unused ones.
-- Accepting first checks, in the same transaction and before writing
-  anything, that the person is still a member of the inviting tenant. If
-  they were removed, the answer is 403 `not_a_member` and no password is
-  saved; adding them again sends a new invitation, and the old link then
-  answers 401 (F29, `TestRemovedInviteeCannotSetAPassword`, which reads
-  `users.password_hash`: the login of a removed person is a 403 anyway, so
-  it cannot tell).
+  expiry: **72 hours, single use**. A new invitation from the same tenant
+  revokes that tenant's earlier unused ones; another tenant's stay valid.
+- Accepting checks everything before writing anything, in one transaction:
+  the token, then the pending membership. If it was removed, the answer is
+  403 `not_a_member` and no password is saved (F29,
+  `TestRemovedInviteeCannotSetAPassword` and `TestRemovingAPendingMember`);
+  adding them again sends a new invitation.
+- A person without a password sets one when accepting (400
+  `password_required` without it, and the link stays usable). A person with
+  an account just accepts: a password sent along is ignored, theirs is never
+  changed (`TestAddingAnExistingAccountIsAnInvitation`). The name given is
+  kept only if the person has none.
+- An invitation mailed before D-19 came with an active membership; it still
+  works once for a person without a password.
 - The token goes **only into the email**: never in the API response, a log
   or the audit log. Handing it to the inviter would let one tenant's owner
   set the password of a person who also belongs to another tenant.
@@ -88,16 +100,16 @@ before who never accepted) sends an invitation:
   URL fragment, which browsers never send to a server, so it does not land
   in access logs or Referer headers. The web app reads it and calls
   `POST /v1/auth/invite/accept`.
-- Accepting locks the invitation row, marks it used and sets the argon2id
-  hash only if the person still has no password; both checks hold on their
-  own. Then it opens a session on the inviting tenant (on the oldest
-  membership if that one was removed meanwhile). Unknown, used, revoked and
-  expired tokens, and a person who already has a password, all answer the
-  same 401 `invalid_invite`. 10 attempts per IP per 15 minutes, checked
-  before any hashing (429 `rate_limited`).
+- Accepting locks the invitation row and the pending membership, marks the
+  invitation used, moves the pending row into `memberships` and opens a
+  session on that tenant. Unknown, used, revoked and expired tokens all
+  answer the same 401 `invalid_invite`. 10 attempts per IP per 15 minutes,
+  checked before any hashing (429 `rate_limited`).
 - Audit: `identity.invite_created` (by the inviter, with the role),
   `identity.invite_accepted`, `identity.invite_rejected` (with the reason:
-  unknown, used, revoked, expired, password already set).
+  unknown, used, revoked, expired, no membership, password required,
+  password already set). Adding is `identity.member_invited`; removing a
+  pending person, `identity.member_removed` with `status: pending`.
 - **Delivery.** The only mail transport is a local outbox file
   (`MAIL_OUTBOX`, created and kept at mode 0600). There is **no SMTP**: no
   email leaves the machine. `make dev` writes to `DEV_DATA_DIR/outbox`.
@@ -112,7 +124,8 @@ Only an owner removes people (spec §1), any role, the operator included:
 the data is the client's, and so is the decision of who reaches it,
 Tramo included (lead's decision, 06/11). An owner may remove themself while
 another owner remains; the last owner can not be removed (409
-`last_owner`). The tenant row is locked during the removal, so two owners
+`last_owner`). Removing a pending person deletes the pending row, so their
+invitation answers 403 from then on. The tenant row is locked during the removal, so two owners
 removing each other at the same time leave exactly one.
 
 **When access ends.** The removed person's refresh tokens for that tenant
@@ -169,7 +182,10 @@ as `identity.member_removed` with the removed role.
 
 `users`, `tenants`, `memberships`, `refresh_tokens` (migrations 00001 to
 00003), `invites` (00110), `magic_links` (00111) and `magic_link_requests` (00114), all only through
-`tramo_system`; `tramo_app` has no access. Queries in `queries.sql`, Go generated by sqlc into `store/`.
+`tramo_system`; `tramo_app` has no access. `pending_memberships` (00116)
+has `tenant_id` and RLS: `tramo_app` reads and writes the active tenant's
+rows, and keeps the email copied at invitation time, since it can not see
+a user row before the person belongs to the tenant. Queries in `queries.sql`, Go generated by sqlc into `store/`.
 Registration, login, refresh, logout and `me` run as `tramo_system` (no tenant
 yet, or across the caller's own memberships); member listing and adding run
 as `tramo_app` under RLS.

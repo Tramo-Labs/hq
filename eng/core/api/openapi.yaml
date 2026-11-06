@@ -152,6 +152,11 @@ paths:
         "200": { $ref: "#/components/responses/Tokens" }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+        "403":
+          description: The pending membership was removed (code not_a_member).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "429":
           description: Throttled (code rate_limited).
           headers:

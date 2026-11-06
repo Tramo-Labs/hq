@@ -49,6 +49,9 @@ var (
 	ErrInvalidTenantName  = errors.New("invalid company name")
 	ErrForbidden          = errors.New("forbidden")
 	ErrAlreadyMember      = errors.New("already a member")
+	// ErrPasswordRequired: accepting an invitation without a password, by
+	// a person who has none yet.
+	ErrPasswordRequired = errors.New("a password is required to accept")
 	// ErrNotAMember answers a login with the right password on a tenant
 	// the user does not belong to (F18). Only reachable with the password.
 	ErrNotAMember = errors.New("not a member of that tenant")
@@ -411,46 +414,75 @@ func TenantIDsTx(ctx context.Context, tx pgx.Tx) ([]uuid.UUID, error) {
 	return store.New(tx).ListTenantIDs(ctx)
 }
 
-// ListMembers returns the members of the caller's tenant (under RLS).
-func (s *Service) ListMembers(ctx context.Context) ([]store.ListMembersRow, error) {
+// Member is a person of a tenant: active, or pending until they accept
+// the invitation (D-19).
+type Member struct {
+	ID          uuid.UUID
+	Email       string
+	DisplayName *string
+	Role        string
+	Pending     bool
+}
+
+// ListMembers returns the members of the caller's tenant (under RLS), the
+// active ones first, then those still pending. A pending person's name is
+// never shown: the tenant does not see their account.
+func (s *Service) ListMembers(ctx context.Context) ([]Member, error) {
 	scope, ok := db.ScopeFrom(ctx)
 	if !ok {
 		return nil, db.ErrNoScope
 	}
-	var rows []store.ListMembersRow
+	var out []Member
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		var err error
-		rows, err = store.New(tx).ListMembers(ctx, scope.TenantID)
-		return err
+		q := store.New(tx)
+		active, err := q.ListMembers(ctx, scope.TenantID)
+		if err != nil {
+			return err
+		}
+		pending, err := q.ListPendingMembers(ctx, scope.TenantID)
+		if err != nil {
+			return err
+		}
+		out = make([]Member, 0, len(active)+len(pending))
+		for _, m := range active {
+			out = append(out, Member{ID: m.ID, Email: m.Email, DisplayName: m.DisplayName, Role: string(m.Role)})
+		}
+		for _, m := range pending {
+			out = append(out, Member{ID: m.UserID, Email: m.Email, Role: string(m.Role), Pending: true})
+		}
+		return nil
 	})
-	return rows, err
+	return out, err
 }
 
-// AddMember gives email the role in the caller's tenant, under the grant
-// rules of spec §1 and §2 (CanGrant). An operator granting the first owner
-// is checked again inside the insert's transaction with the tenant row
-// locked, so two operators can not both create one.
-func (s *Service) AddMember(ctx context.Context, p Principal, email, role string) (store.ListMembersRow, error) {
+// AddMember invites email to the caller's tenant with role, under the
+// grant rules of spec §1 and §2 (CanGrant). Adding is always an invitation
+// (D-19): the membership stays pending, giving no access, until the person
+// accepts the mailed link (AcceptInvite). Nothing in the person's account
+// is written (F25). Adding someone already pending replaces the role and
+// mails a fresh invitation. An operator grants only the first owner: with
+// the tenant row locked, so two operators can not each invite one.
+func (s *Service) AddMember(ctx context.Context, p Principal, email, role string) (Member, error) {
 	if !validRole(role) {
-		return store.ListMembersRow{}, fmt.Errorf("unknown role %q", role)
+		return Member{}, fmt.Errorf("unknown role %q", role)
 	}
 	if !CanGrant(p.Role, role) {
-		return store.ListMembersRow{}, ErrForbidden
+		return Member{}, ErrForbidden
 	}
 	firstOwner := p.Role == RoleOperator
 	if firstOwner {
 		// Early refusal, before any user row is created; the locked
 		// check below is the one that counts.
 		if err := s.DB.InTenant(ctx, func(tx pgx.Tx) error { return noOwnerYet(ctx, store.New(tx), p.TenantID, false) }); err != nil {
-			return store.ListMembersRow{}, err
+			return Member{}, err
 		}
 	}
 	email, err := normalizeEmail(email)
 	if err != nil {
-		return store.ListMembersRow{}, err
+		return Member{}, err
 	}
 	// users has no tenant and tramo_app cannot insert into it: the user row
-	// is ensured in a system transaction, the membership under RLS.
+	// is ensured in a system transaction, the pending membership under RLS.
 	var user uuid.UUID
 	err = s.DB.System(ctx, func(tx pgx.Tx) error {
 		var err error
@@ -458,26 +490,58 @@ func (s *Service) AddMember(ctx context.Context, p Principal, email, role string
 		return err
 	})
 	if err != nil {
-		return store.ListMembersRow{}, err
+		return Member{}, err
 	}
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		q := store.New(tx)
+		if _, err := q.LockTenant(ctx, p.TenantID); err != nil {
+			return err
+		}
+		if _, err := q.GetMembershipRole(ctx, store.GetMembershipRoleParams{UserID: user, TenantID: p.TenantID}); err == nil {
+			return ErrAlreadyMember
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 		if firstOwner {
-			if err := noOwnerYet(ctx, store.New(tx), p.TenantID, true); err != nil {
+			if err := firstOwnerFree(ctx, q, p.TenantID, user); err != nil {
 				return err
 			}
 		}
-		if err := store.New(tx).CreateMembership(ctx, store.CreateMembershipParams{UserID: user, TenantID: p.TenantID, Role: store.Role(role)}); err != nil {
-			return mapUnique(err)
+		inviter := p.UserID
+		if err := q.UpsertPendingMembership(ctx, store.UpsertPendingMembershipParams{TenantID: p.TenantID, UserID: user,
+			Email: email, Role: store.Role(role), InvitedBy: &inviter}); err != nil {
+			return err
 		}
-		return audit.Record(ctx, tx, audit.Entry{Action: "identity.member_added", Subject: "users:" + user.String(), Detail: map[string]any{"role": role}})
+		return audit.Record(ctx, tx, audit.Entry{Action: "identity.member_invited", Subject: "users:" + user.String(), Detail: map[string]any{"role": role}})
 	})
 	if err != nil {
-		return store.ListMembersRow{}, err
+		return Member{}, err
 	}
-	if err := s.inviteIfNoPassword(ctx, p, user, email, role); err != nil {
-		return store.ListMembersRow{}, err
+	if err := s.invite(ctx, p, user, email, role); err != nil {
+		return Member{}, err
 	}
-	return store.ListMembersRow{ID: user, Email: email, Role: store.Role(role)}, nil
+	return Member{ID: user, Email: email, Role: role, Pending: true}, nil
+}
+
+// firstOwnerFree answers ErrForbidden when the tenant has an owner, or a
+// pending owner other than user. The tenant row must be locked.
+func firstOwnerFree(ctx context.Context, q *store.Queries, tenant, user uuid.UUID) error {
+	if err := noOwnerYet(ctx, q, tenant, false); err != nil {
+		return err
+	}
+	n, err := q.CountPendingOwners(ctx, tenant)
+	if err != nil {
+		return err
+	}
+	if role, err := q.GetPendingMembershipForUpdate(ctx, store.GetPendingMembershipForUpdateParams{TenantID: tenant, UserID: user}); err == nil && role == store.RoleOwner {
+		n--
+	} else if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+	if n > 0 {
+		return ErrForbidden
+	}
+	return nil
 }
 
 // CanRemoveMembers reports whether role may remove people from a tenant.
@@ -500,7 +564,17 @@ func (s *Service) RemoveMember(ctx context.Context, p Principal, user uuid.UUID)
 		}
 		role, err := q.DeleteMembership(ctx, store.DeleteMembershipParams{UserID: user, TenantID: p.TenantID})
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrMemberNotFound
+			// Maybe pending: then the invitation gives nothing any more
+			// (AcceptInvite answers not_a_member).
+			n, err := q.DeletePendingMembership(ctx, store.DeletePendingMembershipParams{TenantID: p.TenantID, UserID: user})
+			if err != nil {
+				return err
+			}
+			if n == 0 {
+				return ErrMemberNotFound
+			}
+			return audit.Record(ctx, tx, audit.Entry{Action: "identity.member_removed", Subject: "users:" + user.String(),
+				Detail: map[string]any{"status": "pending"}})
 		}
 		if err != nil {
 			return err

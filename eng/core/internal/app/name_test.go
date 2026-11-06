@@ -87,30 +87,19 @@ func TestPersonName(t *testing.T) {
 	}
 }
 
-// The invitation never overwrites a name the person already set: added
-// without a password, she gets in by magic link, sets her name, then
-// accepts the invitation with another one and keeps hers.
+// The invitation never overwrites a name the person already set: she has
+// her own account and name, is invited, and accepts giving another name.
 func TestInviteDoesNotOverwriteAName(t *testing.T) {
-	c, tokens := magicServer(t, nil)
+	c := client{t, server(t)}
 	own := c.registerAndLogin("molino-nom-keep", "owner@keep.test")
+	mia := c.registerAndLogin("mia-nom-keep", "mia@keep.test")
+	if p := c.do("PATCH", "/v1/me", mia.access, map[string]any{"name": "Mía"}); p.status != 200 {
+		t.Fatalf("set name: %d %s", p.status, p.raw)
+	}
 	if r := c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": "mia@keep.test", "role": "viewer"}, idem()...); r.status != 201 {
 		t.Fatalf("add: %d %s", r.status, r.raw)
 	}
-	if r := c.askLink("198.51.100.1", "mia@keep.test"); r.status != 202 {
-		t.Fatalf("ask link: %d %s", r.status, r.raw)
-	}
-	toks := tokens()["mia@keep.test"] // the invitation, then the link
-	if len(toks) != 2 {
-		t.Fatalf("mailed: %v", toks)
-	}
-	s := c.acceptLink("198.51.100.1", toks[1])
-	if s.status != 200 {
-		t.Fatalf("magic link: %d %s", s.status, s.raw)
-	}
-	if p := c.do("PATCH", "/v1/me", s.str("accessToken"), map[string]any{"name": "Mía"}); p.status != 200 {
-		t.Fatalf("set name: %d %s", p.status, p.raw)
-	}
-	a := c.do("POST", "/v1/auth/invite/accept", "", map[string]any{"token": toks[0], "password": "a long enough password", "name": "Otra", "tokenDelivery": "body"})
+	a := c.join("mia@keep.test", map[string]any{"password": "a long enough password", "name": "Otra"})
 	if a.status != 200 {
 		t.Fatalf("accept: %d %s", a.status, a.raw)
 	}

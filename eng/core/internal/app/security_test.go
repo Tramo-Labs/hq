@@ -8,13 +8,16 @@ import (
 )
 
 // member registers email with a tenant of its own, has inviter add it to
-// tenant with role, and logs it into that tenant. (An invited user without
-// an account cannot log in yet: F8.)
+// tenant with role, accepts the invitation (D-19) and logs it into that
+// tenant.
 func (c client) member(inviter account, tenant, slug, email, role string) account {
 	c.t.Helper()
 	m := c.registerAndLogin(slug, email)
 	if r := c.do("POST", "/v1/tenant/members", inviter.access, map[string]any{"email": email, "role": role}, idem()...); r.status != 201 {
 		c.t.Fatalf("add %s as %s: %d %s", email, role, r.status, r.raw)
+	}
+	if r := c.join(email, nil); r.status != 200 {
+		c.t.Fatalf("accept %s: %d %s", email, r.status, r.raw)
 	}
 	l := c.do("POST", "/v1/auth/login", "", map[string]any{"email": email, "password": m.password, "tenantId": tenant, "tokenDelivery": "body"})
 	if l.status != 200 || l.str("role") != role {

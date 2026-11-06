@@ -130,6 +130,30 @@ for update;
 -- name: MarkMagicLinkUsed :exec
 update magic_links set used_at = now() where id = $1;
 
+-- name: UpsertPendingMembership :exec
+-- A new invitation to the same tenant replaces the pending role.
+insert into pending_memberships (tenant_id, user_id, email, role, invited_by)
+values ($1, $2, $3, $4, $5)
+on conflict (tenant_id, user_id) do update
+  set role = excluded.role, invited_by = excluded.invited_by, created_at = now();
+
+-- name: GetPendingMembershipForUpdate :one
+select role from pending_memberships where tenant_id = $1 and user_id = $2 for update;
+
+-- name: DeletePendingMembership :execrows
+delete from pending_memberships where tenant_id = $1 and user_id = $2;
+
+-- name: ListPendingMembers :many
+select user_id, email, role from pending_memberships where tenant_id = $1 order by email;
+
+-- name: CountPendingOwners :one
+select count(*) from pending_memberships where tenant_id = $1 and role = 'owner';
+
+-- name: RevokeOpenTenantInvites :execrows
+-- Only this tenant's: an invitation from another tenant stays valid.
+update invites set revoked_at = now()
+where user_id = $1 and tenant_id = $2 and used_at is null and revoked_at is null;
+
 -- name: InsertMagicLinkRequest :one
 insert into magic_link_requests (email, tenant_id, request_id, ip)
 values (sqlc.arg(email), sqlc.narg(tenant_id), sqlc.narg(request_id), nullif(sqlc.arg(ip)::text, '')::inet) returning id;

@@ -311,15 +311,19 @@ func TestTenantsAreIsolatedAndRolesEnforced(t *testing.T) {
 		t.Fatalf("tenant a sees: %v", got)
 	}
 
-	// The owner adds an approver and a viewer; adding twice conflicts.
+	// The owner adds an approver and a viewer; adding someone pending again
+	// sends a fresh invitation (D-19), adding an active member conflicts.
 	add := func(token, email, role string) resp {
 		return c.do("POST", "/v1/tenant/members", token, map[string]any{"email": email, "role": role}, idem()...)
 	}
 	if r := add(a.access, "apro@alfa.test", "approver"); r.status != 201 {
 		t.Fatalf("add approver: %d %s", r.status, r.raw)
 	}
-	if r := add(a.access, "apro@alfa.test", "viewer"); r.status != 409 {
-		t.Fatalf("duplicate member: %d", r.status)
+	if r := add(a.access, "apro@alfa.test", "viewer"); r.status != 201 {
+		t.Fatalf("pending member again: %d", r.status)
+	}
+	if r := add(a.access, a.email, "viewer"); r.status != 409 || r.str("code") != "already_member" {
+		t.Fatalf("active member again: %d", r.status)
 	}
 	// Nobody grants operator over HTTP (F7; full matrix in authz_test.go).
 	if r := add(a.access, "x@tramo.test", "operator"); r.status != 403 {
@@ -338,6 +342,9 @@ func TestTenantsAreIsolatedAndRolesEnforced(t *testing.T) {
 	// A person in both tenants: memberships list both, the token only one.
 	if r := add(b.access, a.email, "viewer"); r.status != 201 {
 		t.Fatalf("cross membership: %d %s", r.status, r.raw)
+	}
+	if r := c.join(a.email, nil); r.status != 200 {
+		t.Fatalf("accept the cross membership: %d %s", r.status, r.raw)
 	}
 	l := c.do("POST", "/v1/auth/login", "", map[string]any{"email": a.email, "password": a.password, "tenantId": b.tenant, "tokenDelivery": "body"})
 	if l.status != 200 || l.str("role") != "viewer" || l.str("tenantId") != b.tenant {

@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
@@ -16,6 +18,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db/dbtest"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 )
 
 func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
@@ -41,6 +44,8 @@ func newDeps(t *testing.T) app.Deps {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Mail lands in an outbox, so every test can follow an invitation.
+	ids.Mailer, ids.AppBaseURL = &mail.Outbox{Path: filepath.Join(t.TempDir(), "outbox")}, "https://app.example.test"
 	return app.Deps{DB: d, Identity: ids}
 }
 
@@ -52,8 +57,15 @@ func serve(t *testing.T, deps app.Deps) *httptest.Server {
 	}
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
+	if ob, ok := deps.Identity.Mailer.(*mail.Outbox); ok {
+		outboxes.Store(srv.URL, ob.Path)
+		t.Cleanup(func() { outboxes.Delete(srv.URL) })
+	}
 	return srv
 }
+
+// outboxes maps a test server's URL to the outbox its mail goes to.
+var outboxes sync.Map
 
 func server(t *testing.T) *httptest.Server { return serve(t, newDeps(t)) }
 

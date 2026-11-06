@@ -35,6 +35,9 @@ func TestSwitchTenantWithoutPassword(t *testing.T) {
 	if r := c.do("POST", "/v1/tenant/members", beto.access, map[string]any{"email": ana.email, "role": "approver"}, idem()...); r.status != 201 {
 		t.Fatalf("add Ana to B: %d %s", r.status, r.raw)
 	}
+	if r := c.join(ana.email, nil); r.status != 200 {
+		t.Fatalf("Ana accepts B: %d %s", r.status, r.raw)
+	}
 
 	// Into B: approver there, and the access token works on B.
 	s := c.switchTo(ana.refresh, beto.tenant)

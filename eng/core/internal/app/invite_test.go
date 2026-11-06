@@ -86,11 +86,11 @@ func TestInvitationLetsANewPersonIn(t *testing.T) {
 	if l.status != 200 || l.str("tenantId") != own.tenant {
 		t.Fatalf("login after accepting: %d %s", l.status, l.raw)
 	}
-	// Someone who already has a password gets no invitation.
+	// Someone who already has a password gets an invitation too (D-19).
 	c.registerAndLogin("otra-f8", "existente@f8.test")
 	c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": "existente@f8.test", "role": "viewer"}, idem()...)
-	if got := tokens()["existente@f8.test"]; len(got) != 0 {
-		t.Fatalf("invitation for a person with a password: %v", got)
+	if got := tokens()["existente@f8.test"]; len(got) != 1 {
+		t.Fatalf("invitations for a person with a password: %v", got)
 	}
 	// The audit log has the invitation and its use, never the token.
 	_, _, audit := c.get("/v1/exports/audit", own.access)
@@ -126,11 +126,13 @@ func TestInvitationsThatCanNotBeUsed(t *testing.T) {
 	}
 	expired := accept(c, tokens("tarde@f8.test")[0], "a long enough password")
 
-	// Superseded: a second tenant invites the same person; the first link dies.
+	// Superseded: the same tenant invites the person again; its first link
+	// dies. Another tenant's invitation stays valid.
 	c.do("POST", "/v1/tenant/members", a.access, map[string]any{"email": "doble@f8.test", "role": "viewer"}, idem()...)
 	c.do("POST", "/v1/tenant/members", b.access, map[string]any{"email": "doble@f8.test", "role": "approver"}, idem()...)
+	c.do("POST", "/v1/tenant/members", a.access, map[string]any{"email": "doble@f8.test", "role": "viewer"}, idem()...)
 	doble := tokens("doble@f8.test")
-	if len(doble) != 2 {
+	if len(doble) != 3 {
 		t.Fatalf("tokens for doble: %v", doble)
 	}
 	superseded := accept(c, doble[0], "a long enough password")
@@ -149,8 +151,12 @@ func TestInvitationsThatCanNotBeUsed(t *testing.T) {
 			t.Errorf("%s: %d %s", name, r.status, r.raw)
 		}
 	}
-	// The newest link works and opens the tenant that sent it.
+	// The other tenant's link and the newest one both work, each opening
+	// the tenant that sent it.
 	if r := accept(c, doble[1], "a long enough password"); r.status != 200 || r.str("tenantId") != b.tenant {
+		t.Fatalf("other tenant's invitation: %d %s", r.status, r.raw)
+	}
+	if r := accept(c, doble[2], "a long enough password"); r.status != 200 || r.str("tenantId") != a.tenant {
 		t.Fatalf("newest invitation: %d %s", r.status, r.raw)
 	}
 
