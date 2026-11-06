@@ -97,6 +97,8 @@ main en d2b7a94. Las sesiones de la ronda lead-3 murieron a las 17:03 sin entreg
 
 ### Para Martín (lead-4 lo pasa por laptop-c4)
 
+Nuevo (lead-4), Mercado Pago: (1) al crear la app en MP Developers: PKCE habilitado, scope offline_access (sin él cada cliente reconecta cada 180 días) y como URL de retorno /app/mercadopago/vuelta de su dominio; (2) antes de que se codee la importación hay que confirmar si el reporte de Liberaciones (el único que trae saldo, que es lo que el control de saldos necesita) se puede pedir con el token OAuth de un vendedor conectado o solo con el de la app; la documentación leída no lo dice. Dos vías: una llamada de prueba en sandbox con una cuenta de prueba al crear la app, o preguntarle al soporte de integradores de MP. Sin eso la importación no arranca; la conexión sí queda lista.
+Valor por defecto (lead-4), sin pedir respuesta: un extracto que llega por mail sin número de cuenta va a la única cuenta de ese banco y moneda que tenga el cliente, salvo que sea el primer extracto de esa cuenta; con dos o más, o sin extracto previo, queda afuera sin adivinar. Si Martín prefiere que todo lo que llega sin número quede afuera, se cambia en un lugar.
 Nuevo (lead-4): después de cerrar una quincena, ¿el cliente puede contestar una excepción o escalado de ese período? Por defecto sí, sin tocar los números cerrados y marcado como posterior al cierre; va junto con "si un cierre se reabre y quién".
 Nuevo (lead-4, pasado a laptop-c4): ConciliaBot de Contatech, posible competidor directo en estudios contables, no se puede leer con herramientas (pantalla anti-bot); si interesa, que Martín lo abra una vez en su navegador y anote qué ve.
 
