@@ -362,7 +362,8 @@ export const app = {
       rejected: "Revisá los datos: la contraseña tiene que tener entre 12 y 128 caracteres.",
       checking: "Revisando si ya hay una sesión abierta en este navegador…",
       // F41: with a session open, the invitation is accepted for that account.
-      withAccount: (who: string) => `La vas a aceptar con tu cuenta, ${who}, sin cerrar tu sesión.`,
+      // Only the 409 tells whether the invitation is for this account, so this line can not promise it.
+      withAccount: (who: string) => `Si la invitación es para ${who}, se suma a tu cuenta sin cerrar tu sesión.`,
       joinedTitle: (tenant: string) => (tenant ? `Listo: ya sos parte de ${tenant}.` : "Listo: aceptaste la invitación."),
       joinedBody: (current: string) => `Tu sesión sigue en ${current}. Podés pasar a la empresa nueva ahora o después, desde Cambiar de empresa.`,
       goNew: (tenant: string) => `Ir a ${tenant}`,

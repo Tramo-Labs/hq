@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { acceptStep, inviteStep, needsPreview, newMembership, offersAccept, passwordProblem, previewFailed, type PreviewState } from "./invite-rules";
 import { ApiError, SessionExpired } from "../../lib/api/errors";
+import { app } from "../../content/app";
 
 // F38: the company and the role before the accept button, asked once and only when it is offered.
 const idle: PreviewState = { status: "idle" };
@@ -121,6 +122,13 @@ test("a dead link with a session open is an error, never a reason to accept anon
     await assert.rejects(acceptStep("confirm", blank, async () => ana, c.accept, c.acceptAs), e);
     assert.deepEqual(c.calls, []);
   }
+});
+
+test("before accepting with a session open, the page does not promise the invitation is for that account (F41)", () => {
+  // Only the 409 invite_for_another_account tells; before the click nobody knows.
+  const line = app.session.invite.withAccount("ana@estudio.test");
+  assert.equal(line, "Si la invitación es para ana@estudio.test, se suma a tu cuenta sin cerrar tu sesión.");
+  assert.doesNotMatch(line, /vas a aceptar|la aceptás|se va a sumar/i);
 });
 
 test("the company just joined is the membership the session did not have before (F41)", () => {
