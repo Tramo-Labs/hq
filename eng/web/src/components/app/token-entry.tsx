@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { app } from "@/content/app";
 import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, whoIsIn, type Session } from "@/lib/api";
-import { acceptIfNobodyIn, inviteStep, passwordProblem } from "@/components/app/invite-rules";
+import { acceptStep, inviteStep, passwordProblem, type InviteStage } from "@/components/app/invite-rules";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
 const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none";
@@ -34,8 +34,9 @@ export function explainToken(e: unknown, invalid: string) {
 }
 
 /**
- * /invitacion: the invited person sets a name and a password, and is in. The token is read
- * and wiped from the URL on mount, then kept in memory until the form is sent.
+ * /invitacion: the invited person accepts with the link; an existing account is in with that
+ * alone, a person with no account then sets a name and a password (D-19). The token is read
+ * and wiped from the URL on mount, then kept in memory until the invitation is accepted.
  */
 export function InviteEntry() {
   const v = app.session.invite;
@@ -54,6 +55,8 @@ export function InviteEntry() {
   // After the first attempt (sent, or stopped by the browser), the password problem is shown
   // as it is now, never as it was then (F34).
   const [tried, setTried] = useState(false);
+  // D-19: accept with the link alone first; the password step only for a person with no account.
+  const [stage, setStage] = useState<InviteStage>("confirm");
 
   useEffect(() => {
     let live = true;
@@ -85,19 +88,25 @@ export function InviteEntry() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setTried(true);
+    if (stage === "password") setTried(true);
     if (busy || !token.current || inviteStep(who) !== "form") return;
-    if (passwordProblem(password, confirm)) return;
+    if (stage === "password" && passwordProblem(password, confirm)) return;
     setBusy(true);
     setError(null);
     try {
       const t = token.current;
-      const r = await acceptIfNobodyIn(whoIsIn, () => acceptInvite(t, password, name.trim() || undefined));
+      const r = await acceptStep(stage, { password, confirm, name }, whoIsIn, (p) => acceptInvite(t, p?.password, p?.name));
       if ("signedIn" in r) {
         // Someone signed in in another tab while the form was open: back to who is in, no accept.
         setWho(r.signedIn);
         return;
       }
+      if ("needsPassword" in r) {
+        // No account yet (D-19): the link is still good; now ask for a name and a password.
+        setStage("password");
+        return;
+      }
+      if ("problem" in r) return;
       const s = r.accepted;
       setPassword("");
       setConfirm("");
@@ -143,6 +152,20 @@ export function InviteEntry() {
           <button type="button" disabled={busy} aria-busy={busy} className={primaryBtn} onClick={signOutFirst}>{busy ? v.signingOut : v.signOut}</button>
           <Link href={homeFor(who.role)} className={ghostBtn}>{v.cancel}</Link>
         </div>
+      </>
+    );
+  }
+
+  if (stage === "confirm") {
+    return (
+      <>
+        <p className="font-mono text-[12px] tracking-wide text-white/60">{v.eyebrow}</p>
+        <h1 className="mt-3 text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{v.confirmTitle}</h1>
+        <p className="mt-4 text-[16px] leading-relaxed text-white/70">{v.confirmBody}</p>
+        <form onSubmit={submit} aria-describedby={error ? ids.error : undefined} className="mt-8 grid gap-5">
+          {error && <p id={ids.error} role="alert" className="text-[14.5px] text-accent">{error}</p>}
+          <button type="submit" disabled={busy} aria-busy={busy} className={`${primaryBtn} w-fit`}>{busy ? v.submitting : v.accept}</button>
+        </form>
       </>
     );
   }

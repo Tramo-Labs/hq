@@ -122,3 +122,9 @@ instead of showing the previous name and role until a reload. /invitacion first 
 (a refresh) and, if someone is, says so and offers to sign out or cancel before showing the form.
 It asks again right before sending: if someone signed in on another tab while the form was open,
 it does not accept and goes back to saying who is in.
+
+Invitations (D-19, F26): the link is the same for a new person and for an existing account, and
+nothing tells the page which one it is. /invitacion shows "Aceptar la invitación" and sends the
+accept without a password: an existing account is in with that, and its password is never sent.
+Only a 400 password_required (the link stays usable) opens the name and password step. Both
+sends go through the F33 re-check. `invite-rules.test.ts` covers both paths.

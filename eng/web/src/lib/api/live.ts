@@ -68,8 +68,11 @@ export async function acceptMagicLink(token: string) {
   return open(await tokens(res));
 }
 
-/** Sets the password with the token from the invitation email (/invitacion#token=…) and opens a session. */
-export async function acceptInvite(token: string, password: string, name?: string) {
+/**
+ * Accepts the invitation with the token from the email (/invitacion#token=…) and opens a session.
+ * An existing account sends no password (D-19); a person without one sends password and name.
+ */
+export async function acceptInvite(token: string, password?: string, name?: string) {
   const res = await call("/v1/auth/invite/accept", {
     method: "POST",
     headers: json,
