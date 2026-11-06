@@ -81,20 +81,25 @@ func run() error {
 		return err
 	}
 
-	// Postgres: data kept in dir/pg-data (reused across runs); the runtime
-	// dir is wiped by embedded-postgres on every start, so it is separate.
+	// Postgres: data kept in dir/pg-data (reused across runs). The runtime
+	// (about 200 MB of binaries) is extracted again on every start, so it
+	// is removed when make dev ends, after the server stops, and when the
+	// start fails.
+	runtime := filepath.Join(dir, "pg-runtime")
 	pg := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
 		Version(embeddedpostgres.V17).Port(port).
 		Username("postgres").Password("postgres").Database("postgres").
-		RuntimePath(filepath.Join(dir, "pg-runtime")).DataPath(filepath.Join(dir, "pg-data")).
+		RuntimePath(runtime).DataPath(filepath.Join(dir, "pg-data")).
 		StartTimeout(90 * time.Second).Logger(io.Discard))
 	slog.Info("starting postgres", "port", port, "data", filepath.Join(dir, "pg-data"))
 	if err := pg.Start(); err != nil {
+		_ = os.RemoveAll(runtime)
 		return fmt.Errorf("postgres: %w (is something else on port %d? set DEV_PG_PORT)", err, port)
 	}
 	defer func() {
 		slog.Info("stopping postgres")
 		_ = pg.Stop()
+		_ = os.RemoveAll(runtime)
 	}()
 	url := func(database string) string {
 		return fmt.Sprintf("postgres://postgres:postgres@127.0.0.1:%d/%s?sslmode=disable", port, database)

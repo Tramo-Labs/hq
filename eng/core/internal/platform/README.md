@@ -183,6 +183,20 @@ library message on either the validator or the router path fails it).
 downloads the Postgres 17 binaries to `~/.embedded-postgres-go`). `make
 test-short` skips the database tests.
 
+**Disk.** Each test package extracts a server of about 200 MB into
+`$TMPDIR/tramo-pg-*`. The Makefile sets `TMPDIR` to `~/.cache/tramo-tmp`
+(override with `TRAMO_TMPDIR`): `/tmp` is a tmpfs shared by every session,
+and filling it stopped them all on 06/11. `dbtest.Main` stops the server and
+removes the directory whatever the result; a binary that dies before (panic,
+timeout, kill) leaves it with its postmaster running, and the next test
+binary stops that postmaster and removes it (only directories with an
+`owner.pid` of a process that is gone). A busy port's extraction is removed
+at once, and the library's server log goes inside the directory.
+`TestEmbeddedPostgresDirectoryIsRemoved` runs a failing, a panicking and a
+passing child; dropping the removal in `Main` or the sweep makes it fail
+(checked). `make dev` removes its extracted runtime when it ends (its data
+stays in `DEV_DATA_DIR`).
+
 - `db`: a tenant cannot read or write another tenant's rows with no WHERE
   clause; `tramo_app` cannot read password hashes or refresh tokens; a tenant
   transaction without scope fails; the audit log rejects UPDATE and DELETE.

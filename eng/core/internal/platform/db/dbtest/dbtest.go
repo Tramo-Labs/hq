@@ -10,16 +10,28 @@
 // Ports: 54329 to 54338 by default (go test runs packages in parallel; each
 // takes the first free port). Another suite running at the same time sets
 // TRAMO_TEST_PG_PORTS, e.g. 54349-54358 for qa. Skipped with -short.
+//
+// Disk: the server lives in $TMPDIR/tramo-pg-* (about 200 MB), removed by
+// Main when the tests end, passed or failed. A binary that ends without
+// reaching it (a panic, a timeout, a kill) leaves it behind with its
+// postmaster running; the next test binary to start sweeps every such
+// directory whose owner process is gone: it stops the postmaster, then
+// removes the directory. The Makefile points TMPDIR at the disk.
 package dbtest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	osexec "os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -33,6 +45,10 @@ const (
 	firstPort = 54329
 	lastPort  = 54338
 	template  = "tramo_template"
+	// ownerFile, in each server directory, holds the pid of the test
+	// binary that made it.
+	ownerFile = "owner.pid"
+	dirPrefix = "tramo-pg-"
 )
 
 var (
@@ -45,6 +61,8 @@ var (
 )
 
 // Main runs the tests and stops the embedded server afterwards.
+// Main runs the tests, then stops the embedded server and removes its
+// directory, whatever the result.
 func Main(m *testing.M) int {
 	code := m.Run()
 	if server != nil {
@@ -54,6 +72,37 @@ func Main(m *testing.M) int {
 		_ = os.RemoveAll(tmpDir)
 	}
 	return code
+}
+
+// sweep stops and removes the server directories under root left by test
+// binaries that are gone. A directory without an owner file is not
+// touched: it was not made by this code, or its owner is still writing it.
+func sweep(root string) {
+	dirs, _ := filepath.Glob(filepath.Join(root, dirPrefix+"*"))
+	for _, dir := range dirs {
+		b, err := os.ReadFile(filepath.Join(dir, ownerFile)) // #nosec G304 -- a dbtest directory
+		if err != nil {
+			continue
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+		if err != nil || pid <= 0 || alive(pid) {
+			continue
+		}
+		datas, _ := filepath.Glob(filepath.Join(dir, "*", "data", "postmaster.pid"))
+		for _, pidFile := range datas {
+			data := filepath.Dir(pidFile)
+			pgctl := filepath.Join(filepath.Dir(data), "runtime", "bin", "pg_ctl")
+			_ = osexec.Command(pgctl, "stop", "-D", data, "-m", "immediate", "-w").Run() // #nosec G204 -- pg_ctl inside a dbtest directory
+		}
+		_ = os.RemoveAll(dir)
+	}
+}
+
+// alive reports whether a process with pid exists (EPERM: it exists, under
+// another user).
+func alive(pid int) bool {
+	err := syscall.Kill(pid, 0)
+	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
 // URL returns the connection string for a database on the test server.
@@ -125,8 +174,24 @@ func NewEmpty(t testing.TB) *db.DB {
 }
 
 func start() {
-	tmpDir, startErr = os.MkdirTemp("", "tramo-pg-")
+	sweep(os.TempDir())
+	tmpDir, startErr = os.MkdirTemp("", dirPrefix)
 	if startErr != nil {
+		return
+	}
+	if startErr = os.WriteFile(filepath.Join(tmpDir, ownerFile), []byte(strconv.Itoa(os.Getpid())), 0o600); startErr != nil {
+		return
+	}
+	// embedded-postgres writes the server log to a temporary file it never
+	// removes: point it inside tmpDir while starting, so it goes with it.
+	// t.TempDir calls in the meantime land there too, and are removed by
+	// their own test.
+	if prev, had := os.LookupEnv("TMPDIR"); had {
+		defer func() { _ = os.Setenv("TMPDIR", prev) }()
+	} else {
+		defer func() { _ = os.Unsetenv("TMPDIR") }()
+	}
+	if startErr = os.Setenv("TMPDIR", tmpDir); startErr != nil {
 		return
 	}
 	first, last, err := portRange()
@@ -148,7 +213,10 @@ func start() {
 			StartTimeout(60 * time.Second).
 			Logger(io.Discard))
 		if err := pg.Start(); err != nil {
+			// Each attempt extracts the whole runtime: remove it now, not
+			// at the end, or ten busy ports cost ten copies.
 			lastErr = err
+			_ = os.RemoveAll(dir)
 			continue
 		}
 		server, port = pg, p

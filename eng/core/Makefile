@@ -13,6 +13,12 @@ GOVULNCHECK_VERSION  := v1.9.0
 BIN := $(CURDIR)/bin
 export PATH := $(BIN):$(PATH)
 
+# Temporary files of tests and make dev (an embedded Postgres is about
+# 200 MB per test package) go to the disk, not to /tmp: there it is a tmpfs
+# shared by every session, and filling it stops them all. Override with
+# TRAMO_TMPDIR=<dir>.
+TRAMO_TMPDIR ?= $(HOME)/.cache/tramo-tmp
+
 .PHONY: build test test-short lint sec tools tools-sec gen gen-check dev dev-bin up down migrate
 
 build:
@@ -24,11 +30,13 @@ dev-bin:
 
 # Database tests run on an embedded Postgres 17 (ports 54329-54338).
 test:
-	$(GO) test -race ./...
+	mkdir -p $(TRAMO_TMPDIR)
+	TMPDIR=$(TRAMO_TMPDIR) $(GO) test -race ./...
 
 # Without the database tests.
 test-short:
-	$(GO) test -race -short ./...
+	mkdir -p $(TRAMO_TMPDIR)
+	TMPDIR=$(TRAMO_TMPDIR) $(GO) test -race -short ./...
 
 lint:
 	test -z "$$(gofmt -l . | grep -v '^gen/')"
@@ -70,7 +78,8 @@ gen-check: gen
 # APP_ENV other than dev). APP_ENV is deliberately not set here, so a shell
 # with APP_ENV=prod is refused instead of overridden.
 dev:
-	$(GO) run ./cmd/dev
+	mkdir -p $(TRAMO_TMPDIR)
+	TMPDIR=$(TRAMO_TMPDIR) $(GO) run ./cmd/dev
 
 up:
 	docker compose -f deploy/docker-compose.yml up --build -d
