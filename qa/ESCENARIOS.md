@@ -192,3 +192,20 @@ La hizo cliente-2. Corrió `make dev` con datos nuevos (`DEV_DATA_DIR` propio, A
 ### Sin probar en la tanda 4
 
 Los vencimientos: la invitación a las 72 horas y el link mágico a los 15 minutos. Que el access token de alguien a quien sacaron deje de servir en 10 minutos. El grant del operator a un tenant sin owner, porque hace falta el comando `create-operator`. El botón "Rechazar" del portal en vivo. El cierre de período sigue sin construir.
+
+### Rechequeo de F23 y F24 sobre main 7bfc442 (06/11/2026)
+
+Volví a levantar `make dev` desde 7bfc442 con el mismo directorio de datos. La web es un build de producción: `PORTAL_ENABLED=1 NEXT_PUBLIC_API_BASE=http://localhost:18080 next build`, servido con `next start -p 13100`. El navegador llama directo a la API con CORS. El build compila `/ingresar` e `/invitacion`. Todo se recorrió con Playwright a 390 px y con usuarios nuevos `*-sint.test`.
+
+| # | Estado | Evidencia |
+|---|--------|-----------|
+| F23 | resuelta | **Invitación**: el link del outbox abre "Sumate a Tramo." y la persona completa nombre y contraseña dos veces. Hay `200 POST /v1/auth/invite/accept` y entra a `/app` con "Inés Invitada · aprobador". Al recargar, la sesión sigue por la cookie (`200 POST /v1/auth/refresh`). Si se reusa el link, aparece "La invitación ya se usó o venció…". `/invitacion` sin token muestra "Este enlace está incompleto…". **Link mágico**: el link abre `/ingresar`, con `200 POST /v1/auth/magic-link/accept`, y la persona entra a `/app`. Si se reusa, aparece "El enlace ya se usó o venció…". **Cambio de empresa sin contraseña**: un usuario que entró por link y es viewer de alfa y beta va a "Cambiar de empresa". La pantalla no pide contraseña: elige Beta y hay `200 POST /v1/auth/switch-tenant`. El encabezado pasa a "Molino Beta (dev)", y después de recargar no aparece Alfa. |
+| F24 | resuelta | **429 por email e IP**: tras 6 contraseñas malas desde la web, la contraseña buena muestra "Hubo demasiados intentos. Probá de nuevo en 15 minutos." y además "Podés entrar con un enlace…" con el botón "Mandame un enlace". El botón hace `202`, el link entra a `/app` como "Vicente Visor · lectura". **`magic_link_required`**: hubo 20 fallos desde 7 IPs de loopback, y después la contraseña buena da `401` y la web muestra "Por seguridad, a esta cuenta hoy se entra con un enlace por mail." y el botón. El botón hace `202 POST /v1/auth/magic-link`, y el link hace `200 …/accept` y entra a `/app`. |
+
+Una nota sobre F24. Después de reiniciar el núcleo, la cuenta que estaba en modo "solo con link" volvió a entrar con contraseña (200). No es una falla nueva: los contadores viven en memoria de cada proceso de la API, y así lo dice el README de identity ("counters are in memory, per api process"). Para la prueba volví a disparar el ataque repartido.
+
+#### Falla nueva
+
+| # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
+|---|------|-----------|---------------|----------|------|------|
+| F32 | Web | Sin contraseña y sin la invitación, no hay forma de pedir el link | 1) owner: `POST /v1/tenant/members` con un email nuevo (`inv-…@alfa-sint.test`); la persona no abre la invitación (se pierde o vence a las 72 h). 2) En `/entrar` pone su email y cualquier contraseña. | Que la web le ofrezca "Mandame un enlace". La API se lo da: el link mágico sirve para quien no tiene contraseña (tanda 4). | `401` y "El email o la contraseña no coinciden.", sin el botón. En un `/entrar` limpio el botón tampoco aparece: solo se ve después de un 429 o de `magic_link_required`. Volver a invitarla tampoco sirve: el alta da 409 `already_member`, y sacarla y volver a sumarla no manda mail (F29). | media |
