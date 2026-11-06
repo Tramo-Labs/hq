@@ -45,6 +45,19 @@ func stubTickets() *WSAA {
 	return w
 }
 
+// Without credentials the client fails with an error, never a panic: a
+// broken ticket cache in these tests used to crash the whole package.
+func TestMissingCredentialsIsAnError(t *testing.T) {
+	if _, err := SignTRA([]byte("<x/>"), Credentials{}); err == nil {
+		t.Fatal("signed with no certificate")
+	}
+	empty := NewWSAA("http://127.0.0.1:1", Credentials{}, time.Second)
+	c := NewConstancia("http://127.0.0.1:1", empty, 30000000023, newSOAPClient(time.Second))
+	if _, err := c.GetPersona(context.Background(), 20164755100); err == nil {
+		t.Fatal("GetPersona without ticket nor credentials returned no error")
+	}
+}
+
 func TestParsesManualGetPersonaV2Response(t *testing.T) {
 	srv := serveFile(t, "testdata/getPersona_v2_manual.xml")
 	c := NewConstancia(srv.URL, stubTickets(), 30000000023, newSOAPClient(5*time.Second))

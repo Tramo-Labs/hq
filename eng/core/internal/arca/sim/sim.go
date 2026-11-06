@@ -185,9 +185,9 @@ func (s *Sim) loginCms(w http.ResponseWriter, r *http.Request) {
 	s.active[key] = t.expires
 	s.mu.Unlock()
 
-	// source is WSAA's own DN, CUIT 33693450239, as printed in the WSAA spec
-	// (eng/arca/manuales/wsaaspec.txt lines 219 and 220): ARCA's CUIT, not a
-	// taxpayer's.
+	// source is WSAA's own DN, CUIT 33693450239: ARCA's CUIT, not a
+	// taxpayer's. Cited from eng/arca/manuales/wsaaspec.txt:219 (production
+	// DN) and wsaaspec.txt:220 (homologación DN).
 	ltr := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <loginTicketResponse version="1.0"><header><source>CN=wsaahomo, O=AFIP, C=AR, SERIALNUMBER=CUIT 33693450239</source><destination>%s</destination><uniqueId>%d</uniqueId><generationTime>%s</generationTime><expirationTime>%s</expirationTime></header><credentials><token>%s</token><sign>%s</sign></credentials></loginTicketResponse>`,
 		xmlText(signer.Subject.String()), now.Unix()&0xffffffff, now.Format(time.RFC3339), t.expires.Format(time.RFC3339), token, t.sign)

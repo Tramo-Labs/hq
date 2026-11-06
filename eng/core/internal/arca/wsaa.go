@@ -158,6 +158,10 @@ func TRA(service string, now time.Time) ([]byte, error) {
 // with SHA-256 and RSA (what `openssl cms -sign -nodetach` produces in the
 // WSAA developer manual).
 func SignTRA(tra []byte, c Credentials) ([]byte, error) {
+	if c.Cert == nil || c.Key == nil {
+		// Fail as an error, not as a nil dereference inside the CMS library.
+		return nil, errors.New("arca: no certificate or key to sign the TRA")
+	}
 	sd, err := pkcs7.NewSignedData(tra)
 	if err != nil {
 		return nil, err
