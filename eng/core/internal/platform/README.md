@@ -112,6 +112,11 @@ test-short` skips the database tests.
   clause; `tramo_app` cannot read password hashes or refresh tokens; a tenant
   transaction without scope fails; the audit log rejects UPDATE and DELETE.
   Removing `SET ROLE` from `InTenant` makes three of these fail (checked).
+  The application roles end up `NOSUPERUSER NOBYPASSRLS` even when they
+  existed as superusers before migrating; every table in every non system
+  schema (module schemas included) has forced RLS; the
+  system role cannot read a business table; only allowlisted packages
+  reference `System` (ADR 0002).
 - `idempotency`: replay, 422 on another body, 409 while in flight, 5xx frees
   the key, 4xx is stored, keys are per tenant, expiry after 24 hours.
 - `crypto`: round trip, tamper, wrong key, wrong purpose, wrong tenant, wrong

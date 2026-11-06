@@ -167,14 +167,54 @@ func TestApplicationRolesCannotBypassRLS(t *testing.T) {
 	}
 }
 
+// The roles may already exist with dangerous attributes (created by hand, by
+// an older migration, by another app on the same server). Migrating must
+// leave them NOSUPERUSER NOBYPASSRLS anyway.
+func TestMigrationFixesPreexistingRoleAttributes(t *testing.T) {
+	d := dbtest.NewEmpty(t)
+	ctx := context.Background()
+	roles := []string{db.AppRole, db.SystemRole}
+	restore := func() {
+		for _, r := range roles {
+			_, _ = d.Pool.Exec(ctx, "alter role "+r+" nosuperuser nobypassrls nologin")
+		}
+	}
+	t.Cleanup(restore) // roles are server wide: never leave them dangerous
+	for _, r := range roles {
+		// Both roles exist already (the template migrated them); make them
+		// as bad as they can be before this database migrates.
+		if _, err := d.Pool.Exec(ctx, "alter role "+r+" superuser bypassrls login"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := d.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range roles {
+		var super, bypass, login bool
+		if err := d.Pool.QueryRow(ctx, `select rolsuper, rolbypassrls, rolcanlogin from pg_roles where rolname = $1`, r).
+			Scan(&super, &bypass, &login); err != nil {
+			t.Fatal(err)
+		}
+		if super || bypass || login {
+			t.Errorf("%s after migrating: rolsuper=%v rolbypassrls=%v rolcanlogin=%v, want all false", r, super, bypass, login)
+		}
+	}
+}
+
 // Every table, including the ones other modules add later, must have row
 // level security enabled and forced.
 func TestEveryTableHasForcedRLS(t *testing.T) {
 	d := dbtest.New(t)
+	// Every schema except Postgres' own: modules may live in their own
+	// schemas (ledger, documents, matching, ...).
 	rows, err := d.Pool.Query(context.Background(), `
-		select c.relname, c.relrowsecurity, c.relforcerowsecurity
+		select n.nspname || '.' || c.relname, c.relrowsecurity, c.relforcerowsecurity
 		from pg_class c join pg_namespace n on n.oid = c.relnamespace
-		where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relname <> 'goose_db_version'`)
+		where n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
+		  and n.nspname not like 'pg_temp_%' and n.nspname not like 'pg_toast_temp_%'
+		  and c.relkind in ('r', 'p')
+		  and not (n.nspname = 'public' and c.relname = 'goose_db_version')`)
 	if err != nil {
 		t.Fatal(err)
 	}

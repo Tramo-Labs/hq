@@ -85,6 +85,32 @@ func New(t testing.TB) *db.DB {
 	return d
 }
 
+// NewEmpty returns a pool on a fresh database with no migration applied, for
+// tests that need to control what exists before migrating. Roles are per
+// server, not per database: a test that alters them must restore them.
+func NewEmpty(t testing.TB) *db.DB {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("needs embedded postgres; skipped with -short")
+	}
+	once.Do(start)
+	if startErr != nil {
+		t.Fatalf("dbtest: %v", startErr)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	name := fmt.Sprintf("e_%d_%d", os.Getpid(), counter.Add(1))
+	if err := exec(ctx, "postgres", "create database "+name); err != nil {
+		t.Fatalf("dbtest: create database: %v", err)
+	}
+	d, err := db.Open(ctx, URL(name))
+	if err != nil {
+		t.Fatalf("dbtest: open: %v", err)
+	}
+	t.Cleanup(d.Close)
+	return d
+}
+
 func start() {
 	tmpDir, startErr = os.MkdirTemp("", "tramo-pg-")
 	if startErr != nil {

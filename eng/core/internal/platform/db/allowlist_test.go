@@ -43,20 +43,20 @@ func TestSystemCallersAreAllowlisted(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		// Any selector named System counts: a call (d.System(ctx, fn)), a
+		// method value (f := d.System) or a method expression
+		// ((*db.DB).System). Matching by name, not by type, is stricter on
+		// purpose: an unrelated System elsewhere has to be renamed or listed.
 		ast.Inspect(f, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "System" || len(call.Args) != 2 {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok || sel.Sel.Name != "System" {
 				return true
 			}
 			found++
 			dir := filepath.ToSlash(filepath.Dir(rel))
 			if _, ok := systemCallers[dir]; !ok {
-				t.Errorf("%s: calls System; only %v may (use InTenant, or add a justified entry and ADR 0002 line)",
-					fset.Position(call.Pos()), keys(systemCallers))
+				t.Errorf("%s: references System; only %v may (use InTenant, or add a justified entry and ADR 0002 line)",
+					fset.Position(sel.Pos()), keys(systemCallers))
 			}
 			return true
 		})

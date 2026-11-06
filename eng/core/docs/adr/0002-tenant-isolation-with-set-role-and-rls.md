@@ -42,20 +42,38 @@ tenant, so "a code bug cannot cross tenants" held only for code that chose
   written reason (registration, login, refresh tokens, idempotency, tenant
   keys, audit). It gets nothing on tables added later: a cross tenant job
   needs its own grants and policy in a migration that says why.
-- Which packages may call `System` is an allowlist (`internal/platform/db`,
-  `internal/platform/idempotency`, `internal/identity`), enforced by
-  `TestSystemCallersAreAllowlisted`, which parses the source tree. Adding an
-  entry means adding a line here.
+- Which packages may reference `System` is an allowlist
+  (`internal/platform/db`, `internal/platform/idempotency`,
+  `internal/identity`), enforced by `TestSystemCallersAreAllowlisted`, which
+  parses the source tree and flags any `.System` selector outside it: calls,
+  method values (`f := d.System`) and method expressions. It matches by name,
+  not by type, so it is stricter than needed. Adding an entry means adding a
+  line here.
 - Every table has `FORCE ROW LEVEL SECURITY`; `TestEveryTableHasForcedRLS`
-  fails for any table, including future module tables, that lacks it. With
+  fails for any table that lacks it in any schema except `pg_catalog`,
+  `information_schema`, `pg_toast` and temporary schemas (so module schemas
+  such as `ledger` or `matching` are covered; only goose's own version table
+  is exempt). Checked by mutation: a table without RLS in a new schema fails
+  it. Note: the default privileges of 00002 cover `public` only; a module
+  that creates its own schema grants `tramo_app` usage and table rights in
+  its migration. With
   a non superuser owner (prod, managed Postgres), a stray query on the raw
   pool sees no rows. A superuser owner still bypasses RLS, so production
   must connect as a non superuser owner; the raw pool is used only to
   migrate.
-- Both application roles are altered to `NOSUPERUSER NOBYPASSRLS NOLOGIN`
-  on every migration run, also when they pre-existed;
-  `TestApplicationRolesCannotBypassRLS` checks the attributes.
+- When migration 00003 runs on a database, it alters both application roles
+  to `NOSUPERUSER NOBYPASSRLS NOLOGIN`, also when they already existed with
+  other attributes. Two tests cover it: `TestApplicationRolesCannotBypassRLS`
+  checks the attributes after a normal migration, and
+  `TestMigrationFixesPreexistingRoleAttributes` makes both roles
+  `SUPERUSER BYPASSRLS LOGIN` before migrating an empty database and checks
+  they end up false. Limit: roles are server wide and 00003 runs once per
+  database, so someone altering a role by hand after that is not undone by
+  later migrations; the first test catches it on the next test run, not in
+  production.
 
-Checked by mutation: a `System` call added to the router fails the
-allowlist test, and `System` without the role switch fails
-`TestSystemRoleCannotReachBusinessTables`.
+Checked by mutation: a `System` call, and a `System` method value, added to
+the router fail the allowlist test; `System` without the role switch fails
+`TestSystemRoleCannotReachBusinessTables`; deleting both `alter role` lines
+from 00003 fails `TestMigrationFixesPreexistingRoleAttributes` (before this
+test existed, that mutation survived; QA found it).
