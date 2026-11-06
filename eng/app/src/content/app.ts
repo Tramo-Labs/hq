@@ -253,6 +253,9 @@ export const app = {
     days: (n: number) => (n === 1 ? "1 día" : `${n} días`),
     hours: (n: number) => (n === 1 ? "1 hora" : `${n} horas`),
     source: "De dónde sale",
+    // Draft for producto: every number in sample mode says so on its own card.
+    sampleTag: "Ejemplo ilustrativo",
+    sampleTagHint: "Número de ejemplo: no sale de datos de un cliente.",
     open: "Ver la lista",
     period: "Mes",
     apply: "Ver",
