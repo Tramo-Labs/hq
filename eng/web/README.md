@@ -106,3 +106,6 @@ a session share `src/components/app/auth-frame.tsx`; the emailed tokens are hand
 types; `scripts/test-resolve.mjs` resolves the extensionless imports). No test dependency.
 `src/lib/api/live.test.ts` checks that refresh and switch-tenant never overlap and that a 401
 during a switch waits for it, against a fake core that revokes the family on a reused token.
+`src/components/app/login-link.test.ts` checks F32 on /entrar: the emailed link is offered before
+any login attempt and after any failed one, and with no email typed nothing is sent. The rules
+live in `login-link.ts`, apart from the component, because the runner does not render React.

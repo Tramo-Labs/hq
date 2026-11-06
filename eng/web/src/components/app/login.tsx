@@ -5,6 +5,7 @@ import { useEffect, useId, useState } from "react";
 import { app } from "@/content/app";
 import { ApiError, areaAllows, getMode, getSession, homeFor, login, requestMagicLink, restore, switchTenant, type Membership, type Session } from "@/lib/api";
 import { primaryBtn, ghostBtn } from "@/components/app/buttons";
+import { sendLinkFor, showsLinkOffer } from "@/components/app/login-link";
 
 const s = app.session;
 const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none";
@@ -104,20 +105,19 @@ function LoginForm({ back, tenantId, expired, current }: LoginProps & { current:
   const [chosen, setChosen] = useState(tenantId ?? current?.tenantId ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // "Entrar con un enlace por mail" is always offered (F32): an invited person with no password, or
-  // one who lost the invitation, has no other way in. The core always answers 202, so it reveals
-  // nothing about which emails exist.
+  // "Entrar con un enlace por mail": when it shows and what it sends is in login-link (F32).
+  const [loginError, setLoginError] = useState<unknown>(null);
   const [linkSent, setLinkSent] = useState(false);
   const [linkKey] = useState(() => crypto.randomUUID());
 
   async function sendLink() {
     if (busy) return;
-    if (!email.trim()) return setError(s.magic.needEmail);
     setBusy(true);
     setError(null);
     try {
-      await requestMagicLink(email.trim(), linkKey, tenantId);
-      setLinkSent(true);
+      const result = await sendLinkFor(email, (typed) => requestMagicLink(typed, linkKey, tenantId));
+      if (result === "need_email") setError(s.magic.needEmail);
+      else setLinkSent(true);
     } catch (err) {
       setError(explain(err));
     } finally {
@@ -153,6 +153,7 @@ function LoginForm({ back, tenantId, expired, current }: LoginProps & { current:
       go(session);
     } catch (err) {
       setError(explain(err));
+      setLoginError(err);
     } finally {
       setBusy(false);
     }
@@ -205,7 +206,7 @@ function LoginForm({ back, tenantId, expired, current }: LoginProps & { current:
         </div>
       </form>
 
-      {askCredentials && (
+      {showsLinkOffer({ signedIn: !!current, choosing: !!choices, loginError }) && (
         <div className="mt-6 grid gap-3 rounded-xl border border-white/15 p-4">
           {linkSent ? (
             <p role="status" className="text-[14.5px] text-white/85">{s.magic.sent}</p>
