@@ -127,4 +127,4 @@ Con F2 hay evidencia nueva. Subí una factura con QR válido por $8.500 con fech
 
 ## Sin probar todavía
 
-El cierre de período (`period_closed`): no hay endpoint para cerrar un período, así que el cliente no puede llegar a ese estado. La factura con QR dentro de una imagen o en la capa de texto (probé solo el link). El gateway ARCA desde la API, que el núcleo no usa en ningún endpoint del cliente. El tope de 20 fallos por hora por email desde varias IPs: el lead pidió no repetir F10.
+El cierre de período (`period_closed`): todavía no existe. No hay endpoint para cerrar un período y cómo se cierra depende de una decisión de Martín, así que se prueba cuando esté construido. La factura con QR dentro de una imagen o en la capa de texto (probé solo el link). El gateway ARCA desde la API, que el núcleo no usa en ningún endpoint del cliente. El tope de 20 fallos por hora por email desde varias IPs: el lead pidió no repetir F10.
