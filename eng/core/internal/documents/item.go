@@ -29,6 +29,10 @@ const (
 	NoItemTotalOrDate = "missing_total_or_date" // no trusted total or issue date
 	NoItemCurrency    = "foreign_currency"      // not pesos: no conversion is guessed
 	NoItemDirection   = "unknown_direction"     // no issuer to tell which side the tenant is on
+	// NoItemNotThisTenant: issuer and receiver are both trusted and neither
+	// is the tenant. The invoice is someone else's; it is never eligible
+	// for automatic (F21).
+	NoItemNotThisTenant = "not_this_tenant"
 )
 
 // DirectionCap is the confidence of an item whose direction is not
@@ -63,6 +67,10 @@ func DraftItem(inv *Invoice, ownCUIT string) (ItemDraft, string) {
 	issuer, ok := inv.Get(IssuerCUIT)
 	if !ok {
 		return ItemDraft{}, NoItemDirection
+	}
+	if rcv, ok := inv.Get(ReceiverDoc); ok && issuer.Trusted() && rcv.Trusted() &&
+		issuer.Value != ownCUIT && rcv.Value != ownCUIT {
+		return ItemDraft{}, NoItemNotThisTenant
 	}
 	amount, err := money.Parse(total.Value, money.DecimalDot)
 	if err != nil {

@@ -134,6 +134,37 @@ func TestPGInvoiceWithoutItemSaysWhy(t *testing.T) {
 	}
 }
 
+// F21, the client's case: a QR invoice issued by a supplier to another
+// company (beta), uploaded by alfa. Neither trusted issuer nor trusted
+// receiver is alfa: not this tenant's, no item, never auto eligible, listed
+// to review with its reason.
+func TestPGInvoiceOfAnotherCompany(t *testing.T) {
+	e := newPGEnv(t)
+	e.setTenantCUIT(t, "30000000031") // alfa; the invoice is between the supplier and 30000000023
+	ds := e.docs()
+	inv := invoice(documents.SourceQR, 0.98, "120500.50", "2026-10-01", "9001", true)
+	id, err := ds.Save(e.ctx, []byte("someone else's invoice"), inv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ds.Get(e.ctx, id)
+	if err != nil || got.ItemReason != documents.NoItemNotThisTenant || got.AutoEligible() {
+		t.Fatalf("reason %q, auto eligible %v (%v)", got.ItemReason, got.AutoEligible(), err)
+	}
+	review, err := ds.List(e.ctx, documents.ListFilter{Review: true}, 10)
+	if err != nil || len(review) != 1 || review[0].AutoEligible || review[0].ItemReason != documents.NoItemNotThisTenant {
+		t.Errorf("review list %+v %v", review, err)
+	}
+	if n := e.count(t, e.ctx, `select count(*) from matching.items where source = 'document'`); n != 0 {
+		t.Errorf("%d items for another company's invoice", n)
+	}
+	// The same invoice for the right tenant is a normal payable.
+	e.setTenantCUIT(t, tenantCUIT)
+	if d, reason := documents.DraftItem(invoice(documents.SourceQR, 0.98, "120500.50", "2026-10-01", "9001", true), tenantCUIT); reason != "" || d.Kind != "payable" {
+		t.Errorf("for its receiver: %+v %q", d, reason)
+	}
+}
+
 // The item follows its invoice, and an item a match in effect settles does
 // not change or disappear in silence.
 func TestPGInvoiceItemFollowsAndIsGuarded(t *testing.T) {

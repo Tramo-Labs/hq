@@ -133,7 +133,10 @@ func (inv *Invoice) Untrusted() []Name {
 
 // AutoEligible reports whether every required field is trusted. Only then
 // may the invoice be registered without review or feed an automatic match.
-func (inv *Invoice) AutoEligible() bool { return len(inv.Untrusted()) == 0 }
+// An invoice that is someone else's (F21) never is.
+func (inv *Invoice) AutoEligible() bool {
+	return inv.ItemReason != NoItemNotThisTenant && len(inv.Untrusted()) == 0
+}
 
 // MinConfidence over the required fields (0 if any is missing). A field in
 // conflict or from the language model counts at most LLMCap. Matching uses
