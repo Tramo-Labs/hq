@@ -101,6 +101,8 @@ one transaction (file, statement, movements, audit entry). Audit actions:
 `ledger.account_created`, `ledger.statement_accepted`,
 `ledger.file_quarantined` (the quarantine notice the operator console
 reads). `MemStore` stays as the reference behavior for the domain tests.
+Its SQL lives in `queries.sql`, compiled by sqlc (`make gen`) into
+`store/`; nothing in the module writes row mapping by hand.
 
 Endpoints (`api/openapi.yaml`, tag `ledger`):
 

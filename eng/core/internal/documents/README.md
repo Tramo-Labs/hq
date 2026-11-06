@@ -101,7 +101,8 @@ Every field with its source and confidence as JSON, the trail, and
 total) are filled only from trusted fields: the same invoice in a second
 file is `ErrDuplicateInvoice`, the same file is `ErrSameDocument`, and an
 uncertain reading is never called a duplicate. `PGStore` uses
-`db.InTenant` only; audit action `documents.invoice_stored`.
+`db.InTenant` only; audit action `documents.invoice_stored`. Its SQL
+lives in `queries.sql`, compiled by sqlc (`make gen`) into `store/`.
 
 Endpoints (tag `documents`): `POST /v1/documents/invoices` (multipart
 `file`, PDF or image up to 15 MiB; every role but viewer; 201 with every
