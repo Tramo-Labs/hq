@@ -28,31 +28,31 @@ var ErrInvalidMagicLink = errors.New("invalid or expired link")
 // ErrNoQueue means the service was built without a job queue (Enqueue).
 var ErrNoQueue = errors.New("identity: no job queue configured")
 
-// MagicLinkArgs is the job that sends one magic link. It carries the
-// request id and IP so the audit row of the job matches the request.
+// MagicLinkArgs is the job that sends one magic link. It carries only the
+// id of the pending request (magic_link_requests): River stores job
+// arguments in clear, and personal data (the email, the IP) never goes
+// there (worker README).
 type MagicLinkArgs struct {
-	Email     string     `json:"email"`
-	Tenant    *uuid.UUID `json:"tenant,omitempty"`
-	RequestID string     `json:"request_id"`
-	IP        string     `json:"ip,omitempty"`
+	Request uuid.UUID `json:"request"`
 }
 
 // Kind is the stable job name stored in the queue.
 func (MagicLinkArgs) Kind() string { return "identity.magic_link" }
 
-// InsertOpts: unique by its arguments, which include the request id, so a
-// retried insert of the same request is not sent twice. The per email limit
-// (three per 15 minutes) is enforced in the request, before the insert.
+// InsertOpts: unique by the request, so a retried insert of the same
+// request is not sent twice. The per email limit (three per 15 minutes) is
+// enforced in the request, before anything is stored.
 func (MagicLinkArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{UniqueOpts: river.UniqueOpts{ByArgs: true}, MaxAttempts: 3}
 }
 
-// RequestMagicLink asks for a one time login link. It only checks the
-// throttles (per IP and per email, known emails or not) and enqueues a job;
-// it never looks the email up. So the request does the same work, and
-// takes the same time, whether or not the email has an account, and the
-// caller answers 202 either way (D-17). The job sends the link if there is
-// an account and does nothing otherwise.
+// RequestMagicLink asks for a one time login link. It checks the
+// throttles (per IP and per email, known emails or not), stores the
+// request and enqueues a job with the request's id; it never looks the
+// email up. So the request does the same work, and takes the same time,
+// whether or not the email has an account, and the caller answers 202
+// either way (D-17). The job sends the link if there is an account and
+// does nothing otherwise. A request whose enqueue failed is purged daily.
 func (s *Service) RequestMagicLink(ctx context.Context, email string, tenant *uuid.UUID) error {
 	email = strings.TrimSpace(email)
 	if err := s.checkMagicLinkRequest(ctx, email); err != nil {
@@ -61,14 +61,22 @@ func (s *Service) RequestMagicLink(ctx context.Context, email string, tenant *uu
 	if s.Enqueue == nil {
 		return ErrNoQueue
 	}
-	args := MagicLinkArgs{Email: email, Tenant: tenant}
+	in := store.InsertMagicLinkRequestParams{Email: email, TenantID: tenant}
 	if m, ok := httpx.MetaFrom(ctx); ok {
-		args.RequestID = m.RequestID
+		in.RequestID = &m.RequestID
 		if m.IP.IsValid() {
-			args.IP = m.IP.String()
+			in.Ip = m.IP.String()
 		}
 	}
-	return s.Enqueue(ctx, args)
+	var id uuid.UUID
+	if err := s.DB.System(ctx, func(tx pgx.Tx) error {
+		var err error
+		id, err = store.New(tx).InsertMagicLinkRequest(ctx, in)
+		return err
+	}); err != nil {
+		return err
+	}
+	return s.Enqueue(ctx, MagicLinkArgs{Request: id})
 }
 
 // MagicLinkWorker sends the links asked for with RequestMagicLink.
@@ -79,51 +87,69 @@ type MagicLinkWorker struct {
 	AppBaseURL string
 }
 
-// Work sends the link of one request. A retry after the email went out
-// sends a second link; both work once and expire in 15 minutes.
+// Work takes the pending request (deleting it), and in that same
+// transaction looks the email up and, if it has an account, stores the
+// link; then mails it. A second run finds no request and does nothing.
 func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs]) error {
-	m := httpx.Meta{RequestID: job.Args.RequestID}
-	if ip, err := netip.ParseAddr(job.Args.IP); err == nil {
-		m.IP = ip
-	}
-	return sendMagicLink(httpx.WithMeta(ctx, m), w.DB, w.Mailer, w.AppBaseURL, job.Args.Email, job.Args.Tenant, time.Now())
-}
-
-// sendMagicLink stores and mails a link if email has an account. The token
-// goes only into the email: never in a log or the audit log.
-func sendMagicLink(ctx context.Context, d *db.DB, m mail.Sender, base, email string, tenant *uuid.UUID, now time.Time) error {
 	token, hash, err := newRefreshToken()
 	if err != nil {
 		return err
 	}
+	var email string
 	var sent bool
-	err = d.System(ctx, func(tx pgx.Tx) error {
+	err = w.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
-		u, err := q.GetUserForLogin(ctx, email)
+		req, err := q.TakeMagicLinkRequest(ctx, job.Args.Request)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil // already sent, or purged
+		}
+		if err != nil {
+			return err
+		}
+		email = req.Email
+		// The audit row of the job carries the request's id and IP.
+		m := httpx.Meta{RequestID: req.RequestID}
+		if ip, err := netip.ParseAddr(req.Ip); err == nil {
+			m.IP = ip
+		}
+		actx := httpx.WithMeta(ctx, m)
+		u, err := q.GetUserForLogin(actx, req.Email)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		if err := q.InsertMagicLink(ctx, store.InsertMagicLinkParams{UserID: u.ID, TenantID: tenant,
-			TokenHash: hash, ExpiresAt: now.Add(MagicLinkTTL)}); err != nil {
+		if err := q.InsertMagicLink(actx, store.InsertMagicLinkParams{UserID: u.ID, TenantID: req.TenantID,
+			TokenHash: hash, ExpiresAt: time.Now().Add(MagicLinkTTL)}); err != nil {
 			return err
 		}
 		sent = true
-		return audit.Record(ctx, tx, audit.Entry{Action: "identity.magic_link_sent", Subject: "users:" + u.ID.String(), UserID: u.ID})
+		return audit.Record(actx, tx, audit.Entry{Action: "identity.magic_link_sent", Subject: "users:" + u.ID.String(), UserID: u.ID})
 	})
 	if err != nil || !sent {
 		return err
 	}
-	if m == nil {
+	if w.Mailer == nil {
 		httpx.Logger(ctx).Warn("magic link not delivered: no mail transport configured")
 		return nil
 	}
-	if err := m.Send(ctx, magicLinkMessage(base, email, token)); err != nil {
+	if err := w.Mailer.Send(ctx, magicLinkMessage(w.AppBaseURL, email, token)); err != nil {
 		httpx.Logger(ctx).Error("magic link not delivered", "err", err)
 	}
 	return nil
+}
+
+// PurgeStaleMagicLinkRequests deletes requests older than a day: left only
+// when the enqueue after storing one failed.
+func PurgeStaleMagicLinkRequests(ctx context.Context, d *db.DB) (int64, error) {
+	var n int64
+	err := d.System(ctx, func(tx pgx.Tx) error {
+		var err error
+		n, err = store.New(tx).DeleteStaleMagicLinkRequests(ctx)
+		return err
+	})
+	return n, err
 }
 
 // magicLinkMessage is the login link email.

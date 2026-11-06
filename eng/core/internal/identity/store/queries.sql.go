@@ -129,6 +129,18 @@ func (q *Queries) DeleteMembership(ctx context.Context, arg DeleteMembershipPara
 	return role, err
 }
 
+const deleteStaleMagicLinkRequests = `-- name: DeleteStaleMagicLinkRequests :execrows
+delete from magic_link_requests where created_at < now() - interval '1 day'
+`
+
+func (q *Queries) DeleteStaleMagicLinkRequests(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteStaleMagicLinkRequests)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const ensureUser = `-- name: EnsureUser :one
 insert into users (email) values ($1)
 on conflict (email) do update set email = excluded.email
@@ -362,6 +374,30 @@ func (q *Queries) InsertMagicLink(ctx context.Context, arg InsertMagicLinkParams
 		arg.ExpiresAt,
 	)
 	return err
+}
+
+const insertMagicLinkRequest = `-- name: InsertMagicLinkRequest :one
+insert into magic_link_requests (email, tenant_id, request_id, ip)
+values ($1, $2, $3, nullif($4::text, '')::inet) returning id
+`
+
+type InsertMagicLinkRequestParams struct {
+	Email     string
+	TenantID  *uuid.UUID
+	RequestID *string
+	Ip        string
+}
+
+func (q *Queries) InsertMagicLinkRequest(ctx context.Context, arg InsertMagicLinkRequestParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertMagicLinkRequest,
+		arg.Email,
+		arg.TenantID,
+		arg.RequestID,
+		arg.Ip,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertRefreshToken = `-- name: InsertRefreshToken :exec
@@ -611,4 +647,29 @@ type SetUserNameIfUnsetParams struct {
 func (q *Queries) SetUserNameIfUnset(ctx context.Context, arg SetUserNameIfUnsetParams) error {
 	_, err := q.db.Exec(ctx, setUserNameIfUnset, arg.ID, arg.DisplayName)
 	return err
+}
+
+const takeMagicLinkRequest = `-- name: TakeMagicLinkRequest :one
+delete from magic_link_requests where id = $1
+returning email, tenant_id, coalesce(request_id, '')::text as request_id, coalesce(host(ip), '')::text as ip
+`
+
+type TakeMagicLinkRequestRow struct {
+	Email     string
+	TenantID  *uuid.UUID
+	RequestID string
+	Ip        string
+}
+
+// Deletes the request and returns it: a second run finds nothing.
+func (q *Queries) TakeMagicLinkRequest(ctx context.Context, id uuid.UUID) (TakeMagicLinkRequestRow, error) {
+	row := q.db.QueryRow(ctx, takeMagicLinkRequest, id)
+	var i TakeMagicLinkRequestRow
+	err := row.Scan(
+		&i.Email,
+		&i.TenantID,
+		&i.RequestID,
+		&i.Ip,
+	)
+	return i, err
 }

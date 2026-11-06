@@ -291,22 +291,31 @@ func TestAskingDoesTheSameWorkForKnownAndUnknownEmails(t *testing.T) {
 			t.Fatalf("%s: the request stored a link", email)
 		}
 	}
-	// One job per request, the same for both: only the email differs.
+	// One stored request and one job per request, the same for both: the
+	// job carries only the request's id.
 	q.mu.Lock()
 	got := append([]identity.MagicLinkArgs(nil), q.pending...)
 	q.mu.Unlock()
-	if len(got) != 2 {
-		t.Fatalf("%d jobs, want one per request", len(got))
+	if len(got) != 2 || got[0].Request == got[1].Request {
+		t.Fatalf("jobs %+v, want one per request", got)
 	}
-	a, b := got[0], got[1]
-	a.Email, b.Email, a.RequestID, b.RequestID = "", "", "", ""
-	if a != b {
-		t.Fatalf("the jobs differ beyond the email: %+v vs %+v", got[0], got[1])
+	requests := func() int {
+		var n int
+		if err := deps.DB.Pool.QueryRow(context.Background(), `select count(*) from magic_link_requests`).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if n := requests(); n != 2 {
+		t.Fatalf("%d stored requests, want one per request, known or not", n)
 	}
 
 	q.run(t)
 	if n := links(); n != 1 {
 		t.Fatalf("%d links after the jobs, want 1 (known email only)", n)
+	}
+	if n := requests(); n != 0 {
+		t.Fatalf("%d requests left after the jobs", n)
 	}
 	if b, _ := os.ReadFile(outbox); strings.Contains(string(b), "nadie@same.test") || !strings.Contains(string(b), own.email) {
 		t.Fatalf("outbox after the jobs: %s", b)

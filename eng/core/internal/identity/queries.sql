@@ -122,6 +122,18 @@ for update;
 -- name: MarkMagicLinkUsed :exec
 update magic_links set used_at = now() where id = $1;
 
+-- name: InsertMagicLinkRequest :one
+insert into magic_link_requests (email, tenant_id, request_id, ip)
+values (sqlc.arg(email), sqlc.narg(tenant_id), sqlc.narg(request_id), nullif(sqlc.arg(ip)::text, '')::inet) returning id;
+
+-- name: TakeMagicLinkRequest :one
+-- Deletes the request and returns it: a second run finds nothing.
+delete from magic_link_requests where id = $1
+returning email, tenant_id, coalesce(request_id, '')::text as request_id, coalesce(host(ip), '')::text as ip;
+
+-- name: DeleteStaleMagicLinkRequests :execrows
+delete from magic_link_requests where created_at < now() - interval '1 day';
+
 -- name: DeleteExpiredMagicLinks :execrows
 delete from magic_links where expires_at < now() - interval '7 days';
 
