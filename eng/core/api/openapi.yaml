@@ -100,10 +100,45 @@ paths:
         "200": { $ref: "#/components/responses/Tokens" }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+        "403":
+          description: |
+            The password is right but the user is not a member of the
+            requested tenant (code not_a_member).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "429":
           description: |
             Throttled (code rate_limited): too many logins from this IP, or
             too many failures for this email. Checked before the password.
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/auth/invite/accept:
+    post:
+      operationId: acceptInvite
+      tags: [identity]
+      summary: Set the password with an invitation and open a session
+      description: |
+        The token comes only in the invitation email. It is single use,
+        expires in 72 hours and works only while the person has no
+        password. Unknown, used and expired tokens all answer 401
+        invalid_invite. Rate limited per IP. Opens a session on the tenant
+        that invited the person.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AcceptInviteRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Tokens" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "429":
+          description: Throttled (code rate_limited).
           headers:
             Retry-After: { schema: { type: integer }, description: seconds to wait }
           content:
@@ -181,11 +216,14 @@ paths:
     post:
       operationId: addMember
       tags: [identity]
-      summary: Add a person to the active tenant (owner or operator)
+      summary: Add a person to the active tenant (owner, or operator for the first owner)
       description: |
-        Creates the user without a password when the email is new; they get
-        in with a magic link (not built yet). Only an operator can grant
-        `operator` or `accountant`.
+        An owner grants `owner`, `approver`, `viewer` or `accountant`. An
+        operator grants only `owner`, and only while the tenant has none.
+        Nobody grants `operator` here (the first one comes from the
+        `api create-operator` command). Anything else is 403. When the
+        person has no password yet, an invitation goes to the email (never
+        in this response) and they set one with POST /v1/auth/invite/accept.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -204,6 +242,27 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+  /v1/tenant/members/{userId}:
+    delete:
+      operationId: removeMember
+      tags: [identity]
+      summary: Remove a person from the active tenant (owner only)
+      description: |
+        Only an owner removes, any role including an operator. The last
+        owner can not be removed (409 last_owner). The person's refresh
+        tokens for this tenant are revoked at once; an access token already
+        issued keeps working until it expires, at most 10 minutes.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: removed }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
   /v1/ledger/accounts:
     get:
       operationId: listAccounts
@@ -767,6 +826,7 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/ExportInfo" }
         "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
   /v1/exports/{kind}:
     get:
       operationId: getExport
@@ -805,6 +865,7 @@ paths:
               schema: { type: string }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
         "501": { $ref: "#/components/responses/Problem" }
 security:
   - bearer: []
@@ -1011,6 +1072,14 @@ components:
           type: string
           format: uuid
           description: Tenant to act on. Defaults to the oldest membership.
+        tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    AcceptInviteRequest:
+      type: object
+      required: [token, password]
+      additionalProperties: false
+      properties:
+        token: { type: string, minLength: 43, maxLength: 64 }
+        password: { $ref: "#/components/schemas/Password" }
         tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
     RefreshRequest:
       type: object
