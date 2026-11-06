@@ -28,6 +28,7 @@ import (
 	middleware "github.com/oapi-codegen/nethttp-middleware"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
+	"github.com/Tramo-Labs/hq/eng/core/internal/closes"
 	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
@@ -66,6 +67,7 @@ type Handlers struct {
 	*documentsAPI
 	*matchingAPI
 	*portalAPI
+	*closesAPI
 }
 
 // Aliases give each embedded module handler set its own field name.
@@ -74,6 +76,7 @@ type (
 	documentsAPI = documents.Handlers
 	matchingAPI  = matching.Handlers
 	portalAPI    = portal.Handlers
+	closesAPI    = closes.Handlers
 )
 
 // NewHandlers builds the module handlers.
@@ -89,6 +92,7 @@ func NewHandlers(d Deps) *Handlers {
 		// Read views over the modules above, under the caller's scope.
 		portalAPI: &portal.Handlers{DB: d.DB, Identity: d.Identity,
 			Ledger: &ledger.PGStore{DB: d.DB}, Matching: &matching.PGStore{DB: d.DB}},
+		closesAPI: closes.NewHandlers(),
 	}
 }
 

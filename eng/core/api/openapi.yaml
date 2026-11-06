@@ -23,6 +23,11 @@ tags:
     description: Supplier invoices with the source and confidence of every field.
   - name: matching
     description: Runs of the matching engine, the three trays and human decisions.
+  - name: closes
+    description: |
+      The period close of a tenant (D-6: fortnightly by default, the period
+      is a parameter). An operator closes a period once its Suggested tray
+      is empty; the close freezes it and stores the summary the client sees.
   - name: portal
     description: |
       Read views for the client portal and the operator console, built from
@@ -714,6 +719,84 @@ paths:
               schema: { $ref: "#/components/schemas/Invoice" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /v1/closes:
+    get:
+      operationId: listCloses
+      tags: [closes]
+      summary: The closed periods of the active tenant, newest first
+      description: Every role of the tenant sees them. Each carries its frozen summary.
+      responses:
+        "200":
+          description: closes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Close" }
+                  nextCursor: { type: string, nullable: true }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: closePeriod
+      tags: [closes]
+      summary: Close a period of the active tenant (operator)
+      description: |
+        Freezes the period that starts on periodStart, per the tenant's
+        cadence (fortnight by default: the 1st to the 15th and the 16th to
+        the month's last day), and stores its summary. Only an operator
+        closes. Refused, with nothing written:
+        - 409 suggested_pending: the period still has Suggested items; the
+          answer carries how many, and the operator empties the tray first.
+          Open Exceptions do not block: they go into the summary.
+        - 409 already_closed: that period is closed.
+        - 409 period_not_over: the period has not ended yet.
+        - 400 invalid_period: periodStart is not where a period starts.
+        Once closed, decisions, reverts, manual links and runs that touch
+        the period answer 409 period_closed. Reopening is not built.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClosePeriodRequest" }
+      responses:
+        "201":
+          description: closed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Close" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409":
+          description: |
+            Not closed (codes suggested_pending, already_closed,
+            period_not_over). suggested_pending carries pendingSuggested.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/CloseRefused" }
+  /v1/closes/{closeId}:
+    get:
+      operationId: getClose
+      tags: [closes]
+      summary: One closed period of the active tenant, with its summary
+      parameters:
+        - name: closeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: the close
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Close" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
   /v1/matching/runs:
     post:
       operationId: runMatching
@@ -1398,6 +1481,44 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         role: { $ref: "#/components/schemas/Role" }
+    ClosePeriodRequest:
+      type: object
+      required: [periodStart]
+      additionalProperties: false
+      properties:
+        periodStart: { type: string, format: date, example: "2026-11-01" }
+    Close:
+      type: object
+      required: [id, cadence, periodStart, periodEnd, closedAt, closedBy, summary]
+      properties:
+        id: { type: string, format: uuid }
+        cadence:
+          type: string
+          enum: [fortnight]
+          description: The cadence the period was cut with. Fortnight is the default (D-6).
+        periodStart: { type: string, format: date, example: "2026-11-01" }
+        periodEnd:
+          type: string
+          format: date
+          example: "2026-11-15"
+          description: The period's last day, included.
+        closedAt: { type: string, format: date-time }
+        closedBy: { type: string, format: uuid, description: The operator who closed it. }
+        summary:
+          type: array
+          description: |
+            The numbers of the period as they were when it closed, frozen:
+            the same metrics as the results panel, each with its source and
+            the list it comes from. Open Exceptions are in here.
+          items: { $ref: "#/components/schemas/Metric" }
+    CloseRefused:
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          properties:
+            pendingSuggested:
+              type: integer
+              description: With suggested_pending, the Suggested items left in the period.
     Cents:
       type: integer
       format: int64
