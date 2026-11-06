@@ -3,7 +3,7 @@ import * as fx from "./fixtures";
 import { getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, Role, TenantStatus,
+  Page, PendingMovement, PendingTray, Role, TenantStatus, ItemDirection, OpenItems,
 } from "./types";
 
 /**
@@ -103,10 +103,25 @@ export async function listPending(tray: PendingTray, period?: string) {
   const s = session();
   if (tray === "suggested" && !seesSuggested(s.role)) throw new ApiError(403, "forbidden");
   return page<PendingMovement>(
-    fx.pending
+    allPending()
       .filter((x) => x.tenantId === s.tenantId && x.pending.tray === tray && (!period || x.period === period) && !decided.has(x.pending.movementId))
       .map((x) => x.pending),
   );
+}
+
+// A client's reject in Exceptions sends each movement of the match back to the operator, in
+// Suggested with reason client_rejected (datos' core at c318326). Synthetic movement details.
+const rejectedBack = new Map<string, fx.SamplePending[]>();
+const allPending = () => [...fx.pending, ...[...rejectedBack.values()].flat()];
+
+function sendBack(x: (typeof fx.matches)[number], note: string | undefined) {
+  const account = fx.accounts[x.tenantId]?.[0];
+  rejectedBack.set(x.match.id, x.match.movementIds.map((movementId, i) => ({
+    tenantId: x.tenantId, period: x.period,
+    pending: { movementId, runId: x.match.id, date: `${x.period}-0${i + 3}`, amount: -1_500_000, description: "MOVIMIENTO DE EJEMPLO",
+      accountId: account?.id ?? "", accountName: account?.name ?? "", bank: account?.bank ?? "galicia",
+      tray: "suggested", reason: "client_rejected", note, matchId: x.match.id, candidates: [] },
+  })));
 }
 
 const deciders: Record<"suggested" | "exception", Role[]> = { suggested: ["operator"], exception: ["owner", "approver"] };
@@ -133,20 +148,36 @@ export async function decideMatch(matchId: string, body: DecisionRequest, idempo
     const prior = decided.get(matchId) as Decision | undefined;
     if (body.action === "revert") {
       if (!prior) throw new ApiError(409, "nothing_to_revert");
+      const back = rejectedBack.get(matchId) ?? [];
+      if (back.some((m) => decided.has(m.pending.movementId))) throw new ApiError(409, "operator_answered");
+      rejectedBack.delete(matchId);
       decided.delete(matchId);
     } else if (prior) throw new ApiError(409, "conflict");
     const d: Decision = { matchId, tray, action: body.action, userId: userId(s.email), role: s.role, at: new Date().toISOString(),
       note: body.note, revision: (prior?.revision ?? 0) + 1 };
     if (body.action !== "revert") decided.set(matchId, d);
+    if (body.action === "reject" && tray === "exception") sendBack(x, body.note);
     return d;
   });
+}
+
+/** Items linked by hand in this tab, by item id, to the movement that took them. */
+const linked = new Map<string, string>();
+
+export async function listOpenItems(direction: ItemDirection, period?: string): Promise<OpenItems> {
+  const s = session();
+  const items = (fx.openItems[s.tenantId] ?? [])
+    .filter((o) => (direction === "in" ? o.amount > 0 : o.amount < 0) && (!period || o.date.startsWith(period)) && !linked.has(o.id))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return { items, truncated: false };
 }
 
 export async function decideMovement(movementId: string, body: MovementDecisionRequest, idempotencyKey: string): Promise<MovementDecision> {
   const s = session();
   return replay(idempotencyKey, () => {
-    const x = fx.pending.find((y) => y.tenantId === s.tenantId && y.pending.movementId === movementId);
+    const x = allPending().find((y) => y.tenantId === s.tenantId && y.pending.movementId === movementId);
     if (!x) throw new ApiError(404, "not_found");
+    const withOperator = x.pending.reason === "client_other" || x.pending.reason === "client_rejected";
     // Like the core (internal/matching/README.md, F4): the client decides a movement in its
     // Exceptions; once the client said other (client_other), the operator answers it.
     const operator = s.role === "operator";
@@ -156,14 +187,25 @@ export async function decideMovement(movementId: string, body: MovementDecisionR
     if (["other", "resolve", "return"].includes(body.action) && !body.note?.trim()) throw new ApiError(400, "bad_request", "note required");
     const prior = decided.get(movementId) as MovementDecision | undefined;
     if (body.action === "revert") {
+      if (!operator && x.pending.reason === "client_rejected") throw new ApiError(409, "revert_on_match");
       if (!prior) throw new ApiError(409, "nothing_to_revert");
       if ((prior.role === "operator") !== operator) throw new ApiError(403, "forbidden");
       decided.delete(movementId);
+      for (const [itemId, by] of linked) if (by === movementId) linked.delete(itemId);
     } else {
-      if (operator && x.pending.reason !== "client_other") throw new ApiError(409, "not_with_operator");
+      if (operator && !withOperator) throw new ApiError(409, "not_with_operator");
       if (!operator && x.pending.tray !== "exception") throw new ApiError(409, "not_in_exceptions");
-      if (body.action === "link") throw new ApiError(400, "bad_request", "sample mode has no open items to link");
       if (prior) throw new ApiError(409, "conflict");
+      if (body.action === "link") {
+        const ids = body.itemIds ?? [];
+        if (ids.length === 0 || new Set(ids).size !== ids.length) throw new ApiError(400, "bad_request", "itemIds required");
+        const open = fx.openItems[s.tenantId] ?? [];
+        const picked = ids.map((i) => open.find((o) => o.id === i));
+        if (picked.some((o) => !o)) throw new ApiError(400, "bad_request", "unknown item");
+        if (ids.some((i) => linked.has(i))) throw new ApiError(409, "item_taken");
+        if (picked.reduce((t, o) => t + o!.amount, 0) !== x.pending.amount) throw new ApiError(400, "bad_request", "amounts do not add up");
+        for (const i of ids) linked.set(i, movementId);
+      }
     }
     const d: MovementDecision = { movementId, action: body.action, userId: userId(s.email), role: s.role, at: new Date().toISOString(),
       note: body.note, revision: (prior?.revision ?? 0) + 1 };

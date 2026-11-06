@@ -147,8 +147,29 @@ export type Match = {
 
 export type Candidate = { rule: string; itemIds: string[] };
 
+/** An item nothing settles yet (GET /v1/matching/items), what "Vincular a mano" offers. */
+export type OpenItem = {
+  id: string;
+  /** erp, document or manual. */
+  source: string;
+  sourceId: string;
+  kind: string;
+  date: string;
+  due?: string;
+  /** Cents, with the sign it will have in the bank. */
+  amount: Cents;
+  refs: string[];
+  /** The CUIT on the other side, when known. */
+  party?: string;
+  confidence: number;
+  invoiceId?: string;
+};
+export type OpenItems = { items: OpenItem[]; truncated: boolean };
+export type ItemDirection = "in" | "out";
+
 export type PendingReason =
-  | "ambiguous" | "shared_candidate" | "combination_ambiguous" | "reference_amount_differs" | "no_candidate" | "client_other" | "operator_returned";
+  | "ambiguous" | "shared_candidate" | "combination_ambiguous" | "reference_amount_differs" | "no_candidate"
+  | "client_other" | "client_rejected" | "operator_returned";
 
 export type PendingMovement = {
   movementId: string;
@@ -163,8 +184,10 @@ export type PendingMovement = {
   bank: Bank;
   tray: "suggested" | "exception";
   reason: PendingReason;
-  /** The client's note, for client_other. */
+  /** The client's note for client_other and client_rejected, the operator's for operator_returned. */
   note?: string;
+  /** The match the client rejected, for client_rejected. */
+  matchId?: string;
   candidates: Candidate[];
 };
 
