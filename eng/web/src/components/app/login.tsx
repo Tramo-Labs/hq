@@ -10,10 +10,24 @@ const s = app.session;
 const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none";
 
 /** Only a path inside this site, so ?volver= cannot send anyone elsewhere. */
+/**
+ * Where to go after login: a path inside the person's own area, or their home. The path is
+ * normalized with the URL parser first (dot segments, backslashes, protocol-relative forms), so
+ * "/app/../../evil.example" is read as "/evil.example" and lands on the home, never elsewhere.
+ */
+const base = "http://tramo.invalid";
 function safeBack(back: string | undefined, role: Session["role"]) {
-  if (!back || !back.startsWith("/") || back.startsWith("//") || back.startsWith("/\\")) return homeFor(role);
-  const area = back.startsWith("/operador") ? "console" : back.startsWith("/app") ? "portal" : null;
-  return area && areaAllows(area, role) ? back : homeFor(role);
+  if (!back || !back.startsWith("/")) return homeFor(role);
+  let u: URL;
+  try {
+    u = new URL(back, base);
+  } catch {
+    return homeFor(role);
+  }
+  if (u.origin !== base) return homeFor(role);
+  const inside = (root: string) => u.pathname === root || u.pathname.startsWith(root + "/");
+  const area = inside("/operador") ? "console" : inside("/app") ? "portal" : null;
+  return area && areaAllows(area, role) ? u.pathname + u.search + u.hash : homeFor(role);
 }
 
 function explain(e: unknown) {

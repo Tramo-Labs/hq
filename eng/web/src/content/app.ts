@@ -142,6 +142,7 @@ export const app = {
   trays: {
     eyebrow: "Bandejas",
     title: "Automático, sugerido, excepciones.",
+    titleNoSuggested: "Automático y excepciones.",
     names: { auto: "Automático", suggested: "Sugerido", exception: "Excepciones" },
     hints: {
       auto: "Regla exacta, sin ambigüedad. Ya se registró con su regla; se revisa en el cierre.",

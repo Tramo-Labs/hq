@@ -32,7 +32,7 @@ export function Trays({ asked }: { asked?: MatchTray }) {
 
   return (
     <>
-      <PageHead eyebrow={`${tr.eyebrow} · ${session.tenantName}`} title={tr.title} />
+      <PageHead eyebrow={`${tr.eyebrow} · ${session.tenantName}`} title={trayOrder.includes("suggested") ? tr.title : tr.titleNoSuggested} />
       <nav aria-label={tr.eyebrow} className="flex flex-wrap gap-2">
         {trayOrder.map((t, i) => (
           <Link key={t} href={`/operador/bandejas?bandeja=${t}`} aria-current={t === tray ? "page" : undefined}
