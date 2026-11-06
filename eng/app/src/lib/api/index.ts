@@ -54,6 +54,16 @@ export async function acceptMagicLink(token: string) {
   return isLive() ? live.acceptMagicLink(token) : (await sample()).acceptMagicLink();
 }
 
+/** POST /v1/auth/invite/accept with the session's token (F41): 204 joins that account, 409 invite_for_another_account. */
+export async function acceptInviteAs(token: string): Promise<void> {
+  return isLive() ? live.acceptInviteAs(token) : (await sample()).acceptInviteAs();
+}
+
+/** GET /v1/me into the session, after joining a company (F41). */
+export async function reloadMe(): Promise<Session> {
+  return isLive() ? live.reloadMe() : (await sample()).reloadMe();
+}
+
 /** POST /v1/auth/invite/preview: the company and role of an invitation, before accepting (F38). */
 export async function previewInvite(token: string): Promise<InvitePreview> {
   return isLive() ? live.previewInvite(token) : (await sample()).previewInvite();

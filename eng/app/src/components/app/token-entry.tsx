@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { app } from "@/content/app";
-import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, previewInvite, whoIsIn, type Session } from "@/lib/api";
-import { acceptStep, inviteStep, needsPreview, offersAccept, passwordProblem, previewFailed, type InviteStage, type PreviewState } from "@/components/app/invite-rules";
+import { acceptInvite, acceptInviteAs, acceptMagicLink, ApiError, homeFor, logout, previewInvite, reloadMe, switchTenant, whoIsIn, type Membership, type Session } from "@/lib/api";
+import { acceptStep, inviteStep, needsPreview, newMembership, offersAccept, passwordProblem, previewFailed, type InviteStage, type PreviewState } from "@/components/app/invite-rules";
 import { explainToken, noTokenMessage, tokenInFragment, watchTokenFragment } from "@/components/app/token-rules";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
@@ -61,6 +61,10 @@ export function InviteEntry() {
   const [preview, setPreview] = useState<PreviewState>({ status: "idle" });
   const [previewError, setPreviewError] = useState<string | null>(null);
   const previewing = useRef(false);
+  // F41: the invitation is for another account than the one that is in (409): sign out first.
+  const [blocked, setBlocked] = useState(false);
+  // F41: the account that is in joined the company; it can move there now or stay.
+  const [joined, setJoined] = useState<{ company: Membership | null; session: Session } | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -100,20 +104,42 @@ export function InviteEntry() {
     }
   }
 
+  async function goTo(company: Membership) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const s = await switchTenant(company.tenantId);
+      router.replace(homeFor(s.role));
+    } catch (err) {
+      setError(explainToken(err, "invite"));
+      setBusy(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (stage === "password") setTried(true);
-    if (busy || !token.current || inviteStep(who) !== "form") return;
+    if (busy || !token.current || who === undefined) return;
     if (stage === "confirm" && !offersAccept(preview)) return;
     if (stage === "password" && passwordProblem(password, confirm)) return;
     setBusy(true);
     setError(null);
     try {
       const t = token.current;
-      const r = await acceptStep(stage, { password, confirm, name }, whoIsIn, (p) => acceptInvite(t, p?.password, p?.name));
+      const r = await acceptStep(stage, { password, confirm, name }, whoIsIn, (p) => acceptInvite(t, p?.password, p?.name), () => acceptInviteAs(t));
       if ("signedIn" in r) {
-        // Someone signed in in another tab while the form was open: back to who is in, no accept.
+        // The invitation is for another account than the one that is in: sign out first (F33, F41).
         setWho(r.signedIn);
+        setBlocked(true);
+        return;
+      }
+      if ("joined" in r) {
+        // The account that is in joined the company; its session is untouched (F41).
+        const before = r.joined.memberships;
+        const now = await reloadMe().catch(() => r.joined);
+        setWho(now);
+        setJoined({ company: newMembership(before, now.memberships), session: now });
         return;
       }
       if ("needsPassword" in r) {
@@ -156,13 +182,30 @@ export function InviteEntry() {
     );
   }
 
-  if (step === "signed_in" && who) {
+  if (joined) {
+    const { company, session } = joined;
+    return (
+      <>
+        <p className="font-mono text-[12px] tracking-wide text-white/60">{v.eyebrow}</p>
+        <h1 className="mt-3 break-words text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{v.joinedTitle(company?.tenantName ?? (preview.status === "ready" ? preview.tenantName : ""))}</h1>
+        <p className="mt-4 break-words text-[16px] leading-relaxed text-white/70">{v.joinedBody(session.tenantName)}</p>
+        <div className="mt-8 flex flex-wrap gap-2">
+          {company && <button type="button" disabled={busy} aria-busy={busy} className={primaryBtn} onClick={() => goTo(company)}>{v.goNew(company.tenantName)}</button>}
+          <Link href={homeFor(session.role)} className={company ? ghostBtn : primaryBtn}>{v.stay(session.tenantName)}</Link>
+        </div>
+        {error && <p role="alert" className="mt-4 text-[14.5px] text-accent">{error}</p>}
+      </>
+    );
+  }
+
+  if (step === "signed_in" && who && blocked) {
     return (
       <>
         <p className="font-mono text-[12px] tracking-wide text-white/60">{v.eyebrow}</p>
         <h1 className="mt-3 text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{v.signedInTitle}</h1>
         <p className="mt-4 break-words text-[16px] leading-relaxed text-white/85">{v.signedIn(who.name ?? who.email, app.roles[who.role], who.tenantName)}</p>
-        <p className="mt-3 text-[16px] leading-relaxed text-white/70">{v.signedInBody}</p>
+        <p className="mt-3 text-[16px] leading-relaxed text-white/70">{v.anotherAccount}</p>
+        <p className="mt-2 text-[16px] leading-relaxed text-white/70">{v.signedInBody}</p>
         <div className="mt-8 flex flex-wrap gap-2">
           <button type="button" disabled={busy} aria-busy={busy} className={primaryBtn} onClick={signOutFirst}>{busy ? v.signingOut : v.signOut}</button>
           <Link href={homeFor(who.role)} className={ghostBtn}>{v.cancel}</Link>
@@ -179,7 +222,7 @@ export function InviteEntry() {
           <>
             <h1 className="mt-3 break-words text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{v.invitedTo(preview.tenantName)}</h1>
             <p className="mt-4 text-[16px] leading-relaxed text-white/85">{v.asRole(app.roles[preview.role])}</p>
-            <p className="mt-2 text-[16px] leading-relaxed text-white/70">{v.confirmBody}</p>
+            <p className="mt-2 break-words text-[16px] leading-relaxed text-white/70">{who ? v.withAccount(who.name ?? who.email) : v.confirmBody}</p>
             <form onSubmit={submit} aria-describedby={error ? ids.error : undefined} className="mt-8 grid gap-5">
               {error && <p id={ids.error} role="alert" className="text-[14.5px] text-accent">{error}</p>}
               <button type="submit" disabled={busy} aria-busy={busy} className={`${primaryBtn} w-fit`}>{busy ? v.submitting : v.accept}</button>

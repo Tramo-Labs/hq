@@ -361,6 +361,13 @@ export const app = {
       noToken: "Por seguridad, el enlace se lee una sola vez y no queda en la dirección. Para seguir, abrilo de nuevo desde el mail.",
       rejected: "Revisá los datos: la contraseña tiene que tener entre 12 y 128 caracteres.",
       checking: "Revisando si ya hay una sesión abierta en este navegador…",
+      // F41: with a session open, the invitation is accepted for that account.
+      withAccount: (who: string) => `La vas a aceptar con tu cuenta, ${who}, sin cerrar tu sesión.`,
+      joinedTitle: (tenant: string) => (tenant ? `Listo: ya sos parte de ${tenant}.` : "Listo: aceptaste la invitación."),
+      joinedBody: (current: string) => `Tu sesión sigue en ${current}. Podés pasar a la empresa nueva ahora o después, desde Cambiar de empresa.`,
+      goNew: (tenant: string) => `Ir a ${tenant}`,
+      stay: (current: string) => `Seguir en ${current}`,
+      anotherAccount: "Esta invitación es para otra cuenta.",
       signedInTitle: "Ya hay una sesión abierta.",
       signedIn: (who: string, role: string, tenant: string) => `En este navegador está adentro ${who} (${role} en ${tenant}).`,
       signedInBody: "Para aceptar la invitación hay que cerrar esa sesión primero. Se cierra en todas las pestañas de este navegador.",

@@ -112,15 +112,20 @@ Tabs (F33): every tab of a browser shares the refresh cookie, so in live mode ea
 the email it is signed in with on a BroadcastChannel (only the email, never a token). A tab that
 hears another person, or nobody, drops its session and goes to `/entrar?motivo=otra-pestana`,
 instead of showing the previous name and role until a reload. /invitacion first asks who is in
-(a refresh) and, if someone is, says so and offers to sign out or cancel before showing the form.
-It asks again right before sending: if someone signed in on another tab while the form was open,
-it does not accept and goes back to saying who is in.
+(a refresh), and asks again right before sending. With nobody in it accepts as below. With
+someone in it never accepts anonymously, which would replace their session; it accepts for that
+account instead (F41): POST /v1/auth/invite/accept with the session's access token and only the
+invitation token. 204: the same account joined the company, its session is untouched, the page
+reloads /v1/me and offers "Ir a <empresa>" (switch-tenant) or "Seguir en <actual>". 409
+invite_for_another_account: nothing spent, the page says who is in and offers to sign out or
+cancel. Only a 401 unauthorized refreshes the access token (once); a 401 invalid_invite is the
+link and never ends the session.
 
 Invitations (D-19, F26): the link is the same for a new person and for an existing account, and
 nothing tells the page which one it is. /invitacion shows "Aceptar la invitación" and sends the
 accept without a password: an existing account is in with that, and its password is never sent.
 Only a 400 password_required (the link stays usable) opens the name and password step. Both
-sends go through the F33 re-check. `invite-rules.test.ts` covers both paths.
+sends ask who is in first (F33, F41). `invite-rules.test.ts` covers every path.
 
 Before the accept button the page says which company and role the invitation is for (F38):
 POST /v1/auth/invite/preview with the token in the body, anonymous, once per page and only when

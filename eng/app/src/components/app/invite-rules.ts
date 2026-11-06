@@ -1,14 +1,15 @@
 // The /invitacion rules, kept apart from the component so node --test can check them without
 // rendering React.
-import { ApiError } from "../../lib/api/errors";
+import { ApiError, SessionExpired } from "../../lib/api/errors";
 import type { Role } from "../../lib/api/types";
 import { tokenProblem, type TokenProblem } from "./token-rules";
 
 /**
  * What the invitation page shows, given who is signed in on this browser: undefined while it is
- * still asking, null for nobody. Accepting replaces the browser's session (the refresh cookie is
- * shared by every tab), so the form only shows when nobody is in (F33). Whoever is in sees it
- * first and chooses: sign out and accept, or cancel.
+ * still asking, null for nobody. Accepting without a session opens one, and the refresh cookie is
+ * shared by every tab, so with someone in the page never accepts anonymously (F33). Since F41 it
+ * first tries to accept for the account that is in; only if the invitation is for another account
+ * does it show who is in and ask to sign out first.
  */
 export type InviteStep = "checking" | "signed_in" | "form";
 
@@ -18,53 +19,67 @@ export function inviteStep(who: { email: string } | null | undefined): InviteSte
 }
 
 /**
- * Accepts only if nobody is signed in right now (F33). Someone may have signed in in another tab
- * while the form was open, so it asks again just before sending; if someone is in, it does not
- * accept and hands back who, for the page to show them.
- */
-export async function acceptIfNobodyIn<W extends { email: string }, S>(
-  who: () => Promise<W | null>,
-  accept: () => Promise<S>,
-): Promise<{ signedIn: W } | { accepted: S }> {
-  const now = await who();
-  if (inviteStep(now) !== "form") return { signedIn: now as W };
-  return { accepted: await accept() };
-}
-
-/**
  * D-19 (F26): one invitation link for everyone, and the page can not tell beforehand whether the
- * person already has an account. So it accepts first without a password: an existing account gets
- * in with the link alone (the core never reads or changes its password). Only a 400
- * password_required, which leaves the link usable, moves the page to the password step, and only
- * that step sends a password and a name. Both sends go through the F33 re-check.
+ * person already has an account. Without a session it accepts first without a password: an
+ * existing account gets in with the link alone (the core never reads or changes its password).
+ * Only a 400 password_required, which leaves the link usable, moves the page to the password step,
+ * and only that step sends a password and a name.
+ *
+ * F41: who is in is asked again right before sending (F33). With a session, the accept goes with
+ * that session's access token: the same account joins the company (204) and its session stays as
+ * it is; another account gets 409 invite_for_another_account, nothing is spent, and the page shows
+ * who is in and asks to sign out first. A session that ended meanwhile is treated as nobody in.
  */
 export type InviteStage = "confirm" | "password";
 export type InviteFields = { password: string; confirm: string; name: string };
-export type InviteOutcome<W, S> = { signedIn: W } | { accepted: S } | { needsPassword: true } | { problem: PasswordProblem };
+export type InviteOutcome<W, S> =
+  | { signedIn: W }
+  | { joined: W }
+  | { accepted: S }
+  | { needsPassword: true }
+  | { problem: PasswordProblem };
 
 export async function acceptStep<W extends { email: string }, S>(
   stage: InviteStage,
   fields: InviteFields,
   who: () => Promise<W | null>,
   accept: (withPassword?: { password: string; name?: string }) => Promise<S>,
+  acceptAs: (session: W) => Promise<void>,
 ): Promise<InviteOutcome<W, S>> {
   if (stage === "password") {
     const problem = passwordProblem(fields.password, fields.confirm);
     if (problem) return { problem };
   }
+  const now = await who();
+  if (now) {
+    try {
+      await acceptAs(now);
+      return { joined: now };
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "invite_for_another_account") return { signedIn: now };
+      if (!(e instanceof SessionExpired)) throw e;
+      // The session ended while sending: nobody is in any more, accept as without one.
+    }
+  }
   const body = stage === "password" ? { password: fields.password, name: fields.name.trim() || undefined } : undefined;
   try {
-    return await acceptIfNobodyIn(who, () => accept(body));
+    return { accepted: await accept(body) };
   } catch (e) {
     if (stage === "confirm" && e instanceof ApiError && e.code === "password_required") return { needsPassword: true };
     throw e;
   }
 }
 
+/** The company the person just joined: the membership the session did not have before (F41). */
+export function newMembership<M extends { tenantId: string }>(before: M[], after: M[]): M | null {
+  const had = new Set(before.map((m) => m.tenantId));
+  return after.find((m) => !had.has(m.tenantId)) ?? null;
+}
+
 /**
  * F38: before the accept button the page says which company and which role the invitation is
- * for. The preview is asked once, only when the page would offer the accept (nobody in, first
- * step), since it shares the per-IP cap with accept. Accepting is offered only once the preview
+ * for. The preview is asked once, only when the page would offer the accept (first step, once it
+ * knows who is in), since it shares the per-IP cap with accept. Accepting is offered only once the preview
  * answered: a dead link (401, 403) shows its message and no button; a passing problem (429,
  * offline) shows its message and a retry.
  */
@@ -75,7 +90,8 @@ export type PreviewState =
   | { status: "failed"; problem: TokenProblem; retry: boolean };
 
 export function needsPreview(step: InviteStep, stage: InviteStage, preview: PreviewState) {
-  return step === "form" && stage === "confirm" && preview.status === "idle";
+  // F41: with someone in, the page also offers the accept (for that account), so it previews too.
+  return step !== "checking" && stage === "confirm" && preview.status === "idle";
 }
 
 export function previewFailed(e: unknown): PreviewState {

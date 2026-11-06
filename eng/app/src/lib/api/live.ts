@@ -91,6 +91,45 @@ export async function previewInvite(token: string): Promise<InvitePreview> {
   return (await res.json()) as InvitePreview;
 }
 
+/**
+ * F41: accepts an invitation for the account that is signed in, with its access token. 204: the
+ * membership is active and the session is not touched. 409 invite_for_another_account: the
+ * invitation is for someone else, nothing spent. A 401 is told apart by its code: unauthorized is
+ * this tab's access token (refresh once and retry; if that fails the session is over), while
+ * invalid_invite is the link and never ends the session.
+ */
+export async function acceptInviteAs(token: string): Promise<void> {
+  const send = (s: Session) =>
+    call("/v1/auth/invite/accept", { method: "POST", headers: { ...json, Authorization: `Bearer ${s.accessToken}` }, body: JSON.stringify({ token }) });
+  const unauthorized = async (res: Response) => res.status === 401 && (await ApiError.from(res.clone())).code === "unauthorized";
+  const s = getSession();
+  if (!s) throw new SessionExpired();
+  let res = await send(s);
+  if (await unauthorized(res)) {
+    const fresh = await refresh().catch(() => null);
+    if (!fresh) {
+      setSession(null);
+      throw new SessionExpired();
+    }
+    res = await send(fresh);
+    if (await unauthorized(res)) {
+      setSession(null);
+      throw new SessionExpired();
+    }
+  }
+  if (!res.ok) throw await ApiError.from(res);
+}
+
+/** GET /v1/me again, so the session in memory knows a company it just joined (F41). */
+export async function reloadMe(): Promise<Session> {
+  const me = (await (await request("/v1/me")).json()) as Me;
+  const s = getSession();
+  if (!s) throw new SessionExpired();
+  const next = { ...s, name: me.name, memberships: me.memberships };
+  setSession(next);
+  return next;
+}
+
 let refreshing: Promise<Session> | null = null;
 
 /**

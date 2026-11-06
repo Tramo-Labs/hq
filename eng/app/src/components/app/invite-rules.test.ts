@@ -1,16 +1,17 @@
-// F33 and F34 on /invitacion: the form only opens with nobody signed in, and the password
-// message is the one that applies to what is typed now.
+// /invitacion: who is in (F33, F41), the preview (F38), accepting with and without an account
+// (D-19), and the password message (F34).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { acceptIfNobodyIn, acceptStep, inviteStep, needsPreview, offersAccept, passwordProblem, previewFailed, type PreviewState } from "./invite-rules";
+import { acceptStep, inviteStep, needsPreview, newMembership, offersAccept, passwordProblem, previewFailed, type PreviewState } from "./invite-rules";
+import { ApiError, SessionExpired } from "../../lib/api/errors";
 
 // F38: the company and the role before the accept button, asked once and only when it is offered.
 const idle: PreviewState = { status: "idle" };
 const ready: PreviewState = { status: "ready", tenantName: "Molino Alfa", role: "viewer" };
 
-test("the preview is asked only on the first step with nobody in, and only once (F38)", () => {
+test("the preview is asked on the first step once it knows who is in, and only once (F38, F41)", () => {
   assert.equal(needsPreview("form", "confirm", idle), true);
-  assert.equal(needsPreview("signed_in", "confirm", idle), false, "someone is in: F33 first");
+  assert.equal(needsPreview("signed_in", "confirm", idle), true, "someone is in: the page offers the accept for that account");
   assert.equal(needsPreview("checking", "confirm", idle), false);
   assert.equal(needsPreview("form", "password", idle), false, "already past the preview");
   for (const p of [{ status: "loading" }, ready, { status: "failed", problem: "offline", retry: true }] as PreviewState[]) {
@@ -29,81 +30,103 @@ test("a dead link shows no retry; a passing problem does (F38)", () => {
   assert.deepEqual(previewFailed(new ApiError(429, "rate_limited", undefined, 30)), { status: "failed", problem: "rate_limited", retry: true });
   assert.deepEqual(previewFailed(new TypeError("Failed to fetch")), { status: "failed", problem: "offline", retry: true });
 });
-import { ApiError } from "../../lib/api/errors";
 
-// D-19 (F26): one link for everyone; the page accepts with the link alone first.
+test("who is in on this browser: asking, somebody, nobody", () => {
+  assert.equal(inviteStep(undefined), "checking");
+  assert.equal(inviteStep({ email: "owner@alfa.test" }), "signed_in");
+  assert.equal(inviteStep(null), "form");
+});
+
+// A fake core: what the anonymous accept and the accept with the session's token answer.
 const nobody = async () => null;
 const blank = { password: "", confirm: "", name: "" };
-function core(answers: (() => unknown)[]) {
+const long = { password: "x".repeat(12), confirm: "x".repeat(12), name: "" };
+type Who = { email: string };
+function core(anon: (() => unknown)[], asAccount: (() => void)[] = []) {
   const calls: unknown[] = [];
+  const asCalls: Who[] = [];
   return {
     calls,
+    asCalls,
     accept: async (p?: { password: string; name?: string }) => {
       calls.push(p);
-      return answers[calls.length - 1]();
+      return anon[calls.length - 1]();
+    },
+    acceptAs: async (w: Who) => {
+      asCalls.push(w);
+      asAccount[asCalls.length - 1]();
     },
   };
 }
 
+// D-19 (F26): one link for everyone; without a session the page accepts with the link alone first.
 test("an existing account accepts with the link alone: no password is ever sent (D-19)", async () => {
   const c = core([() => "session"]);
-  assert.deepEqual(await acceptStep("confirm", blank, nobody, c.accept), { accepted: "session" });
+  assert.deepEqual(await acceptStep("confirm", blank, nobody, c.accept, c.acceptAs), { accepted: "session" });
   assert.deepEqual(c.calls, [undefined]);
+  assert.deepEqual(c.asCalls, []);
 });
 
 test("a person with no account gets the password step only after 400 password_required (D-19)", async () => {
   const c = core([() => { throw new ApiError(400, "password_required"); }, () => "session"]);
-  assert.deepEqual(await acceptStep("confirm", blank, nobody, c.accept), { needsPassword: true });
+  assert.deepEqual(await acceptStep("confirm", blank, nobody, c.accept, c.acceptAs), { needsPassword: true });
   const fields = { password: "x".repeat(12), confirm: "x".repeat(12), name: "  Vale Visor " };
-  assert.deepEqual(await acceptStep("password", fields, nobody, c.accept), { accepted: "session" });
+  assert.deepEqual(await acceptStep("password", fields, nobody, c.accept, c.acceptAs), { accepted: "session" });
   assert.deepEqual(c.calls, [undefined, { password: "x".repeat(12), name: "Vale Visor" }]);
 });
 
 test("the password step checks the fields before sending anything", async () => {
   const c = core([]);
-  assert.deepEqual(await acceptStep("password", { password: "123", confirm: "123", name: "" }, nobody, c.accept), { problem: "too_short" });
+  assert.deepEqual(await acceptStep("password", { password: "123", confirm: "123", name: "" }, nobody, c.accept, c.acceptAs), { problem: "too_short" });
   assert.deepEqual(c.calls, []);
 });
 
 test("other answers on the first step are errors, not the password step", async () => {
   for (const e of [new ApiError(401, "invalid_invite"), new ApiError(403, "not_a_member"), new ApiError(400, "invalid_request")]) {
     const c = core([() => { throw e; }]);
-    await assert.rejects(acceptStep("confirm", blank, nobody, c.accept), e);
+    await assert.rejects(acceptStep("confirm", blank, nobody, c.accept, c.acceptAs), e);
   }
   // On the password step a password_required is an error too, never a loop back to it.
   const c = core([() => { throw new ApiError(400, "password_required"); }]);
-  await assert.rejects(acceptStep("password", { password: "x".repeat(12), confirm: "x".repeat(12), name: "" }, nobody, c.accept));
+  await assert.rejects(acceptStep("password", long, nobody, c.accept, c.acceptAs));
 });
 
-test("both steps ask who is in right before sending (F33 stays)", async () => {
-  const owner = async () => ({ email: "owner@alfa.test" });
+// F41: with a session open the accept goes for that account, asked again right before sending.
+const ana = { email: "ana@estudio.test" };
+
+test("the same account as the invitation joins the company; nothing anonymous is sent (F41)", async () => {
   for (const stage of ["confirm", "password"] as const) {
-    const c = core([() => "session"]);
-    const r = await acceptStep(stage, { password: "x".repeat(12), confirm: "x".repeat(12), name: "" }, owner, c.accept);
-    assert.deepEqual(r, { signedIn: { email: "owner@alfa.test" } }, stage);
-    assert.deepEqual(c.calls, [], stage);
+    const c = core([], [() => {}]);
+    assert.deepEqual(await acceptStep(stage, long, async () => ana, c.accept, c.acceptAs), { joined: ana }, stage);
+    assert.deepEqual(c.asCalls, [ana], stage);
+    assert.deepEqual(c.calls, [], `${stage}: the anonymous accept would open another session`);
   }
 });
 
-test("the invitation form only shows when nobody is signed in on this browser (F33)", () => {
-  assert.equal(inviteStep(undefined), "checking");
-  assert.equal(inviteStep({ email: "owner@alfa.test" }), "signed_in");
-  assert.equal(inviteStep(null), "form");
+test("an invitation for another account shows who is in and spends nothing (F41, F33)", async () => {
+  const c = core([], [() => { throw new ApiError(409, "invite_for_another_account"); }]);
+  assert.deepEqual(await acceptStep("confirm", blank, async () => ana, c.accept, c.acceptAs), { signedIn: ana });
+  assert.deepEqual(c.calls, []);
 });
 
-test("someone who signed in while the form was open stops the acceptance (F33)", async () => {
-  let accepted = 0;
-  const accept = async () => { accepted++; return "session of the invited person"; };
-  const r = await acceptIfNobodyIn(async () => ({ email: "owner@alfa.test" }), accept);
-  assert.deepEqual(r, { signedIn: { email: "owner@alfa.test" } });
-  assert.equal(accepted, 0);
+test("a session that ended while sending is treated as nobody in (F41)", async () => {
+  const c = core([() => "session"], [() => { throw new SessionExpired(); }]);
+  assert.deepEqual(await acceptStep("confirm", blank, async () => ana, c.accept, c.acceptAs), { accepted: "session" });
+  assert.deepEqual(c.calls, [undefined]);
 });
 
-test("with nobody signed in just before sending, the invitation is accepted once (F33)", async () => {
-  let accepted = 0;
-  const r = await acceptIfNobodyIn(async () => null, async () => { accepted++; return "session"; });
-  assert.deepEqual(r, { accepted: "session" });
-  assert.equal(accepted, 1);
+test("a dead link with a session open is an error, never a reason to accept anonymously (F41)", async () => {
+  for (const e of [new ApiError(401, "invalid_invite"), new ApiError(403, "not_a_member")]) {
+    const c = core([() => "session"], [() => { throw e; }]);
+    await assert.rejects(acceptStep("confirm", blank, async () => ana, c.accept, c.acceptAs), e);
+    assert.deepEqual(c.calls, []);
+  }
+});
+
+test("the company just joined is the membership the session did not have before (F41)", () => {
+  const m = (tenantId: string) => ({ tenantId, tenantName: tenantId.toUpperCase(), role: "viewer" as const });
+  assert.deepEqual(newMembership([m("alfa")], [m("alfa"), m("beta")]), m("beta"));
+  assert.equal(newMembership([m("alfa"), m("beta")], [m("beta"), m("alfa")]), null);
 });
 
 test("the password message is the one that applies to the fields as they are now (F34)", () => {

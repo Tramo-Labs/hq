@@ -3,7 +3,7 @@
 // A fake core in memory plays the browser's cookie jar and the core's rotation rule.
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { previewInvite, refresh, request, switchTenant } from "./live";
+import { acceptInviteAs, previewInvite, refresh, request, switchTenant } from "./live";
 import { getSession, setSession } from "./session";
 
 const T1 = "00000000-0000-4000-8000-000000000001";
@@ -122,6 +122,47 @@ test("previewInvite posts the token in the body only, with no session and no Ide
   assert.deepEqual(r.body, { token });
   assert.equal(r.headers.get("Authorization"), null);
   assert.equal(r.headers.get("Idempotency-Key"), null);
+});
+
+// F41: accepting for the account that is in. A dead link (401 invalid_invite) must never end the
+// session; only an access token the core refuses (401 unauthorized) is refreshed, once.
+function acceptCore(first: Response) {
+  const seen: { path: string; auth: string | null; body: unknown }[] = [];
+  globalThis.fetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
+    const path = new URL(String(input), "http://web.test").pathname;
+    const headers = new Headers(init.headers);
+    seen.push({ path, auth: headers.get("Authorization"), body: init.body ? JSON.parse(String(init.body)) : null });
+    if (path === "/v1/auth/refresh") return reply(200, { accessToken: "fresh", tenantId: T1, role: "owner" });
+    if (path === "/v1/me") return reply(200, { userId: "u", email: "o@x.test", name: null, activeTenantId: T1, role: "owner", memberships: [{ tenantId: T1, tenantName: "x", role: "owner" }] });
+    const accepts = seen.filter((s) => s.path === "/v1/auth/invite/accept").length;
+    return accepts === 1 ? first.clone() : new Response(null, { status: 204 });
+  }) as typeof fetch;
+  setSession({ accessToken: "stale", tenantId: T1, tenantName: "x", role: "owner", email: "o@x.test", name: null, memberships: [] });
+  return seen;
+}
+const invite = "i".repeat(43);
+
+test("acceptInviteAs sends the session's token and only the invitation token; 204 leaves the session as is", async () => {
+  const seen = acceptCore(new Response(null, { status: 204 }));
+  await acceptInviteAs(invite);
+  assert.deepEqual(seen, [{ path: "/v1/auth/invite/accept", auth: "Bearer stale", body: { token: invite } }]);
+  assert.equal(getSession()?.accessToken, "stale");
+});
+
+test("a dead invitation link with a session open does not refresh and does not end the session", async () => {
+  for (const code of ["invalid_invite", "invite_for_another_account"]) {
+    const seen = acceptCore(reply(code === "invalid_invite" ? 401 : 409, { code }));
+    await assert.rejects(acceptInviteAs(invite), (e: unknown) => (e as { code?: string }).code === code);
+    assert.deepEqual(seen.map((s) => s.path), ["/v1/auth/invite/accept"], code);
+    assert.equal(getSession()?.email, "o@x.test", code);
+  }
+});
+
+test("an access token the core refuses is refreshed once and the accept retried with the new one", async () => {
+  const seen = acceptCore(reply(401, { code: "unauthorized" }));
+  await acceptInviteAs(invite);
+  const accepts = seen.filter((s) => s.path === "/v1/auth/invite/accept").map((s) => s.auth);
+  assert.deepEqual(accepts, ["Bearer stale", "Bearer fresh"]);
 });
 
 test("previewInvite answers like accept: the core's error comes back as is", async () => {

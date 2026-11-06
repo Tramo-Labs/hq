@@ -86,6 +86,17 @@ export async function acceptInvite(): Promise<Session> {
   throw new ApiError(401, "invalid_invite");
 }
 
+/** Sample mode has no invitations: accepting for the account that is in answers like a dead link. */
+export async function acceptInviteAs(): Promise<void> {
+  session();
+  throw new ApiError(401, "invalid_invite");
+}
+
+/** The session as it is: in sample mode nothing joins a company behind its back. */
+export async function reloadMe(): Promise<Session> {
+  return session();
+}
+
 /** Like accept: sample mode has no invitations, so any token is unknown (401 invalid_invite). */
 export async function previewInvite(): Promise<InvitePreview> {
   throw new ApiError(401, "invalid_invite");
