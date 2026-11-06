@@ -301,6 +301,74 @@ paths:
                     items: { $ref: "#/components/schemas/QuarantinedFile" }
                   nextCursor: { type: string, nullable: true }
         "401": { $ref: "#/components/responses/Problem" }
+  /v1/ledger/files:
+    get:
+      operationId: listFiles
+      tags: [ledger]
+      summary: Statement files uploaded, accepted or quarantined, newest first
+      description: |
+        The "Archivos" list of the portal (product spec section 4): when,
+        who uploaded it, and what happened. `period` keeps the files
+        received in that month (Argentina time). Every role of the tenant
+        sees it. `uploadedByEmail` is absent when the uploader is no longer
+        a member of the tenant (or for files from before it was recorded).
+        Up to 500 rows; `truncated` says there were more.
+      parameters:
+        - $ref: "#/components/parameters/PeriodFilter"
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [accepted, quarantined] }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, truncated]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/UploadedFile" }
+                  truncated: { type: boolean }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/ledger/movements:
+    get:
+      operationId: listMovements
+      tags: [ledger]
+      summary: Movements of one month, in date and line order
+      description: |
+        The movements stored for the tenant with a date in `period`
+        (required), optionally of one account. Every role of the tenant
+        sees them. Up to 5000 rows; `truncated` says there were more
+        (filter by account).
+      parameters:
+        - name: period
+          in: query
+          required: true
+          description: A month, YYYY-MM.
+          schema: { type: string, pattern: "^20[0-9]{2}-(0[1-9]|1[0-2])$", example: "2026-11" }
+        - name: accountId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, truncated]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/LedgerMovement" }
+                  truncated: { type: boolean }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
   /v1/documents/invoices:
     get:
       operationId: listInvoices
@@ -990,6 +1058,41 @@ components:
         layoutId: { type: string, example: bancor/csv-v1 }
         new: { type: integer, description: Movements stored by this upload. }
         alreadyPresent: { type: integer, description: Movements an earlier upload already had. }
+    UploadedFile:
+      type: object
+      required: [id, accountId, accountName, bank, status, receivedAt]
+      properties:
+        id: { type: string, format: uuid }
+        accountId: { type: string, format: uuid }
+        accountName: { type: string }
+        bank: { $ref: "#/components/schemas/Bank" }
+        filename: { type: string }
+        status: { type: string, enum: [accepted, quarantined] }
+        reason: { type: string, description: Set when quarantined (see IngestResult.reason). }
+        detail: { type: string }
+        layoutId: { type: string }
+        from: { type: string, format: date, description: First day of the statement, when accepted. }
+        to: { type: string, format: date, description: Last day of the statement, when accepted. }
+        movements: { type: integer, description: Movements this file stored (the rest were already present). Accepted only. }
+        receivedAt: { type: string, format: date-time }
+        uploadedBy: { type: string, format: uuid }
+        uploadedByEmail: { type: string }
+    LedgerMovement:
+      type: object
+      required: [id, accountId, accountName, bank, fileId, line, date, amount, description]
+      properties:
+        id: { type: string, format: uuid }
+        accountId: { type: string, format: uuid }
+        accountName: { type: string }
+        bank: { $ref: "#/components/schemas/Bank" }
+        fileId: { type: string, format: uuid, description: The file that stored it. }
+        line: { type: integer, description: Line of that file. }
+        date: { type: string, format: date }
+        amount: { type: integer, format: int64, description: Cents, credits positive. }
+        balance: { type: integer, format: int64, description: Running balance after the line, when the file has it. }
+        description: { type: string, description: As the bank wrote it. }
+        reference: { type: string }
+        externalRef: { type: string }
     QuarantinedFile:
       type: object
       required: [id, accountId, reason, receivedAt]
