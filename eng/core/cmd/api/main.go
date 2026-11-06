@@ -121,7 +121,8 @@ func serve() error {
 	if cfg.MailOutbox != "" {
 		ids.Mailer = &mail.Outbox{Path: cfg.MailOutbox}
 	}
-	deps := app.Deps{DB: d, Identity: ids, TrustedProxies: cfg.TrustedProxies, CORSOrigins: cfg.CORSOrigins, DocsDir: cfg.DocsDir}
+	deps := app.Deps{DB: d, Identity: ids, TrustedProxies: cfg.TrustedProxies, CORSOrigins: cfg.CORSOrigins, DocsDir: cfg.DocsDir,
+		InboxDomain: cfg.InboxDomain}
 	h, err := app.New(deps, app.NewHandlers(deps))
 	if err != nil {
 		return err

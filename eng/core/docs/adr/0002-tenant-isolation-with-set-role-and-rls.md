@@ -53,6 +53,14 @@ tenant, so "a code bug cannot cross tenants" held only for code that chose
   method values (`f := d.System`) and method expressions. It matches by name,
   not by type, so it is stricter than needed. Adding an entry means adding a
   line here.
+- Since 2026-11-06 a third role exists for one lookup before any tenant
+  scope: `tramo_inbox` (migration 00201, ADR 0009) may only execute
+  `inbox.address_tenant`, which returns the tenant of a mailbox address.
+  It has no table privileges, and `db.InboxTenant` runs that one fixed
+  query, so no caller can use the role for anything else
+  (`TestTheLookupRoleReadsNothingButTheFunction` checks every table and
+  function in the database). It is not `tramo_system` and not on the list
+  above.
 - Every table has `FORCE ROW LEVEL SECURITY`; `TestEveryTableHasForcedRLS`
   fails for any table that lacks it in any schema except `pg_catalog`,
   `information_schema`, `pg_toast` and temporary schemas (so module schemas

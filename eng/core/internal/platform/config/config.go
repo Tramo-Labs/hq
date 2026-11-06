@@ -56,6 +56,10 @@ type Config struct {
 	// AppBaseURL is the web app's origin, used in invitation links
 	// (APP_BASE_URL, default http://localhost:3000).
 	AppBaseURL string
+	// InboxDomain is the domain of the clients' statement mailboxes
+	// (INBOX_DOMAIN, D-22). Empty: addresses are created but not shown,
+	// until Martín picks the receiving provider and its domain.
+	InboxDomain string
 	// MailOutbox is a file that receives every email instead of sending it
 	// (MAIL_OUTBOX). There is no SMTP transport: empty means invitations
 	// are created but not delivered, and that is logged.
@@ -80,6 +84,7 @@ func Load() (Config, error) {
 		JWTKeyID:    get("JWT_KEY_ID", "k1"),
 		DocsDir:     get("DOCS_DIR", "api"),
 		AppBaseURL:  get("APP_BASE_URL", "http://localhost:3000"),
+		InboxDomain: get("INBOX_DOMAIN", ""),
 		MailOutbox:  get("MAIL_OUTBOX", ""),
 	}
 	switch c.Env {

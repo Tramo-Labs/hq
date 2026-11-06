@@ -31,6 +31,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/closes"
 	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/inbox"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
@@ -58,6 +59,11 @@ type Deps struct {
 	CloseNumbers closes.Numbers
 	// Now is the clock of the period close (time.Now when nil).
 	Now func() time.Time
+	// InboxDomain is the statement mailboxes' domain (INBOX_DOMAIN).
+	InboxDomain string
+	// InboxIngest delivers mailed attachments to ingestion (datos). Nil
+	// until it exists: receipts say not_delivered.
+	InboxIngest inbox.Ingest
 }
 
 // DefaultDenialWindow is how long repeats of a denial count on its row.
@@ -73,10 +79,12 @@ type Handlers struct {
 	*matchingAPI
 	*portalAPI
 	*closesAPI
+	*inboxAPI
 }
 
 // Aliases give each embedded module handler set its own field name.
 type (
+	inboxAPI     = inbox.Handlers
 	ledgerAPI    = ledger.Handlers
 	documentsAPI = documents.Handlers
 	matchingAPI  = matching.Handlers
@@ -99,6 +107,7 @@ func NewHandlers(d Deps) *Handlers {
 		portalAPI: &portal.Handlers{DB: d.DB, Identity: d.Identity,
 			Ledger: &ledger.PGStore{DB: d.DB}, Matching: &matching.PGStore{DB: d.DB}, Closes: closeSvc},
 		closesAPI: closes.NewHandlers(closeSvc),
+		inboxAPI:  inbox.NewHandlers(&inbox.Service{DB: d.DB, Ingest: d.InboxIngest, Domain: d.InboxDomain, Now: d.Now}),
 	}
 }
 
