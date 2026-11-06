@@ -97,3 +97,10 @@ select m.id, m.account_id, st.file_id, a.name as account_name, a.bank, m.line, m
    and (sqlc.narg(account_id)::uuid is null or m.account_id = sqlc.narg(account_id)::uuid)
  order by m.date, a.name, m.account_id, st.created_at, m.line
  limit sqlc.arg(max_rows)::int;
+
+-- name: StatementSpans :many
+-- Every dated statement of the tenant, for the coverage of a period (Gaps).
+select account_id, period_from::date as period_from, period_to::date as period_to, opening, closing
+  from ledger.statements
+ where period_from is not null and period_to is not null
+ order by account_id, period_from, period_to;

@@ -38,6 +38,11 @@ const (
 	// ReasonMovementConflict: a line has the identity of a stored movement
 	// but another description. Never stored twice, never overwritten.
 	ReasonMovementConflict = "movement_conflict"
+	// ReasonUnsupportedFormat: Excel 97-2003, a zip that is not a
+	// workbook, or a workbook whose sheets cannot be read as one statement
+	// (different layouts, overlapping dates, movements under an unknown
+	// header next to known sheets).
+	ReasonUnsupportedFormat = "unsupported_format"
 )
 
 // Upload is a file a tenant sent for one of its accounts.
@@ -108,12 +113,12 @@ func (in *Ingester) Ingest(ctx context.Context, u Upload) (Result, error) {
 	// What the file is comes first: a file of another bank or account is
 	// refused as such even when the same bytes were accepted for another
 	// account. Only then is it a duplicate of this tenant's upload.
-	st, reason, detail := Parse(u.Data)
+	p := parse(u.Data)
+	st, reason, detail := p.st, p.reason, p.detail
 	if st != nil {
 		res.Fingerprint, res.LayoutID = st.Fingerprint, st.LayoutID
-	} else if reason == ReasonUnknownLayout {
-		res.Fingerprint = detail
-		detail = "header fingerprint " + detail + " is not a known layout"
+	} else {
+		res.Fingerprint = p.fingerprint
 	}
 	if reason != "" {
 		return quarantine(reason, detail)
@@ -156,8 +161,8 @@ func (in *Ingester) Ingest(ctx context.Context, u Upload) (Result, error) {
 		// file does not enter; it is never counted twice nor overwritten.
 		if normalizeHeader(stored) != normalizeHeader(st.Movements[i].Description) {
 			return quarantine(ReasonMovementConflict, fmt.Sprintf(
-				"line %d has the date, amount, balance and references of a movement already stored, with another description",
-				st.Movements[i].Line))
+				"%s has the date, amount, balance and references of a movement already stored, with another description",
+				where(st.Movements[i].Sheet, st.Movements[i].Line)))
 		}
 		res.AlreadyPresent++
 	}
@@ -198,10 +203,19 @@ func (in *Ingester) checks(ctx context.Context, u Upload, st *Statement) (string
 	// one ends. Overlapping exports are allowed: deduplication drops the
 	// movements that were already stored.
 	if prev != nil && !st.From.IsZero() && st.From.After(prev.To) && st.Opening != prev.Closing {
-		return ReasonChainGap, fmt.Sprintf("opening differs from the closing of the statement ending %s by %s",
-			prev.To.Format("2006-01-02"), st.Opening-prev.Closing), nil
+		return ReasonChainGap, chainGapDetail(prev.To, prev.Closing, st.From, st.Opening), nil
 	}
 	return "", "", nil
+}
+
+// chainGapDetail says which days the missing movements are in and by how
+// much. The dates are those of the last stored movement and of the first
+// movement of the new file: the missing ones are after the first and before
+// the second, boundary days included, since an export can be cut mid-day.
+func chainGapDetail(prevTo time.Time, prevClosing money.Amount, from time.Time, opening money.Amount) string {
+	return fmt.Sprintf("movements are missing between %s and %s: the statement up to %s closed at %s and this file, "+
+		"from %s, opens at %s (difference %s). Upload the export that covers those days first",
+		day(prevTo), day(from), day(prevTo), prevClosing, day(from), opening, opening-prevClosing)
 }
 
 func sameAccount(a, b string) bool {
@@ -222,25 +236,72 @@ func sameAccount(a, b string) bool {
 // reason code and a detail; for an unknown layout the detail is the
 // fingerprint of the header it found.
 func Parse(data []byte) (*Statement, string, string) {
+	p := parse(data)
+	if p.reason == ReasonUnknownLayout {
+		return nil, p.reason, p.fingerprint
+	}
+	return p.st, p.reason, p.detail
+}
+
+// parsed is the outcome of parse: a statement, or a reason with a detail
+// for the tenant and, for an unknown layout, the fingerprint found.
+type parsed struct {
+	st                          *Statement
+	reason, detail, fingerprint string
+}
+
+func unknownLayout(sheetNo int, fp string) parsed {
+	return parsed{reason: ReasonUnknownLayout, fingerprint: fp,
+		detail: prefixSheet(sheetNo, "header fingerprint "+fp+" is not a known layout")}
+}
+
+func parse(data []byte) parsed {
+	switch {
+	case isLegacyXLS(data):
+		return parsed{reason: ReasonUnsupportedFormat,
+			detail: "Excel 97-2003 files (.xls) are not read: save it as .xlsx or CSV and upload it again"}
+	case isWorkbook(data):
+		return parseWorkbook(data)
+	}
 	det := detect(decodeText(data))
 	// A line the CSV reader cannot split stops the file with that line,
 	// whether or not the header was recognized: the layout is not the
 	// problem, the row is (F16). Its contents never go in the detail.
 	if det.Broken != nil && (det.Layout != nil || det.Fingerprint == "") {
-		return nil, ReasonRowParse, fmt.Sprintf("line %d: %v", det.Broken.Line, det.Broken.Err)
+		return parsed{reason: ReasonRowParse, detail: fmt.Sprintf("line %d: %v", det.Broken.Line, det.Broken.Err)}
 	}
 	if det.Layout == nil {
-		return nil, ReasonUnknownLayout, det.Fingerprint
+		return unknownLayout(0, det.Fingerprint)
 	}
-	st, err := det.Layout.parse(det.Sheet, det.Layout)
+	return parseSheet(det.Sheet, det.Layout, det.Fingerprint, 0)
+}
+
+// parseSheet runs a layout's parser on a sheet whose fingerprint matched.
+// sheetNo is the workbook sheet, 0 for a text file.
+func parseSheet(s *sheet, l *Layout, fp string, sheetNo int) parsed {
+	st, err := l.parse(s, l)
 	if err != nil {
 		if errors.Is(err, ErrIncomplete) {
-			return nil, ReasonIncomplete, err.Error()
+			return parsed{reason: ReasonIncomplete, detail: prefixSheet(sheetNo, err.Error())}
 		}
-		return nil, ReasonRowParse, err.Error()
+		var re *RowError
+		if errors.As(err, &re) {
+			re.Sheet = sheetNo
+		}
+		return parsed{reason: ReasonRowParse, detail: err.Error()}
 	}
-	st.LayoutID, st.Bank, st.Fingerprint = det.Layout.ID, det.Layout.Bank, det.Fingerprint
-	return st, "", ""
+	st.LayoutID, st.Bank, st.Fingerprint = l.ID, l.Bank, fp
+	for i := range st.Movements {
+		st.Movements[i].Sheet = sheetNo
+	}
+	return parsed{st: st}
+}
+
+func prefixSheet(n int, s string) string {
+	if n > 0 {
+		return fmt.Sprintf("sheet %d: %s", n, s)
+	}
+	return s
 }
 
 // movementKeys builds the deduplication key of each movement: account, date,

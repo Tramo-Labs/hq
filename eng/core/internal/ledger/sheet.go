@@ -20,6 +20,9 @@ import (
 type row struct {
 	Line  int
 	Cells []string
+	// Num marks the cells a workbook stored as numbers, rendered with a
+	// decimal dot. Nil for text files.
+	Num []bool
 }
 
 // sheet is a file split into rows with a detected header.
@@ -201,6 +204,15 @@ func (r row) cell(i int) string {
 		return ""
 	}
 	return r.Cells[i]
+}
+
+// style is the decimal style to read cell i with: a number stored as such
+// by a workbook is rendered with a dot; text keeps the layout's style.
+func (r row) style(i int, def money.Style) money.Style {
+	if i >= 0 && i < len(r.Num) && r.Num[i] {
+		return money.DecimalDot
+	}
+	return def
 }
 
 func (r row) blank() bool {

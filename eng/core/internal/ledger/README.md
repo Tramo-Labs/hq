@@ -32,10 +32,15 @@ uploaded again. Then balances, chain and movement keys.
    a stated closing equals the last running balance. A file with no balance
    evidence at all is refused. A layout that always states its balances
    (Santander trailer, Mercado Pago total row) without them is `incomplete`
-   (Duotach case 6).
+   (Duotach case 6). The detail names the line (and sheet), its date, both
+   amounts and the difference.
 5. **Chain.** When a statement starts after the previous one of the account
    ends, its opening has to equal the previous closing (`chain_gap`).
-   Overlapping exports skip this check: deduplication handles them.
+   Overlapping exports skip this check: deduplication handles them. The
+   detail says which days the missing movements are in: "movements are
+   missing between 10/10/2026 and 02/11/2026: the statement up to 10/10/2026
+   closed at X and this file, from 02/11/2026, opens at Y (difference D)".
+   Both boundary days are included, since an export can be cut mid-day.
 6. **Movement keys.** SHA-256 of account, date, amount, running balance,
    references (the bank voucher and the holder's reference, when the file
    has them) and the occurrence number among identical movements of the
@@ -65,12 +70,17 @@ uploaded again. Then balances, chain and movement keys.
 | `galicia/csv-v1` | Galicia | `;`, Latin-1, newest first | running |
 | `santander/csv-v1` | Santander | `;`, preamble and trailer | stated and running |
 | `bancor/csv-v1` | Bancor | `,`, quoted amounts | running |
+| `bancor/xlsx-v1` | Bancor | Excel, one or more sheets | running |
 | `macro/txt-v1` | Macro | tab, `dd/mm/yy`, signed amount | running |
 | `mercadopago/release-v1` | Mercado Pago | `,`, release report, decimal dot | stated (initial and total rows) |
 
 **None of these is verified against a real export yet** (`Layout.Verified`
 is false for all). The bank layouts were written from synthetic samples
-because the export menus could not be inspected; Mercado Pago follows the
+because the export menus could not be inspected, and neither bank publishes
+its export columns: Bancor's usage guide (Bancón, 01/2022) only says the web
+version downloads movements "en formato Excel o en PDF", and the one
+description of Galicia's CSV found (six fields: fecha, descripción, origen,
+débitos, créditos, saldo) is a third-party importer page. Mercado Pago follows the
 documented release report (record types `initial_available_balance`,
 `release`, `total`) but whether the `total` row includes the initial balance
 needs a real report. The first real file of each bank either fits, passes
@@ -81,6 +91,46 @@ enters.
 Known limit: for layouts with only a running balance, a file cut at the end
 still closes on its own (the last row is the closing). The chain check
 catches it when the next statement arrives.
+
+### Excel workbooks
+
+`.xlsx` is read with the standard library (zip and XML, `xlsx.go`); each
+part is capped at 64 MiB decompressed. Every sheet is read like a CSV
+sheet, with its own fingerprint (delimiter `SheetDelimiter`, so an Excel
+layout never shares a fingerprint with the CSV of the same columns). A
+cell Excel stores as a number is read as a number whatever the layout's
+text style; a number with more than two decimals is `row_parse` (float
+noise below a millionth of a cent is tolerated); a number with a date
+format becomes the date. Amounts and dates typed as text keep the layout's
+style. Then (`workbook.go`), in doubt quarantine:
+
+- sheets with a known header are the data; a sheet with no known header is
+  ignored only when no row of it has a date next to an amount (a cover or a
+  summary). Otherwise the file is `unknown_layout` (no known sheet, with
+  that sheet's fingerprint) or `unsupported_format` (next to known sheets: a
+  movement is never left out silently);
+- all data sheets have the same layout and the same stated account;
+- they are put in date order and must chain: each opens at the balance the
+  previous one closed with (`balance_mismatch` naming both sheets, days and
+  amounts) and none starts before the previous one ends (one shared day is
+  allowed); the result is one statement with the checks above;
+- Excel 97-2003 (`.xls`), a zip that is not a workbook, or a cut file is
+  `unsupported_format`.
+
+Lines in a workbook are the sheet's row numbers, and details say "sheet 2,
+line 14". Sheets are named by position, never by name (a sheet name can
+carry the holder's name). Known limit: the movements table keeps the line,
+not the sheet, so two movements of different sheets can show the same line.
+
+### Coverage of a period
+
+`Gaps(spans, from, to)` and `PGStore.Coverage(ctx, from, to)` say, per
+account, which days of a period the accepted statements do not prove.
+Statements that overlap, or where the later one opens at the earlier one's
+closing, chain: nothing is missing between them even if some days have no
+rows. A break in balances is a gap with `Missing` and the amount; days
+before the first statement or after the last one are a gap without
+`Missing` (there may have been no movements). The period close reads it.
 
 For Mercado Pago, each release with a gross amount has to satisfy gross plus
 documented fees equals net, or the file is refused. Those fees travel with
@@ -136,9 +186,22 @@ reading every audit row).
 ## Tests
 
 `go test ./internal/ledger/`. Fixtures in `testdata/` are synthetic and
-generated by `testdata/gen_fixtures.py` (invented names and account numbers).
+generated by `testdata/gen_fixtures.py` and `testdata/gen_xlsx.py` (invented
+names and account numbers; the workbooks are reproducible byte for byte).
+Real exports never enter the repository: they live outside git and are
+only run locally.
 
 - The five layouts parse, close and come out in chronological order.
+- Excel: the workbook gives the same movements, balances and keys as the
+  CSV (uploading both stores October once); two sheets out of order, one
+  typed as text, come out in date order; a balance break between sheets, a
+  changed header, a stray sheet of movements, three decimals, Excel 97-2003,
+  a zip that is not a workbook, an oversized part and a cut file are each
+  quarantined with the reason and the sheet and line.
+- The chain gap and the running balance details name the days and the
+  difference; `Gaps` covers chained quiet days, overlaps, a balance break,
+  late start and early end, a break before the period, unsorted input; the
+  Postgres coverage reads only the tenant's statements.
 - Latin-1 input, Mercado Pago gross and fees.
 - Quarantine for each reason: changed layout, truncated file, broken running
   balance (line named), bad amount, fee that does not add up, missing total,
