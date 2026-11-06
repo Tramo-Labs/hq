@@ -28,6 +28,13 @@ tags:
       The period close of a tenant (D-6: fortnightly by default, the period
       is a parameter). An operator closes a period once its Suggested tray
       is empty; the close freezes it and stores the summary the client sees.
+  - name: inbox
+    description: |
+      The client's own mailbox for statements (D-22): an address with a
+      random code the owner can rotate, mail accepted only from senders the
+      owner authorized and whose domain authenticates (SPF or DKIM aligned),
+      attachments handed to ingestion. The body and the subject are never
+      stored; every message leaves a receipt.
   - name: portal
     description: |
       Read views for the client portal and the operator console, built from
@@ -807,6 +814,105 @@ paths:
               schema: { $ref: "#/components/schemas/Close" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /v1/inbox:
+    get:
+      operationId: getInbox
+      tags: [inbox]
+      summary: The tenant's statement mailbox, its address and authorized senders
+      description: |
+        Owner, accountant and operator. address is null until the owner
+        creates one (POST /v1/inbox/address).
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Inbox" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /v1/inbox/address:
+    post:
+      operationId: rotateInboxAddress
+      tags: [inbox]
+      summary: Create the mailbox address, or replace it with a new one (owner)
+      description: |
+        A new random code every time. The previous address stops accepting
+        mail at once; mail sent to it later is dropped without a receipt.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: the new address
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Inbox" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /v1/inbox/senders:
+    post:
+      operationId: addInboxSender
+      tags: [inbox]
+      summary: Authorize a sender for the mailbox (owner)
+      description: |
+        Mail is accepted only from an authorized sender whose domain
+        authenticates (SPF or DKIM aligned with the From). Adding one that
+        is already authorized answers 409 already_authorized.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddInboxSenderRequest" }
+      responses:
+        "201":
+          description: authorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InboxSender" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /v1/inbox/senders/{senderId}:
+    delete:
+      operationId: removeInboxSender
+      tags: [inbox]
+      summary: Stop accepting mail from a sender (owner)
+      parameters:
+        - name: senderId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: removed }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /v1/inbox/receipts:
+    get:
+      operationId: listInboxReceipts
+      tags: [inbox]
+      summary: Receipts of the mail the mailbox got, newest first
+      description: |
+        Owner, accountant and operator. One per message from an authorized
+        sender, and up to a daily cap for refused ones. Carries the sender
+        and, per attachment, its name, size, hash and what ingestion did.
+        Never the body nor the subject. The latest 200.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/InboxReceipt" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
   /v1/matching/runs:
     post:
       operationId: runMatching
@@ -1519,6 +1625,90 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         role: { $ref: "#/components/schemas/Role" }
+    Inbox:
+      type: object
+      required: [address, senders, limits]
+      properties:
+        address:
+          type: string
+          nullable: true
+          description: The full address (code@domain), or null before the owner creates one.
+          example: k3p9w2m7q4x8z1v5c6b0n2r4t8@casilla.example
+        createdAt: { type: string, format: date-time, description: When the current address was created. }
+        senders:
+          type: array
+          items: { $ref: "#/components/schemas/InboxSender" }
+        limits: { $ref: "#/components/schemas/InboxLimits" }
+    InboxLimits:
+      type: object
+      description: What a message may carry; past any of them it is refused.
+      required: [attachmentsPerMessage, bytesPerAttachment, bytesPerMessage, messagesPerDay, messagesPerSenderPerDay, kinds]
+      properties:
+        attachmentsPerMessage: { type: integer, example: 10 }
+        bytesPerAttachment: { type: integer, example: 20971520 }
+        bytesPerMessage: { type: integer, example: 26214400 }
+        messagesPerDay: { type: integer, example: 200 }
+        messagesPerSenderPerDay: { type: integer, example: 50 }
+        kinds:
+          type: array
+          items: { type: string }
+          example: [csv, txt, xls, xlsx, pdf]
+    InboxSender:
+      type: object
+      required: [id, email, addedAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        addedAt: { type: string, format: date-time }
+        addedBy: { type: string, format: uuid }
+    AddInboxSenderRequest:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+    InboxReceipt:
+      type: object
+      required: [id, receivedAt, sender, status, attachments]
+      properties:
+        id: { type: string, format: uuid }
+        receivedAt: { type: string, format: date-time }
+        sender: { type: string, description: The From address, lowercased. }
+        status:
+          type: string
+          enum: [accepted, refused]
+          description: accepted when the message passed every check; each attachment then says what happened to it.
+        reason:
+          type: string
+          description: |
+            With refused. sender_not_authorized: the From is not one the
+            owner authorized. not_authenticated: neither SPF nor DKIM aligns
+            with the From's domain. too_many_attachments, message_too_large:
+            past the message limits. daily_limit, sender_daily_limit: past
+            the day's limits (Argentina's day).
+          enum: [sender_not_authorized, not_authenticated, too_many_attachments, message_too_large, daily_limit, sender_daily_limit]
+        attachments:
+          type: array
+          items: { $ref: "#/components/schemas/InboxAttachment" }
+    InboxAttachment:
+      type: object
+      required: [filename, size, status]
+      properties:
+        filename: { type: string }
+        size: { type: integer, format: int64, description: Bytes read; with too_large, the limit it stopped at. }
+        sha256: { type: string, description: Hex, when the whole attachment was read. }
+        status:
+          type: string
+          enum: [delivered, not_delivered, refused]
+          description: |
+            delivered: handed to ingestion (ingest says what it did).
+            not_delivered: ingestion without an account is not available
+            yet; nothing was stored. refused: not a statement kind or too
+            large (reason).
+        reason:
+          type: string
+          enum: [unsupported_kind, too_large]
+        ingest: { $ref: "#/components/schemas/IngestResult" }
     ClosePeriodRequest:
       type: object
       required: [periodStart]

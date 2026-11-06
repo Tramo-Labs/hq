@@ -138,6 +138,27 @@ func (d *DB) InTenant(ctx context.Context, fn func(pgx.Tx) error) error {
 	})
 }
 
+// InboxRole may only run inbox.address_tenant (migration 00201).
+const InboxRole = "tramo_inbox"
+
+// InboxTenant returns the tenant whose active mailbox address has the local
+// part code. It runs one fixed query as tramo_inbox, a role whose only
+// privilege is that function: no caller can run anything else through it.
+// It exists because mail arrives before any tenant scope does.
+func (d *DB) InboxTenant(ctx context.Context, code string) (uuid.UUID, bool, error) {
+	var tenant *uuid.UUID
+	err := pgx.BeginFunc(ctx, d.Pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "set local role "+InboxRole); err != nil {
+			return fmt.Errorf("db: set role: %w", err)
+		}
+		return tx.QueryRow(ctx, "select inbox.address_tenant($1)", code).Scan(&tenant)
+	})
+	if err != nil || tenant == nil {
+		return uuid.Nil, false, err
+	}
+	return *tenant, true, nil
+}
+
 // System runs fn as tramo_system. Reserved for platform and identity (see
 // the allowlist test); business modules must use InTenant.
 func (d *DB) System(ctx context.Context, fn func(pgx.Tx) error) error {
