@@ -1,5 +1,5 @@
 import { app } from "../../content/app";
-import type { PeriodRange, QuarantinedFile } from "../../lib/api/types";
+import type { PeriodRange, QuarantinedFile, QuarantineList } from "../../lib/api/types";
 
 const f = app.files;
 
@@ -26,6 +26,14 @@ export function rangeText(r: PeriodRange): string {
 export function reasonText(q: Pick<QuarantinedFile, "reason" | "closedPeriod">): string {
   if (q.reason === "period_closed" && q.closedPeriod) return f.periodClosed(rangeText(q.closedPeriod));
   return (q.reason && f.reasons[q.reason]) || f.otherReason;
+}
+
+/**
+ * What the list says under its rows: when the core cut it at its 500 rows there are more files
+ * that did not enter than the ones shown, and the view must say so instead of cutting in silence.
+ */
+export function truncatedNotice(list: Pick<QuarantineList, "truncated">): string | null {
+  return list.truncated ? f.quarantineTruncated : null;
 }
 
 /** The account a file went to; a file that came by mail without one says so instead. */

@@ -7,7 +7,7 @@ import type { ExportInfo } from "@/lib/api";
 import { Card, Notice, PageHead, formatDate } from "@/components/app/ui";
 import { ghostBtn } from "@/components/app/buttons";
 import { useData, useSession } from "@/components/app/session";
-import { accountText, reasonText } from "@/components/app/quarantine-rules";
+import { accountText, reasonText, truncatedNotice } from "@/components/app/quarantine-rules";
 import { Loaded } from "./loaded";
 
 const f = app.files;
@@ -46,7 +46,10 @@ export function Files() {
     <>
       <PageHead eyebrow={f.eyebrow} title={f.title} body={f.body} />
       <Loaded state={state}>
-        {([exports, { items: quarantined, truncated }]) => (
+        {([exports, list]) => {
+          const quarantined = list.items;
+          const notice = truncatedNotice(list);
+          return (
           <>
             <Card className="p-5 sm:p-6">
               <h2 className="text-[20px] font-light">{f.exportsTitle}</h2>
@@ -80,9 +83,10 @@ export function Files() {
                 ))}
               </ul>
             )}
-            {truncated && <p className="mt-3 text-[14px] text-white/70">{f.quarantineTruncated}</p>}
+            {notice && <p className="mt-3 text-[14px] text-white/70">{notice}</p>}
           </>
-        )}
+          );
+        }}
       </Loaded>
     </>
   );
