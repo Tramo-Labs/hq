@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -506,5 +507,23 @@ func TestPGTenantIsolation(t *testing.T) {
 	})
 	if err == nil {
 		t.Error("tenant b wrote an item for tenant a")
+	}
+}
+
+// An escalated match is stored as suggested, but the client's Exceptions
+// listing must say where it waits now: tray "exception".
+func TestHTTPEscalatedListsAsException(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	m := e.escalated(t, r)
+	e.setMembership(t, e.a, identity.RoleApprover)
+	res, err := NewHandlers(e.store).ListMatches(e.ctx, apigen.ListMatchesRequestObject{
+		Params: apigen.ListMatchesParams{Tray: "exception"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := res.(apigen.ListMatches200JSONResponse).Items
+	if len(items) != 1 || items[0].Id != m.ID || items[0].Tray != "exception" {
+		t.Fatalf("escalated match as the approver lists it: %+v", items)
 	}
 }
