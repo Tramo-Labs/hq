@@ -1767,6 +1767,17 @@ components:
             "conectado, sin importar todavía". Importing is not built yet
             (ADR 0010, open question on the report's API), so today it is
             always absent.
+        lastSyncCode:
+          type: string
+          enum: [imported, stopped_by_quarantine, mp_unavailable]
+          description: |
+            How the last sync ended, as a code. imported: the report was
+            accepted (or was already there). stopped_by_quarantine: a file
+            went to quarantine; the sync waits, without retrying, until an
+            operator resolves it. mp_unavailable: Mercado Pago did not answer;
+            the next run retries. Absent until the first sync, so today
+            always absent.
+        lastSyncAt: { type: string, format: date-time, description: When the last sync ended. Absent until the first. }
         revokeInMercadoPago:
           type: boolean
           description: |
