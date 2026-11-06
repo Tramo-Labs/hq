@@ -2,13 +2,16 @@ package ledger
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 )
 
 // BalanceError says where a statement stops closing.
 type BalanceError struct {
-	Line     int // 0 when the mismatch is on the totals
+	Line     int       // 0 when the mismatch is on the totals
+	Sheet    int       // workbook sheet of Line, 0 for a text file
+	Date     time.Time // date of the movement on Line
 	Check    string
 	Expected money.Amount
 	Got      money.Amount
@@ -16,9 +19,10 @@ type BalanceError struct {
 
 func (e *BalanceError) Error() string {
 	if e.Line > 0 {
-		return fmt.Sprintf("%s at line %d: expected %s, file says %s", e.Check, e.Line, e.Expected, e.Got)
+		return fmt.Sprintf("%s at %s (%s): expected %s, file says %s, a difference of %s",
+			e.Check, where(e.Sheet, e.Line), day(e.Date), e.Expected, e.Got, e.Got-e.Expected)
 	}
-	return fmt.Sprintf("%s: expected %s, file says %s", e.Check, e.Expected, e.Got)
+	return fmt.Sprintf("%s: expected %s, file says %s, a difference of %s", e.Check, e.Expected, e.Got, e.Got-e.Expected)
 }
 
 // CheckBalance verifies the statement before anything runs on it:
@@ -40,7 +44,7 @@ func CheckBalance(st *Statement) error {
 		for _, m := range st.Movements {
 			want := prev + m.Amount
 			if *m.Balance != want {
-				return &BalanceError{Line: m.Line, Check: "running balance", Expected: want, Got: *m.Balance}
+				return &BalanceError{Line: m.Line, Sheet: m.Sheet, Date: m.Date, Check: "running balance", Expected: want, Got: *m.Balance}
 			}
 			prev = want
 		}

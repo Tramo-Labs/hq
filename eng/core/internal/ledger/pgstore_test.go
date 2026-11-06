@@ -369,3 +369,35 @@ func TestPGScopeMismatch(t *testing.T) {
 		t.Errorf("no scope: %v", err)
 	}
 }
+
+// Coverage reads the stored statements of the tenant only: October 1 to 10
+// accepted, the first fortnight lacks 11 to 15; the other tenant sees its
+// own account, with nothing uploaded.
+func TestPGCoverage(t *testing.T) {
+	e := newPGEnv(t)
+	if r := e.upload(t, e.ctx, e.scope, e.acct, "bancor_ok.csv"); r.Status != Accepted {
+		t.Fatalf("%s %s", r.Status, r.Detail)
+	}
+	acctB, err := e.store.CreateAccount(e.ctxB, Bancor, "", "Otra")
+	if err != nil {
+		t.Fatal(err)
+	}
+	from, to := d(10, 1), d(10, 15)
+	cov, err := e.store.Coverage(e.ctx, from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cov) != 1 || cov[0].Account.ID != e.acct || len(cov[0].Gaps) != 1 {
+		t.Fatalf("coverage %+v", cov)
+	}
+	if g := cov[0].Gaps[0]; !g.From.Equal(d(10, 11)) || !g.To.Equal(to) || g.Missing {
+		t.Errorf("gap %s..%s missing %v; want 11/10..15/10 not proven", day(g.From), day(g.To), g.Missing)
+	}
+	covB, err := e.store.Coverage(e.ctxB, from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(covB) != 1 || covB[0].Account.ID != acctB || len(covB[0].Gaps) != 1 || !covB[0].Gaps[0].From.Equal(from) {
+		t.Errorf("tenant B coverage %+v", covB)
+	}
+}

@@ -32,7 +32,8 @@ type Fee struct {
 
 // Movement is one line of a statement, in chronological order.
 type Movement struct {
-	Line        int       // 1-based line of the source file
+	Line        int       // 1-based line of the source file (row of its sheet in a workbook)
+	Sheet       int       // 1-based workbook sheet; 0 for a text file
 	Date        time.Time // civil date, UTC midnight
 	Description string
 	Reference   string        // bank voucher number, Mercado Pago SOURCE_ID

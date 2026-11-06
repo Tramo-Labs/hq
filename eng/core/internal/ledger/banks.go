@@ -45,6 +45,19 @@ func init() {
 		parse: columnar(columns{Date: 0, Desc: 1, Ref: 2, Debit: 3, Credit: 4, Signed: -1, Balance: 5,
 			Style: money.DecimalComma}),
 	})
+	// Bancor's own usage guide (Bancón, 01/2022) says the web version
+	// downloads movements "en formato Excel o en PDF"; it does not show the
+	// columns. Until a real file arrives the workbook is assumed to carry the
+	// same columns as the CSV, on one or more sheets, with dates and amounts
+	// as Excel numbers or as text.
+	register(&Layout{
+		ID:        "bancor/xlsx-v1",
+		Bank:      Bancor,
+		Delimiter: SheetDelimiter,
+		Header:    []string{"Fecha", "Concepto", "Comprobante", "Débito", "Crédito", "Saldo"},
+		parse: columnar(columns{Date: 0, Desc: 1, Ref: 2, Debit: 3, Credit: 4, Signed: -1, Balance: 5,
+			Style: money.DecimalComma}),
+	})
 	register(&Layout{
 		ID:        "macro/txt-v1",
 		Bank:      Macro,
@@ -73,7 +86,7 @@ func columnar(c columns) func(*sheet, *Layout) (*Statement, error) {
 		}
 		for _, r := range rest {
 			if !r.blank() {
-				return nil, &RowError{r.Line, "", errors.New("unexpected content after the data")}
+				return nil, &RowError{Line: r.Line, Column: "", Err: errors.New("unexpected content after the data")}
 			}
 		}
 		st := &Statement{Movements: mv}
@@ -95,13 +108,13 @@ func parseSantander(s *sheet, l *Layout) (*Statement, error) {
 			from, err1 := parseDate(r.cell(1))
 			to, err2 := parseDate(r.cell(2))
 			if err := errors.Join(err1, err2); err != nil {
-				return nil, &RowError{r.Line, "Período", err}
+				return nil, &RowError{Line: r.Line, Column: "Período", Err: err}
 			}
 			st.From, st.To = from, to
 		case "saldo inicial":
-			a, err := money.Parse(r.cell(1), money.DecimalComma)
+			a, err := money.Parse(r.cell(1), r.style(1, money.DecimalComma))
 			if err != nil {
-				return nil, &RowError{r.Line, "Saldo inicial", err}
+				return nil, &RowError{Line: r.Line, Column: "Saldo inicial", Err: err}
 			}
 			st.Opening, st.OpeningStated = a, true
 		}
@@ -113,9 +126,9 @@ func parseSantander(s *sheet, l *Layout) (*Statement, error) {
 	}
 	for _, r := range rest {
 		if normalizeHeader(r.cell(0)) == "saldo final" {
-			a, err := money.Parse(r.cell(1), money.DecimalComma)
+			a, err := money.Parse(r.cell(1), r.style(1, money.DecimalComma))
 			if err != nil {
-				return nil, &RowError{r.Line, "Saldo final", err}
+				return nil, &RowError{Line: r.Line, Column: "Saldo final", Err: err}
 			}
 			st.Closing, st.ClosingStated = a, true
 		}
@@ -129,7 +142,7 @@ func parseSantander(s *sheet, l *Layout) (*Statement, error) {
 	if !from.IsZero() {
 		for _, m := range mv {
 			if m.Date.Before(from) || m.Date.After(to) {
-				return nil, &RowError{m.Line, "Fecha", fmt.Errorf("outside the stated period")}
+				return nil, &RowError{Line: m.Line, Column: "Fecha", Err: fmt.Errorf("outside the stated period")}
 			}
 		}
 		st.From, st.To = from, to
@@ -158,48 +171,48 @@ func parseMercadoPago(s *sheet, l *Layout) (*Statement, error) {
 			continue
 		}
 		if len(r.Cells) < len(header) {
-			return nil, &RowError{r.Line, "", fmt.Errorf("%d cells, header has %d", len(r.Cells), len(header))}
+			return nil, &RowError{Line: r.Line, Column: "", Err: fmt.Errorf("%d cells, header has %d", len(r.Cells), len(header))}
 		}
 		credit, err := optional(r.cell(5), money.DecimalDot)
 		if err != nil {
-			return nil, &RowError{r.Line, header[5], err}
+			return nil, &RowError{Line: r.Line, Column: header[5], Err: err}
 		}
 		debit, err := optional(r.cell(6), money.DecimalDot)
 		if err != nil {
-			return nil, &RowError{r.Line, header[6], err}
+			return nil, &RowError{Line: r.Line, Column: header[6], Err: err}
 		}
 		net := credit - debit
 		switch strings.ToLower(r.cell(3)) {
 		case "initial_available_balance":
 			if st.OpeningStated {
-				return nil, &RowError{r.Line, header[3], errors.New("second opening row")}
+				return nil, &RowError{Line: r.Line, Column: header[3], Err: errors.New("second opening row")}
 			}
 			st.Opening, st.OpeningStated = net, true
 		case "total":
 			if st.ClosingStated {
-				return nil, &RowError{r.Line, header[3], errors.New("second total row")}
+				return nil, &RowError{Line: r.Line, Column: header[3], Err: errors.New("second total row")}
 			}
 			st.Closing, st.ClosingStated = net, true
 		case "release":
 			if st.ClosingStated {
-				return nil, &RowError{r.Line, header[3], errors.New("movement after the total row")}
+				return nil, &RowError{Line: r.Line, Column: header[3], Err: errors.New("movement after the total row")}
 			}
 			d, err := parseDate(r.cell(0))
 			if err != nil {
-				return nil, &RowError{r.Line, header[0], err}
+				return nil, &RowError{Line: r.Line, Column: header[0], Err: err}
 			}
 			m := Movement{Line: r.Line, Date: d, Reference: r.cell(1), ExternalRef: r.cell(2),
 				Description: r.cell(4), Amount: net}
 			if r.cell(7) != "" {
 				g, err := money.Parse(r.cell(7), money.DecimalDot)
 				if err != nil {
-					return nil, &RowError{r.Line, header[7], err}
+					return nil, &RowError{Line: r.Line, Column: header[7], Err: err}
 				}
 				sum := g
 				for _, f := range mpFeeColumns {
 					a, err := optional(r.cell(f.col), money.DecimalDot)
 					if err != nil {
-						return nil, &RowError{r.Line, header[f.col], err}
+						return nil, &RowError{Line: r.Line, Column: header[f.col], Err: err}
 					}
 					if a != 0 {
 						m.Fees = append(m.Fees, Fee{Kind: f.kind, Amount: a})
@@ -207,13 +220,13 @@ func parseMercadoPago(s *sheet, l *Layout) (*Statement, error) {
 					}
 				}
 				if sum != net {
-					return nil, &RowError{r.Line, header[7], fmt.Errorf("gross plus fees is %s, net is %s", sum, net)}
+					return nil, &RowError{Line: r.Line, Column: header[7], Err: fmt.Errorf("gross plus fees is %s, net is %s", sum, net)}
 				}
 				m.Gross = &g
 			}
 			st.Movements = append(st.Movements, m)
 		default:
-			return nil, &RowError{r.Line, header[3], fmt.Errorf("record type %q not known", r.cell(3))}
+			return nil, &RowError{Line: r.Line, Column: header[3], Err: fmt.Errorf("record type %q not known", r.cell(3))}
 		}
 	}
 	if !st.OpeningStated || !st.ClosingStated {

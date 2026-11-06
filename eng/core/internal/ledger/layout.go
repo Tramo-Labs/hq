@@ -94,10 +94,22 @@ type RowError struct {
 	Line   int
 	Column string
 	Err    error
+	Sheet  int // 1-based position of the workbook sheet; 0 for a text file
 }
 
 func (e *RowError) Error() string {
-	return fmt.Sprintf("line %d, column %q: %v", e.Line, e.Column, e.Err)
+	if e.Column == "" {
+		return fmt.Sprintf("%s: %v", where(e.Sheet, e.Line), e.Err)
+	}
+	return fmt.Sprintf("%s, column %q: %v", where(e.Sheet, e.Line), e.Column, e.Err)
+}
+
+// where names a line, and its sheet when the file is a workbook.
+func where(sheet, line int) string {
+	if sheet > 0 {
+		return fmt.Sprintf("sheet %d, line %d", sheet, line)
+	}
+	return fmt.Sprintf("line %d", line)
 }
 
 func (e *RowError) Unwrap() error { return e.Err }
@@ -133,40 +145,40 @@ func parseColumns(s *sheet, c columns) ([]Movement, []row, error) {
 			break
 		}
 		if len(r.Cells) < len(header) {
-			return nil, nil, &RowError{r.Line, "", fmt.Errorf("%d cells, header has %d", len(r.Cells), len(header))}
+			return nil, nil, &RowError{Line: r.Line, Column: "", Err: fmt.Errorf("%d cells, header has %d", len(r.Cells), len(header))}
 		}
 		d, err := parseDate(r.cell(c.Date))
 		if err != nil {
-			return nil, nil, &RowError{r.Line, name(c.Date), err}
+			return nil, nil, &RowError{Line: r.Line, Column: name(c.Date), Err: err}
 		}
 		m := Movement{Line: r.Line, Date: d, Description: r.cell(c.Desc), Reference: r.cell(c.Ref)}
 		if c.Signed >= 0 {
-			a, err := money.Parse(r.cell(c.Signed), c.Style)
+			a, err := money.Parse(r.cell(c.Signed), r.style(c.Signed, c.Style))
 			if err != nil {
-				return nil, nil, &RowError{r.Line, name(c.Signed), err}
+				return nil, nil, &RowError{Line: r.Line, Column: name(c.Signed), Err: err}
 			}
 			m.Amount = a
 		} else {
-			deb, errD := optional(r.cell(c.Debit), c.Style)
+			deb, errD := optional(r.cell(c.Debit), r.style(c.Debit, c.Style))
 			if errD != nil {
-				return nil, nil, &RowError{r.Line, name(c.Debit), errD}
+				return nil, nil, &RowError{Line: r.Line, Column: name(c.Debit), Err: errD}
 			}
-			cred, errC := optional(r.cell(c.Credit), c.Style)
+			cred, errC := optional(r.cell(c.Credit), r.style(c.Credit, c.Style))
 			if errC != nil {
-				return nil, nil, &RowError{r.Line, name(c.Credit), errC}
+				return nil, nil, &RowError{Line: r.Line, Column: name(c.Credit), Err: errC}
 			}
 			if (deb == 0) == (cred == 0) {
-				return nil, nil, &RowError{r.Line, name(c.Debit), errors.New("exactly one of debit and credit must be set")}
+				return nil, nil, &RowError{Line: r.Line, Column: name(c.Debit), Err: errors.New("exactly one of debit and credit must be set")}
 			}
 			if deb < 0 || cred < 0 {
-				return nil, nil, &RowError{r.Line, name(c.Debit), errors.New("debit and credit columns must be unsigned")}
+				return nil, nil, &RowError{Line: r.Line, Column: name(c.Debit), Err: errors.New("debit and credit columns must be unsigned")}
 			}
 			m.Amount = cred - deb
 		}
 		if c.Balance >= 0 {
-			b, err := money.Parse(r.cell(c.Balance), c.Style)
+			b, err := money.Parse(r.cell(c.Balance), r.style(c.Balance, c.Style))
 			if err != nil {
-				return nil, nil, &RowError{r.Line, name(c.Balance), err}
+				return nil, nil, &RowError{Line: r.Line, Column: name(c.Balance), Err: err}
 			}
 			m.Balance = &b
 		}

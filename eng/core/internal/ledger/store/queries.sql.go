@@ -521,3 +521,45 @@ func (q *Queries) MovementsWithKeys(ctx context.Context, arg MovementsWithKeysPa
 	}
 	return items, nil
 }
+
+const statementSpans = `-- name: StatementSpans :many
+select account_id, period_from::date as period_from, period_to::date as period_to, opening, closing
+  from ledger.statements
+ where period_from is not null and period_to is not null
+ order by account_id, period_from, period_to
+`
+
+type StatementSpansRow struct {
+	AccountID  uuid.UUID
+	PeriodFrom time.Time
+	PeriodTo   time.Time
+	Opening    int64
+	Closing    int64
+}
+
+// Every dated statement of the tenant, for the coverage of a period (Gaps).
+func (q *Queries) StatementSpans(ctx context.Context) ([]StatementSpansRow, error) {
+	rows, err := q.db.Query(ctx, statementSpans)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StatementSpansRow
+	for rows.Next() {
+		var i StatementSpansRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.PeriodFrom,
+			&i.PeriodTo,
+			&i.Opening,
+			&i.Closing,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
