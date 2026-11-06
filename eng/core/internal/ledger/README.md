@@ -112,14 +112,21 @@ a thousand times, so a workbook over any of these limits is
 | shared strings, cell formats, number formats | 500,000, 65,536, 4,096 | while reading |
 
 Zip64 and a zip with data before its directory are refused too.
-`TestHostileWorkbooks` holds fourteen hostile files of at most 2.1 MiB and
-checks which limit stops each one; with `TRAMO_XLSX_MEASURE=1` it logs what
-each cost. Measured on 06/11, no race detector, three runs: the worst growth
-of resident memory while reading was 72 to 81 MiB (a million cells, stopped
-by the cell limit), and a realistic year of 30,000 rows (8.6 MiB of XML)
-took 28 to 29 MiB. The whole test, files built one at a time, peaked at
-156 MiB (399 MiB under the race detector) in a scope with `MemoryMax=1G`.
-The test asserts at most 96 MiB of growth per file. Every sheet is read like a CSV
+`TestHostileWorkbooks` holds fifteen hostile files of at most 2.2 MiB and
+checks which limit stops each one: every limit in the table stops at least
+one, so raising any of them fails the test. The count of bytes read only
+backs up the declared sizes, which the zip reader already holds parts to,
+so no file reaches it alone. With `TRAMO_XLSX_MEASURE=1` the test logs
+what each cost. Measured on 06/11, no race detector: the worst growth of
+the process's peak resident memory while reading one file was 69 to 81 MiB
+over four runs (a million cells, stopped by the cell limit; the test fails
+above 96 MiB), and a realistic year of 30,000 rows (8.6 MiB of XML) took 28
+to 29 MiB. For the whole test, the peak of the cgroup (`memory.peak` of the
+systemd scope, page cache included) of
+`systemd-run --user --scope -p MemoryMax=1G -p MemorySwapMax=0 ledger.test -test.run 'Hostile|LargeRealistic'`,
+with the binary from `go test -c`, was 135 to 163 MiB over four runs, and
+405 MiB from `go test -race -c`; it varies with the collector's timing.
+Every sheet is read like a CSV
 sheet, with its own fingerprint (delimiter `SheetDelimiter`, so an Excel
 layout never shares a fingerprint with the CSV of the same columns). A
 cell Excel stores as a number is read as a number whatever the layout's

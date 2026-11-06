@@ -174,14 +174,33 @@ func TestHostileWorkbooks(t *testing.T) {
 				[2]string{"xl/styles.xml", `<styleSheet><cellXfs>` + strings.Repeat(`<xf numFmtId="14"/>`, 1_000_000) +
 					`</cellXfs></styleSheet>`})...)
 		}, "cell formats"},
-		// Thousands of tiny parts besides the workbook.
+		// Ten thousand custom number formats.
+		{"many number formats", func() []byte {
+			var nf strings.Builder
+			for i := 0; i < 10_000; i++ {
+				fmt.Fprintf(&nf, `<numFmt numFmtId="%d" formatCode="0.00"/>`, 200+i)
+			}
+			return zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml", sheetOf("")},
+				[2]string{"xl/styles.xml", `<styleSheet><numFmts>` + nf.String() + `</numFmts></styleSheet>`})...)
+		}, "number formats"},
+		// Five thousand tiny parts: the directory is small (about 260 KiB),
+		// the entries are many.
 		{"many zip entries", func() []byte {
 			many := append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml", sheetOf("")})
-			for i := 0; i < 20_000; i++ {
+			for i := 0; i < 5_000; i++ {
 				many = append(many, [2]string{fmt.Sprintf("x/%d", i), ""})
 			}
 			return zipOf(t, many...)
 		}, "zip entries"},
+		// Nine hundred parts, under the entry limit, with names long enough
+		// to make the directory larger than 1 MiB.
+		{"large zip directory", func() []byte {
+			long := append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml", sheetOf("")})
+			for i := 0; i < 900; i++ {
+				long = append(long, [2]string{fmt.Sprintf("x/%04d/%s", i, strings.Repeat("n", 1200)), ""})
+			}
+			return zipOf(t, long...)
+		}, "zip directory size"},
 		{"deep nesting", func() []byte {
 			return zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
 				strings.Repeat("<a>", 100_000) + strings.Repeat("</a>", 100_000)})...)

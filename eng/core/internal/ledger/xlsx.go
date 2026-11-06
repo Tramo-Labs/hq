@@ -97,9 +97,11 @@ func readWorkbook(data []byte) ([]*sheet, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: not a readable zip", ErrUnsupportedFormat)
 	}
-	if len(zr.File) > xlsxMaxEntries {
-		return nil, tooLarge("zip entries")
-	}
+	// No need to count zr.File again: the reader refuses a directory whose
+	// entries differ from the end record's count (modulo 65536), and 65536
+	// entries take more than the directory limit, so it holds what
+	// checkDirectory counted.
+	//
 	// Every entry counts, whatever its name: a sheet part can be called
 	// anything. Images barely compress, so they stay near their zipped size.
 	// The zip reader refuses a part that decompresses past its declared size.
@@ -170,7 +172,9 @@ func checkDirectory(data []byte) error {
 	switch {
 	case records == 0xffff || size == 0xffffffff || offset == 0xffffffff:
 		return fmt.Errorf("%w: a zip64 archive", ErrUnsupportedFormat)
-	case size > xlsxMaxDirectory || int(records) > xlsxMaxEntries:
+	case size > xlsxMaxDirectory:
+		return tooLarge("zip directory size")
+	case int(records) > xlsxMaxEntries:
 		return tooLarge("zip entries")
 	case int64(offset)+int64(size) != int64(end):
 		return fmt.Errorf("%w: the zip directory is not where its end record says", ErrUnsupportedFormat)
@@ -231,7 +235,7 @@ type xmlStream struct {
 }
 
 func openStream(f *zip.File, b *budget) (*xmlStream, error) {
-	if f.UncompressedSize64 > uint64(b.xml) {
+	if b.xml <= 0 || f.UncompressedSize64 > uint64(b.xml) {
 		return nil, tooLarge("decompressed size")
 	}
 	rc, err := f.Open()
@@ -242,7 +246,8 @@ func openStream(f *zip.File, b *budget) (*xmlStream, error) {
 	return &xmlStream{rc: rc, pr: pr, d: xml.NewDecoder(pr)}, nil
 }
 
-func (s *xmlStream) close() { s.rc.Close() }
+// close ends the part; a reading error, if any, was already returned.
+func (s *xmlStream) close() { _ = s.rc.Close() }
 
 // next returns the next token, io.EOF at the end of the part. Char data is
 // only valid until the next call.
@@ -320,7 +325,7 @@ func (t *textBuilder) add(b []byte) error {
 	if t.Len()+len(b) > xlsxMaxCellText {
 		return tooLarge("text in one cell")
 	}
-	t.Write(b)
+	_, _ = t.Write(b) // a strings.Builder never fails
 	return nil
 }
 
