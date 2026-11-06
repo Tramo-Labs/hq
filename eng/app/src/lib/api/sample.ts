@@ -139,7 +139,7 @@ export async function listAccounts() {
 }
 
 export async function listQuarantine() {
-  return page(fx.quarantine[session().tenantId] ?? []);
+  return { items: fx.quarantine[session().tenantId] ?? [], truncated: false };
 }
 
 /** Suggested is the operator's alone, like the core: everyone else gets 403, accountant included. */

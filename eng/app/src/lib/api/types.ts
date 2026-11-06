@@ -129,15 +129,31 @@ export const quarantineReasons = [
 ] as const;
 export type QuarantineReason = (typeof quarantineReasons)[number];
 
+/** A period, first and last day included (YYYY-MM-DD). */
+export type PeriodRange = { from: string; to: string };
+
+/**
+ * A quarantined row of GET /v1/ledger/files?status=quarantined (UploadedFile in the spec), with
+ * the fields the portal reads. That is the "Archivos" list the spec names; /v1/ledger/quarantine
+ * carries neither the account name nor closedPeriod.
+ */
 export type QuarantinedFile = {
   id: string;
-  accountId: string;
+  /** Absent only for unrouted: it arrived by mail and no single account matches it. */
+  accountId?: string;
+  /** Absent exactly when accountId is. */
+  accountName?: string;
+  bank: Bank;
   filename?: string;
-  reason: string;
+  reason?: string;
+  /** With period_closed, the closed period the file's new movements fall in. */
+  closedPeriod?: PeriodRange;
   detail?: string;
-  fingerprint?: string;
   receivedAt: string;
 };
+
+/** The files list answers up to 500 rows; truncated says there were more. */
+export type QuarantineList = { items: QuarantinedFile[]; truncated: boolean };
 
 // matching
 
