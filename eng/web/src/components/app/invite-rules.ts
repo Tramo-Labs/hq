@@ -14,6 +14,20 @@ export function inviteStep(who: { email: string } | null | undefined): InviteSte
   return who === null ? "form" : "signed_in";
 }
 
+/**
+ * Accepts only if nobody is signed in right now (F33). Someone may have signed in in another tab
+ * while the form was open, so it asks again just before sending; if someone is in, it does not
+ * accept and hands back who, for the page to show them.
+ */
+export async function acceptIfNobodyIn<W extends { email: string }, S>(
+  who: () => Promise<W | null>,
+  accept: () => Promise<S>,
+): Promise<{ signedIn: W } | { accepted: S }> {
+  const now = await who();
+  if (inviteStep(now) !== "form") return { signedIn: now as W };
+  return { accepted: await accept() };
+}
+
 export type PasswordProblem = "too_short" | "mismatch";
 
 /**

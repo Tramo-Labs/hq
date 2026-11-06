@@ -120,3 +120,5 @@ the email it is signed in with on a BroadcastChannel (only the email, never a to
 hears another person, or nobody, drops its session and goes to `/entrar?motivo=otra-pestana`,
 instead of showing the previous name and role until a reload. /invitacion first asks who is in
 (a refresh) and, if someone is, says so and offers to sign out or cancel before showing the form.
+It asks again right before sending: if someone signed in on another tab while the form was open,
+it does not accept and goes back to saying who is in.

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { app } from "@/content/app";
 import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, whoIsIn, type Session } from "@/lib/api";
-import { inviteStep, passwordProblem } from "@/components/app/invite-rules";
+import { acceptIfNobodyIn, inviteStep, passwordProblem } from "@/components/app/invite-rules";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
 const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none";
@@ -91,7 +91,14 @@ export function InviteEntry() {
     setBusy(true);
     setError(null);
     try {
-      const s = await acceptInvite(token.current, password, name.trim() || undefined);
+      const t = token.current;
+      const r = await acceptIfNobodyIn(whoIsIn, () => acceptInvite(t, password, name.trim() || undefined));
+      if ("signedIn" in r) {
+        // Someone signed in in another tab while the form was open: back to who is in, no accept.
+        setWho(r.signedIn);
+        return;
+      }
+      const s = r.accepted;
       setPassword("");
       setConfirm("");
       router.replace(homeFor(s.role));

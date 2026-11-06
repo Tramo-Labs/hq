@@ -2,12 +2,27 @@
 // message is the one that applies to what is typed now.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inviteStep, passwordProblem } from "./invite-rules";
+import { acceptIfNobodyIn, inviteStep, passwordProblem } from "./invite-rules";
 
 test("the invitation form only shows when nobody is signed in on this browser (F33)", () => {
   assert.equal(inviteStep(undefined), "checking");
   assert.equal(inviteStep({ email: "owner@alfa.test" }), "signed_in");
   assert.equal(inviteStep(null), "form");
+});
+
+test("someone who signed in while the form was open stops the acceptance (F33)", async () => {
+  let accepted = 0;
+  const accept = async () => { accepted++; return "session of the invited person"; };
+  const r = await acceptIfNobodyIn(async () => ({ email: "owner@alfa.test" }), accept);
+  assert.deepEqual(r, { signedIn: { email: "owner@alfa.test" } });
+  assert.equal(accepted, 0);
+});
+
+test("with nobody signed in just before sending, the invitation is accepted once (F33)", async () => {
+  let accepted = 0;
+  const r = await acceptIfNobodyIn(async () => null, async () => { accepted++; return "session"; });
+  assert.deepEqual(r, { accepted: "session" });
+  assert.equal(accepted, 1);
 });
 
 test("the password message is the one that applies to the fields as they are now (F34)", () => {
