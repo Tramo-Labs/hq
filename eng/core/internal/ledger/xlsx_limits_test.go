@@ -133,52 +133,64 @@ func TestHostileWorkbooks(t *testing.T) {
 	cell := `<c><v>1</v></c>`
 	sheetOf := func(body string) string { return `<worksheet><sheetData>` + body + `</sheetData></worksheet>` }
 
-	// One cell of 40 MiB of text.
-	hugeCell := append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
-		sheetOf(`<row><c t="inlineStr"><is><t>` + strings.Repeat("x", 40<<20) + `</t></is></c></row>`)})
-	// Two million shared strings, referenced by nobody.
-	sst := append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml", sheetOf("")},
-		[2]string{"xl/sharedStrings.xml", `<sst>` + strings.Repeat(`<si><t>x</t></si>`, 2_000_000) + `</sst>`})
-	// Rows of 200 short cells: no part is large, the cells are many.
-	wide := append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
-		sheetOf(strings.Repeat(`<row>`+strings.Repeat(cell, 200)+`</row>`, 8_000))})
-	// A million sheet entries in the workbook part.
-	sheetsPart := [][2]string{{"xl/workbook.xml", `<workbook><sheets>` +
-		strings.Repeat(`<sheet r:id="x"/>`, 1_000_000) + `</sheets></workbook>`}}
-	// Styles with a million cell formats.
-	stylesPart := append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml", sheetOf("")},
-		[2]string{"xl/styles.xml", `<styleSheet><cellXfs>` + strings.Repeat(`<xf numFmtId="14"/>`, 1_000_000) + `</cellXfs></styleSheet>`})
-	// Thousands of tiny parts besides the workbook.
-	many := bookHead(1)
-	many = append(many, [2]string{"xl/worksheets/sheet1.xml", sheetOf("")})
-	for i := 0; i < 20_000; i++ {
-		many = append(many, [2]string{fmt.Sprintf("x/%d", i), ""})
-	}
-
-	// Rows with no cells cost nothing to keep, so only the bytes stop them.
-	empty := hostileBook(t, 1, 80<<20, `<row/>`)
-
+	// Each file is built inside its own subtest, so the test holds one at a
+	// time and stays well under the memory cap it runs with.
 	cases := []struct {
 		name  string
-		data  []byte
+		build func() []byte
 		limit string // the limit that must stop it
 	}{
-		{"ratio 256 to 1", hostileBook(t, 1, 64<<20, inline), "200000 rows"},
-		{"50 sheets of 8 MiB", hostileBook(t, 50, 8<<20, inline), "decompressed size"},
-		{"empty rows", empty, "decompressed size"},
-		{"rows padded to column XFD", hostileBook(t, 1, 4<<20, `<row><c r="XFD1"><v>1</v></c></row>`), "1000000 cells"},
-		{"many rows", hostileBook(t, 1, 12<<20, `<row><c><v>1</v></c></row>`), "200000 rows"},
-		{"many cells", zipOf(t, wide...), "1000000 cells"},
-		{"one huge cell", zipOf(t, hugeCell...), "one XML token"},
-		{"many shared strings", zipOf(t, sst...), "shared strings"},
-		{"many sheet entries", zipOf(t, sheetsPart...), "50 sheets"},
-		{"many styles", zipOf(t, stylesPart...), "cell formats"},
-		{"many zip entries", zipOf(t, many...), "zip entries"},
-		{"deep nesting", zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
-			strings.Repeat("<a>", 100_000) + strings.Repeat("</a>", 100_000)})...), "element nesting"},
-		{"long run of text across many tokens", zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
-			sheetOf(`<row><c t="inlineStr"><is>` + strings.Repeat(`<r><t>`+strings.Repeat("x", 1000)+`</t></r>`, 200) +
-				`</is></c></row>`)})...), "text in one cell"},
+		{"ratio 256 to 1", func() []byte { return hostileBook(t, 1, 64<<20, inline) }, "200000 rows"},
+		{"50 sheets of 8 MiB", func() []byte { return hostileBook(t, 50, 8<<20, inline) }, "decompressed size"},
+		// Rows with no cells cost nothing to keep, so only the bytes stop them.
+		{"empty rows", func() []byte { return hostileBook(t, 1, 80<<20, `<row/>`) }, "decompressed size"},
+		{"rows padded to column XFD", func() []byte {
+			return hostileBook(t, 1, 4<<20, `<row><c r="XFD1"><v>1</v></c></row>`)
+		}, "1000000 cells"},
+		{"many rows", func() []byte { return hostileBook(t, 1, 12<<20, `<row><c><v>1</v></c></row>`) }, "200000 rows"},
+		// Rows of 200 short cells: no part is large, the cells are many.
+		{"many cells", func() []byte {
+			return zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
+				sheetOf(strings.Repeat(`<row>`+strings.Repeat(cell, 200)+`</row>`, 8_000))})...)
+		}, "1000000 cells"},
+		// One cell of 40 MiB of text.
+		{"one huge cell", func() []byte {
+			return zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
+				sheetOf(`<row><c t="inlineStr"><is><t>` + strings.Repeat("x", 40<<20) + `</t></is></c></row>`)})...)
+		}, "one XML token"},
+		// Two million shared strings, referenced by nobody.
+		{"many shared strings", func() []byte {
+			return zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml", sheetOf("")},
+				[2]string{"xl/sharedStrings.xml", `<sst>` + strings.Repeat(`<si><t>x</t></si>`, 2_000_000) + `</sst>`})...)
+		}, "shared strings"},
+		// A million sheet entries in the workbook part.
+		{"many sheet entries", func() []byte {
+			return zipOf(t, [2]string{"xl/workbook.xml", `<workbook><sheets>` +
+				strings.Repeat(`<sheet r:id="x"/>`, 1_000_000) + `</sheets></workbook>`})
+		}, "50 sheets"},
+		// Styles with a million cell formats.
+		{"many styles", func() []byte {
+			return zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml", sheetOf("")},
+				[2]string{"xl/styles.xml", `<styleSheet><cellXfs>` + strings.Repeat(`<xf numFmtId="14"/>`, 1_000_000) +
+					`</cellXfs></styleSheet>`})...)
+		}, "cell formats"},
+		// Thousands of tiny parts besides the workbook.
+		{"many zip entries", func() []byte {
+			many := append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml", sheetOf("")})
+			for i := 0; i < 20_000; i++ {
+				many = append(many, [2]string{fmt.Sprintf("x/%d", i), ""})
+			}
+			return zipOf(t, many...)
+		}, "zip entries"},
+		{"deep nesting", func() []byte {
+			return zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
+				strings.Repeat("<a>", 100_000) + strings.Repeat("</a>", 100_000)})...)
+		}, "element nesting"},
+		{"long run of text across many tokens", func() []byte {
+			return zipOf(t, append(bookHead(1), [2]string{"xl/worksheets/sheet1.xml",
+				sheetOf(`<row><c t="inlineStr"><is>` + strings.Repeat(`<r><t>`+strings.Repeat("x", 1000)+`</t></r>`, 200) +
+					`</is></c></row>`)})...)
+		}, "text in one cell"},
 	}
 
 	// The hard ceiling is the peak resident memory: that is what can take
@@ -190,13 +202,14 @@ func TestHostileWorkbooks(t *testing.T) {
 	report := os.Getenv("TRAMO_XLSX_MEASURE") != ""
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if len(c.data) > MaxUpload {
-				t.Fatalf("hostile file is %d bytes, over the upload cap: not a real threat", len(c.data))
+			data := c.build()
+			if len(data) > MaxUpload {
+				t.Fatalf("hostile file is %d bytes, over the upload cap: not a real threat", len(data))
 			}
-			m := measure(c.data)
+			m := measure(data)
 			if report {
 				t.Logf("zip %.2f MiB: %s (%s); allocated %d MiB, peak RSS +%d MiB, %v",
-					float64(len(c.data))/(1<<20), m.reason, m.detail, m.alloc>>20, m.grew>>20,
+					float64(len(data))/(1<<20), m.reason, m.detail, m.alloc>>20, m.grew>>20,
 					m.took.Round(time.Millisecond))
 			}
 			if m.reason != ReasonUnsupportedFormat {

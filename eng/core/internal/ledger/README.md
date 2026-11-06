@@ -114,12 +114,12 @@ a thousand times, so a workbook over any of these limits is
 Zip64 and a zip with data before its directory are refused too.
 `TestHostileWorkbooks` holds fourteen hostile files of at most 2.1 MiB and
 checks which limit stops each one; with `TRAMO_XLSX_MEASURE=1` it logs what
-each cost. Measured on 06/11 under `MemoryMax=4G`, no race detector: the
-worst growth of resident memory while reading was 81 MiB (a million cells,
-stopped by the cell limit), and a realistic year of 30,000 rows (8.6 MiB of
-XML) took 28 MiB. The reader before these limits took the same test
-process to 1.5 GB on fifty 8 MiB sheets and did not finish in 90 seconds
-on rows padded to column XFD. Every sheet is read like a CSV
+each cost. Measured on 06/11, no race detector, three runs: the worst growth
+of resident memory while reading was 72 to 81 MiB (a million cells, stopped
+by the cell limit), and a realistic year of 30,000 rows (8.6 MiB of XML)
+took 28 to 29 MiB. The whole test, files built one at a time, peaked at
+156 MiB (399 MiB under the race detector) in a scope with `MemoryMax=1G`.
+The test asserts at most 96 MiB of growth per file. Every sheet is read like a CSV
 sheet, with its own fingerprint (delimiter `SheetDelimiter`, so an Excel
 layout never shares a fingerprint with the CSV of the same columns). A
 cell Excel stores as a number is read as a number whatever the layout's
