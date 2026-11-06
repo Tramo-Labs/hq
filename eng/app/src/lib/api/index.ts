@@ -3,7 +3,7 @@ import * as live from "./live";
 import { getMode, getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus, ItemDirection, OpenItems, Member, InvitePreview,
+  Page, PendingMovement, PendingTray, QuarantineList, Account, Role, TenantStatus, ItemDirection, OpenItems, Member, InvitePreview,
 } from "./types";
 
 export type * from "./types";
@@ -22,7 +22,7 @@ export { endedElsewhere, getMode, getSession, subscribe, type Mode, type Session
  *   POST /v1/auth/login | refresh | logout | switch-tenant
  *   POST /v1/auth/magic-link | magic-link/accept | invite/preview | invite/accept
  *   GET  /v1/me, PATCH /v1/me                    GET /v1/me/tenant
- *   GET  /v1/tenants (operator, accountant)      GET /v1/ledger/accounts, /v1/ledger/quarantine
+ *   GET  /v1/tenants (operator, accountant)      GET /v1/ledger/accounts, /v1/ledger/files?status=quarantined
  *   GET  /v1/matching/matches?tray=&period=      GET /v1/matching/pending?tray=&period=
  *   GET  /v1/matching/items?direction=&period=
  *   POST /v1/matching/matches/{id}/decision      POST /v1/matching/movements/{id}/decision
@@ -126,8 +126,9 @@ export async function listAccounts(): Promise<Page<Account>> {
   return isLive() ? live.getJson("/v1/ledger/accounts") : (await sample()).listAccounts();
 }
 
-export async function listQuarantine(): Promise<Page<QuarantinedFile>> {
-  return isLive() ? live.getJson("/v1/ledger/quarantine") : (await sample()).listQuarantine();
+/** The files that did not enter, newest first: the spec's "Archivos" list, no month filter. */
+export async function listQuarantine(): Promise<QuarantineList> {
+  return isLive() ? live.getJson("/v1/ledger/files?status=quarantined") : (await sample()).listQuarantine();
 }
 
 export async function listMatches(tray: MatchTray, period?: string): Promise<Page<Match>> {

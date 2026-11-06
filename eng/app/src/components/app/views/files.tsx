@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { app } from "@/content/app";
-import { ApiError, can, downloadExport, listAccounts, listExports, listQuarantine } from "@/lib/api";
+import { ApiError, can, downloadExport, listExports, listQuarantine } from "@/lib/api";
 import type { ExportInfo } from "@/lib/api";
 import { Card, Notice, PageHead, formatDate } from "@/components/app/ui";
 import { ghostBtn } from "@/components/app/buttons";
 import { useData, useSession } from "@/components/app/session";
+import { accountText, reasonText } from "@/components/app/quarantine-rules";
 import { Loaded } from "./loaded";
 
 const f = app.files;
@@ -40,12 +41,12 @@ function Download({ info }: { info: ExportInfo }) {
 export function Files() {
   const session = useSession();
   const allowed = can(session.role, "download");
-  const state = useData(() => Promise.all([allowed ? listExports() : Promise.resolve(null), listQuarantine(), listAccounts()]), `${session.tenantId}:${allowed}`);
+  const state = useData(() => Promise.all([allowed ? listExports() : Promise.resolve(null), listQuarantine()]), `${session.tenantId}:${allowed}`);
   return (
     <>
       <PageHead eyebrow={f.eyebrow} title={f.title} body={f.body} />
       <Loaded state={state}>
-        {([exports, { items: quarantined }, { items: accounts }]) => (
+        {([exports, { items: quarantined, truncated }]) => (
           <>
             <Card className="p-5 sm:p-6">
               <h2 className="text-[20px] font-light">{f.exportsTitle}</h2>
@@ -72,13 +73,14 @@ export function Files() {
                   <li key={q.id} className="grid gap-1 py-4">
                     <span className="break-all font-mono text-[14px] text-white">{q.filename ?? q.id}</span>
                     <span className="text-[13.5px] text-white/70">
-                      {formatDate(q.receivedAt)} · {accounts.find((x) => x.id === q.accountId)?.name ?? ""}
+                      {formatDate(q.receivedAt)} · {accountText(q)}
                     </span>
-                    <span className="text-[14px] text-accent">{f.reasons[q.reason] ?? f.otherReason}</span>
+                    <span className="text-[14px] text-accent">{reasonText(q)}</span>
                   </li>
                 ))}
               </ul>
             )}
+            {truncated && <p className="mt-3 text-[14px] text-white/70">{f.quarantineTruncated}</p>}
           </>
         )}
       </Loaded>
