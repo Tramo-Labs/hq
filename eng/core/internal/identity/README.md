@@ -185,7 +185,16 @@ expired more than 7 days ago. All run in the worker's daily
   is audited without the value (`TestPersonName`,
   `TestInvitedPersonGivesTheirName`; mutations checked: not trimmed,
   control characters allowed, no column grant, the value audited, `/me`
-  without it, the invitation ignoring it, each fails).
+  without it, the invitation ignoring it, each fails). A name refuses
+  format characters (Cf: zero width, the bidi controls such as U+202E that
+  flip how it reads in the audit or the members list) and line or paragraph
+  separators, and needs a visible character (letter, number, punctuation or
+  symbol); the 120 character limit is enforced in code too
+  (`TestNameLengthBoundary`, `TestNameRefusesInvisibleAndBidiCharacters`).
+  An invitation never overwrites a name already set
+  (`TestInviteDoesNotOverwriteAName`). Mutations checked: the invitation
+  overwriting, the limit off by one, format characters allowed, no visible
+  character needed, each fails.
 - Refresh tokens: only SHA-256 stored; not readable by `tramo_app`.
 - Invitation and magic link tokens: only SHA-256 stored; the clear token
   exists only in the email (the outbox file in dev and tests), in the URL

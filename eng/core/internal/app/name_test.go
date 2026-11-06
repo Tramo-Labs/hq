@@ -54,8 +54,10 @@ func TestPersonName(t *testing.T) {
 			t.Errorf("%s: %d %s", name, p.status, p.raw)
 		}
 	}
-	if p := c.do("PATCH", "/v1/me", beto.access, map[string]any{"name": "   "}); p.str("code") != "invalid_name" {
-		t.Errorf("blank name code: %s", p.raw)
+	for _, s := range []string{"   ", "​", "‮oteB", "Be to"} {
+		if p := c.do("PATCH", "/v1/me", beto.access, map[string]any{"name": s}); p.status != 400 || p.str("code") != "invalid_name" {
+			t.Errorf("name %q: %d %s", s, p.status, p.raw)
+		}
 	}
 	if me := c.do("GET", "/v1/me", beto.access, nil); nameOf(me) != "Beto" {
 		t.Fatalf("a refused change changed the name: %s", me.raw)
@@ -82,6 +84,38 @@ func TestPersonName(t *testing.T) {
 		select count(*), coalesce(bool_or(coalesce(detail::text, '') like '%Beto%'), false)
 		from audit_log where action = 'identity.name_changed'`).Scan(&n, &leaked); err != nil || n != 1 || leaked {
 		t.Fatalf("audit: %d rows, value leaked %v, %v", n, leaked, err)
+	}
+}
+
+// The invitation never overwrites a name the person already set: added
+// without a password, she gets in by magic link, sets her name, then
+// accepts the invitation with another one and keeps hers.
+func TestInviteDoesNotOverwriteAName(t *testing.T) {
+	c, tokens := magicServer(t, nil)
+	own := c.registerAndLogin("molino-nom-keep", "owner@keep.test")
+	if r := c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": "mia@keep.test", "role": "viewer"}, idem()...); r.status != 201 {
+		t.Fatalf("add: %d %s", r.status, r.raw)
+	}
+	if r := c.askLink("198.51.100.1", "mia@keep.test"); r.status != 202 {
+		t.Fatalf("ask link: %d %s", r.status, r.raw)
+	}
+	toks := tokens()["mia@keep.test"] // the invitation, then the link
+	if len(toks) != 2 {
+		t.Fatalf("mailed: %v", toks)
+	}
+	s := c.acceptLink("198.51.100.1", toks[1])
+	if s.status != 200 {
+		t.Fatalf("magic link: %d %s", s.status, s.raw)
+	}
+	if p := c.do("PATCH", "/v1/me", s.str("accessToken"), map[string]any{"name": "Mía"}); p.status != 200 {
+		t.Fatalf("set name: %d %s", p.status, p.raw)
+	}
+	a := c.do("POST", "/v1/auth/invite/accept", "", map[string]any{"token": toks[0], "password": "a long enough password", "name": "Otra", "tokenDelivery": "body"})
+	if a.status != 200 {
+		t.Fatalf("accept: %d %s", a.status, a.raw)
+	}
+	if me := c.do("GET", "/v1/me", a.str("accessToken"), nil); nameOf(me) != "Mía" {
+		t.Fatalf("the invitation overwrote her name: %s", me.raw)
 	}
 }
 

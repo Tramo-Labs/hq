@@ -28,10 +28,20 @@ func normalizeName(s string) (string, error) {
 	if s == "" || utf8.RuneCountInString(s) > MaxName || !utf8.ValidString(s) {
 		return "", ErrInvalidName
 	}
+	visible := false
 	for _, r := range s {
-		if unicode.IsControl(r) {
+		// Control and format characters (Cf: zero width, the bidi controls
+		// that flip how a name reads in the audit or the members list) and
+		// line or paragraph separators never belong in a name.
+		if unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) {
 			return "", ErrInvalidName
 		}
+		if unicode.In(r, unicode.L, unicode.N, unicode.P, unicode.S) {
+			visible = true
+		}
+	}
+	if !visible {
+		return "", ErrInvalidName
 	}
 	return s, nil
 }
