@@ -132,8 +132,9 @@ select id, rule_id, rule_version, tray, movement_ids, item_ids, adjustments, evi
 
 -- name: UndecidedMatches :many
 -- auto: nobody decides, listed for review. suggested: no operator decision
--- yet. exception: escalated, no client decision yet. period YYYY-MM keeps
--- the matches with a movement dated in that month (empty: all).
+-- yet. exception: escalated, no client decision yet. date_from and
+-- date_to (both included) keep the matches with a movement dated in that
+-- range (null: all).
 select m.id, m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids, m.adjustments, m.evidence
   from matching.matches m
  where case sqlc.arg(tray)::text
@@ -145,8 +146,8 @@ select m.id, m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids, m.ad
            and not exists (select 1 from matching.decision_state d
            where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception' and d.action is not null)
          else false end
-   and (sqlc.arg(period)::text = '' or exists (select 1 from ledger.movements mv
-         where mv.id = any(m.movement_ids) and to_char(mv.date, 'YYYY-MM') = sqlc.arg(period)::text))
+   and (sqlc.narg(date_from)::date is null or exists (select 1 from ledger.movements mv
+         where mv.id = any(m.movement_ids) and mv.date between sqlc.narg(date_from)::date and sqlc.narg(date_to)::date))
  order by m.created_at, m.id
  limit sqlc.arg(max_rows)::int;
 
@@ -184,14 +185,16 @@ select match_id from matching.movement_decisions where id = $1;
 -- Trays and panel ----------------------------------------------------------
 
 -- name: Waiting :many
--- What waits in a tray (matching.waiting), with the movement itself.
+-- What waits in a tray (matching.waiting), with the movement itself, by
+-- the movement's date when date_from and date_to (both included) are set
+-- (the month of the run that left it pending is the movement's month).
 select w.run_id, w.movement_id, w.tray, w.reason, w.candidates, w.note, coalesce(w.match_id, '')::text as match_id,
        l.date, l.amount, l.description, a.id as account_id, a.name as account_name, a.bank
   from matching.waiting w
   join ledger.movements l on l.id = w.movement_id
   join ledger.accounts a on a.id = l.account_id
  where w.tray = sqlc.arg(tray)::text
-   and (sqlc.arg(period)::text = '' or w.period = sqlc.arg(period)::text)
+   and (sqlc.narg(date_from)::date is null or l.date between sqlc.narg(date_from)::date and sqlc.narg(date_to)::date)
  order by w.movement_id
  limit sqlc.arg(max_rows)::int;
 

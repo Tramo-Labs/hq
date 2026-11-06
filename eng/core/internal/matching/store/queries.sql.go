@@ -940,16 +940,17 @@ select m.id, m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids, m.ad
            and not exists (select 1 from matching.decision_state d
            where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception' and d.action is not null)
          else false end
-   and ($2::text = '' or exists (select 1 from ledger.movements mv
-         where mv.id = any(m.movement_ids) and to_char(mv.date, 'YYYY-MM') = $2::text))
+   and ($2::date is null or exists (select 1 from ledger.movements mv
+         where mv.id = any(m.movement_ids) and mv.date between $2::date and $3::date))
  order by m.created_at, m.id
- limit $3::int
+ limit $4::int
 `
 
 type UndecidedMatchesParams struct {
-	Tray    string
-	Period  string
-	MaxRows int32
+	Tray     string
+	DateFrom *time.Time
+	DateTo   *time.Time
+	MaxRows  int32
 }
 
 type UndecidedMatchesRow struct {
@@ -964,10 +965,16 @@ type UndecidedMatchesRow struct {
 }
 
 // auto: nobody decides, listed for review. suggested: no operator decision
-// yet. exception: escalated, no client decision yet. period YYYY-MM keeps
-// the matches with a movement dated in that month (empty: all).
+// yet. exception: escalated, no client decision yet. date_from and
+// date_to (both included) keep the matches with a movement dated in that
+// range (null: all).
 func (q *Queries) UndecidedMatches(ctx context.Context, arg UndecidedMatchesParams) ([]UndecidedMatchesRow, error) {
-	rows, err := q.db.Query(ctx, undecidedMatches, arg.Tray, arg.Period, arg.MaxRows)
+	rows, err := q.db.Query(ctx, undecidedMatches,
+		arg.Tray,
+		arg.DateFrom,
+		arg.DateTo,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1086,15 +1093,16 @@ select w.run_id, w.movement_id, w.tray, w.reason, w.candidates, w.note, coalesce
   join ledger.movements l on l.id = w.movement_id
   join ledger.accounts a on a.id = l.account_id
  where w.tray = $1::text
-   and ($2::text = '' or w.period = $2::text)
+   and ($2::date is null or l.date between $2::date and $3::date)
  order by w.movement_id
- limit $3::int
+ limit $4::int
 `
 
 type WaitingParams struct {
-	Tray    string
-	Period  string
-	MaxRows int32
+	Tray     string
+	DateFrom *time.Time
+	DateTo   *time.Time
+	MaxRows  int32
 }
 
 type WaitingRow struct {
@@ -1114,9 +1122,16 @@ type WaitingRow struct {
 }
 
 // Trays and panel ----------------------------------------------------------
-// What waits in a tray (matching.waiting), with the movement itself.
+// What waits in a tray (matching.waiting), with the movement itself, by
+// the movement's date when date_from and date_to (both included) are set
+// (the month of the run that left it pending is the movement's month).
 func (q *Queries) Waiting(ctx context.Context, arg WaitingParams) ([]WaitingRow, error) {
-	rows, err := q.db.Query(ctx, waiting, arg.Tray, arg.Period, arg.MaxRows)
+	rows, err := q.db.Query(ctx, waiting,
+		arg.Tray,
+		arg.DateFrom,
+		arg.DateTo,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}
