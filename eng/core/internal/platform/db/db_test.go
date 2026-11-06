@@ -168,7 +168,7 @@ func TestApplicationRolesCannotBypassRLS(t *testing.T) {
 	d := dbtest.New(t)
 	rows, err := d.Pool.Query(context.Background(),
 		`select rolname, rolsuper, rolbypassrls, rolcanlogin from pg_roles where rolname = any($1)`,
-		[]string{db.AppRole, db.SystemRole})
+		[]string{db.AppRole, db.SystemRole, "tramo_jobs"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,8 +185,8 @@ func TestApplicationRolesCannotBypassRLS(t *testing.T) {
 			t.Errorf("%s: rolsuper=%v rolbypassrls=%v rolcanlogin=%v, want all false", name, super, bypass, login)
 		}
 	}
-	if seen != 2 {
-		t.Fatalf("found %d of the 2 application roles", seen)
+	if seen != 3 {
+		t.Fatalf("found %d of the 3 application roles", seen)
 	}
 }
 
@@ -200,7 +200,7 @@ func TestApplicationRolesCannotBypassRLS(t *testing.T) {
 func TestMigrationFixesPreexistingRoleAttributes(t *testing.T) {
 	d := dbtest.NewEmpty(t)
 	ctx := context.Background()
-	roles := []string{db.AppRole, db.SystemRole}
+	roles := []string{db.AppRole, db.SystemRole, "tramo_jobs"}
 	restore := func() {
 		for _, r := range roles {
 			_, _ = d.Pool.Exec(ctx, "alter role "+r+" nosuperuser nobypassrls nologin")
@@ -324,6 +324,42 @@ func TestEveryTableHasForcedRLS(t *testing.T) {
 	}
 	if n < 7 {
 		t.Fatalf("only %d tables found", n)
+	}
+}
+
+// A view runs with its owner's rights unless it is security_invoker, so a
+// view over an RLS table owned by the migrating superuser shows every
+// tenant. A materialized view stores a copy that RLS never filters. So:
+// every view in a non system schema is security_invoker, and there are no
+// materialized views at all.
+func TestEveryViewIsSecurityInvokerAndNoMaterializedViews(t *testing.T) {
+	d := dbtest.New(t)
+	rows, err := d.Pool.Query(context.Background(), `
+		select n.nspname || '.' || c.relname, c.relkind::text,
+		       coalesce(c.reloptions::text[] && array['security_invoker=true','security_invoker=on','security_invoker=1'], false)
+		from pg_class c join pg_namespace n on n.oid = c.relnamespace
+		where n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
+		  and n.nspname not like 'pg_temp_%' and n.nspname not like 'pg_toast_temp_%'
+		  and c.relkind in ('v', 'm')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name, kind string
+		var invoker bool
+		if err := rows.Scan(&name, &kind, &invoker); err != nil {
+			t.Fatal(err)
+		}
+		switch {
+		case kind == "m":
+			t.Errorf("materialized view %s: RLS does not apply to its stored rows", name)
+		case !invoker:
+			t.Errorf("view %s is not security_invoker: it reads with its owner's rights", name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -77,6 +77,28 @@ func TestPortalOnboardingStatus(t *testing.T) {
 	}
 }
 
+// A CUIT on file is not an ARCA verification (producto's note): the step
+// stays pending, with the detail that says why, and the CUIT is shown.
+func TestArcaStepStaysPendingWithCUITOnFile(t *testing.T) {
+	c := client{t, server(t)}
+	r := c.do("POST", "/v1/auth/register", "", map[string]any{
+		"email": "owner@cuit.test", "password": "a long enough password",
+		"tenantName": "Molino con CUIT", "tenantSlug": "con-cuit", "cuit": "30000000015",
+	}, idem()...)
+	if r.status != 201 {
+		t.Fatalf("register with cuit: %d %s", r.status, r.raw)
+	}
+	l := c.do("POST", "/v1/auth/login", "", map[string]any{"email": "owner@cuit.test", "password": "a long enough password", "tokenDelivery": "body"})
+	me := c.do("GET", "/v1/me/tenant", l.str("accessToken"), nil)
+	if me.str("cuit") != "30000000015" {
+		t.Fatalf("cuit not shown: %s", me.raw)
+	}
+	arca := stepsByKind(t, me)["arca"]
+	if arca["status"] != "pending" || arca["detail"] != "CUIT on file; ARCA verification is not connected yet" || arca["verifiedAt"] != nil {
+		t.Fatalf("arca step with a CUIT on file: %v", arca)
+	}
+}
+
 func TestConsoleListsOnlyTheCallersTenants(t *testing.T) {
 	deps := newDeps(t)
 	c := client{t, serve(t, deps)}

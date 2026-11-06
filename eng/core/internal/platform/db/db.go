@@ -72,7 +72,8 @@ func (d *DB) Ping(ctx context.Context) error { return d.Pool.Ping(ctx) }
 func (d *DB) Migrate(ctx context.Context) error {
 	sqlDB := stdlib.OpenDBFromPool(d.Pool)
 	defer func() { _ = sqlDB.Close() }()
-	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, migrations.FS)
+	provider, err := goose.NewProvider(goose.DialectPostgres, sqlDB, migrations.FS,
+		goose.WithGoMigrations(migrations.Go...))
 	if err != nil {
 		return fmt.Errorf("db: migrations: %w", err)
 	}

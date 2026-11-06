@@ -410,6 +410,18 @@ func (s *Service) ConsolePrincipals(ctx context.Context, p Principal) ([]Princip
 	return out, nil
 }
 
+// PurgeExpiredRefreshTokens deletes refresh tokens expired more than seven
+// days ago. Run by the worker's daily maintenance job.
+func PurgeExpiredRefreshTokens(ctx context.Context, d *db.DB) (int64, error) {
+	var n int64
+	err := d.System(ctx, func(tx pgx.Tx) error {
+		var err error
+		n, err = store.New(tx).DeleteExpiredRefreshTokens(ctx)
+		return err
+	})
+	return n, err
+}
+
 // CanManageMembers reports whether role may add people to a tenant.
 func CanManageMembers(role string) bool { return role == RoleOwner || role == RoleOperator }
 

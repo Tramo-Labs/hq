@@ -41,3 +41,4 @@ and the sensitive data it touches. No README, no merge.
 | identity | `internal/identity/README.md` |
 | arca-gateway | `internal/arca/README.md` |
 | portal (read views) | `internal/portal/README.md` |
+| worker and job queue | `internal/worker/README.md` |

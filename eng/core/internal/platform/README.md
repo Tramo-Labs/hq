@@ -58,7 +58,9 @@ create policy things_tenant on things to tramo_app
 (default privileges in 00002). Without the policy it sees no rows at all.
 
 Also `alter table things force row level security;`: a test fails for any
-table without it (`TestEveryTableHasForcedRLS`).
+table without it (`TestEveryTableHasForcedRLS`). Views must be created
+`with (security_invoker = true)`, and materialized views are not allowed
+(their stored rows bypass RLS): `TestEveryViewIsSecurityInvokerAndNoMaterializedViews`.
 
 In production the pool logs in as `tramo_runtime` (migration 00004, ADR
 0005): it owns nothing and has no table privileges, so the raw pool is
