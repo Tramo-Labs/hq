@@ -75,6 +75,15 @@ number ("0002-00001234" and "00001234"), party the other side's CUIT.
   confidence at 0.6: it can only be suggested, never automatic (tested).
 - The item's confidence is the invoice's `MinConfidence`: only an invoice
   that is `auto_eligible` with a certain direction reaches automatic.
+- **An uncertain direction makes the invoice itself not `auto_eligible`**
+  (migration 00107, `direction_uncertain`). Decided so the invoice and its
+  item never say two different things: before, a text-only invoice of the
+  tenant was `auto_eligible` (fields at 0.9) while its item was capped in
+  Suggested, and it did not count in "para revisar". Now it counts there,
+  and its trail says why (`TrailDirectionUncertain`). The other option,
+  keeping it eligible and only flagging the doubt, was turned down:
+  `auto_eligible` is what the panel and the filters read, and a flag next
+  to it would need every reader to combine both.
 - No item, with the reason in `item_reason` (and the invoice listed to
   review, `review=true`): no tenant CUIT on file, no trusted total or issue
   date, a currency other than pesos (no conversion is guessed), no issuer.
