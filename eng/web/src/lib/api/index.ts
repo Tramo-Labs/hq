@@ -1,138 +1,159 @@
-import { asOf, currentTenantId, files, matches, operatorSession, session, tenants } from "./fixtures";
-import type { Match, Metric, MetricList, Motive, Outcome, Page, Role, Tenant, Tray } from "./types";
+import { ApiError } from "./errors";
+import * as live from "./live";
+import { getMode, getSession, setSession } from "./session";
+import type {
+  Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
+  Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus,
+} from "./types";
 
 export type * from "./types";
+export { ApiError, SessionExpired } from "./errors";
+export { getMode, getSession, subscribe, type Mode, type Session } from "./session";
 
 /**
- * The only door the screens use to reach data. Today it answers from fixtures; when the
- * core serves the paths below, each function becomes a fetch against the same path and
- * nothing in the screens changes. Lists come as Page<T>, errors as problem+json.
+ * The only door the screens use to reach data. Two modes, chosen at build on the server by
+ * CORE_API_URL (next.config.ts inlines only the mode, never the URL):
  *
- *   GET  /v1/me                            session: name and role in the active tenant
- *   GET  /v1/me/tenant                     client: own tenant and onboarding
- *   GET  /v1/tenants                       operator: clients and missing steps
- *   GET  /v1/matches?tray=&tenant=&motive= trays
- *   POST /v1/matches/{id}/decision         Idempotency-Key required
- *   GET  /v1/metrics?tenant=&period=       panel, each number with its source and list
- *   GET  /v1/files                         uploaded statements and documents
- *   POST /v1/exports                       full download (not wired: the action stays disabled)
+ * - live: same-origin fetches to /v1/*, which next.config.ts rewrites to the core. Access
+ *   token in memory, refresh token in the core's HttpOnly cookie.
+ * - sample: the fixtures, in the same shapes, loaded on demand so live mode never ships them.
+ *
+ * Paths used (eng/core/api/openapi.yaml):
+ *   POST /v1/auth/login | refresh | logout       GET /v1/me
+ *   GET  /v1/me/tenant                           GET /v1/tenants (operator, accountant)
+ *   GET  /v1/ledger/accounts                     GET /v1/ledger/quarantine
+ *   GET  /v1/matching/matches?tray=&period=      GET /v1/matching/pending?tray=&period=
+ *   POST /v1/matching/matches/{id}/decision      POST /v1/matching/movements/{id}/decision
+ *   GET  /v1/metrics?period=                     GET /v1/exports, GET /v1/exports/{kind}
+ * Every POST except auth carries an Idempotency-Key the caller created for that user action.
  */
 
-export const isSample = true;
-export const today = asOf;
+const sample = () => import("./sample");
+const isLive = () => getMode() === "live";
+const q = (params: Record<string, string | undefined>) => {
+  const s = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1])).toString();
+  return s ? `?${s}` : "";
+};
 
-const page = <T,>(items: T[]): Page<T> => ({ items });
+// session
 
-export async function getSession(area: "portal" | "console") {
-  return area === "portal" ? session : operatorSession;
+export async function login(email: string, password: string, tenantId?: string) {
+  return isLive() ? live.login(email, password, tenantId) : (await sample()).login(email, password, tenantId);
 }
 
-/** What each role may do, from the table in product/ESPECIFICACION.md section 1. */
+/** After a reload: a new access token from the refresh cookie (live) or the default person (sample). */
+export async function restore(area: "portal" | "console") {
+  const s = getSession();
+  if (s) return s;
+  if (isLive()) return live.refresh();
+  return (await sample()).restore(area);
+}
+
+export async function logout() {
+  return isLive() ? live.logout() : (await sample()).logout();
+}
+
+/** Clears memory without calling the core, for a session the core already rejected. */
+export function forget() {
+  setSession(null);
+}
+
+// reads
+
+export async function getMyTenant(): Promise<TenantStatus> {
+  return isLive() ? live.getJson("/v1/me/tenant") : (await sample()).getMyTenant();
+}
+
+export async function listTenants(): Promise<Page<TenantStatus>> {
+  return isLive() ? live.getJson("/v1/tenants") : (await sample()).listTenants();
+}
+
+export async function listAccounts(): Promise<Page<Account>> {
+  return isLive() ? live.getJson("/v1/ledger/accounts") : (await sample()).listAccounts();
+}
+
+export async function listQuarantine(): Promise<Page<QuarantinedFile>> {
+  return isLive() ? live.getJson("/v1/ledger/quarantine") : (await sample()).listQuarantine();
+}
+
+export async function listMatches(tray: MatchTray, period?: string): Promise<Page<Match>> {
+  return isLive() ? live.getJson(`/v1/matching/matches${q({ tray, period })}`) : (await sample()).listMatches(tray, period);
+}
+
+export async function listPending(tray: PendingTray, period?: string): Promise<Page<PendingMovement>> {
+  return isLive() ? live.getJson(`/v1/matching/pending${q({ tray, period })}`) : (await sample()).listPending(tray, period);
+}
+
+export async function listMetrics(period: string): Promise<Page<Metric>> {
+  return isLive() ? live.getJson(`/v1/metrics${q({ period })}`) : (await sample()).listMetrics(period);
+}
+
+export async function listExports(): Promise<Page<ExportInfo>> {
+  return isLive() ? live.getJson("/v1/exports") : (await sample()).listExports();
+}
+
+/** The CSV as a blob, fetched with the bearer token (a plain link would carry no token). */
+export async function downloadExport(kind: ExportKind): Promise<{ blob: Blob; filename: string }> {
+  if (!isLive()) return (await sample()).downloadExport(kind);
+  const res = await live.request(`/v1/exports/${kind}`);
+  const name = /filename="?([^";]+)"?/.exec(res.headers.get("Content-Disposition") ?? "")?.[1];
+  return { blob: await res.blob(), filename: name ?? `tramo-${kind}.csv` };
+}
+
+// decisions
+
+export async function decideMatch(matchId: string, body: DecisionRequest, idempotencyKey: string): Promise<Decision> {
+  if (!idempotencyKey) throw new ApiError(400, "bad_request", "Idempotency-Key is required");
+  return isLive()
+    ? live.postJson(`/v1/matching/matches/${encodeURIComponent(matchId)}/decision`, body, idempotencyKey)
+    : (await sample()).decideMatch(matchId, body, idempotencyKey);
+}
+
+export async function decideMovement(movementId: string, body: MovementDecisionRequest, idempotencyKey: string): Promise<MovementDecision> {
+  if (!idempotencyKey) throw new ApiError(400, "bad_request", "Idempotency-Key is required");
+  return isLive()
+    ? live.postJson(`/v1/matching/movements/${encodeURIComponent(movementId)}/decision`, body, idempotencyKey)
+    : (await sample()).decideMovement(movementId, body, idempotencyKey);
+}
+
+// rules the UI applies (the core enforces them; the UI only hides what a role cannot do)
+
+/** product/ESPECIFICACION.md section 1. Automático is decided by nobody. */
 export function can(role: Role, action: "decideException" | "decideSuggested" | "download") {
   if (action === "decideException") return role === "owner" || role === "approver";
   if (action === "decideSuggested") return role === "operator";
   return role === "owner" || role === "accountant" || role === "operator";
 }
 
-export async function getCurrentTenant() {
-  return tenants.find((t) => t.id === currentTenantId)!;
+/** Where a person lands after logging in. */
+export function homeFor(role: Role) {
+  return role === "operator" || role === "accountant" ? "/operador" : "/app";
 }
 
-export function missingSteps(t: Tenant) {
-  return [t.arca, t.bank, t.erp].filter((s) => s.status !== "ready").length;
+export function areaAllows(area: "portal" | "console", role: Role) {
+  return area === "console" ? homeFor(role) === "/operador" : homeFor(role) === "/app";
 }
 
-export async function listTenants() {
-  return page([...tenants].sort((a, b) => missingSteps(b) - missingSteps(a) || b.openExceptions - a.openExceptions));
-}
-
-export async function listMatches(filter: { tray?: Tray; tenantId?: string; motive?: Motive } = {}) {
-  return page<Match>(
-    matches
-      .filter((m) => (!filter.tray || m.tray === filter.tray) && (!filter.tenantId || m.tenantId === filter.tenantId) && (!filter.motive || m.motive === filter.motive))
-      .filter((m) => !m.decision)
-      .sort((a, b) => a.openedAt.localeCompare(b.openedAt)),
-  );
-}
-
-const applied = new Map<string, { by: string; at: string; outcome: Outcome; note?: string }>();
-
-/**
- * POST /v1/matches/{id}/decision. The same key returns the first answer, so a double tap
- * applies the decision once (spec section 4).
- */
-export async function decide(id: string, body: { outcome: Outcome; note?: string }, idempotencyKey: string, by: string) {
-  if (!idempotencyKey) throw new Error("Idempotency-Key is required");
-  const prior = applied.get(idempotencyKey);
-  if (prior) return { id, decision: prior };
-  const decision = { by, at: new Date().toISOString(), ...body };
-  applied.set(idempotencyKey, decision);
-  return { id, decision };
+export function missingSteps(t: Pick<TenantStatus, "steps">) {
+  return t.steps.filter((s) => s.status !== "verified").length;
 }
 
 /**
- * GET /v1/metrics. Every number is computed from the sample matches, never typed in, so
- * the panel only shows what the data says. What the samples cannot measure (balances,
- * documents) comes back as null and reads "no data yet". A tenant with no matches has
- * no numbers at all.
+ * Turns a metric's `list` (an API path) into a screen of this area, when there is one.
+ * The client only has its Exceptions inbox; the console has the three trays.
  */
-export async function listMetrics(tenantId: string) {
-  const tenant = tenants.find((t) => t.id === tenantId);
-  const own = matches.filter((m) => m.tenantId === tenantId);
-  if (!tenant || own.length === 0) return page<Metric>([]);
-  const open = own.filter((m) => m.tray === "exception" && !m.decision);
-  const held = open.filter((m) => m.motive === "over_threshold");
-  const auto = own.filter((m) => m.tray === "auto");
-  const caught = own.filter((m) => m.motive === "duplicate" && m.decision?.outcome === "rejected");
-  const exceptions: MetricList = { tray: "exception" };
-  const items: Metric[] = [
-    { key: "auto_rate", value: Math.round((100 * auto.length) / own.length), unit: "percent", period: "Hoy",
-      source: `${auto.length} ${auto.length === 1 ? "match" : "matches"} en Automático ÷ ${own.length} ${own.length === 1 ? "movimiento" : "movimientos"} del cliente`, list: { tray: "auto" } },
-    { key: "open_exceptions", value: open.length, unit: "count", period: "Hoy", source: "matches en Excepciones sin decisión", list: exceptions },
-    ...(open.length > 0
-      ? [{ key: "oldest_exception", value: Math.max(...open.map((m) => daysSince(m.openedAt))), unit: "days", period: "Hoy",
-          source: "días desde la apertura de la excepción abierta más vieja", list: exceptions } satisfies Metric]
-      : []),
-    { key: "held_invoices", value: held.length, unit: "count", period: "Hoy", source: "facturas en Excepciones por monto sobre el umbral, sin decidir",
-      list: { tray: "exception", motive: "over_threshold" } },
-    { key: "duplicates", value: caught.length, unit: "count", period: "Hoy", source: "excepciones por posible duplicado que el cliente rechazó",
-      list: { tray: "exception", motive: "duplicate" } },
-    { key: "bank_vs_books", value: null, unit: "ars", period: "Hoy", source: "saldo del extracto menos saldo contable, por cuenta; requiere el ledger y el sistema contable",
-      byAccount: tenant.bank.accounts.map((a) => ({ account: `${a.bank} ****${a.last4}`, value: null })) },
-    { key: "invoices", value: null, unit: "count", period: "Hoy", source: "documentos leídos; requiere el módulo de documentos" },
-  ];
-  return page(items);
+export function metricHref(list: string, area: "portal" | "console") {
+  const [path, query = ""] = list.split("?");
+  const tray = new URLSearchParams(query).get("tray");
+  if (path !== "/v1/matching/matches" && path !== "/v1/matching/pending") return undefined;
+  if (area === "portal") return tray === "exception" ? "/app/aprobaciones" : undefined;
+  return tray ? `/operador/bandejas?bandeja=${tray}` : undefined;
 }
 
-/**
- * Turns the list behind a number into a link for each area. The client only has its
- * exceptions inbox, so a number whose list lives in another tray has no portal link and
- * stays off the client panel.
- */
-export function metricHref(list: MetricList | undefined, area: "portal" | "console", tenantId: string) {
-  if (!list) return undefined;
-  if (area === "portal") {
-    if (list.tray !== "exception") return undefined;
-    return list.motive ? `/app/aprobaciones?motivo=${list.motive}` : "/app/aprobaciones";
-  }
-  const q = new URLSearchParams({ bandeja: list.tray, cliente: tenantId });
-  if (list.motive) q.set("motivo", list.motive);
-  return `/operador/bandejas?${q}`;
+/** The current month, YYYY-MM, in Argentina (UTC-3, no daylight saving). Sample mode is pinned. */
+export function currentPeriod() {
+  if (!isLive()) return "2026-11";
+  return new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 7);
 }
 
-export async function listFiles() {
-  return page(files);
-}
-
-/**
- * POST /v1/exports. Placeholder for the contract only: nothing calls it yet, and the portal
- * shows the download disabled until the core builds and delivers the export.
- */
-export async function requestFullExport(idempotencyKey: string) {
-  if (!idempotencyKey) throw new Error("Idempotency-Key is required");
-  return { status: "queued" as const, expiresInHours: 24 };
-}
-
-export function daysSince(date: string) {
-  return Math.round((Date.parse(today) - Date.parse(date)) / 86_400_000);
-}
+export const periodPattern = /^20\d{2}-(0[1-9]|1[0-2])$/;
