@@ -23,8 +23,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"time"
 
@@ -65,10 +68,11 @@ func Middleware(d *db.DB) func(http.Handler) http.Handler {
 				return
 			}
 			r.Body = io.NopCloser(bytes.NewReader(body))
-			h := sha256.New()
-			h.Write([]byte(r.Method + "\n" + r.URL.Path + "\n"))
-			h.Write(body)
-			hash := h.Sum(nil)
+			hash, err := requestHash(r, body)
+			if err != nil {
+				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "malformed multipart body")
+				return
+			}
 
 			scope, tenant := "anon:"+r.URL.Path, (*uuid.UUID)(nil)
 			if s, ok := db.ScopeFrom(r.Context()); ok {
@@ -112,6 +116,54 @@ func Middleware(d *db.DB) func(http.Handler) http.Handler {
 			rec.flush(w)
 		})
 	}
+}
+
+// requestHash identifies "the same request": method, path and body. For
+// multipart/form-data the raw bytes include a boundary the client picks at
+// random on every attempt, so a browser retrying the same upload would look
+// different. There the hash covers each part instead: field name, file
+// name, part content type and content, in order, length prefixed.
+func requestHash(r *http.Request, body []byte) ([]byte, error) {
+	h := sha256.New()
+	h.Write([]byte(r.Method + "\n" + r.URL.Path + "\n"))
+	mt, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mt != "multipart/form-data" {
+		h.Write(body)
+		return h.Sum(nil), nil
+	}
+	if params["boundary"] == "" {
+		return nil, errors.New("multipart without boundary")
+	}
+	field := func(b []byte) {
+		var n [8]byte
+		binary.BigEndian.PutUint64(n[:], uint64(len(b)))
+		h.Write(n[:])
+		h.Write(b)
+	}
+	mr := multipart.NewReader(bytes.NewReader(body), params["boundary"])
+	parts := 0
+	for {
+		p, err := mr.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		content, err := io.ReadAll(p)
+		if err != nil {
+			return nil, err
+		}
+		field([]byte(p.FormName()))
+		field([]byte(p.FileName()))
+		field([]byte(p.Header.Get("Content-Type")))
+		field(content)
+		parts++
+	}
+	if parts == 0 {
+		return nil, errors.New("multipart without parts")
+	}
+	return h.Sum(nil), nil
 }
 
 type store struct{ d *db.DB }

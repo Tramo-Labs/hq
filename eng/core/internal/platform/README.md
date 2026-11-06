@@ -126,7 +126,11 @@ test-short` skips the database tests.
   system role cannot read a business table; only allowlisted packages
   reference `System` (ADR 0002).
 - `idempotency`: replay, 422 on another body, 409 while in flight, 5xx frees
-  the key, 4xx is stored, keys are per tenant, expiry after 24 hours.
+  the key, 4xx is stored, keys are per tenant, expiry after 24 hours. For
+  multipart uploads the hash covers each part (field, file name, content
+  type, content), not the raw bytes: a browser retrying the same file with a
+  new boundary replays instead of getting 422, while another file, file
+  name or field under the same key is still 422; malformed multipart is 400.
 - `crypto`: round trip, tamper, wrong key, wrong purpose, wrong tenant, wrong
   master key.
 - `audit`: who, request id and IP are filled; tenants cannot write or read

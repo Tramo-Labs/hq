@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -60,6 +61,79 @@ func (hs *harness) post(ctx context.Context, key, body string) *httptest.Respons
 	w := httptest.NewRecorder()
 	hs.h.ServeHTTP(w, r)
 	return w
+}
+
+// upload builds a multipart body; each call gets a new random boundary, as
+// a browser retry does.
+func upload(t *testing.T, field, filename, content string, extra map[string]string) (string, string) {
+	t.Helper()
+	var b strings.Builder
+	mw := multipart.NewWriter(&b)
+	for k, v := range extra {
+		_ = mw.WriteField(k, v)
+	}
+	fw, err := mw.CreateFormFile(field, filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = fw.Write([]byte(content))
+	_ = mw.Close()
+	return b.String(), mw.FormDataContentType()
+}
+
+func (hs *harness) postMultipart(key, body, contentType string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(http.MethodPost, "/v1/things", strings.NewReader(body))
+	r.Header.Set(idempotency.Header, key)
+	r.Header.Set("Content-Type", contentType)
+	w := httptest.NewRecorder()
+	hs.h.ServeHTTP(w, r)
+	return w
+}
+
+// A browser retrying the same upload sends another multipart boundary. That
+// is the same request: it must replay, not answer 422.
+func TestMultipartRetryWithNewBoundaryReplays(t *testing.T) {
+	hs := newHarness(t)
+	key := uuid.NewString()
+	csv := "fecha;concepto;importe\n01/11/2026;TRANSF;1.234,56\n"
+	b1, ct1 := upload(t, "file", "galicia.csv", csv, map[string]string{"account": "cc-1"})
+	b2, ct2 := upload(t, "file", "galicia.csv", csv, map[string]string{"account": "cc-1"})
+	if ct1 == ct2 || b1 == b2 {
+		t.Fatal("test setup: boundaries should differ")
+	}
+	first := hs.postMultipart(key, b1, ct1)
+	second := hs.postMultipart(key, b2, ct2)
+	if first.Code != http.StatusCreated || second.Code != http.StatusCreated || second.Header().Get("Idempotent-Replayed") != "true" {
+		t.Fatalf("retry with new boundary: %d then %d %s", first.Code, second.Code, second.Body)
+	}
+	if hs.calls.Load() != 1 {
+		t.Fatalf("handler ran %d times", hs.calls.Load())
+	}
+	// The handler still receives the original body intact.
+	if !strings.Contains(first.Body.String(), "galicia.csv") {
+		t.Fatalf("handler did not get the upload: %s", first.Body)
+	}
+
+	// Another file, another field value or another filename under the same
+	// key is a different request.
+	for name, args := range map[string][3]string{
+		"other content":  {"galicia.csv", csv + "02/11/2026;X;1,00\n", "cc-1"},
+		"other filename": {"santander.csv", csv, "cc-1"},
+		"other field":    {"galicia.csv", csv, "cc-2"},
+	} {
+		b, ct := upload(t, "file", args[0], args[1], map[string]string{"account": args[2]})
+		if w := hs.postMultipart(key, b, ct); w.Code != http.StatusUnprocessableEntity {
+			t.Errorf("%s: %d", name, w.Code)
+		}
+	}
+}
+
+func TestMalformedMultipartIsRejected(t *testing.T) {
+	hs := newHarness(t)
+	w := hs.postMultipart(uuid.NewString(), "not multipart at all", "multipart/form-data; boundary=xyz")
+	if w.Code != http.StatusBadRequest || hs.calls.Load() != 0 {
+		t.Fatalf("malformed multipart: %d, calls %d", w.Code, hs.calls.Load())
+	}
 }
 
 func TestReplaySameRequest(t *testing.T) {
