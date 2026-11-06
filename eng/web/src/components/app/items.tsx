@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { app } from "@/content/app";
 import type { Match, PendingMovement } from "@/lib/api";
-import { Field, formatMoney } from "@/components/app/ui";
+import { Field, formatDate, formatMoney } from "@/components/app/ui";
 
 const a = app.approvals;
 const rule = (id: string) => app.rules[id] ?? id;
@@ -48,6 +48,11 @@ export function MovementCard({ p, meta, title, children }: { p: PendingMovement;
   return (
     <Shell meta={meta} title={title} actions={children}>
       <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+        <Field label={a.movement}>
+          <span className="block tabular-nums text-white">{formatMoney(p.amount)}</span>
+          <span className="block break-words font-mono text-[13px] text-white/70">{p.description}</span>
+          <span className="block text-white/70">{formatDate(p.date)} · {p.accountName} ({app.onboarding.banks[p.bank]})</span>
+        </Field>
         <Field label={a.why}>{app.reasons[p.reason]}</Field>
         <Field label={a.evidence}>
           {app.trays.candidates(p.candidates.length)}

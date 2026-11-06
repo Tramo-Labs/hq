@@ -107,7 +107,7 @@ export const matches: SampleMatch[] = [
   { tenantId: T.agro, listed: "auto", period: "2026-11", match: m(3, "reference_exact", "auto", { reference: "0003-00001215", dateDiffDays: 1 }) },
   { tenantId: T.agro, listed: "suggested", period: "2026-11", match: m(4, "amount_tolerance", "suggested", {
     dateDiffDays: 1, adjustments: [{ kind: "rounding", amount: -700, source: "rounding_tolerance" }] }) },
-  { tenantId: T.agro, listed: "exception", period: "2026-11", match: m(5, "one_movement_many_items", "suggested", {
+  { tenantId: T.agro, listed: "exception", period: "2026-11", match: m(5, "one_movement_many_items", "exception", {
     itemIds: [id(2005), id(2105)], dateDiffDays: 3 }) },
   { tenantId: T.trans, listed: "auto", period: "2026-11", match: m(6, "reference_exact", "auto", { reference: "MP 81234567890", dateDiffDays: 0 }) },
   { tenantId: T.trans, listed: "suggested", period: "2026-11", match: m(7, "net_of_documented_fees", "suggested", {
@@ -119,12 +119,19 @@ export const matches: SampleMatch[] = [
 export type SamplePending = { tenantId: string; period: string; pending: PendingMovement };
 
 export const pending: SamplePending[] = [
-  { tenantId: T.agro, period: "2026-11", pending: { movementId: id(3001), runId: id(4001), tray: "exception", reason: "no_candidate", candidates: [] } },
-  { tenantId: T.agro, period: "2026-11", pending: { movementId: id(3002), runId: id(4001), tray: "suggested", reason: "ambiguous",
+  { tenantId: T.agro, period: "2026-11", pending: { movementId: id(3001), runId: id(4001), date: "2026-11-04", amount: -18_450_000,
+    description: "TRANSF A 30-00000000-1 VARIOS", accountId: id(101), accountName: "Galicia CC", bank: "galicia",
+    tray: "exception", reason: "no_candidate", candidates: [] } },
+  { tenantId: T.agro, period: "2026-11", pending: { movementId: id(3002), runId: id(4001), date: "2026-11-05", amount: 4_235_000,
+    description: "CREDITO TRANSF 30-00000000-2", accountId: id(101), accountName: "Galicia CC", bank: "galicia",
+    tray: "suggested", reason: "ambiguous",
     candidates: [{ rule: "amount_date_window", itemIds: [id(2201)] }, { rule: "amount_date_window", itemIds: [id(2202)] }] } },
-  { tenantId: T.ferr, period: "2026-11", pending: { movementId: id(3003), runId: id(4002), tray: "exception", reason: "no_candidate", candidates: [] } },
-  { tenantId: T.ferr, period: "2026-11", pending: { movementId: id(3004), runId: id(4002), tray: "suggested", reason: "client_other",
-    note: "Adelanto a un proveedor, todavía sin factura", candidates: [] } },
+  { tenantId: T.ferr, period: "2026-11", pending: { movementId: id(3003), runId: id(4002), date: "2026-11-03", amount: -912_000,
+    description: "DEBITO AUTOMATICO SERVICIO", accountId: id(103), accountName: "Bancor CC", bank: "bancor",
+    tray: "exception", reason: "no_candidate", candidates: [] } },
+  { tenantId: T.ferr, period: "2026-11", pending: { movementId: id(3004), runId: id(4002), date: "2026-11-02", amount: -2_600_000,
+    description: "TRANSF A 20-00000000-3", accountId: id(103), accountName: "Bancor CC", bank: "bancor",
+    tray: "suggested", reason: "client_other", note: "Adelanto a un proveedor, todavía sin factura", candidates: [] } },
 ];
 
 /** Movements per tenant and month, for the automation rate and the movements export. */

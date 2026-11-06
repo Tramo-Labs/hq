@@ -134,8 +134,8 @@ export type Match = {
   id: string;
   rule: string;
   ruleVersion: number;
-  /** The stored tray. A match listed under tray=exception is an escalated suggestion. */
-  tray: "auto" | "suggested";
+  /** Where the match waits now; a suggested match an operator escalated is in exception. */
+  tray: "auto" | "suggested" | "exception";
   movementIds: string[];
   itemIds: string[];
   adjustments: Adjustment[];
@@ -152,6 +152,14 @@ export type PendingReason = "ambiguous" | "combination_ambiguous" | "reference_a
 export type PendingMovement = {
   movementId: string;
   runId: string;
+  /** Date of the movement. */
+  date: string;
+  amount: Cents;
+  /** As the bank wrote it. */
+  description: string;
+  accountId: string;
+  accountName: string;
+  bank: Bank;
   tray: "suggested" | "exception";
   reason: PendingReason;
   /** The client's note, for client_other. */

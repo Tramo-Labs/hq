@@ -69,6 +69,7 @@ export const app = {
     movements: (n: number) => (n === 1 ? "1 movimiento" : `${n} movimientos`),
     items: (n: number) => (n === 1 ? "1 comprobante o partida" : `${n} comprobantes o partidas`),
     evidence: "Evidencia",
+    movement: "Movimiento",
     why: "Por qué está acá",
     reference: "Referencia",
     days: (n: number) => (n === 0 ? "mismo día que el comprobante" : n === 1 ? "1 día de diferencia con el comprobante" : `${n} días de diferencia con el comprobante`),

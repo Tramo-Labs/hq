@@ -86,8 +86,12 @@ export async function listQuarantine() {
   return page(fx.quarantine[session().tenantId] ?? []);
 }
 
+/** The client (owner, approver, viewer) does not see Suggested: that tray is the operator's. */
+const seesSuggested = (role: Role) => role === "operator" || role === "accountant";
+
 export async function listMatches(tray: MatchTray, period?: string) {
   const s = session();
+  if (tray === "suggested" && !seesSuggested(s.role)) throw new ApiError(403, "forbidden");
   return page<Match>(
     fx.matches
       .filter((x) => x.tenantId === s.tenantId && x.listed === tray && (!period || x.period === period) && !decided.has(x.match.id))
@@ -97,6 +101,7 @@ export async function listMatches(tray: MatchTray, period?: string) {
 
 export async function listPending(tray: PendingTray, period?: string) {
   const s = session();
+  if (tray === "suggested" && !seesSuggested(s.role)) throw new ApiError(403, "forbidden");
   return page<PendingMovement>(
     fx.pending
       .filter((x) => x.tenantId === s.tenantId && x.pending.tray === tray && (!period || x.period === period) && !decided.has(x.pending.movementId))
