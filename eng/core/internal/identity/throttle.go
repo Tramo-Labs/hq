@@ -105,17 +105,26 @@ func (s *Service) attacks() *attackWatch {
 // wrong password let a burst of guesses through before any was counted.
 // notAFailure gives that unit back when the attempt turns out not to be a
 // wrong guess (right password, or an error); a success resets the pair.
+//
+// D-20: the per IP limit counts failures only, like the pair. Its unit is
+// also taken here and given back by notAFailure, so an office of people
+// signing in from one address never runs into it; only wrong passwords
+// stay counted. Taking before checking is what keeps a guess over either
+// cap from being checked at all: over the cap, even the right password
+// gets 429 (TestOverTheCapTheRightPasswordIsRefusedToo).
 func (s *Service) checkLogin(ctx context.Context, email string) (notAFailure func(), err error) {
 	ip := clientIP(ctx)
-	if ok, retry := s.Limiter.Allow("login:ip:"+ip, s.Limits.LoginPerIP); !ok {
+	ok, retry, ipBack := s.Limiter.Take("login:ip:"+ip, s.Limits.LoginPerIP)
+	if !ok {
 		return func() {}, limited(retry)
 	}
-	ok, retry, back := s.Limiter.Take(pairKey(email, ip), s.Limits.FailPerEmailIP)
+	ok, retry, pairBack := s.Limiter.Take(pairKey(email, ip), s.Limits.FailPerEmailIP)
 	if !ok {
-		return back, &RateLimitedError{RetryAfter: retry, MagicLink: true}
+		return func() {}, &RateLimitedError{RetryAfter: retry, MagicLink: true}
 	}
+	back := func() { ipBack(); pairBack() }
 	if s.attacks().inMode(emailKey(email), s.now()) {
-		back()
+		pairBack() // the password is not checked: no guess on this pair
 		return func() {}, ErrMagicLinkRequired
 	}
 	return back, nil
@@ -135,8 +144,15 @@ func (s *Service) loginSucceeded(ctx context.Context, email string) {
 }
 
 // checkInvite takes one of the IP's accepts, checked and counted in one
-// step so a burst can not pass the cap. giveBack returns it (AcceptInvite
-// does, only for the password step).
+// step so a burst can not pass the cap. giveBack returns it: D-20 counts
+// failures only, so AcceptInvite and PreviewInvite give it back on every
+// outcome but a refused invitation (inviteFailure).
+// inviteFailure reports whether err is a refused invitation, the only
+// outcome the per IP cap keeps counted (D-20).
+func inviteFailure(err error) bool {
+	return errors.Is(err, ErrInvalidInvite) || errors.Is(err, ErrNotAMember)
+}
+
 func (s *Service) checkInvite(ctx context.Context) (giveBack func(), err error) {
 	ok, retry, back := s.Limiter.Take("invite:ip:"+clientIP(ctx), s.Limits.InvitePerIP)
 	if !ok {

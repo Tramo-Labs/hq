@@ -111,9 +111,14 @@ invitation; adding an active member is 409 `already_member`.
   password first, so the 400 `password_required` a new person gets is a
   step: its unit is given back and it is not audited as a rejection
   (`TestPasswordRequiredIsAStepNotARejection`,
-  `TestPasswordStepsAtOnceConsumeNothing`). While in flight a step holds a
-  unit, so steps beyond the cap at the same instant may get 429; none stays
-  counted. Every other outcome counts
+  `TestPasswordStepsAtOnceConsumeNothing`). D-20: the cap counts failures
+  only. The unit is taken before the token is checked and given back on
+  every outcome but a refused invitation (unknown, used, revoked or expired
+  token, removed membership), so a successful accept spends nothing either
+  and an office joining from one address never runs into it
+  (`TestAnOfficeJoinsFromOneAddress`: six people, cap of three). While in
+  flight an attempt holds a unit, so attempts beyond the cap at the same
+  instant may get 429; none stays counted unless refused
   (`TestRealInviteRejectionsCountAndAreAudited`), and only a usable
   invitation reaches the step (`TestOnlyAUsableInvitationReachesThePasswordStep`).
 - **Preview (F38).** `POST /v1/auth/invite/preview` answers the company
@@ -121,9 +126,9 @@ invitation; adding an active member is 409 `already_member`.
   never the email or whether the person has an account. It uses nothing
   (the same token accepts afterwards), refuses exactly like accept (401
   `invalid_invite`, 403 `not_a_member`), audits each refusal as
-  `identity.invite_rejected` with `via: preview`, and takes from accept's
-  per IP cap: every preview counts, so a preview and an accept spend two
-  units. The token goes in the body, never in the URL
+  `identity.invite_rejected` with `via: preview`, and shares accept's per
+  IP cap: a refused preview counts, a preview of a valid invitation spends
+  nothing (D-20). The token goes in the body, never in the URL
   (`TestPreviewShowsCompanyAndRoleWithoutUsingTheInvitation`,
   `TestPreviewRejectsLikeAccept`, `TestPreviewSharesTheAcceptCap`;
   mutations checked: a preview that uses the invitation, and one outside
@@ -305,7 +310,7 @@ alone**. Nobody can lock the owner out of her account from anywhere.
 
 | Throttle | Default | Stops |
 |----------|---------|-------|
-| login requests per IP | 30 per minute | spraying many emails from one machine |
+| failed logins per IP (D-20: right passwords spend nothing) | 30 per minute | spraying many emails from one machine |
 | failed logins per email and IP | 5 per 15 minutes | guessing one person's password |
 | 20 failed logins per email from 3 or more IPs in 15 minutes | magic link mode for 1 hour (not a 429) | distributed guessing |
 | registrations per IP | 10 per hour | sign up spam |
@@ -314,16 +319,25 @@ alone**. Nobody can lock the owner out of her account from anywhere.
 | magic link acceptances per IP | 10 per 15 minutes | bounds anonymous work |
 
 A success (password or magic link) clears that IP's failures for the email.
-The pair's failure is taken before the password is checked, in the same
-step as the check, and given back when the password was right or the
-attempt errored (a success resets the pair anyway). Checking before and
+Both login limits count failures only (D-20): each takes its unit before
+the password is checked, in the same step as the check, and gives it back
+when the password was right or the attempt errored (a success resets the
+pair anyway). Right logins, as many as there are people behind one
+address, spend nothing (`TestLoginPerIPCountsWrongPasswordsOnly`). Taking
+before checking is what keeps the cap a cap: over it a guess is not even
+checked, so the right password gets 429 too, on the pair and on the IP
+(`TestOverTheCapTheRightPasswordIsRefusedToo`; mutations checked:
+counting a successful accept, preview or login, and letting a request
+over the pair's cap through, each fail a test). Checking before and
 counting after let a burst of guesses through: 20 at once against a cap of
 5 all got an answer (`TestLoginFailureCapHoldsUnderABurst`). The limiter
 has no separate check and count any more; `Allow` and `Take` do both
-under one lock. Accepted cost of counting first: a burst of logins with
-the right password, from the same IP and account and larger than the
-pair's cap, also gets 429 until the units are given back (8 at once
-against 5: 5 sign in, 3 get 429).
+under one lock. Accepted cost of taking first: while an attempt is in
+flight it holds a unit, so a burst of logins with the right password,
+from the same IP and account and larger than the pair's cap, gets 429 for
+the excess until the units are given back. Measured with the default
+limits: up to 5 at once all sign in; 6 at once, 5 sign in and 1 gets 429;
+8 at once, 5 and 3. One by one, any number sign in.
 
 The pair's 429 carries `magicLink: true`: the web offers "send me a link",
 so even the owner throttled on her own IP gets in. The per IP 429 does not

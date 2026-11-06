@@ -155,8 +155,8 @@ func (s *Service) AcceptInvite(ctx context.Context, token, password string, name
 		return Session{}, err
 	}
 	sess, err := s.acceptInvite(ctx, token, password, name)
-	if errors.Is(err, ErrPasswordRequired) {
-		giveBack()
+	if !inviteFailure(err) {
+		giveBack() // D-20: only refused invitations stay counted
 	}
 	return sess, err
 }
@@ -308,10 +308,20 @@ type InvitePreview struct {
 // using it (F38): the token stays valid and the membership pending. It
 // refuses exactly like AcceptInvite (each refusal audited with via
 // preview) and takes from the same per IP cap; every preview counts.
-func (s *Service) PreviewInvite(ctx context.Context, token string) (InvitePreview, error) {
-	if _, err := s.checkInvite(ctx); err != nil {
+func (s *Service) PreviewInvite(ctx context.Context, token string) (out InvitePreview, err error) {
+	giveBack, err := s.checkInvite(ctx)
+	if err != nil {
 		return InvitePreview{}, err
 	}
+	defer func() {
+		if !inviteFailure(err) {
+			giveBack() // D-20: a valid invitation's preview spends nothing
+		}
+	}()
+	return s.previewInvite(ctx, token)
+}
+
+func (s *Service) previewInvite(ctx context.Context, token string) (InvitePreview, error) {
 	var out InvitePreview
 	var outcome error
 	err := s.DB.System(ctx, func(tx pgx.Tx) error {

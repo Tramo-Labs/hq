@@ -223,6 +223,7 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 		notAFailure()
 		return Session{}, ErrNotAMember
 	}
+	notAFailure() // D-20: a success spends nothing of the per IP limit
 	s.loginSucceeded(ctx, email)
 	return out, nil
 }

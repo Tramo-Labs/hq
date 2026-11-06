@@ -174,13 +174,16 @@ func TestInvitationsThatCanNotBeUsed(t *testing.T) {
 		t.Fatalf("concurrent accepts: %v", statuses)
 	}
 
-	// Rate limited per IP: 10 per 15 minutes. Used so far: 7.
-	var last resp
-	for i := 0; i < 4; i++ {
-		last = accept(c, strings.Repeat("B", 43), "a long enough password")
+	// Rate limited per IP: 10 refused per 15 minutes; successes spend
+	// nothing (D-20). Refused so far: expired, superseded, used, unknown and
+	// the second tab, 5. Five more are 401, the next is 429.
+	for i := 0; i < 5; i++ {
+		if r := accept(c, strings.Repeat("B", 43), "a long enough password"); r.status != 401 {
+			t.Fatalf("refused accept %d: %d %s", 6+i, r.status, r.raw)
+		}
 	}
-	if last.status != 429 || last.header.Get("Retry-After") == "" {
-		t.Fatalf("11th accept from one IP: %d %s", last.status, last.raw)
+	if last := accept(c, strings.Repeat("B", 43), "a long enough password"); last.status != 429 || last.header.Get("Retry-After") == "" {
+		t.Fatalf("11th refused accept from one IP: %d %s", last.status, last.raw)
 	}
 
 	// Only hashes are stored.

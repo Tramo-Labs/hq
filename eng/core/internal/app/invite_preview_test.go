@@ -99,7 +99,9 @@ func TestPreviewRejectsLikeAccept(t *testing.T) {
 	}
 }
 
-// The preview shares accept's per IP cap, and every preview counts.
+// The preview shares accept's per IP cap, which counts failures only
+// (D-20): previews of a valid invitation spend nothing, refused ones count,
+// and once they spend the cap accept is refused too.
 func TestPreviewSharesTheAcceptCap(t *testing.T) {
 	deps := newDeps(t)
 	deps.Identity.Limits.InvitePerIP = ratelimit.Rule{Limit: 3, Window: time.Hour}
@@ -109,15 +111,20 @@ func TestPreviewSharesTheAcceptCap(t *testing.T) {
 		t.Fatalf("add: %d %s", r.status, r.raw)
 	}
 	tok := c.invitesTo("nueva@prevc.test")[0]
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 6; i++ { // twice the cap
 		if r := preview(c, tok); r.status != 200 {
-			t.Fatalf("preview %d: %d %s", i, r.status, r.raw)
+			t.Fatalf("preview %d of a valid invitation: %d %s", i, r.status, r.raw)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		if r := preview(c, strings.Repeat("C", 43)); r.status != 401 {
+			t.Fatalf("refused preview %d: %d %s", i, r.status, r.raw)
 		}
 	}
 	if r := preview(c, tok); r.status != 429 {
 		t.Fatalf("preview past the cap: %d %s", r.status, r.raw)
 	}
 	if r := accept(c, tok, "a long enough password"); r.status != 429 {
-		t.Fatalf("accept after previews spent the cap: %d %s", r.status, r.raw)
+		t.Fatalf("accept after refused previews spent the cap: %d %s", r.status, r.raw)
 	}
 }
