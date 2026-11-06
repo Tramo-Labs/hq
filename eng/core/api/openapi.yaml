@@ -302,6 +302,28 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
         "401": { $ref: "#/components/responses/Problem" }
+    patch:
+      operationId: updateMe
+      tags: [identity]
+      summary: Set the caller's own name
+      description: |
+        Only the caller's own name, whatever the role. Leading and trailing
+        spaces are trimmed; empty after trimming, or with control
+        characters, answers 400 invalid_name. Audited without the value.
+        Changes nothing that could be replayed, so no Idempotency-Key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateMeRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
   /v1/tenant/members:
     get:
       operationId: listMembers
@@ -1168,6 +1190,18 @@ components:
         tenantName: { type: string, minLength: 2, maxLength: 120 }
         tenantSlug: { type: string, pattern: "^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$" }
         cuit: { $ref: "#/components/schemas/Cuit" }
+        name: { $ref: "#/components/schemas/PersonName" }
+    PersonName:
+      type: string
+      minLength: 1
+      maxLength: 120
+      description: The person's name as they want it shown. Personal data; no format check.
+    UpdateMeRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { $ref: "#/components/schemas/PersonName" }
     RegisterResponse:
       type: object
       required: [userId, tenantId]
@@ -1193,6 +1227,7 @@ components:
       properties:
         token: { type: string, minLength: 43, maxLength: 64 }
         password: { $ref: "#/components/schemas/Password" }
+        name: { $ref: "#/components/schemas/PersonName" }
         tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
     MagicLinkRequest:
       type: object
@@ -1250,6 +1285,10 @@ components:
       properties:
         userId: { type: string, format: uuid }
         email: { type: string }
+        name:
+          type: string
+          nullable: true
+          description: The person's name, null until they set one (show the email then).
         activeTenantId: { type: string, format: uuid }
         role: { $ref: "#/components/schemas/Role" }
         memberships:
@@ -1261,6 +1300,10 @@ components:
       properties:
         userId: { type: string, format: uuid }
         email: { type: string }
+        name:
+          type: string
+          nullable: true
+          description: The person's name, null until they set one.
         role: { $ref: "#/components/schemas/Role" }
     AddMemberRequest:
       type: object
