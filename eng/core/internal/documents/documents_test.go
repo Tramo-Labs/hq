@@ -347,6 +347,10 @@ func TestMalformedPDF(t *testing.T) {
 	if _, err := (&Extractor{}).Extract(context.Background(), Input{}); err == nil {
 		t.Error("empty input accepted")
 	}
+	// Bytes that are no image are unreadable, not an invoice without fields.
+	if _, err := (&Extractor{}).Extract(context.Background(), Input{Image: []byte("not a document")}); err == nil {
+		t.Error("garbage accepted as an image")
+	}
 }
 
 func TestImageWithoutQR(t *testing.T) {

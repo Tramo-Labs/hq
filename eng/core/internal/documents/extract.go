@@ -1,8 +1,10 @@
 package documents
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image"
 	"slices"
 	"strings"
 	"time"
@@ -59,6 +61,11 @@ func (e *Extractor) Extract(ctx context.Context, in Input) (*Invoice, error) {
 			}
 		}
 	case in.Image != nil:
+		// Not an image at all is an unreadable input, not an invoice
+		// without fields.
+		if _, _, err := image.DecodeConfig(bytes.NewReader(in.Image)); err != nil {
+			return nil, fmt.Errorf("documents: not a PDF or a supported image: %w", err)
+		}
 		s, err := DecodeQRImage(in.Image)
 		if err == nil {
 			qrTexts = append(qrTexts, s)

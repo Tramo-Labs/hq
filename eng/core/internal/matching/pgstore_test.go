@@ -238,27 +238,60 @@ func TestPGDeciderIsTheSession(t *testing.T) {
 	if user != e.a.UserID || role != identity.RoleOperator || got.By != e.a.UserID.String() {
 		t.Errorf("stored user %s role %s; want the session's %s operator", user, role, e.a.UserID)
 	}
-	// A principal that does not match the database scope is no session.
-	forged := identity.WithPrincipal(context.Background(),
-		identity.Principal{UserID: uuid.New(), TenantID: e.a.TenantID, Role: identity.RoleOperator})
-	forged = db.WithScope(forged, e.a)
-	if _, _, err := e.store.Record(forged, DecisionInput{Key: uuid.NewString(), Match: auto(r), Action: Approve}); !errors.Is(err, ErrNoUser) {
-		t.Errorf("principal and scope of different users: %v", err)
+	// A session whose user is not a member of the tenant cannot decide, even
+	// with an operator claim.
+	stranger := session(db.Scope{TenantID: e.a.TenantID, UserID: uuid.New()}, identity.RoleOperator)
+	if _, _, err := e.store.Record(stranger, DecisionInput{Key: uuid.NewString(), Match: auto(r), Action: Approve}); !errors.Is(err, ErrForbidden) {
+		t.Errorf("non member decided: %v", err)
 	}
 }
 
-// Spec section 1: only an operator decides on matches.
+// setMembership changes the stored role of a user, as an owner would from
+// the members screen.
+func (e pgEnv) setMembership(t *testing.T, sc db.Scope, role string) {
+	t.Helper()
+	ctx := context.Background()
+	if err := e.d.System(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `update memberships set role = $1 where user_id = $2 and tenant_id = $3`, role, sc.UserID, sc.TenantID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Spec section 1: only an operator decides on matches. The role that counts
+// is the membership's, so the token here always says operator.
 func TestPGOnlyOperatorDecides(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
 	for _, role := range []string{identity.RoleOwner, identity.RoleApprover, identity.RoleViewer, identity.RoleAccountant} {
-		_, _, err := e.store.Record(session(e.a, role), DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve})
+		e.setMembership(t, e.a, role)
+		_, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve})
 		if !errors.Is(err, ErrForbidden) {
 			t.Errorf("%s decided: %v", role, err)
 		}
 	}
 	if n := e.count(t, e.ctx, `select count(*) from matching.decisions`); n != 0 {
 		t.Errorf("%d decisions stored by forbidden roles", n)
+	}
+}
+
+// A role lowered while the access token is still valid takes effect at
+// once: the token says operator, the membership now says viewer, and the
+// decision is refused. Restoring the membership lets the same token decide.
+func TestPGDowngradedRoleCannotDecide(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	e.setMembership(t, e.a, identity.RoleViewer)
+	if sc, _ := db.ScopeFrom(e.ctx); sc.Role != identity.RoleOperator {
+		t.Fatalf("the token should still say operator, says %q", sc.Role)
+	}
+	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("downgraded user decided: %v", err)
+	}
+	e.setMembership(t, e.a, identity.RoleOperator)
+	if _, applied, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); err != nil || !applied {
+		t.Errorf("restored operator: %v %v", err, applied)
 	}
 }
 

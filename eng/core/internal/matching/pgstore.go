@@ -256,19 +256,9 @@ func CanDecide(role string, tray Tray) bool {
 	return false
 }
 
-// callerRole is the role of the verified token of the request, and only if
-// it belongs to the same user and tenant as the database scope.
-func callerRole(ctx context.Context, sc db.Scope) (string, bool) {
-	p, ok := identity.PrincipalFrom(ctx)
-	if !ok || p.UserID != sc.UserID || p.TenantID != sc.TenantID {
-		return "", false
-	}
-	return p.Role, true
-}
-
 // DecisionInput is everything a caller may say about a decision. Who
-// decides and with which role are never input: they come from the
-// authenticated session.
+// decides and with which role are never input: the user comes from the
+// scope and the role from the membership, read in the same transaction.
 type DecisionInput struct {
 	Key    string // idempotency key
 	Match  Match
@@ -278,8 +268,10 @@ type DecisionInput struct {
 
 // Record stores a human decision with the same rules as Book: the same
 // decision sent twice is applied once, a decided match is not decided again,
-// a key is not reused for something else. The decider and the role are the
-// session's, and the role has to be allowed to decide on the match's tray.
+// a key is not reused for something else. The decider is the scope's user.
+// The role is read from memberships inside the same transaction, not taken
+// from the token: a token can be up to ten minutes old, and someone whose
+// role was lowered cannot decide for one more minute.
 func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool, error) {
 	sc, ok := db.ScopeFrom(ctx)
 	if !ok {
@@ -288,30 +280,34 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 	if sc.UserID == uuid.Nil {
 		return Decision{}, false, ErrNoUser
 	}
-	role, ok := callerRole(ctx, sc)
-	if !ok {
-		return Decision{}, false, ErrNoUser
-	}
 	key, err := uuid.Parse(in.Key)
 	if err != nil || in.Match.ID == "" || (in.Action != Approve && in.Action != Reject) ||
 		in.Match.ID != matchID(in.Match.Rule, in.Match.MovementIDs, in.Match.ItemIDs) {
 		return Decision{}, false, ErrInvalid
 	}
-	if !CanDecide(role, in.Match.Tray) {
-		return Decision{}, false, ErrForbidden
-	}
 	d := Decision{Key: in.Key, MatchID: in.Match.ID, Match: in.Match, Action: in.Action, Note: in.Note,
-		By: sc.UserID.String(), Role: role}
+		By: sc.UserID.String()}
 	snap, err := json.Marshal(d.Match)
 	if err != nil {
 		return Decision{}, false, err
 	}
 	applied := false
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		err := tx.QueryRow(ctx,
+			`select role::text from memberships where user_id = app_current_user() and tenant_id = app_current_tenant()`).Scan(&d.Role)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
+		if !CanDecide(d.Role, in.Match.Tray) {
+			return ErrForbidden
+		}
 		var prevMatch, prevAction, prevRole, prevNote string
 		var prevUser uuid.UUID
 		var prevAt time.Time
-		err := tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note from matching.decisions where key = $1`, key).
+		err = tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note from matching.decisions where key = $1`, key).
 			Scan(&prevMatch, &prevAction, &prevUser, &prevRole, &prevAt, &prevNote)
 		if err == nil {
 			if prevMatch == d.MatchID && prevAction == string(d.Action) && prevUser == sc.UserID {
