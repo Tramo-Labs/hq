@@ -1,10 +1,11 @@
+# The landing (eng/web), alone since D-21. The portal and the console are eng/app (deploy-app.yml).
 name: Web
 on:
   push:
     branches: [main]
-    paths: ["eng/web/**", ".github/workflows/deploy-web.yml"]
+    paths: ["eng/web/**", "eng/ui/**", ".github/workflows/deploy-web.yml"]
   pull_request:
-    paths: ["eng/web/**", ".github/workflows/deploy-web.yml"]
+    paths: ["eng/web/**", "eng/ui/**", ".github/workflows/deploy-web.yml"]
   workflow_dispatch:
 
 permissions:
@@ -12,8 +13,8 @@ permissions:
 
 jobs:
   check:
-    # The same gates as before closing a web task: types, lint, tests and the default
-    # (landing only) build. Node is the minimum the tests need (type stripping, 22.18).
+    # The same gates as before closing a landing task: types, lint and the build. The landing has
+    # no tests (they all moved to eng/app). The checkout includes eng/ui, which it depends on.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -30,8 +31,6 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
-      # PORTAL_ENABLED unset: the production default, landing only.
       - run: npm run build
 
   deploy:
