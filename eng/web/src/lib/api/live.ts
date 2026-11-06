@@ -48,6 +48,22 @@ export async function login(email: string, password: string, tenantId?: string) 
   return open(await tokens(res));
 }
 
+/** Asks for a one time login link by email. The core always answers 202, account or not. */
+export async function requestMagicLink(email: string, idempotencyKey: string, tenantId?: string) {
+  const res = await call("/v1/auth/magic-link", {
+    method: "POST",
+    headers: { ...json, "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify({ email, tenantId }),
+  });
+  if (!res.ok) throw await ApiError.from(res);
+}
+
+/** Opens a session with the token from the emailed link (/ingresar#token=…). */
+export async function acceptMagicLink(token: string) {
+  const res = await call("/v1/auth/magic-link/accept", { method: "POST", headers: json, body: JSON.stringify({ token, tokenDelivery: "cookie" }) });
+  return open(await tokens(res));
+}
+
 let refreshing: Promise<Session> | null = null;
 
 /**

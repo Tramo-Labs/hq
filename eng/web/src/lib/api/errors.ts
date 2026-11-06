@@ -6,12 +6,15 @@ export class ApiError extends Error {
   readonly code: string;
   /** Seconds, from the Retry-After header of a 429. */
   readonly retryAfter?: number;
+  /** Login's 429 for the email and IP pair: a magic link still gets the person in. */
+  readonly magicLink: boolean;
 
-  constructor(status: number, code: string, detail?: string, retryAfter?: number) {
+  constructor(status: number, code: string, detail?: string, retryAfter?: number, magicLink = false) {
     super(detail ?? code);
     this.status = status;
     this.code = code;
     this.retryAfter = retryAfter;
+    this.magicLink = magicLink;
   }
 
   static async from(res: Response) {
@@ -22,7 +25,7 @@ export class ApiError extends Error {
       // Not problem+json (a proxy error page, for instance): keep the status only.
     }
     const ra = Number(res.headers.get("Retry-After"));
-    return new ApiError(res.status, p.code ?? "unknown", p.detail, Number.isFinite(ra) && ra > 0 ? ra : undefined);
+    return new ApiError(res.status, p.code ?? "unknown", p.detail, Number.isFinite(ra) && ra > 0 ? ra : undefined, p.magicLink === true);
   }
 }
 

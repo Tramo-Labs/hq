@@ -41,6 +41,16 @@ export async function login(email: string, password: string, tenantId?: string) 
   return isLive() ? live.login(email, password, tenantId) : (await sample()).login(email, password, tenantId);
 }
 
+/** POST /v1/auth/magic-link: always 202, so it never tells whether the email has an account. */
+export async function requestMagicLink(email: string, idempotencyKey: string, tenantId?: string) {
+  return isLive() ? live.requestMagicLink(email, idempotencyKey, tenantId) : (await sample()).requestMagicLink();
+}
+
+/** POST /v1/auth/magic-link/accept with the token from the link, and the session it opens. */
+export async function acceptMagicLink(token: string) {
+  return isLive() ? live.acceptMagicLink(token) : (await sample()).acceptMagicLink();
+}
+
 /** After a reload: a new access token from the refresh cookie (live) or the default person (sample). */
 export async function restore(area: "portal" | "console") {
   const s = getSession();

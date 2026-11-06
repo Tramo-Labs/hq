@@ -46,6 +46,14 @@ export async function login(email: string, password: string, tenantId?: string) 
   return open(key, tenantId);
 }
 
+/** Sample mode sends no email; it answers like the core (202, nothing to report). */
+export async function requestMagicLink() {}
+
+/** Sample mode issues no links, so any token is unknown, as the core answers for one. */
+export async function acceptMagicLink(): Promise<Session> {
+  throw new ApiError(401, "invalid_magic_link");
+}
+
 /** Sample mode has no cookie: before any login, the area's default person is in. */
 export async function restore(area: "portal" | "console") {
   return getSession() ?? open(fx.defaultUser[area]);

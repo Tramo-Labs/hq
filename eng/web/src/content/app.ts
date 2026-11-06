@@ -272,5 +272,18 @@ export const app = {
       go: { portal: "Ir a la consola", console: "Ir al portal" },
     },
     sampleHint: "Modo ejemplo: entrá con cualquiera de estas cuentas y la contraseña «ejemplo».",
+    // Draft for producto (frontend, 06/11): login by emailed link.
+    magic: {
+      required: "Por seguridad, a esta cuenta hoy se entra con un enlace por mail.",
+      offer: "Podés entrar con un enlace que te mandamos al mail, sin contraseña.",
+      send: "Mandame un enlace",
+      sent: "Si ese email tiene cuenta en Tramo, te mandamos un enlace. Vale 15 minutos y sirve una sola vez.",
+      eyebrow: "Entrar con enlace",
+      opening: "Abriendo tu sesión…",
+      noToken: "Este enlace está incompleto. Abrilo de nuevo desde el mail o pedí otro.",
+      invalid: "El enlace ya se usó o venció. Pedí otro desde la pantalla de entrada.",
+      notMember: "Ese enlace era para una empresa en la que ya no tenés acceso.",
+      again: "Ir a entrar",
+    },
   },
 };
