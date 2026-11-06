@@ -188,7 +188,8 @@ export type Decision = {
   revision: number;
 };
 
-export type MovementDecisionAction = "other" | "link" | "revert";
+/** other and link: the client. resolve, return and link: the operator, once the client said other. */
+export type MovementDecisionAction = "other" | "link" | "resolve" | "return" | "revert";
 export type MovementDecisionRequest = { action: MovementDecisionAction; note?: string; itemIds?: string[] };
 
 export type MovementDecision = {

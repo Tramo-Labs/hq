@@ -3,11 +3,15 @@
 import { useState } from "react";
 import { app } from "@/content/app";
 import { ApiError, decideMatch, decideMovement } from "@/lib/api";
+import type { MovementDecisionAction } from "@/lib/api";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
-type Action = "approve" | "reject" | "escalate" | "other" | "revert";
+type Action = "approve" | "reject" | "escalate" | "other" | "resolve" | "return" | "revert";
+/** Actions that open a note field first; the note is required for all of them. */
+type NoteAction = "reject" | "other" | "resolve" | "return";
 
-const keysFor = () => ({ approve: crypto.randomUUID(), reject: crypto.randomUUID(), escalate: crypto.randomUUID(), other: crypto.randomUUID(), revert: crypto.randomUUID() });
+const actions: Action[] = ["approve", "reject", "escalate", "other", "resolve", "return", "revert"];
+const keysFor = () => Object.fromEntries(actions.map((x) => [x, crypto.randomUUID()])) as Record<Action, string>;
 
 function message(e: unknown) {
   return e instanceof ApiError ? app.approvals.errors[e.code] ?? (e.status === 403 ? app.approvals.errors.forbidden : app.approvals.failed) : app.approvals.failed;
@@ -18,21 +22,25 @@ function message(e: unknown) {
  * if the same action is retried, so a double tap or a retry is applied once. After "Deshacer"
  * the keys are new: a fresh decision is a new action, not a retry of the first one.
  *
- * Buttons map 1:1 to the API's actions (qa F14); a reason is required to reject (qa F19).
+ * Buttons map 1:1 to the API's actions (qa F14); every note is required (qa F19, F4).
  * - client, Exceptions match (the match is the proposal): approve, reject (reason), other (note).
- * - client, Exceptions movement with no candidate: other (note), link (shown disabled: no
- *   endpoint lists the open items to link yet), revert after deciding.
+ * - client, Exceptions movement with no candidate or returned by the operator: other (note),
+ *   link (disabled: no endpoint lists the open items to link yet).
  * - operator, Suggested match: approve, reject (reason), escalate.
+ * - operator, movement the client called something else (client_other): resolve (note: what
+ *   was done), return to the client (note: what is needed), link (disabled, as above).
+ * "Deshacer" only appears after a decision made here, so each side reverts only its own row.
  */
 export function Decision({ target, variant }: { target: { match: string } | { movement: string }; variant: "client" | "operator" }) {
   const a = app.approvals;
-  const labels = variant === "client" ? a.actions : app.trays.actions;
-  const done = variant === "client" ? a.decided : app.trays.decided;
+  const tr = app.trays;
+  const labels: Record<string, string> = variant === "client" ? a.actions : tr.actions;
+  const done: Record<string, string> = variant === "client" ? a.decided : tr.decided;
   const isMovement = "movement" in target;
   const [keys, setKeys] = useState(keysFor);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [noteFor, setNoteFor] = useState<"reject" | "other" | null>(null);
+  const [noteFor, setNoteFor] = useState<NoteAction | null>(null);
   const [note, setNote] = useState("");
   const [decided, setDecided] = useState<{ action: Action; at: string } | null>(null);
 
@@ -43,8 +51,8 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
     try {
       const text = action === noteFor ? note.trim() || undefined : undefined;
       const res = isMovement
-        ? await decideMovement(target.movement, { action: action as "other" | "revert", note: text }, keys[action])
-        : await decideMatch(target.match, { action, note: text }, keys[action]);
+        ? await decideMovement(target.movement, { action: action as MovementDecisionAction, note: text }, keys[action])
+        : await decideMatch(target.match, { action: action as "approve" | "reject" | "escalate" | "other" | "revert", note: text }, keys[action]);
       if (action === "revert") {
         setDecided(null);
         setKeys(keysFor());
@@ -68,7 +76,7 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <p role="status" className="text-[14px] text-white/85">
-            <span className="text-white">{(done as Record<string, string>)[decided.action]}</span> <span className="text-white/60">· {a.by(time)}</span>
+            <span className="text-white">{done[decided.action]}</span> <span className="text-white/60">· {a.by(time)}</span>
           </p>
           <button type="button" disabled={saving} aria-busy={saving} className={ghostBtn} onClick={() => send("revert")}>{labels.revert}</button>
         </div>
@@ -78,15 +86,20 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
   }
 
   if (noteFor) {
-    const other = noteFor === "other";
     const id = `note-${isMovement ? target.movement : target.match}`;
+    const form = {
+      reject: { label: a.rejectLabel, placeholder: a.rejectPlaceholder, submit: labels.reject },
+      other: { label: a.noteLabel, placeholder: a.notePlaceholder, submit: a.send },
+      resolve: { label: tr.resolveLabel, placeholder: tr.resolvePlaceholder, submit: tr.actions.resolve },
+      return: { label: tr.returnLabel, placeholder: tr.returnPlaceholder, submit: tr.actions.return },
+    }[noteFor];
     return (
       <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); if (note.trim()) send(noteFor); }}>
-        <label htmlFor={id} className="text-[14px] text-white/85">{other ? a.noteLabel : a.rejectLabel}</label>
-        <textarea id={id} required maxLength={500} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={other ? a.notePlaceholder : a.rejectPlaceholder}
+        <label htmlFor={id} className="text-[14px] text-white/85">{form.label}</label>
+        <textarea id={id} required maxLength={500} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={form.placeholder}
           className="rounded-lg border border-white/20 bg-white/[0.04] px-3 py-2.5 text-[15px] placeholder:text-white/50 focus:border-white/50 focus:outline-none" />
         <div className="flex flex-wrap gap-2">
-          <button type="submit" disabled={saving} aria-busy={saving} className={primaryBtn}>{other ? a.send : labels.reject}</button>
+          <button type="submit" disabled={saving} aria-busy={saving} className={primaryBtn}>{form.submit}</button>
           <button type="button" disabled={saving} className={ghostBtn} onClick={() => { setNoteFor(null); setNote(""); setError(null); }}>{a.cancel}</button>
         </div>
         {err}
@@ -94,14 +107,26 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
     );
   }
 
+  const link = isMovement && (
+    <>
+      <button type="button" disabled className={ghostBtn} aria-describedby={`link-${target.movement}`}>{a.actions.link}</button>
+      <span id={`link-${target.movement}`} className="self-center text-[13px] text-white/60">{a.linkSoon}</span>
+    </>
+  );
+
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap gap-2">
-        {isMovement ? (
+        {isMovement && variant === "client" ? (
           <>
             <button type="button" className={ghostBtn} onClick={() => setNoteFor("other")}>{a.actions.other}</button>
-            <button type="button" disabled className={ghostBtn} aria-describedby={`link-${target.movement}`}>{a.actions.link}</button>
-            <span id={`link-${target.movement}`} className="self-center text-[13px] text-white/60">{a.linkSoon}</span>
+            {link}
+          </>
+        ) : isMovement ? (
+          <>
+            <button type="button" className={primaryBtn} onClick={() => setNoteFor("resolve")}>{tr.actions.resolve}</button>
+            <button type="button" className={ghostBtn} onClick={() => setNoteFor("return")}>{tr.actions.return}</button>
+            {link}
           </>
         ) : variant === "client" ? (
           <>
@@ -111,9 +136,9 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
           </>
         ) : (
           <>
-            <button type="button" disabled={saving} aria-busy={saving} className={primaryBtn} onClick={() => send("approve")}>{app.trays.actions.approve}</button>
-            <button type="button" disabled={saving} className={ghostBtn} onClick={() => setNoteFor("reject")}>{app.trays.actions.reject}</button>
-            <button type="button" disabled={saving} className={ghostBtn} onClick={() => send("escalate")}>{app.trays.actions.escalate}</button>
+            <button type="button" disabled={saving} aria-busy={saving} className={primaryBtn} onClick={() => send("approve")}>{tr.actions.approve}</button>
+            <button type="button" disabled={saving} className={ghostBtn} onClick={() => setNoteFor("reject")}>{tr.actions.reject}</button>
+            <button type="button" disabled={saving} className={ghostBtn} onClick={() => send("escalate")}>{tr.actions.escalate}</button>
           </>
         )}
       </div>

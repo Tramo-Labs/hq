@@ -98,6 +98,7 @@ export const app = {
       nothing_to_revert: "No hay nada para deshacer.",
       period_closed: "Ese mes ya está cerrado y no se puede deshacer.",
       not_in_exceptions: "Esto ya no está en tu bandeja. Recargá para ver cómo quedó.",
+      not_with_operator: "Este movimiento ya no está con vos: el cliente lo cambió o ya se respondió. Recargá para ver cómo quedó.",
     } as Record<string, string>,
   },
   files: {
@@ -156,8 +157,13 @@ export const app = {
     operatorNote: "Nota del operador",
     noMovementAction: "Desde la consola todavía no se decide sobre un movimiento suelto.",
     waitingClient: "Esperando la decisión del cliente",
-    actions: { approve: "Aprobar", reject: "Rechazar", escalate: "Mandar a excepciones", revert: "Deshacer" },
-    decided: { approve: "Aprobado", reject: "Rechazado", escalate: "Enviado a excepciones", revert: "Deshecho" },
+    actions: { approve: "Aprobar", reject: "Rechazar", escalate: "Mandar a excepciones", resolve: "Resolver", return: "Devolver al cliente", revert: "Deshacer" },
+    decided: { approve: "Aprobado", reject: "Rechazado", escalate: "Enviado a excepciones", resolve: "Resuelto", return: "Devuelto al cliente", revert: "Deshecho" },
+    // Draft for producto (frontend, 06/11): the operator's answer to "Es otra cosa".
+    resolveLabel: "¿Qué hiciste con este movimiento?",
+    resolvePlaceholder: "Ej.: es un anticipo a proveedor, lo cargamos así",
+    returnLabel: "¿Qué necesitás del cliente?",
+    returnPlaceholder: "Ej.: el número de factura o el nombre del proveedor",
   },
   rules: {
     reference_exact: "referencia exacta",

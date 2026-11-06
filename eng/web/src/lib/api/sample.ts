@@ -147,15 +147,24 @@ export async function decideMovement(movementId: string, body: MovementDecisionR
   return replay(idempotencyKey, () => {
     const x = fx.pending.find((y) => y.tenantId === s.tenantId && y.pending.movementId === movementId);
     if (!x) throw new ApiError(404, "not_found");
-    if (!deciders.exception.includes(s.role)) throw new ApiError(403, "forbidden");
-    if (x.pending.tray !== "exception") throw new ApiError(409, "not_in_exceptions");
-    if (body.action === "other" && !body.note?.trim()) throw new ApiError(400, "bad_request", "note required");
-    if (body.action === "link") throw new ApiError(400, "bad_request", "sample mode has no open items to link");
+    // Like the core (internal/matching/README.md, F4): the client decides a movement in its
+    // Exceptions; once the client said other (client_other), the operator answers it.
+    const operator = s.role === "operator";
+    if (!operator && !deciders.exception.includes(s.role)) throw new ApiError(403, "forbidden");
+    const allowed = operator ? ["resolve", "return", "link", "revert"] : ["other", "link", "revert"];
+    if (!allowed.includes(body.action)) throw new ApiError(400, "bad_request");
+    if (["other", "resolve", "return"].includes(body.action) && !body.note?.trim()) throw new ApiError(400, "bad_request", "note required");
     const prior = decided.get(movementId) as MovementDecision | undefined;
     if (body.action === "revert") {
       if (!prior) throw new ApiError(409, "nothing_to_revert");
+      if ((prior.role === "operator") !== operator) throw new ApiError(403, "forbidden");
       decided.delete(movementId);
-    } else if (prior) throw new ApiError(409, "conflict");
+    } else {
+      if (operator && x.pending.reason !== "client_other") throw new ApiError(409, "not_with_operator");
+      if (!operator && x.pending.tray !== "exception") throw new ApiError(409, "not_in_exceptions");
+      if (body.action === "link") throw new ApiError(400, "bad_request", "sample mode has no open items to link");
+      if (prior) throw new ApiError(409, "conflict");
+    }
     const d: MovementDecision = { movementId, action: body.action, userId: userId(s.email), role: s.role, at: new Date().toISOString(),
       note: body.note, revision: (prior?.revision ?? 0) + 1 };
     if (body.action !== "revert") decided.set(movementId, d);
