@@ -584,8 +584,7 @@ paths:
       description: |
         Suggested is decided by an operator: approve, reject (note required:
         why), or escalate to Exceptions. Exceptions is decided by an owner or
-        approver: approve, reject (note required: why; back to the operator
-        with it), or other (note required; back to the operator). A missing
+        approver: approve, reject (note required: why), or other (note required; back to the operator). A missing
         or blank note is 400 `note_required`. Automatic
         matches are not decided. The tray is the stored one and the role is
         the caller's current membership, read when deciding. A decision is
