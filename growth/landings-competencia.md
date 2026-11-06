@@ -37,3 +37,10 @@ Recorridas en el navegador: Looking for Trouble, DANKA, nexus.inc, Asentia, Zent
 - **Precio publicado** en una página "Precios" (VELION y Alpenglow lo hacen y es raro en el nicho). Decidir si se publica la escalera de $150.000, $300.000 y $550.000.
 - **Una calculadora** tipo Alpenglow: "cuántas cuentas, cuántos movimientos, cuántas horas por mes" que devuelve horas y pesos estimados. Buen gancho para el diagnóstico.
 - Reseñas o calificación cuando haya tres clientes.
+
+## Agregado del 06/11: ERPs contables (Xubio, Colppy, Alegra, Contabilium)
+- **Alta con solo el email** (Xubio): un campo y "Empezar gratis", con un plan gratuito permanente después de la prueba. Es la barrera de entrada más baja del rubro. Alegra, Colppy y Contabilium piden formulario completo.
+- **Promo con cuenta regresiva en el banner** (Xubio, noviembre): crea urgencia; nosotros no tenemos promo y no la necesitamos, pero conviene saber que el cliente la ve.
+- **"Asistente virtual" que abre WhatsApp** (Xubio): no es un chat con IA, es un botón. Dentro del género el chat con IA propio lo tiene AutonomIA ("impulsado por Gemini").
+- **Dos caminos desde el menú** (Xubio: empresas, estudios, emprendedores, con planes y precios distintos): confirma la idea de separar empresa y estudio.
+- No pude leer Asentia ni VELION hoy (conexión rechazada); las notas del 05/11 sobre sus landings siguen sin reverificar.
