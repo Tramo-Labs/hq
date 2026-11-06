@@ -59,7 +59,12 @@ func (w *MaintenanceWorker) Work(ctx context.Context, job *river.Job[Maintenance
 	if err != nil {
 		return err
 	}
-	slog.Info("maintenance done", "day", job.Args.Day, "idempotency_keys", keys, "refresh_tokens", tokens, "invites", invites)
+	links, err := identity.PurgeExpiredMagicLinks(ctx, w.DB)
+	if err != nil {
+		return err
+	}
+	slog.Info("maintenance done", "day", job.Args.Day, "idempotency_keys", keys, "refresh_tokens", tokens,
+		"invites", invites, "magic_links", links)
 	return nil
 }
 

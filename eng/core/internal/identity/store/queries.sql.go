@@ -88,6 +88,18 @@ func (q *Queries) DeleteExpiredInvites(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const deleteExpiredMagicLinks = `-- name: DeleteExpiredMagicLinks :execrows
+delete from magic_links where expires_at < now() - interval '7 days'
+`
+
+func (q *Queries) DeleteExpiredMagicLinks(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredMagicLinks)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :execrows
 delete from refresh_tokens where expires_at < now() - interval '7 days'
 `
@@ -155,6 +167,33 @@ func (q *Queries) GetInviteForUpdate(ctx context.Context, tokenHash []byte) (Get
 		&i.ExpiresAt,
 		&i.UsedAt,
 		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const getMagicLinkForUpdate = `-- name: GetMagicLinkForUpdate :one
+select id, user_id, tenant_id, expires_at, used_at
+from magic_links where token_hash = $1
+for update
+`
+
+type GetMagicLinkForUpdateRow struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	TenantID  *uuid.UUID
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+}
+
+func (q *Queries) GetMagicLinkForUpdate(ctx context.Context, tokenHash []byte) (GetMagicLinkForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getMagicLinkForUpdate, tokenHash)
+	var i GetMagicLinkForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TenantID,
+		&i.ExpiresAt,
+		&i.UsedAt,
 	)
 	return i, err
 }
@@ -286,6 +325,28 @@ func (q *Queries) InsertInvite(ctx context.Context, arg InsertInviteParams) erro
 	return err
 }
 
+const insertMagicLink = `-- name: InsertMagicLink :exec
+insert into magic_links (user_id, tenant_id, token_hash, expires_at)
+values ($1, $2, $3, $4)
+`
+
+type InsertMagicLinkParams struct {
+	UserID    uuid.UUID
+	TenantID  *uuid.UUID
+	TokenHash []byte
+	ExpiresAt time.Time
+}
+
+func (q *Queries) InsertMagicLink(ctx context.Context, arg InsertMagicLinkParams) error {
+	_, err := q.db.Exec(ctx, insertMagicLink,
+		arg.UserID,
+		arg.TenantID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const insertRefreshToken = `-- name: InsertRefreshToken :exec
 insert into refresh_tokens (user_id, tenant_id, family_id, token_hash, expires_at)
 values ($1, $2, $3, $4, $5)
@@ -394,6 +455,15 @@ update invites set used_at = now() where id = $1
 
 func (q *Queries) MarkInviteUsed(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markInviteUsed, id)
+	return err
+}
+
+const markMagicLinkUsed = `-- name: MarkMagicLinkUsed :exec
+update magic_links set used_at = now() where id = $1
+`
+
+func (q *Queries) MarkMagicLinkUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markMagicLinkUsed, id)
 	return err
 }
 

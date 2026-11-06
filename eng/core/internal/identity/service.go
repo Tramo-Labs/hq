@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -69,6 +70,11 @@ type Service struct {
 	AppBaseURL string
 	now        func() time.Time
 	dummy      string // hash compared when the email is unknown (constant time login)
+
+	// watch follows failures per email across IPs (D-17). Built on first
+	// use from Limits, so a caller may adjust Limits after NewService.
+	watchOnce sync.Once
+	watch     *attackWatch
 }
 
 // NewService builds the service.
@@ -184,7 +190,9 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 		return Session{}, err
 	}
 	if failed {
-		s.loginFailed(ctx, email)
+		if s.loginFailed(ctx, email) {
+			s.auditMagicLinkMode(ctx, email)
+		}
 		return Session{}, ErrInvalidCredentials
 	}
 	if notMember {

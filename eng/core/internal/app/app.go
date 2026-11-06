@@ -19,7 +19,6 @@ import (
 	"errors"
 	"net/http"
 	"net/netip"
-	"strconv"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -55,7 +54,6 @@ type Deps struct {
 // handler set per module.
 type Handlers struct {
 	platformHandlers
-	pendingHandlers
 	*identity.Handlers
 	*ledgerAPI
 	*documentsAPI
@@ -197,10 +195,7 @@ func auditDenials(d *db.DB) apigen.StrictMiddlewareFunc {
 func writeHandlerError(w http.ResponseWriter, r *http.Request, err error) {
 	var e *httpx.Error
 	if errors.As(err, &e) {
-		if e.RetryAfter > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(e.RetryAfter))
-		}
-		httpx.WriteProblem(w, r, e.Status, e.Code, e.Detail)
+		httpx.WriteError(w, r, e)
 		return
 	}
 	httpx.Logger(r.Context()).Error("handler", "err", err)

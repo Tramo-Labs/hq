@@ -434,12 +434,13 @@ func TestLoginAndRegisterAreThrottled(t *testing.T) {
 		t.Fatalf("owner from another IP: %d %s", r.status, r.raw)
 	}
 
-	// Distributed guessing: twenty failures from twenty IPs throttle the email.
+	// Distributed guessing never locks the email out (D-17): twenty failures
+	// from twenty IPs switch it to magic link, an answer, not a 429.
 	for i := 0; i < 20; i++ {
 		login("192.0.2."+strconv.Itoa(i+1), "beto@alfa.test", "guess")
 	}
-	if r := login("192.0.2.200", "beto@alfa.test", "guess"); r.status != 429 {
-		t.Fatalf("distributed guessing not throttled: %d", r.status)
+	if r := login("192.0.2.200", "beto@alfa.test", "guess"); r.status != 401 || r.str("code") != "magic_link_required" {
+		t.Fatalf("distributed guessing: %d %s", r.status, r.raw)
 	}
 
 	// One IP cannot spray more than 30 logins a minute, whatever the emails.

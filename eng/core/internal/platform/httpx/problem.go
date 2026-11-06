@@ -3,6 +3,7 @@ package httpx
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 )
 
 // Problem is the uniform error body (RFC 9457, application/problem+json).
@@ -16,6 +17,9 @@ type Problem struct {
 	Code      string `json:"code"`
 	Detail    string `json:"detail,omitempty"`
 	RequestID string `json:"requestId,omitempty"`
+	// MagicLink, on a login 429 for an email and IP pair, says a magic
+	// link still lets the person in (D-17).
+	MagicLink bool `json:"magicLink,omitempty"`
 }
 
 // Stable error codes shared by every module.
@@ -41,19 +45,28 @@ type Error struct {
 	Detail string
 	// RetryAfter, when positive, is sent as the Retry-After header (seconds).
 	RetryAfter int
+	// MagicLink sets Problem.MagicLink.
+	MagicLink bool
 }
 
 func (e *Error) Error() string { return e.Code + ": " + e.Detail }
 
+// WriteError writes e as a problem, with its Retry-After header.
+func WriteError(w http.ResponseWriter, r *http.Request, e *Error) {
+	if e.RetryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(e.RetryAfter))
+	}
+	writeProblem(w, r, Problem{Status: e.Status, Code: e.Code, Detail: e.Detail, MagicLink: e.MagicLink})
+}
+
 // WriteProblem writes a problem response. Title defaults to the status text.
 func WriteProblem(w http.ResponseWriter, r *http.Request, status int, code, detail string) {
-	p := Problem{
-		Type:   "about:blank",
-		Title:  http.StatusText(status),
-		Status: status,
-		Code:   code,
-		Detail: detail,
-	}
+	writeProblem(w, r, Problem{Status: status, Code: code, Detail: detail})
+}
+
+func writeProblem(w http.ResponseWriter, r *http.Request, p Problem) {
+	status := p.Status
+	p.Type, p.Title = "about:blank", http.StatusText(status)
 	if m, ok := MetaFrom(r.Context()); ok {
 		p.RequestID = m.RequestID
 	}

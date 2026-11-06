@@ -97,6 +97,21 @@ update invites set used_at = now() where id = $1;
 -- name: DeleteExpiredInvites :execrows
 delete from invites where expires_at < now() - interval '7 days';
 
+-- name: InsertMagicLink :exec
+insert into magic_links (user_id, tenant_id, token_hash, expires_at)
+values ($1, $2, $3, $4);
+
+-- name: GetMagicLinkForUpdate :one
+select id, user_id, tenant_id, expires_at, used_at
+from magic_links where token_hash = $1
+for update;
+
+-- name: MarkMagicLinkUsed :exec
+update magic_links set used_at = now() where id = $1;
+
+-- name: DeleteExpiredMagicLinks :execrows
+delete from magic_links where expires_at < now() - interval '7 days';
+
 -- name: RevokeUserTenantSessions :execrows
 update refresh_tokens set revoked_at = now()
 where user_id = $1 and tenant_id = $2 and revoked_at is null;

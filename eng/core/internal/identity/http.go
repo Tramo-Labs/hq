@@ -103,6 +103,23 @@ func (h *Handlers) AcceptInvite(ctx context.Context, req apigen.AcceptInviteRequ
 	return apigen.AcceptInvite200JSONResponse{TokensJSONResponse: tokens(sess, req.Body.TokenDelivery)}, nil
 }
 
+// RequestMagicLink emails a login link; 202 whether or not the email exists.
+func (h *Handlers) RequestMagicLink(ctx context.Context, req apigen.RequestMagicLinkRequestObject) (apigen.RequestMagicLinkResponseObject, error) {
+	if err := h.s.RequestMagicLink(ctx, string(req.Body.Email), (*uuid.UUID)(req.Body.TenantId)); err != nil {
+		return nil, problem(err)
+	}
+	return apigen.RequestMagicLink202Response{}, nil
+}
+
+// AcceptMagicLink opens a session with a link.
+func (h *Handlers) AcceptMagicLink(ctx context.Context, req apigen.AcceptMagicLinkRequestObject) (apigen.AcceptMagicLinkResponseObject, error) {
+	sess, err := h.s.AcceptMagicLink(ctx, req.Body.Token)
+	if err != nil {
+		return nil, problem(err)
+	}
+	return apigen.AcceptMagicLink200JSONResponse{TokensJSONResponse: tokens(sess, req.Body.TokenDelivery)}, nil
+}
+
 // Refresh rotates the refresh token.
 func (h *Handlers) Refresh(ctx context.Context, req apigen.RefreshRequestObject) (apigen.RefreshResponseObject, error) {
 	tok, delivery := refreshInput(req.Params.TramoRefresh, req.Body)
@@ -213,7 +230,7 @@ func problem(err error) error {
 			secs = 1
 		}
 		return &httpx.Error{Status: http.StatusTooManyRequests, Code: httpx.CodeRateLimited,
-			Detail: "too many attempts; try again later", RetryAfter: secs}
+			Detail: "too many attempts; try again later", RetryAfter: secs, MagicLink: rl.MagicLink}
 	}
 	type m struct {
 		status int
@@ -234,6 +251,8 @@ func problem(err error) error {
 		ErrMemberNotFound:     {http.StatusNotFound, httpx.CodeNotFound},
 		ErrLastOwner:          {http.StatusConflict, "last_owner"},
 		ErrInvalidInvite:      {http.StatusUnauthorized, "invalid_invite"},
+		ErrMagicLinkRequired:  {http.StatusUnauthorized, "magic_link_required"},
+		ErrInvalidMagicLink:   {http.StatusUnauthorized, "invalid_magic_link"},
 	}
 	for target, p := range table {
 		if errors.Is(err, target) {
