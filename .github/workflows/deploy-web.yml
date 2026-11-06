@@ -1,20 +1,52 @@
-name: Deploy web
+name: Web
 on:
   push:
     branches: [main]
     paths: ["eng/web/**", ".github/workflows/deploy-web.yml"]
+  pull_request:
+    paths: ["eng/web/**", ".github/workflows/deploy-web.yml"]
   workflow_dispatch:
-concurrency: { group: deploy-web, cancel-in-progress: true }
+
+permissions:
+  contents: read
+
 jobs:
-  deploy:
+  check:
+    # The same gates as before closing a web task: types, lint, tests and the default
+    # (landing only) build. Node is the minimum the tests need (type stripping, 22.18).
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: web-check-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    defaults: { run: { working-directory: eng/web } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22.18"
+          cache: npm
+          cache-dependency-path: eng/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      # PORTAL_ENABLED unset: the production default, landing only.
+      - run: npm run build
+
+  deploy:
+    # Only from main (or by hand), and only after the check passed.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [check]
+    runs-on: ubuntu-latest
+    concurrency: { group: deploy-web, cancel-in-progress: true }
     env:
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: "22.18" }
       - run: npm i -g vercel
       - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
       - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}

@@ -26,12 +26,15 @@ const names = new Map<string, string>();
 
 // The core's name rules (internal/identity/name.go): trimmed, 1 to 120 characters, at least one
 // letter or number, and no control, format (zero width, bidi), separator or blank-looking characters.
-const invisible = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}ㅤᅟᅠﾠ⠀]/u;
+const invisible = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\u3164\u115F\u1160\uFFA0\u2800]/u;
 const visible = /[\p{L}\p{N}]/u;
 
 export async function updateName(name: string) {
   const s = session();
-  const v = name.trim();
+  // Trim like Go's strings.TrimSpace: JavaScript's whitespace minus U+FEFF. trim() would drop a
+  // BOM (format character Cf) that the core keeps and then refuses, so "\uFEFFAna" fails here too,
+  // while a trailing line break is trimmed away on both sides.
+  const v = name.replace(/^[^\S\uFEFF]+|[^\S\uFEFF]+$/g, "");
   if (!v || [...v].length > 120 || invisible.test(v) || !visible.test(v)) throw new ApiError(400, "invalid_name");
   names.set(s.email, v);
   setSession({ ...s, name: v });
