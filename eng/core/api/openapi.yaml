@@ -979,8 +979,11 @@ components:
         status: { type: string, enum: [accepted, duplicate, quarantined] }
         reason:
           type: string
-          description: Set when quarantined.
-          enum: [unknown_layout, bank_mismatch, account_mismatch, row_parse, incomplete, balance_mismatch, chain_gap, empty]
+          description: |
+            Set when quarantined. movement_conflict: a line has the identity of a stored movement
+            (account, date, amount, running balance, references) but another description; it is
+            never stored twice and never overwritten, an operator looks at it.
+          enum: [unknown_layout, bank_mismatch, account_mismatch, row_parse, incomplete, balance_mismatch, chain_gap, empty, movement_conflict]
         detail: { type: string }
         fileHash: { type: string, description: SHA-256 of the file in hex. }
         fingerprint: { type: string }
