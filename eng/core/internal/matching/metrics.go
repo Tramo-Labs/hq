@@ -46,7 +46,8 @@ func monthRange(period string) (time.Time, time.Time, error) {
 }
 
 // pendingReasons are the reasons counted one by one in the Suggested tray.
-var pendingReasons = []PendingReason{ReasonAmbiguous, ReasonComboAmbiguous, ReasonRefAmountDiffers, ReasonClientOther}
+var pendingReasons = []PendingReason{ReasonAmbiguous, ReasonSharedCandidate, ReasonComboAmbiguous, ReasonRefAmountDiffers,
+	ReasonClientOther, ReasonClientRejected}
 
 // Metrics computes the results panel of the tenant in the context for one
 // month, in one tenant transaction. now dates the age of open exceptions.
@@ -91,18 +92,13 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 			return err
 		}
 
-		// Open exceptions: movements the latest run of the month left in
-		// Exceptions with no client decision in effect, and escalated
+		// Open exceptions: the movements the client's Exceptions list shows
+		// for the month (pendingRowsSQL, the same definition), and escalated
 		// matches of the month the client has not decided.
-		if err := tx.QueryRow(ctx, `
-			with latest as (select id from matching.runs where period = $1 order by started_at desc, id limit 1),
-			     open_moves as (
-			       select p.movement_id from matching.pending p
-			        where p.run_id in (select id from latest) and p.tray = 'exception'
-			          and not exists (select 1 from matching.movement_decision_state s
-			                           where s.tenant_id = p.tenant_id and s.movement_id = p.movement_id and s.action is not null))
-			select (select count(*) from open_moves),
-			       (select min(l.date) from ledger.movements l where l.id in (select movement_id from open_moves))`,
+		if err := tx.QueryRow(ctx, pendingRowsSQL("$1")+`
+			select count(*), min(l.date)
+			  from waiting w join ledger.movements l on l.id = w.movement_id
+			 where w.tray = 'exception'`,
 			period).Scan(&openMoves, &oldest); err != nil {
 			return err
 		}
@@ -117,15 +113,9 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 			return err
 		}
 
-		// Pending by reason in Suggested, from the latest run of the month.
-		rows, err := tx.Query(ctx, `
-			with latest as (select id from matching.runs where period = $1 order by started_at desc, id limit 1)
-			select case when p.tray = 'exception' and s.action = 'other' then 'client_other' else p.reason end, count(*)
-			  from matching.pending p
-			  left join matching.movement_decision_state s on s.tenant_id = p.tenant_id and s.movement_id = p.movement_id
-			 where p.run_id in (select id from latest)
-			   and (p.tray = 'suggested' or (p.tray = 'exception' and s.action = 'other'))
-			 group by 1`, period)
+		// Pending by reason in Suggested: what the operator's list shows.
+		rows, err := tx.Query(ctx, pendingRowsSQL("$1")+`
+			select w.reason, count(*) from waiting w where w.tray = 'suggested' group by 1`, period)
 		if err != nil {
 			return err
 		}
@@ -197,7 +187,7 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 			}
 		} else {
 			m("open_exception_movements", "Movimientos sin explicar", "count", "/v1/matching/pending?tray=exception&period="+period,
-				measured(float64(openMoves)), "Movimientos del mes en Excepciones sin candidato y sin decisión del cliente, según la última corrida")
+				measured(float64(openMoves)), "Movimientos del mes en Excepciones sin candidato, sin decisión del cliente o devueltos por el operador, según la última corrida")
 			m("open_exception_matches", "Sugerencias esperando al cliente", "count", "/v1/matching/matches?tray=exception&period="+period,
 				measured(float64(openMatches)), "Sugerencias del mes que el operador mandó a Excepciones y el cliente no decidió")
 			if oldest == nil {
@@ -230,9 +220,11 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 
 var reasonLabel = map[PendingReason]string{
 	ReasonAmbiguous:        "dos candidatos iguales",
+	ReasonSharedCandidate:  "el candidato también le sirve a otro movimiento",
 	ReasonComboAmbiguous:   "más de una combinación posible",
 	ReasonRefAmountDiffers: "la referencia no cierra con el importe",
 	ReasonClientOther:      "el cliente dice que es otra cosa",
+	ReasonClientRejected:   "el cliente rechazó la propuesta",
 }
 
 func civilDay(t time.Time) time.Time {

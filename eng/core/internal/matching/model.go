@@ -132,7 +132,11 @@ type Candidate struct {
 type PendingReason string
 
 const (
-	ReasonAmbiguous        PendingReason = "ambiguous" // two or more equally good candidates
+	ReasonAmbiguous PendingReason = "ambiguous" // two or more equally good candidates
+	// ReasonSharedCandidate: one candidate, but it is also the only one of
+	// another movement (two equal transfers, one invoice). Who takes it is
+	// not guessed.
+	ReasonSharedCandidate  PendingReason = "shared_candidate"
 	ReasonComboAmbiguous   PendingReason = "combination_ambiguous"
 	ReasonRefAmountDiffers PendingReason = "reference_amount_differs" // a reference points at an item whose amount does not close
 	ReasonNoCandidate      PendingReason = "no_candidate"

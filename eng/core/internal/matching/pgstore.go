@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -307,8 +308,15 @@ func actionFits(a Action, tray Tray) bool {
 }
 
 // ErrActionNotInTray means the action is not offered in the item's tray
-// (escalate outside Suggested, other outside Exceptions or without a note).
+// (escalate outside Suggested, other outside Exceptions).
 var ErrActionNotInTray = errors.New("matching: this action is not available in the item's tray")
+
+// ErrNoteRequired means the action needs a note saying why, and none came
+// (blank counts as none).
+var ErrNoteRequired = errors.New("matching: this action requires a note")
+
+// noteMissing reports whether a note is empty or only spaces.
+func noteMissing(note string) bool { return strings.TrimSpace(note) == "" }
 
 // DecisionInput is everything a caller may say about a decision. Who
 // decides and with which role are never input: the user comes from the
@@ -465,12 +473,21 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 	}
 	applied := false
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		// Replay first: the same key, match, action and user answers what
+		// The role first, read from the membership: someone who decides no
+		// tray is 403 whatever key it sends, never a replay nor a 422.
+		var err error
+		if d.Role, err = memberRole(ctx, tx); err != nil {
+			return err
+		}
+		if !CanDecide(d.Role, Suggested) && !CanDecide(d.Role, Exception) {
+			return ErrForbidden
+		}
+		// Then the replay: the same key, match, action and user answers what
 		// was stored, before anything else is looked at again.
 		var prevMatch, prevAction, prevRole, prevNote, prevTray string
 		var prevUser uuid.UUID
 		var prevAt time.Time
-		err := tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note, tray from matching.decisions where key = $1`, key).
+		err = tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note, tray from matching.decisions where key = $1`, key).
 			Scan(&prevMatch, &prevAction, &prevUser, &prevRole, &prevAt, &prevNote, &prevTray)
 		if err == nil {
 			if prevMatch == d.MatchID && prevAction == string(d.Action) && prevUser == sc.UserID {
@@ -485,9 +502,6 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 
 		stored, states, periods, err := matchState(ctx, tx, d.MatchID)
 		if err != nil {
-			return err
-		}
-		if d.Role, err = memberRole(ctx, tx); err != nil {
 			return err
 		}
 
@@ -524,8 +538,13 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			if !CanDecide(d.Role, d.Tray) {
 				return ErrForbidden
 			}
-			if !actionFits(d.Action, d.Tray) || (d.Action == Other && d.Note == "") {
+			if !actionFits(d.Action, d.Tray) {
 				return ErrActionNotInTray
+			}
+			// "Other" says what it is; "reject" says why (product spec
+			// section 4). Both in either tray, never optional.
+			if (d.Action == Other || d.Action == Reject) && noteMissing(d.Note) {
+				return ErrNoteRequired
 			}
 			target = states[d.Tray]
 			if target.action != "" {
@@ -548,6 +567,19 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 		if err != nil {
 			return err
 		}
+		// A client's reject goes back to the operator through the movements
+		// (client_rejected); reverting it takes them back, only while the
+		// operator has not answered.
+		if d.Tray == Exception && d.Action == Reject {
+			if err := rejectToOperator(ctx, tx, d, key, sc.UserID); err != nil {
+				return err
+			}
+		}
+		if d.Tray == Exception && d.Action == Revert && target.action == Reject {
+			if err := takeBackReject(ctx, tx, d, key, sc.UserID); err != nil {
+				return err
+			}
+		}
 		applied = true
 		return audit.Record(ctx, tx, audit.Entry{Action: "matching." + string(d.Action), Subject: "matching.matches:" + d.MatchID,
 			Detail: map[string]any{"rule": d.Match.Rule.String(), "role": d.Role, "tray": string(d.Tray), "revision": d.Revision}})
@@ -556,6 +588,67 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 		return Decision{}, false, err
 	}
 	return d, applied, nil
+}
+
+// ErrOperatorAnswered: the client tried to revert a reject the operator
+// already answered on one of its movements. The operator's answer is
+// reverted first.
+var ErrOperatorAnswered = errors.New("matching: the operator already answered this reject")
+
+// rejectToOperator writes one 'rejected' movement decision per movement of
+// the match, with the client's reason: the movement is the operator's now,
+// with the same turn as after "other". Each row's key derives from the
+// decision's, so the rows are as idempotent as the decision.
+func rejectToOperator(ctx context.Context, tx pgx.Tx, d Decision, key, user uuid.UUID) error {
+	for _, mv := range d.Match.MovementIDs {
+		var rev int
+		var action string
+		err := tx.QueryRow(ctx,
+			`select revision, coalesce(action, '') from matching.movement_decision_state where movement_id = $1`, mv).
+			Scan(&rev, &action)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if action != "" {
+			return ErrAlreadyDecided
+		}
+		if _, err := tx.Exec(ctx,
+			`insert into matching.movement_decisions (tenant_id, key, movement_id, revision, action, match_id, note, user_id, role)
+			 values (app_current_tenant(), $1, $2, $3, 'rejected', $4, $5, $6, $7)`,
+			uuid.NewSHA1(key, []byte(mv)), mv, rev+1, d.MatchID, d.Note, user, d.Role); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// takeBackReject reverts the 'rejected' rows of a reject the client is
+// reverting. If the operator answered any of them, nothing is reverted.
+func takeBackReject(ctx context.Context, tx pgx.Tx, d Decision, key, user uuid.UUID) error {
+	for _, mv := range d.Match.MovementIDs {
+		var id int64
+		var rev int
+		var action, match string
+		if err := tx.QueryRow(ctx,
+			`select coalesce(id, 0), revision, coalesce(action, ''), coalesce(match_id, '')
+			   from matching.movement_decision_state where movement_id = $1`, mv).
+			Scan(&id, &rev, &action, &match); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrOperatorAnswered
+			}
+			return err
+		}
+		if action != string(MovementRejected) || match != d.MatchID {
+			return ErrOperatorAnswered
+		}
+		if _, err := tx.Exec(ctx,
+			`insert into matching.movement_decisions (tenant_id, key, movement_id, revision, action, user_id, role, reverts)
+			 values (app_current_tenant(), $1, $2, $3, 'revert', $4, $5, $6)`,
+			uuid.NewSHA1(key, []byte(mv)), mv, rev+1, user, d.Role, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ErrNotFound means the match does not exist for the tenant in the context.
@@ -658,7 +751,11 @@ func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, lim
 // PendingRow is a pending movement as stored by a run.
 type PendingRow struct {
 	RunID uuid.UUID
-	Note  string // the client's note, for ReasonClientOther
+	// Note is the client's note for client_other and client_rejected, the
+	// operator's for operator_returned.
+	Note string
+	// MatchID is the match the client rejected, for client_rejected.
+	MatchID string
 	// The movement itself, so each pending row can be told apart.
 	Date        time.Time
 	Amount      money.Amount
@@ -672,6 +769,54 @@ type PendingRow struct {
 // ReasonClientOther: the client said the movement is something else; it
 // is back with the operator, with the client's note.
 const ReasonClientOther PendingReason = "client_other"
+
+// ReasonOperatorReturned: the operator sent a client_other movement back
+// to the client, with the operator's note.
+const ReasonOperatorReturned PendingReason = "operator_returned"
+
+// ReasonClientRejected: the client rejected the match proposed for the
+// movement; it is back with the operator, with the client's reason.
+const ReasonClientRejected PendingReason = "client_rejected"
+
+// pendingRowsSQL is the one definition of what waits in each tray, for the
+// lists and for the metrics, so the panel and the trays never disagree.
+// It defines the CTE "waiting" (run_id, movement_id, tray, reason,
+// candidates, note, match_id) for the period in the parameter given
+// ("" means every period):
+//   - what the latest run of each period left pending, for movements with
+//     no decision in effect;
+//   - movements whose decision in effect hands them to a side, whatever
+//     the runs say: the client's "other" or reject to the operator
+//     (Suggested), the operator's return to the client (Exceptions). Unless
+//     a match in effect settles the movement now.
+//
+// Resolved and linked movements are in neither tray.
+func pendingRowsSQL(periodParam string) string {
+	return strings.ReplaceAll(`
+		with latest as (select distinct on (period) id from matching.runs
+		                 where $P = '' or period = $P order by period, started_at desc, id),
+		     st as (select movement_id, action, note, match_id from matching.movement_decision_state where action is not null),
+		     waiting as (
+		       select p.run_id, p.movement_id, p.tray, p.reason, p.candidates, ''::text as note, null::text as match_id
+		         from matching.pending p
+		        where p.run_id in (select id from latest)
+		          and not exists (select 1 from st where st.movement_id = p.movement_id)
+		       union all
+		       select coalesce((select r.id from matching.runs r where r.period = to_char(l.date, 'YYYY-MM')
+		                         order by r.started_at desc, r.id limit 1),
+		                       (select r.id from matching.runs r order by r.started_at desc, r.id limit 1)),
+		              st.movement_id,
+		              case st.action when 'return' then 'exception' else 'suggested' end,
+		              case st.action when 'other' then 'client_other' when 'rejected' then 'client_rejected'
+		                             else 'operator_returned' end,
+		              '[]'::jsonb, st.note, case when st.action = 'rejected' then st.match_id end
+		         from st
+		         join ledger.movements l on l.id = st.movement_id
+		        where st.action in ('other', 'rejected', 'return')
+		          and ($P = '' or to_char(l.date, 'YYYY-MM') = $P)
+		          and not exists (select 1 from matching.matches m where st.movement_id = any(m.movement_ids) and `+matchInEffect+`))
+	`, "$P", periodParam)
+}
 
 // LatestPending lists the movements waiting in a tray according to the
 // latest run of each period.
@@ -687,28 +832,15 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 		if err := mustSeeTray(ctx, tx, tray); err != nil {
 			return err
 		}
-		// A movement the client decided leaves the Exceptions tray; if the
-		// decision in effect is "other", it shows in Suggested for the
-		// operator with the client's note. A reverted decision puts it back.
-		rows, err := tx.Query(ctx, `
-			with latest as (select distinct on (period) id from matching.runs
-			                 where $3 = '' or period = $3 order by period, started_at desc, id),
-			     cur as (select p.*, s.action as decided, s.note as client_note from matching.pending p
-			               left join matching.movement_decision_state s on s.tenant_id = p.tenant_id and s.movement_id = p.movement_id
-			              where p.run_id in (select id from latest))
-			select cur.run_id, cur.movement_id,
-			       case when cur.tray = 'exception' and decided = 'other' then 'suggested' else cur.tray end,
-			       case when cur.tray = 'exception' and decided = 'other' then 'client_other' else reason end,
-			       candidates, coalesce(client_note, ''),
+		// See pendingRowsSQL: what each tray holds, decisions included.
+		rows, err := tx.Query(ctx, pendingRowsSQL("$3")+`
+			select w.run_id, w.movement_id, w.tray, w.reason, w.candidates, w.note, coalesce(w.match_id, ''),
 			       l.date, l.amount, l.description, a.id, a.name, a.bank
-			  from cur
-			  join ledger.movements l on l.id = cur.movement_id
+			  from waiting w
+			  join ledger.movements l on l.id = w.movement_id
 			  join ledger.accounts a on a.id = l.account_id
-			 where case $1
-			         when 'exception' then tray = 'exception' and decided is null
-			         when 'suggested' then tray = 'suggested' or (tray = 'exception' and decided = 'other')
-			         else false end
-			 order by movement_id limit $2`, string(tray), limit, period)
+			 where w.tray = $1
+			 order by w.movement_id limit $2`, string(tray), limit, period)
 		if err != nil {
 			return err
 		}
@@ -719,15 +851,12 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 			var t, reason string
 			var cands []byte
 			var amount int64
-			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands, &r.Note,
+			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands, &r.Note, &r.MatchID,
 				&r.Date, &amount, &r.Description, &r.AccountID, &r.AccountName, &r.Bank); err != nil {
 				return err
 			}
 			r.Amount = money.Amount(amount)
 			r.MovementID, r.Tray, r.Reason = mid.String(), Tray(t), PendingReason(reason)
-			if r.Reason != ReasonClientOther {
-				r.Note = ""
-			}
 			if err := json.Unmarshal(cands, &r.Candidates); err != nil {
 				return err
 			}

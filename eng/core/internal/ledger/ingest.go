@@ -35,6 +35,9 @@ const (
 	ReasonBalance         = "balance_mismatch" // balances do not close
 	ReasonChainGap        = "chain_gap"        // opening differs from the previous closing
 	ReasonEmpty           = "empty"            // no movements and no stated balances
+	// ReasonMovementConflict: a line has the identity of a stored movement
+	// but another description. Never stored twice, never overwritten.
+	ReasonMovementConflict = "movement_conflict"
 )
 
 // Upload is a file a tenant sent for one of its accounts.
@@ -52,7 +55,7 @@ type Upload struct {
 type Result struct {
 	Status         Status
 	Reason         string // set when quarantined
-	Detail         string // human readable, never contains amounts or names from the file header
+	Detail         string // for the tenant only (may name the amounts that do not close); never logged nor audited
 	FileHash       string
 	Fingerprint    string
 	LayoutID       string
@@ -67,8 +70,9 @@ type Result struct {
 type Store interface {
 	// FileSeen reports whether the tenant already uploaded a file with this hash.
 	FileSeen(ctx context.Context, tenantID, fileHash string) (bool, error)
-	// MovementsSeen returns which of the keys the account already has.
-	MovementsSeen(ctx context.Context, tenantID, accountID string, keys []string) (map[string]bool, error)
+	// MovementsSeen returns the keys the account already has, each with the
+	// description stored for it.
+	MovementsSeen(ctx context.Context, tenantID, accountID string, keys []string) (map[string]string, error)
 	// LastStatement returns the latest accepted statement of the account, or nil.
 	LastStatement(ctx context.Context, tenantID, accountID string) (*StatementSummary, error)
 	// SaveAccepted stores the file, the statement and only the new movements, atomically.
@@ -142,11 +146,20 @@ func (in *Ingester) Ingest(ctx context.Context, u Upload) (Result, error) {
 	var fresh []Movement
 	for i := range st.Movements {
 		st.Movements[i].Key = keys[i]
-		if have[keys[i]] {
-			res.AlreadyPresent++
+		stored, ok := have[keys[i]]
+		if !ok {
+			fresh = append(fresh, st.Movements[i])
 			continue
 		}
-		fresh = append(fresh, st.Movements[i])
+		// Same account, date, amount, balance and references, other text:
+		// a bank that rewrote the concept or an edited file. Either way the
+		// file does not enter; it is never counted twice nor overwritten.
+		if normalizeHeader(stored) != normalizeHeader(st.Movements[i].Description) {
+			return quarantine(ReasonMovementConflict, fmt.Sprintf(
+				"line %d has the date, amount, balance and references of a movement already stored, with another description",
+				st.Movements[i].Line))
+		}
+		res.AlreadyPresent++
 	}
 	res.Status, res.Statement, res.New = Accepted, st, len(fresh)
 	if err := in.Store.SaveAccepted(ctx, u, res, fresh); err != nil {
@@ -210,6 +223,12 @@ func sameAccount(a, b string) bool {
 // fingerprint of the header it found.
 func Parse(data []byte) (*Statement, string, string) {
 	det := detect(decodeText(data))
+	// A line the CSV reader cannot split stops the file with that line,
+	// whether or not the header was recognized: the layout is not the
+	// problem, the row is (F16). Its contents never go in the detail.
+	if det.Broken != nil && (det.Layout != nil || det.Fingerprint == "") {
+		return nil, ReasonRowParse, fmt.Sprintf("line %d: %v", det.Broken.Line, det.Broken.Err)
+	}
 	if det.Layout == nil {
 		return nil, ReasonUnknownLayout, det.Fingerprint
 	}
@@ -225,8 +244,11 @@ func Parse(data []byte) (*Statement, string, string) {
 }
 
 // movementKeys builds the deduplication key of each movement: account, date,
-// amount, running balance when present, normalized description, references,
-// and the occurrence number among identical movements of the same file.
+// amount, running balance when present, references, and the occurrence
+// number among identical movements of the same file. The description is
+// not part of it (F3): a bank that rewrites a concept between two exports,
+// or an edited cell, must not turn one movement into two. Ingest compares
+// the description against the stored one and quarantines on a difference.
 // Two genuine identical transfers on the same day get different occurrence
 // numbers; the same movement in two overlapping exports gets the same key.
 func movementKeys(accountID string, mv []Movement) []string {
@@ -238,7 +260,7 @@ func movementKeys(accountID string, mv []Movement) []string {
 			bal = m.Balance.String()
 		}
 		base := strings.Join([]string{accountID, m.Date.Format("2006-01-02"), m.Amount.String(), bal,
-			normalizeHeader(m.Description), m.Reference, m.ExternalRef}, "\x1f")
+			m.Reference, m.ExternalRef}, "\x1f")
 		count[base]++
 		h := sha256.Sum256([]byte(fmt.Sprintf("%s\x1f%d", base, count[base])))
 		keys[i] = hex.EncodeToString(h[:16])

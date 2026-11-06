@@ -3,6 +3,7 @@ package matching
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -11,10 +12,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db/dbtest"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
 
 func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
@@ -174,7 +177,7 @@ func TestPGDecisions(t *testing.T) {
 	if err != nil || applied || !again.At.Equal(d.At) {
 		t.Errorf("replay: %v %v", err, applied)
 	}
-	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: m, Action: Reject}); !errors.Is(err, ErrAlreadyDecided) {
+	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: m, Action: Reject, Note: "x"}); !errors.Is(err, ErrAlreadyDecided) {
 		t.Errorf("second decision: %v", err)
 	}
 	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: key, Match: auto(r), Action: Approve}); !errors.Is(err, ErrKeyReused) {
@@ -331,14 +334,14 @@ func TestPGExceptionsAreTheClients(t *testing.T) {
 	if _, err := e.decideAs(t, identity.RoleApprover, m, Escalate, ""); !errors.Is(err, ErrActionNotInTray) {
 		t.Errorf("escalate in Exceptions: %v", err)
 	}
-	if _, err := e.decideAs(t, identity.RoleApprover, m, Other, ""); !errors.Is(err, ErrActionNotInTray) {
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Other, ""); !errors.Is(err, ErrNoteRequired) {
 		t.Errorf("other without a note: %v", err)
 	}
 	d, err := e.decideAs(t, identity.RoleApprover, m, Approve, "")
 	if err != nil || d.Tray != Exception || d.Role != identity.RoleApprover {
 		t.Fatalf("approver: %v %+v", err, d)
 	}
-	if _, err := e.decideAs(t, identity.RoleOwner, m, Reject, ""); !errors.Is(err, ErrAlreadyDecided) {
+	if _, err := e.decideAs(t, identity.RoleOwner, m, Reject, "x"); !errors.Is(err, ErrAlreadyDecided) {
 		t.Errorf("second client decision: %v", err)
 	}
 	// Approved by the client: settled for the next run.
@@ -441,7 +444,8 @@ func TestPGDowngradedRoleCannotDecide(t *testing.T) {
 func TestPGRejectedIsNotProposedAgain(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
-	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Reject}); err != nil {
+	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Reject,
+		Note: "not this invoice"}); err != nil {
 		t.Fatal(err)
 	}
 	r2, _ := e.run(t)
@@ -506,5 +510,76 @@ func TestPGTenantIsolation(t *testing.T) {
 	})
 	if err == nil {
 		t.Error("tenant b wrote an item for tenant a")
+	}
+}
+
+// An escalated match is stored as suggested, but the client's Exceptions
+// listing must say where it waits now: tray "exception".
+// Rejecting says why, in both trays (product spec section 4): the operator
+// in Suggested, the client in Exceptions. A blank note is no note. The
+// reason is stored with the decision.
+func TestPGRejectRequiresANote(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	sug := suggested(r)
+	for _, note := range []string{"", "   "} {
+		if _, err := e.decideAs(t, identity.RoleOperator, sug, Reject, note); !errors.Is(err, ErrNoteRequired) {
+			t.Errorf("operator reject with note %q: %v", note, err)
+		}
+	}
+	if d, err := e.decideAs(t, identity.RoleOperator, sug, Reject, "the invoice is of another client"); err != nil ||
+		d.Note != "the invoice is of another client" || d.Tray != Suggested {
+		t.Fatalf("operator reject: %v %+v", err, d)
+	}
+
+	e2 := newPGEnv(t)
+	r2, _ := e2.run(t)
+	m := e2.escalated(t, r2)
+	if _, err := e2.decideAs(t, identity.RoleApprover, m, Reject, ""); !errors.Is(err, ErrNoteRequired) {
+		t.Errorf("client reject without a note: %v", err)
+	}
+	if d, err := e2.decideAs(t, identity.RoleApprover, m, Reject, "no es de este proveedor"); err != nil || d.Tray != Exception {
+		t.Fatalf("client reject: %v %+v", err, d)
+	}
+	var stored string
+	if err := e2.d.InTenant(e2.ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(e2.ctx, `select note from matching.decisions where match_id = $1 and action = 'reject'`, m.ID).Scan(&stored)
+	}); err != nil || stored != "no es de este proveedor" {
+		t.Errorf("stored reason %q (%v)", stored, err)
+	}
+}
+
+// Every decision problem has a fixed detail: whatever text the error
+// carries (ids, input, internals) never reaches the client.
+func TestDecisionProblemDetailsAreFixed(t *testing.T) {
+	const leak = "SECRET 7c8911c0 select * from"
+	for _, base := range []error{ErrForbidden, ErrNoUser, ErrAlreadyDecided, ErrNothingToRevert, ErrClosed,
+		ErrNotInExceptions, ErrOperatorAnswered, ErrRevertOnMatch, ErrNotWithOperator, ErrItemTaken, ErrNoteRequired,
+		ErrActionNotInTray, ErrLinkDoesNotAdd, ErrUnknownItem, ErrUnknownMovement, ErrInvalid, ErrKeyReused} {
+		got := decisionProblem(fmt.Errorf("%w: %s", base, leak))
+		var pe *httpx.Error
+		if !errors.As(got, &pe) {
+			t.Errorf("%v: not a problem: %v", base, got)
+			continue
+		}
+		if pe.Detail == "" || strings.Contains(pe.Detail, "SECRET") || strings.Contains(pe.Detail, "matching:") {
+			t.Errorf("%v: detail %q", base, pe.Detail)
+		}
+	}
+}
+
+func TestHTTPEscalatedListsAsException(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	m := e.escalated(t, r)
+	e.setMembership(t, e.a, identity.RoleApprover)
+	res, err := NewHandlers(e.store).ListMatches(e.ctx, apigen.ListMatchesRequestObject{
+		Params: apigen.ListMatchesParams{Tray: "exception"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := res.(apigen.ListMatches200JSONResponse).Items
+	if len(items) != 1 || items[0].Id != m.ID || items[0].Tray != "exception" {
+		t.Fatalf("escalated match as the approver lists it: %+v", items)
 	}
 }

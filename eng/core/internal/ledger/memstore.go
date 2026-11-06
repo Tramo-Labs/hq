@@ -32,13 +32,13 @@ func (s *MemStore) FileSeen(_ context.Context, tenant, hash string) (bool, error
 	return s.files[tenant+"|"+hash], nil
 }
 
-func (s *MemStore) MovementsSeen(_ context.Context, tenant, account string, keys []string) (map[string]bool, error) {
+func (s *MemStore) MovementsSeen(_ context.Context, tenant, account string, keys []string) (map[string]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := map[string]bool{}
+	out := map[string]string{}
 	for _, k := range keys {
-		if _, ok := s.movements[tenant+"|"+account][k]; ok {
-			out[k] = true
+		if m, ok := s.movements[tenant+"|"+account][k]; ok {
+			out[k] = m.Description
 		}
 	}
 	return out, nil

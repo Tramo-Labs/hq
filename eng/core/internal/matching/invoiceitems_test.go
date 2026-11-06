@@ -2,6 +2,7 @@ package matching
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -91,6 +92,20 @@ func TestPGInvoicesGenerateItems(t *testing.T) {
 	}
 	if items != 2 || qrAmount != -12050050 || qrConf < DefaultConfig.AutoConfidence || textConf >= DefaultConfig.AutoConfidence {
 		t.Fatalf("items %d, qr %d at %.2f, text at %.2f", items, qrAmount, qrConf, textConf)
+	}
+	// The invoice says what its item says: the text one, with an uncertain
+	// direction, is not eligible for automatic and is listed to review,
+	// with the reason in its trail. The QR one is eligible.
+	if got, err := ds.Get(e.ctx, text); err != nil || got.AutoEligible() || !got.DirectionUncertain ||
+		!slices.Contains(got.Trail, documents.TrailDirectionUncertain) {
+		t.Errorf("text invoice: eligible %v, trail %v (%v)", got.AutoEligible(), got.Trail, err)
+	}
+	if got, err := ds.Get(e.ctx, qr); err != nil || !got.AutoEligible() || got.DirectionUncertain {
+		t.Errorf("qr invoice: eligible %v (%v)", got.AutoEligible(), err)
+	}
+	review, err := ds.List(e.ctx, documents.ListFilter{Review: true}, 10)
+	if err != nil || len(review) != 1 || review[0].ID != text || review[0].AutoEligible {
+		t.Errorf("review list %+v %v", review, err)
 	}
 
 	r, _ := e.run(t)

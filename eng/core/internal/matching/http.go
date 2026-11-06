@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -82,6 +81,10 @@ func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingReques
 			note := r.Note
 			pm.Note = &note
 		}
+		if r.MatchID != "" {
+			m := r.MatchID
+			pm.MatchId = &m
+		}
 		for _, c := range r.Candidates {
 			ids, err := uuids(c.ItemIDs)
 			if err != nil {
@@ -90,6 +93,37 @@ func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingReques
 			pm.Candidates = append(pm.Candidates, apigen.Candidate{Rule: c.Rule.ID, ItemIds: ids})
 		}
 		out.Items = append(out.Items, pm)
+	}
+	return out, nil
+}
+
+// ListOpenItems lists what "link by hand" offers: the items no match in
+// effect settles. Every member of the tenant sees them.
+func (h *Handlers) ListOpenItems(ctx context.Context, req apigen.ListOpenItemsRequestObject) (apigen.ListOpenItemsResponseObject, error) {
+	dir := ""
+	if req.Params.Direction != nil {
+		dir = string(*req.Params.Direction)
+	}
+	items, more, err := h.store.OpenItems(ctx, periodOf(req.Params.Period), dir, listLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.ListOpenItems200JSONResponse{Items: []apigen.OpenItem{}, Truncated: more}
+	for _, it := range items {
+		oi := apigen.OpenItem{Id: it.ID, Source: it.Source, SourceId: it.SourceID, Kind: it.Kind,
+			Date: openapi_types.Date{Time: it.Date}, Amount: int64(it.Amount), Refs: it.Refs,
+			Confidence: float32(it.Confidence), InvoiceId: it.InvoiceID}
+		if oi.Refs == nil {
+			oi.Refs = []string{}
+		}
+		if it.Due != nil {
+			oi.Due = &openapi_types.Date{Time: *it.Due}
+		}
+		if it.Party != "" {
+			p := it.Party
+			oi.Party = &p
+		}
+		out.Items = append(out.Items, oi)
 	}
 	return out, nil
 }
@@ -137,7 +171,7 @@ func (h *Handlers) DecideMovement(ctx context.Context, req apigen.DecideMovement
 	}
 	got, _, err := h.store.DecideMovement(ctx, in)
 	if err != nil {
-		if errors.Is(err, ErrInvalid) && strings.Contains(err.Error(), "unknown movement") {
+		if errors.Is(err, ErrUnknownMovement) {
 			return nil, &httpx.Error{Status: http.StatusNotFound, Code: httpx.CodeNotFound, Detail: "movement not found"}
 		}
 		return nil, decisionProblem(err)
@@ -163,10 +197,15 @@ func (h *Handlers) DecideMovement(ctx context.Context, req apigen.DecideMovement
 	return out, nil
 }
 
-// decisionProblem maps the store's decision errors to problems.
+// decisionProblem maps the store's decision errors to problems. Every
+// detail is a fixed sentence: never the error's text, which can carry ids,
+// input or internals. Anything not listed stays an error (500, logged).
 func decisionProblem(err error) error {
 	conflict := func(code, detail string) error {
 		return &httpx.Error{Status: http.StatusConflict, Code: code, Detail: detail}
+	}
+	bad := func(code, detail string) error {
+		return &httpx.Error{Status: http.StatusBadRequest, Code: code, Detail: detail}
 	}
 	switch {
 	case errors.Is(err, ErrForbidden), errors.Is(err, ErrNoUser):
@@ -174,15 +213,29 @@ func decisionProblem(err error) error {
 	case errors.Is(err, ErrAlreadyDecided):
 		return conflict(httpx.CodeConflict, "there is already a decision in effect")
 	case errors.Is(err, ErrNothingToRevert):
-		return conflict("nothing_to_revert", ErrNothingToRevert.Error())
+		return conflict("nothing_to_revert", "there is no decision in effect to revert")
 	case errors.Is(err, ErrClosed):
-		return conflict("period_closed", ErrClosed.Error())
+		return conflict("period_closed", "the period is closed")
 	case errors.Is(err, ErrNotInExceptions):
-		return conflict("not_in_exceptions", ErrNotInExceptions.Error())
+		return conflict("not_in_exceptions", "the movement is not in the Exceptions tray without a candidate")
+	case errors.Is(err, ErrOperatorAnswered):
+		return conflict("operator_answered", "the operator already answered this reject")
+	case errors.Is(err, ErrRevertOnMatch):
+		return conflict("revert_on_match", "revert the reject on the match")
+	case errors.Is(err, ErrNotWithOperator):
+		return conflict("not_with_operator", "the movement is not waiting for the operator")
 	case errors.Is(err, ErrItemTaken):
-		return conflict("item_taken", ErrItemTaken.Error())
-	case errors.Is(err, ErrActionNotInTray), errors.Is(err, ErrLinkDoesNotAdd), errors.Is(err, ErrInvalid):
-		return &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: err.Error()}
+		return conflict("item_taken", "an item is already settled by another match")
+	case errors.Is(err, ErrNoteRequired):
+		return bad("note_required", "note required: say why")
+	case errors.Is(err, ErrActionNotInTray):
+		return bad(httpx.CodeBadRequest, "this action is not available in the item's tray")
+	case errors.Is(err, ErrLinkDoesNotAdd):
+		return bad(httpx.CodeBadRequest, "the items do not add up exactly to the movement")
+	case errors.Is(err, ErrUnknownItem):
+		return bad(httpx.CodeBadRequest, "an item to link does not exist")
+	case errors.Is(err, ErrInvalid):
+		return bad(httpx.CodeBadRequest, "invalid decision")
 	case errors.Is(err, ErrKeyReused):
 		return &httpx.Error{Status: http.StatusUnprocessableEntity, Code: httpx.CodeIdempotencyMismatch, Detail: "key used for another decision"}
 	}

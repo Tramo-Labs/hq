@@ -64,10 +64,6 @@ func (s *PGStore) Save(ctx context.Context, doc []byte, inv *Invoice) (uuid.UUID
 	if err != nil {
 		return uuid.Nil, err
 	}
-	trail, err := json.Marshal(inv.Trail)
-	if err != nil {
-		return uuid.Nil, err
-	}
 	var date *time.Time
 	if v := keyValue(inv, IssueDate); v != nil {
 		if d, err := time.Parse("2006-01-02", *v); err == nil {
@@ -95,17 +91,25 @@ func (s *PGStore) Save(ctx context.Context, doc []byte, inv *Invoice) (uuid.UUID
 		}
 		draft, reason := DraftItem(inv, own)
 		inv.ItemReason = reason
+		inv.DirectionUncertain = reason == "" && !draft.DirectionCertain
+		if inv.DirectionUncertain {
+			inv.Trail = append(inv.Trail, TrailDirectionUncertain)
+		}
+		trail, err := json.Marshal(inv.Trail)
+		if err != nil {
+			return err
+		}
 		var itemReason *string
 		if reason != "" {
 			itemReason = &reason
 		}
-		err := tx.QueryRow(ctx,
+		err = tx.QueryRow(ctx,
 			`insert into documents.invoices (tenant_id, sha256, fields, trail, auto_eligible, min_confidence,
-			   issuer_cuit, doc_type, point_of_sale, number, issue_date, total, item_reason)
-			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) returning id`,
+			   issuer_cuit, doc_type, point_of_sale, number, issue_date, total, item_reason, direction_uncertain)
+			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) returning id`,
 			sum[:], fields, trail, inv.AutoEligible(), inv.MinConfidence(),
 			keyValue(inv, IssuerCUIT), keyInt(inv, DocType), keyInt(inv, PointOfSale), keyInt(inv, Number),
-			date, total, itemReason).Scan(&id)
+			date, total, itemReason, inv.DirectionUncertain).Scan(&id)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			if pgErr.ConstraintName == "invoices_tenant_id_sha256_key" {
@@ -214,8 +218,8 @@ func (s *PGStore) Get(ctx context.Context, id uuid.UUID) (*Invoice, error) {
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		var fields, trail []byte
 		var reason *string
-		if err := tx.QueryRow(ctx, `select fields, trail, item_reason from documents.invoices where id = $1`, id).
-			Scan(&fields, &trail, &reason); err != nil {
+		if err := tx.QueryRow(ctx, `select fields, trail, item_reason, direction_uncertain from documents.invoices where id = $1`, id).
+			Scan(&fields, &trail, &reason, &inv.DirectionUncertain); err != nil {
 			return err
 		}
 		if reason != nil {

@@ -81,7 +81,15 @@ type Invoice struct {
 	// ItemReason says why the stored invoice generated no open item ("" when
 	// it did, or before it is stored). See DraftItem.
 	ItemReason string `json:"-"`
+	// DirectionUncertain: the stored invoice generated an item whose
+	// direction (receivable or payable) is not certain, because it was not
+	// read from the QR. Such an invoice is not eligible for automatic.
+	DirectionUncertain bool `json:"-"`
 }
+
+// TrailDirectionUncertain is the trail line of an invoice whose direction
+// is not certain.
+const TrailDirectionUncertain = "direction: not read from the ARCA QR; receivable or payable is not certain, so it can only be suggested"
 
 func newInvoice() *Invoice { return &Invoice{Fields: map[Name]Field{}} }
 
@@ -133,9 +141,11 @@ func (inv *Invoice) Untrusted() []Name {
 
 // AutoEligible reports whether every required field is trusted. Only then
 // may the invoice be registered without review or feed an automatic match.
-// An invoice that is someone else's (F21) never is.
+// An invoice that is someone else's (F21) never is, nor one whose item has
+// an uncertain direction: its item can only be suggested, and the invoice
+// says the same.
 func (inv *Invoice) AutoEligible() bool {
-	return inv.ItemReason != NoItemNotThisTenant && len(inv.Untrusted()) == 0
+	return inv.ItemReason != NoItemNotThisTenant && !inv.DirectionUncertain && len(inv.Untrusted()) == 0
 }
 
 // MinConfidence over the required fields (0 if any is missing). A field in

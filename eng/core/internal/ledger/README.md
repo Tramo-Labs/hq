@@ -24,7 +24,9 @@ uploaded again. Then balances, chain and movement keys.
    the file states an account number it has to match the registered one.
 3. **Rows.** Every row has to parse: date, amounts in the layout's decimal
    style (see `internal/money`), exactly one of debit and credit. One bad row
-   stops the file (`row_parse`, with line and column).
+   stops the file (`row_parse`, with line and column). So does a line the
+   CSV reader cannot split, such as a stray quote (`row_parse` with the line,
+   F16).
 4. **Balances.** Opening plus credits minus debits equals closing; when rows
    carry a running balance, each one equals the previous plus the movement;
    a stated closing equals the last running balance. A file with no balance
@@ -35,10 +37,26 @@ uploaded again. Then balances, chain and movement keys.
    ends, its opening has to equal the previous closing (`chain_gap`).
    Overlapping exports skip this check: deduplication handles them.
 6. **Movement keys.** SHA-256 of account, date, amount, running balance,
-   normalized description, references and the occurrence number among
-   identical movements of the same file. The same movement in two
-   overlapping exports gets the same key and is stored once; two genuine
-   identical transfers on the same day get different keys.
+   references (the bank voucher and the holder's reference, when the file
+   has them) and the occurrence number among identical movements of the
+   same file. The same movement in two overlapping exports gets the same
+   key and is stored once; two genuine identical transfers on the same day
+   get different keys.
+7. **Description against the stored one (F3).** The description is not part
+   of the key: a bank that rewrites a concept between two exports, or an
+   edited cell, must not turn one movement into two. When a key is already
+   stored, the normalized description has to be the same (case, accents
+   and spacing do not count); otherwise the whole file is
+   `movement_conflict`, with the line, and nothing of it enters. The stored
+   movement is never overwritten. In doubt, quarantine: never money counted
+   twice.
+
+   Known limit: with no running balance and no voucher, two movements of
+   the same day and amount are told apart only by their order in the file.
+   If a later export lists them in another order, the file is quarantined
+   (a false alarm an operator clears), never stored twice. Keys changed
+   format with F3: a file stored before it would not be recognized again,
+   which is fine while there is no client data.
 
 ## Layouts
 
@@ -71,7 +89,8 @@ the movement so matching can explain the difference without inventing it.
 ## Endpoints, tables, jobs, events
 
 Tables (migration 00100, schema `ledger`): `accounts`, `files` (accepted
-or quarantined, with reason and detail), `statements`, `movements`. Every
+or quarantined, with reason and detail, and since 00108 `uploaded_by`, the
+user who uploaded it; null before that), `statements`, `movements`. Every
 table has RLS enabled and forced with the platform tenant policy, and
 references its parents by `(tenant_id, id)` so no row can point at another
 tenant's. Unique: accepted file per tenant and hash; movement per account
@@ -91,6 +110,8 @@ Endpoints (`api/openapi.yaml`, tag `ledger`):
 | `POST /v1/ledger/accounts` | owner, operator | 201 account |
 | `POST /v1/ledger/accounts/{accountId}/statements` | owner, approver, operator, accountant | 201 accepted or quarantined, 200 duplicate; multipart `file`, up to 20 MiB |
 | `GET /v1/ledger/quarantine` | any member | quarantined files, newest first |
+| `GET /v1/ledger/files?period=&status=` | any member | uploaded files, accepted or quarantined, newest first (F12): when, who uploaded it (`uploadedBy`, and the email while that person is still a member), account, statement days, movements it stored, reason when quarantined. `period` is the month it was received (Argentina time). Up to 500, `truncated` says there were more |
+| `GET /v1/ledger/movements?period=&accountId=` | any member | the stored movements dated in the month (`period` required), with the file and line each came from. Up to 5000, `truncated` says there were more |
 
 Every POST requires `Idempotency-Key`. A retry with the same key replays the
 first answer only when the body bytes are the same: a client that rebuilds
@@ -101,8 +122,14 @@ then answers `duplicate`.
 
 Bank statements: account numbers, counterparties' names, amounts. Files are
 stored encrypted at rest with the tenant data key (platform `crypto`).
-Quarantine details and logs carry reason codes, line numbers and
-fingerprints, never cell contents, names or amounts.
+The detail is shown to the tenant; it is never logged. Quarantine details
+carry reason codes, line numbers, columns and fingerprints, never names or
+descriptions. A balance that does not close also names the two amounts that
+disagree: the tenant needs them to fix its own file, and they are its own
+data. The detail goes in the upload answer and the files list, and nowhere
+else: the audit entry of a quarantine carries only the reason code, and no
+log line carries the detail (tested by capturing the request logger and
+reading every audit row).
 
 ## Tests
 
@@ -114,5 +141,12 @@ generated by `testdata/gen_fixtures.py` (invented names and account numbers).
 - Quarantine for each reason: changed layout, truncated file, broken running
   balance (line named), bad amount, fee that does not add up, missing total,
   wrong bank, wrong account.
+- A stray or unclosed quote is `row_parse` naming the line, for a known
+  layout or when no header could be read; never an unknown layout with an
+  empty fingerprint, and never a cut sheet read as a whole statement (F16).
 - Re-upload is a duplicate; overlapping exports store the shared day once;
   twins stay two; the chain check catches a gap; keys are stable.
+- An edited description (formula prefixes, another concept) is
+  `movement_conflict` naming the line, with nothing from the file in the
+  detail; a change of case or spacing enters with nothing new; the
+  matching metrics still count the month's movements once (F3).

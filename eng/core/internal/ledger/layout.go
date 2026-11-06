@@ -1,6 +1,7 @@
 package ledger
 
 import (
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"slices"
@@ -55,6 +56,9 @@ type detection struct {
 	Sheet       *sheet
 	Fingerprint string   // of the best header candidate, even when unknown
 	Header      []string // that candidate, for the quarantine notice
+	// Broken is the first malformed line of the sheet that matched, or,
+	// when none matched, of the first delimiter that broke.
+	Broken *csv.ParseError
 }
 
 // detect tries each delimiter and returns the first sheet whose header
@@ -64,16 +68,22 @@ func detect(text string) detection {
 	var best detection
 	for _, d := range []rune{';', ',', '\t'} {
 		s, err := readSheet(text, d)
-		if err != nil || s.Header < 0 {
+		if err != nil {
+			continue
+		}
+		if s.Broken != nil && best.Broken == nil {
+			best.Broken = s.Broken
+		}
+		if s.Header < 0 {
 			continue
 		}
 		h := s.Rows[s.Header].Cells
 		fp := Fingerprint(d, h)
 		if l, ok := registry[fp]; ok {
-			return detection{Layout: l, Sheet: s, Fingerprint: fp, Header: h}
+			return detection{Layout: l, Sheet: s, Fingerprint: fp, Header: h, Broken: s.Broken}
 		}
 		if len(h) > len(best.Header) {
-			best = detection{Sheet: s, Fingerprint: fp, Header: h}
+			best = detection{Sheet: s, Fingerprint: fp, Header: h, Broken: best.Broken}
 		}
 	}
 	return best

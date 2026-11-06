@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -34,6 +36,17 @@ const (
 	MovementLink MovementAction = "link"
 	// MovementRevert undoes the decision in effect, as a new recorded row.
 	MovementRevert MovementAction = "revert"
+	// MovementResolve: the operator closes a movement the client marked
+	// other, saying what was done with it (note required).
+	MovementResolve MovementAction = "resolve"
+	// MovementReturn: the operator sends it back to the client with what
+	// the operator needs (note required). It shows again in Exceptions.
+	MovementReturn MovementAction = "return"
+	// MovementRejected is written by a client's reject of a match in
+	// Exceptions, one row per movement of the match, never by this
+	// endpoint: the movement is with the operator like after "other", and
+	// the client reverts it on the match.
+	MovementRejected MovementAction = "rejected"
 )
 
 var (
@@ -46,6 +59,17 @@ var (
 	ErrLinkDoesNotAdd = errors.New("matching: the items do not add up exactly to the movement")
 	// ErrItemTaken: an item is already settled by a match in effect.
 	ErrItemTaken = errors.New("matching: an item is already settled by another match")
+	// ErrNotWithOperator: the operator acts only on a movement the client
+	// marked other, or whose match the client rejected, and nobody
+	// answered yet.
+	ErrNotWithOperator = errors.New("matching: the movement is not waiting for the operator")
+	// ErrUnknownMovement: no movement with that id for the tenant.
+	ErrUnknownMovement = fmt.Errorf("%w: unknown movement", ErrInvalid)
+	// ErrUnknownItem: an item to link does not exist for the tenant.
+	ErrUnknownItem = fmt.Errorf("%w: unknown item", ErrInvalid)
+	// ErrRevertOnMatch: a client's reject is reverted on the match it
+	// rejected, not on each movement.
+	ErrRevertOnMatch = errors.New("matching: revert the reject on the match")
 )
 
 // MovementDecisionInput is what the client may say. Who decides and with
@@ -69,11 +93,13 @@ type MovementDecision struct {
 	At         time.Time
 }
 
-// DecideMovement records the client's decision on a movement of the
-// Exceptions tray that has no candidate, or reverts the one in effect.
-// Owner or approver, role read from memberships here. A link creates a
-// manual match (rule manual_link@v1) that is settled for the next runs
-// while the link is in effect.
+// DecideMovement records a decision on a movement of the Exceptions tray
+// that has no candidate, or reverts the one in effect. Role read from
+// memberships here. The client (owner or approver) says other, link, or
+// reverts its own decision; after the client's other, the operator
+// resolves, links or returns it, or reverts its own answer, which puts the
+// client's other back in effect. A link creates a manual match (rule
+// manual_link@v1) that is settled for the next runs while it is in effect.
 func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) (MovementDecision, bool, error) {
 	sc, ok := db.ScopeFrom(ctx)
 	if !ok {
@@ -91,9 +117,9 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		return MovementDecision{}, false, ErrInvalid
 	}
 	switch in.Action {
-	case MovementOther:
-		if in.Note == "" {
-			return MovementDecision{}, false, ErrActionNotInTray
+	case MovementOther, MovementResolve, MovementReturn:
+		if noteMissing(in.Note) {
+			return MovementDecision{}, false, ErrNoteRequired
 		}
 	case MovementLink:
 		if len(in.ItemIDs) == 0 {
@@ -116,7 +142,17 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		var prevUser uuid.UUID
 		var prevRev int
 		var prevAt time.Time
-		err := tx.QueryRow(ctx,
+		// The role first (see Record): someone who decides on no movement
+		// is 403 whatever key it sends.
+		var err error
+		if d.Role, err = memberRole(ctx, tx); err != nil {
+			return err
+		}
+		client, operator := CanDecide(d.Role, Exception), d.Role == identity.RoleOperator
+		if !client && !operator {
+			return ErrForbidden
+		}
+		err = tx.QueryRow(ctx,
 			`select movement_id, action, user_id, role, note, match_id, revision, at from matching.movement_decisions where key = $1`, key).
 			Scan(&prevMove, &prevAction, &prevUser, &prevRole, &prevNote, &prevMatch, &prevRev, &prevAt)
 		if err == nil {
@@ -137,27 +173,25 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		var date time.Time
 		err = tx.QueryRow(ctx, `select amount, date from ledger.movements where id = $1`, mid).Scan(&amount, &date)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("%w: unknown movement", ErrInvalid)
+			return ErrUnknownMovement
 		}
 		if err != nil {
 			return err
 		}
-		if d.Role, err = memberRole(ctx, tx); err != nil {
-			return err
-		}
-		if !CanDecide(d.Role, Exception) {
-			return ErrForbidden
-		}
-
 		var cur struct {
 			id       int64
 			revision int
 			action   string
+			role     string
 		}
 		err = tx.QueryRow(ctx,
-			`select id, revision, coalesce(action, '') from matching.movement_decision_state where movement_id = $1`, mid).
-			Scan(&cur.id, &cur.revision, &cur.action)
+			`select coalesce(id, 0), revision, coalesce(action, ''), coalesce(role, '')
+			   from matching.movement_decision_state where movement_id = $1`, mid).
+			Scan(&cur.id, &cur.revision, &cur.action, &cur.role)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if err := movementTurn(in.Action, client, MovementAction(cur.action), cur.role); err != nil {
 			return err
 		}
 
@@ -165,9 +199,6 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		var matchID *string
 		switch in.Action {
 		case MovementRevert:
-			if cur.action == "" {
-				return ErrNothingToRevert
-			}
 			isClosed, err := s.closed(ctx, tx, []string{period(date)})
 			if err != nil {
 				return err
@@ -177,16 +208,19 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 			}
 			reverts = &cur.id
 		default:
-			if cur.action != "" {
-				return ErrAlreadyDecided
-			}
-			var waiting bool
-			if err := tx.QueryRow(ctx, `
+			// The first decision on a movement needs it waiting in the
+			// client's Exceptions without a candidate. After that the turn
+			// is the decision in effect (movementTurn): a rejected match's
+			// movement, or one the operator returned, need not be pending.
+			waiting := cur.action != ""
+			if !waiting {
+				if err := tx.QueryRow(ctx, `
 				with latest as (select distinct on (period) id from matching.runs order by period, started_at desc, id)
 				select exists (select 1 from matching.pending
 				                where run_id in (select id from latest) and movement_id = $1
 				                  and tray = 'exception' and reason = 'no_candidate')`, mid).Scan(&waiting); err != nil {
-				return err
+					return err
+				}
 			}
 			if !waiting {
 				return ErrNotInExceptions
@@ -236,6 +270,111 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 	return d, applied, nil
 }
 
+// movementTurn says whether the caller's side may take the action given the
+// decision in effect (action and the role that took it). The client acts
+// on a movement nobody decided or that the operator returned; the operator
+// acts on one the client marked other. Each side reverts only its own row.
+func movementTurn(a MovementAction, client bool, cur MovementAction, curRole string) error {
+	curByClient := curRole == identity.RoleOwner || curRole == identity.RoleApprover
+	if a == MovementRevert {
+		switch {
+		case cur == "":
+			return ErrNothingToRevert
+		case client != curByClient:
+			return ErrForbidden
+		case cur == MovementRejected:
+			return ErrRevertOnMatch
+		}
+		return nil
+	}
+	if client {
+		switch a {
+		case MovementOther, MovementLink:
+		default:
+			return ErrForbidden
+		}
+		if cur != "" && cur != MovementReturn {
+			return ErrAlreadyDecided
+		}
+		return nil
+	}
+	switch a {
+	case MovementResolve, MovementReturn, MovementLink:
+	default:
+		return ErrForbidden
+	}
+	if cur != MovementOther && cur != MovementRejected {
+		return ErrNotWithOperator
+	}
+	return nil
+}
+
+// matchInEffect is the SQL condition, on a match aliased m, of a match
+// that settles its items now: automatic, approved in either tray, or a
+// manual link in effect. The database guard on items (migration 00104)
+// states the same rule.
+const matchInEffect = `(m.tray = 'auto'
+	or exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id and d.action = 'approve')
+	or (m.tray = 'manual' and exists (select 1 from matching.movement_decision_state s
+	     where s.tenant_id = m.tenant_id and s.match_id = m.id and s.action = 'link')))`
+
+// OpenItem is an item no match in effect settles.
+type OpenItem struct {
+	ID         uuid.UUID
+	Source     string
+	SourceID   string
+	Kind       string
+	Date       time.Time
+	Due        *time.Time
+	Amount     money.Amount
+	Refs       []string
+	Party      string
+	Confidence float64
+	InvoiceID  *uuid.UUID
+}
+
+// OpenItems lists the items no match in effect settles, oldest first and
+// then by source id, so the list always comes in the same order: what
+// "link by hand" offers. period (YYYY-MM) keeps the items dated in that
+// month, "" all; direction "in" keeps positive amounts, "out" negative, ""
+// both. Up to limit rows; the bool says there were more.
+func (s *PGStore) OpenItems(ctx context.Context, period, direction string, limit int) ([]OpenItem, bool, error) {
+	var out []OpenItem
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			select i.id, i.source, i.source_id, i.kind, i.date, i.due, i.amount, i.refs, i.party, i.confidence, i.invoice_id
+			  from matching.items i
+			 where not exists (select 1 from matching.matches m where i.id = any(m.item_ids) and `+matchInEffect+`)
+			   and ($1 = '' or to_char(i.date, 'YYYY-MM') = $1)
+			   and ($2 = '' or ($2 = 'in' and i.amount > 0) or ($2 = 'out' and i.amount < 0))
+			 order by i.date, i.source_id, i.id
+			 limit $3`, period, direction, limit+1)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var it OpenItem
+			var amount int64
+			var conf float32
+			if err := rows.Scan(&it.ID, &it.Source, &it.SourceID, &it.Kind, &it.Date, &it.Due, &amount, &it.Refs,
+				&it.Party, &conf, &it.InvoiceID); err != nil {
+				return err
+			}
+			it.Amount, it.Confidence = money.Amount(amount), math.Round(float64(conf)*1e4)/1e4 // real column: no float32 noise
+			out = append(out, it)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	if len(out) > limit {
+		return out[:limit], true, nil
+	}
+	return out, false, nil
+}
+
 // linkByHand checks the items and creates (or finds) the manual match.
 func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amount, date time.Time, items []uuid.UUID) (string, error) {
 	slices.SortFunc(items, func(a, b uuid.UUID) int { return compareUUID(a, b) })
@@ -247,18 +386,14 @@ func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amou
 		return "", err
 	}
 	if found != len(items) {
-		return "", fmt.Errorf("%w: unknown item", ErrInvalid)
+		return "", ErrUnknownItem
 	}
 	if money.Amount(sum) != amount {
 		return "", ErrLinkDoesNotAdd
 	}
 	var taken bool
-	if err := tx.QueryRow(ctx, `
-		select exists (select 1 from matching.matches m where m.item_ids && $1 and (
-		  m.tray = 'auto'
-		  or exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id and d.action = 'approve')
-		  or (m.tray = 'manual' and exists (select 1 from matching.movement_decision_state s
-		       where s.tenant_id = m.tenant_id and s.match_id = m.id and s.action = 'link'))))`, items).Scan(&taken); err != nil {
+	if err := tx.QueryRow(ctx,
+		`select exists (select 1 from matching.matches m where m.item_ids && $1 and `+matchInEffect+`)`, items).Scan(&taken); err != nil {
 		return "", err
 	}
 	if taken {
