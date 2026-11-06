@@ -24,6 +24,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 )
 
 func main() {
@@ -98,6 +99,10 @@ func serve() error {
 	ids, err := identity.NewService(d, signer, keyring, identity.DefaultArgon2)
 	if err != nil {
 		return err
+	}
+	ids.AppBaseURL = cfg.AppBaseURL
+	if cfg.MailOutbox != "" {
+		ids.Mailer = &mail.Outbox{Path: cfg.MailOutbox}
 	}
 	deps := app.Deps{DB: d, Identity: ids, TrustedProxies: cfg.TrustedProxies, DocsDir: cfg.DocsDir}
 	h, err := app.New(deps, app.NewHandlers(deps))

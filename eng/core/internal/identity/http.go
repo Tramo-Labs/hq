@@ -94,6 +94,15 @@ func (h *Handlers) Login(ctx context.Context, req apigen.LoginRequestObject) (ap
 	return apigen.Login200JSONResponse{TokensJSONResponse: tokens(sess, b.TokenDelivery)}, nil
 }
 
+// AcceptInvite sets the password with an invitation and opens a session.
+func (h *Handlers) AcceptInvite(ctx context.Context, req apigen.AcceptInviteRequestObject) (apigen.AcceptInviteResponseObject, error) {
+	sess, err := h.s.AcceptInvite(ctx, req.Body.Token, req.Body.Password)
+	if err != nil {
+		return nil, problem(err)
+	}
+	return apigen.AcceptInvite200JSONResponse{TokensJSONResponse: tokens(sess, req.Body.TokenDelivery)}, nil
+}
+
 // Refresh rotates the refresh token.
 func (h *Handlers) Refresh(ctx context.Context, req apigen.RefreshRequestObject) (apigen.RefreshResponseObject, error) {
 	tok, delivery := refreshInput(req.Params.TramoRefresh, req.Body)
@@ -224,6 +233,7 @@ func problem(err error) error {
 		ErrNotAMember:         {http.StatusForbidden, "not_a_member"},
 		ErrMemberNotFound:     {http.StatusNotFound, httpx.CodeNotFound},
 		ErrLastOwner:          {http.StatusConflict, "last_owner"},
+		ErrInvalidInvite:      {http.StatusUnauthorized, "invalid_invite"},
 	}
 	for target, p := range table {
 		if errors.Is(err, target) {

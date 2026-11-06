@@ -12,6 +12,7 @@ on it; it depends on no business module.
 | `idempotency` | `Idempotency-Key` middleware (eng/ARQUITECTURA.md section 7). |
 | `crypto` | Envelope encryption: AES-256-GCM data key per tenant, wrapped by the master key. |
 | `audit` | Append only audit log, written in the same transaction as the action. |
+| `mail` | Outbox file transport (0600) for invitation emails. No SMTP: nothing is sent. |
 
 ## How a module uses it
 
@@ -86,6 +87,7 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
 | `users` | self or members of the current tenant; only `id`, `email`, `created_at` readable | `password_hash` and `totp_secret` are not readable by `tramo_app` |
 | `memberships` | current tenant, or the caller's own memberships | |
 | `refresh_tokens` | no access | identity only, through `System` (`tramo_system`) |
+| `invites` | no access | identity only, through `System`; token hashes only |
 | `audit_log` | read and insert for the current tenant | UPDATE and DELETE rejected by trigger, for every role |
 | `idempotency_requests` | current tenant | middleware uses `System` with explicit scope |
 | `tenant_keys` | read own key | wrapped data keys |

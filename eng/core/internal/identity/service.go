@@ -21,6 +21,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
+	mailer "github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/ratelimit"
 )
 
@@ -62,8 +63,12 @@ type Service struct {
 	Argon   Argon2Params
 	Limiter *ratelimit.Limiter
 	Limits  Limits
-	now     func() time.Time
-	dummy   string // hash compared when the email is unknown (constant time login)
+	// Mailer delivers invitations; nil logs that none was sent.
+	Mailer mailer.Sender
+	// AppBaseURL is the web app's origin, for invitation links.
+	AppBaseURL string
+	now        func() time.Time
+	dummy      string // hash compared when the email is unknown (constant time login)
 }
 
 // NewService builds the service.
@@ -394,6 +399,9 @@ func (s *Service) AddMember(ctx context.Context, p Principal, email, role string
 		return audit.Record(ctx, tx, audit.Entry{Action: "identity.member_added", Subject: "users:" + user.String(), Detail: map[string]any{"role": role}})
 	})
 	if err != nil {
+		return store.ListMembersRow{}, err
+	}
+	if err := s.inviteIfNoPassword(ctx, p, user, email, role); err != nil {
 		return store.ListMembersRow{}, err
 	}
 	return store.ListMembersRow{ID: user, Email: email, Role: store.Role(role)}, nil

@@ -40,7 +40,7 @@ redone by a second enqueue.
 
 | Kind | Key | Schedule | Does |
 |------|-----|----------|------|
-| `platform.maintenance` | day (Argentina) | hourly attempt, runs once a day | deletes idempotency keys older than 24 h and refresh tokens expired more than 7 days ago |
+| `platform.maintenance` | day (Argentina) | hourly attempt, runs once a day | deletes idempotency keys older than 24 h, and refresh tokens and invitations expired more than 7 days ago |
 
 ## Tables
 

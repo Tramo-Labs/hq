@@ -46,6 +46,13 @@ type Config struct {
 	// CIDRs. Empty: the TCP peer is always the client.
 	TrustedProxies []netip.Prefix
 	DocsDir        string // directory with openapi.yaml and the Swagger UI page
+	// AppBaseURL is the web app's origin, used in invitation links
+	// (APP_BASE_URL, default http://localhost:3000).
+	AppBaseURL string
+	// MailOutbox is a file that receives every email instead of sending it
+	// (MAIL_OUTBOX). There is no SMTP transport: empty means invitations
+	// are created but not delivered, and that is logged.
+	MailOutbox string
 
 	MasterKey []byte // wraps the per tenant data keys
 	JWTSeed   []byte // ed25519 seed for access tokens
@@ -65,6 +72,8 @@ func Load() (Config, error) {
 		LogLevel:    get("LOG_LEVEL", "info"),
 		JWTKeyID:    get("JWT_KEY_ID", "k1"),
 		DocsDir:     get("DOCS_DIR", "api"),
+		AppBaseURL:  get("APP_BASE_URL", "http://localhost:3000"),
+		MailOutbox:  get("MAIL_OUTBOX", ""),
 	}
 	switch c.Env {
 	case "dev", "staging", "prod":

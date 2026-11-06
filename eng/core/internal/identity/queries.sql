@@ -75,6 +75,28 @@ delete from memberships where user_id = $1 and tenant_id = $2 returning role;
 -- Never overwrites a password the person already chose.
 update users set password_hash = $2 where id = $1 and password_hash is null;
 
+-- name: GetUserPasswordSet :one
+select (password_hash is not null)::boolean as has_password from users where id = $1;
+
+-- name: RevokeOpenInvites :execrows
+update invites set revoked_at = now()
+where user_id = $1 and used_at is null and revoked_at is null;
+
+-- name: InsertInvite :exec
+insert into invites (tenant_id, user_id, created_by, token_hash, expires_at)
+values ($1, $2, $3, $4, $5);
+
+-- name: GetInviteForUpdate :one
+select id, tenant_id, user_id, expires_at, used_at, revoked_at
+from invites where token_hash = $1
+for update;
+
+-- name: MarkInviteUsed :exec
+update invites set used_at = now() where id = $1;
+
+-- name: DeleteExpiredInvites :execrows
+delete from invites where expires_at < now() - interval '7 days';
+
 -- name: RevokeUserTenantSessions :execrows
 update refresh_tokens set revoked_at = now()
 where user_id = $1 and tenant_id = $2 and revoked_at is null;

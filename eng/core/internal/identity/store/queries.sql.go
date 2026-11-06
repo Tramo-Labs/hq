@@ -76,6 +76,18 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (uuid.UU
 	return id, err
 }
 
+const deleteExpiredInvites = `-- name: DeleteExpiredInvites :execrows
+delete from invites where expires_at < now() - interval '7 days'
+`
+
+func (q *Queries) DeleteExpiredInvites(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredInvites)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :execrows
 delete from refresh_tokens where expires_at < now() - interval '7 days'
 `
@@ -116,6 +128,35 @@ func (q *Queries) EnsureUser(ctx context.Context, email string) (uuid.UUID, erro
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const getInviteForUpdate = `-- name: GetInviteForUpdate :one
+select id, tenant_id, user_id, expires_at, used_at, revoked_at
+from invites where token_hash = $1
+for update
+`
+
+type GetInviteForUpdateRow struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+	RevokedAt *time.Time
+}
+
+func (q *Queries) GetInviteForUpdate(ctx context.Context, tokenHash []byte) (GetInviteForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getInviteForUpdate, tokenHash)
+	var i GetInviteForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.UsedAt,
+		&i.RevokedAt,
+	)
+	return i, err
 }
 
 const getMembershipRole = `-- name: GetMembershipRole :one
@@ -208,6 +249,41 @@ func (q *Queries) GetUserForLogin(ctx context.Context, email string) (GetUserFor
 	var i GetUserForLoginRow
 	err := row.Scan(&i.ID, &i.PasswordHash)
 	return i, err
+}
+
+const getUserPasswordSet = `-- name: GetUserPasswordSet :one
+select (password_hash is not null)::boolean as has_password from users where id = $1
+`
+
+func (q *Queries) GetUserPasswordSet(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, getUserPasswordSet, id)
+	var has_password bool
+	err := row.Scan(&has_password)
+	return has_password, err
+}
+
+const insertInvite = `-- name: InsertInvite :exec
+insert into invites (tenant_id, user_id, created_by, token_hash, expires_at)
+values ($1, $2, $3, $4, $5)
+`
+
+type InsertInviteParams struct {
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	CreatedBy *uuid.UUID
+	TokenHash []byte
+	ExpiresAt time.Time
+}
+
+func (q *Queries) InsertInvite(ctx context.Context, arg InsertInviteParams) error {
+	_, err := q.db.Exec(ctx, insertInvite,
+		arg.TenantID,
+		arg.UserID,
+		arg.CreatedBy,
+		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	return err
 }
 
 const insertRefreshToken = `-- name: InsertRefreshToken :exec
@@ -312,6 +388,15 @@ func (q *Queries) LockTenant(ctx context.Context, id uuid.UUID) (uuid.UUID, erro
 	return id_2, err
 }
 
+const markInviteUsed = `-- name: MarkInviteUsed :exec
+update invites set used_at = now() where id = $1
+`
+
+func (q *Queries) MarkInviteUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markInviteUsed, id)
+	return err
+}
+
 const markRefreshTokenUsed = `-- name: MarkRefreshTokenUsed :exec
 update refresh_tokens set used_at = now() where id = $1
 `
@@ -327,6 +412,19 @@ update refresh_tokens set revoked_at = now() where family_id = $1 and revoked_at
 
 func (q *Queries) RevokeFamily(ctx context.Context, familyID uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, revokeFamily, familyID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeOpenInvites = `-- name: RevokeOpenInvites :execrows
+update invites set revoked_at = now()
+where user_id = $1 and used_at is null and revoked_at is null
+`
+
+func (q *Queries) RevokeOpenInvites(ctx context.Context, userID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeOpenInvites, userID)
 	if err != nil {
 		return 0, err
 	}

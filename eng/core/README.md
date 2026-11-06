@@ -37,6 +37,9 @@ downloads the Postgres binaries.
   at startup. The same file keeps the dev master key and JWT key, so data and
   sessions survive restarts.
 - Ports: `DEV_PG_PORT`, `DEV_HTTP_ADDR`, `DEV_GRPC_ADDR` override them.
+- **Emails are never sent.** Invitations land in `DEV_DATA_DIR/outbox`
+  (mode 0600); the link inside points at `DEV_APP_BASE_URL` (default
+  http://localhost:3000). There is no SMTP transport in the code.
 
 Seeded data (all synthetic):
 

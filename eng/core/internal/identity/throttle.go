@@ -23,6 +23,9 @@ type Limits struct {
 	FailPerEmail ratelimit.Rule
 	// Registrations from one IP.
 	RegisterPerIP ratelimit.Rule
+	// Invitation acceptances from one IP (tokens are 256 bit; this only
+	// bounds the argon2 work an anonymous caller can cause).
+	InvitePerIP ratelimit.Rule
 }
 
 // DefaultLimits are deliberately loose for people and tight for scripts.
@@ -31,6 +34,7 @@ var DefaultLimits = Limits{
 	FailPerEmailIP: ratelimit.Rule{Limit: 5, Window: 15 * time.Minute},
 	FailPerEmail:   ratelimit.Rule{Limit: 20, Window: time.Hour},
 	RegisterPerIP:  ratelimit.Rule{Limit: 10, Window: time.Hour},
+	InvitePerIP:    ratelimit.Rule{Limit: 10, Window: 15 * time.Minute},
 }
 
 // ErrRateLimited is returned when a throttle trips.
@@ -84,6 +88,13 @@ func (s *Service) loginSucceeded(ctx context.Context, email string) {
 	// Only this IP's failures are forgiven; distributed failures on the
 	// email keep counting until their window ends.
 	s.Limiter.Reset("login:fail:" + emailKey(email) + "|" + clientIP(ctx))
+}
+
+func (s *Service) checkInvite(ctx context.Context) error {
+	if ok, retry := s.Limiter.Allow("invite:ip:"+clientIP(ctx), s.Limits.InvitePerIP); !ok {
+		return limited(retry)
+	}
+	return nil
 }
 
 func (s *Service) checkRegister(ctx context.Context) error {

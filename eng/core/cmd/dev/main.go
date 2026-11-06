@@ -35,6 +35,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/jobs"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 	"github.com/Tramo-Labs/hq/eng/core/internal/worker"
 )
 
@@ -154,6 +155,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Invitations land in a private file in the data directory; nothing
+	// is ever sent.
+	outbox := filepath.Join(dir, "outbox")
+	ids.Mailer, ids.AppBaseURL = &mail.Outbox{Path: outbox}, env("DEV_APP_BASE_URL", "http://localhost:3000")
+	slog.Info("invitation emails go to a local file (mode 0600), never sent", "outbox", outbox)
 	deps := app.Deps{DB: d, Identity: ids, DocsDir: "api"}
 	h, err := app.New(deps, app.NewHandlers(deps))
 	if err != nil {

@@ -45,7 +45,7 @@ type MaintenanceWorker struct {
 	DB *db.DB
 }
 
-// Work runs the clean up. Both deletes are idempotent, so a retry is safe.
+// Work runs the clean up. Every delete is idempotent, so a retry is safe.
 func (w *MaintenanceWorker) Work(ctx context.Context, job *river.Job[MaintenanceArgs]) error {
 	keys, err := idempotency.Purge(ctx, w.DB)
 	if err != nil {
@@ -55,7 +55,11 @@ func (w *MaintenanceWorker) Work(ctx context.Context, job *river.Job[Maintenance
 	if err != nil {
 		return err
 	}
-	slog.Info("maintenance done", "day", job.Args.Day, "idempotency_keys", keys, "refresh_tokens", tokens)
+	invites, err := identity.PurgeExpiredInvites(ctx, w.DB)
+	if err != nil {
+		return err
+	}
+	slog.Info("maintenance done", "day", job.Args.Day, "idempotency_keys", keys, "refresh_tokens", tokens, "invites", invites)
 	return nil
 }
 

@@ -53,7 +53,6 @@ type Deps struct {
 // handler set per module.
 type Handlers struct {
 	platformHandlers
-	pendingHandlers
 	*identity.Handlers
 	*ledgerAPI
 	*documentsAPI
