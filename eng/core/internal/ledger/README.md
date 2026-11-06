@@ -61,7 +61,7 @@ uploaded again. Then balances, chain and movement keys.
    the transaction that would store the movements, through
    `closes.ClosedPeriodOf`, which holds the close's lock, so a close never
    counts a period while a statement is entering it. The file keeps the
-   closed period it hit (migration 00118, `[closed_start, closed_end)`),
+   closed period it hit (migration 00250, `[closed_start, closed_end)`),
    and the upload's answer and `GET /v1/ledger/files` name it as
    `closedPeriod`, last day included. `TestStatementInAClosedPeriod`
    (internal/app) runs it against a real close; dropping the check, or the
