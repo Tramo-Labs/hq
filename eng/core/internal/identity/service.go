@@ -45,6 +45,9 @@ var (
 	ErrInvalidCuit        = errors.New("invalid cuit check digit")
 	ErrForbidden          = errors.New("forbidden")
 	ErrAlreadyMember      = errors.New("already a member")
+	// ErrNotAMember answers a login with the right password on a tenant
+	// the user does not belong to (F18). Only reachable with the password.
+	ErrNotAMember = errors.New("not a member of that tenant")
 )
 
 // Service implements the identity use cases.
@@ -134,7 +137,7 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 		return Session{}, err
 	}
 	var out Session
-	var failed bool
+	var failed, notMember bool
 	err := s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
 		u, err := q.GetUserForLogin(ctx, email)
@@ -154,10 +157,13 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 			return audit.Record(ctx, tx, audit.Entry{Action: "identity.login_failed", Subject: subject, UserID: u.ID})
 		}
 		p, err := s.pickTenant(ctx, q, u.ID, tenant)
-		if err != nil {
-			failed = true
+		if errors.Is(err, ErrNotAMember) {
+			notMember = true
 			return audit.Record(ctx, tx, audit.Entry{Action: "identity.login_failed", Subject: "users:" + u.ID.String(), UserID: u.ID,
 				Detail: map[string]any{"reason": "no membership"}})
+		}
+		if err != nil {
+			return err
 		}
 		out, err = s.openSession(ctx, q, p, uuid.New())
 		if err != nil {
@@ -171,6 +177,10 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 	if failed {
 		s.loginFailed(ctx, email)
 		return Session{}, ErrInvalidCredentials
+	}
+	if notMember {
+		// The password was right: not a guess, so no failure is counted.
+		return Session{}, ErrNotAMember
 	}
 	s.loginSucceeded(ctx, email)
 	return out, nil
@@ -186,7 +196,7 @@ func (s *Service) pickTenant(ctx context.Context, q *store.Queries, user uuid.UU
 			return Principal{UserID: user, TenantID: m.TenantID, Role: string(m.Role)}, nil
 		}
 	}
-	return Principal{}, ErrInvalidCredentials
+	return Principal{}, ErrNotAMember
 }
 
 func (s *Service) openSession(ctx context.Context, q *store.Queries, p Principal, family uuid.UUID) (Session, error) {

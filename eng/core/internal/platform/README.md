@@ -135,6 +135,15 @@ Every error is RFC 9457 with a stable `code`: `bad_request`, `unauthorized`,
 `idempotency_key_reused` (422), `idempotency_key_in_flight` (409),
 `payload_too_large`, `rate_limited`, `internal`.
 
+A 400 from spec validation or parameter binding has one short, stable
+`detail`: `invalid parameter "<name>"`, `invalid request body: /<field>`,
+`invalid request body: unknown property` or `invalid request body`
+(`internal/app/errors.go`). The library's own message is never sent: it
+printed the whole schema and the submitted value, a password included.
+Tested by `TestBadRequestDetailIsShortAndStable` (query, path, enum, body
+pattern, unknown and missing field; mutations checked: restoring the
+library message on either the validator or the router path fails it).
+
 ## How it is tested
 
 `make test` runs everything with `-race` on an embedded Postgres (first run

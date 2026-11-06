@@ -123,7 +123,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 		apigen.HandlerWithOptions(strict, apigen.ChiServerOptions{
 			BaseRouter: r,
 			ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, err.Error())
+				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, badRequestDetail(err))
 			},
 		})
 	})
@@ -149,9 +149,9 @@ func validationError(_ context.Context, err error, w http.ResponseWriter, r *htt
 		httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeIdempotencyRequired,
 			"this operation requires an Idempotency-Key header (UUID)")
 	default:
-		// The first line of a kin-openapi error names the parameter or
-		// field and the rule; it never echoes the submitted value.
-		httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, err.Error())
+		// kin-openapi's message prints the schema and the submitted value
+		// (passwords included): only the parameter or field goes out.
+		httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, badRequestDetail(err))
 	}
 }
 

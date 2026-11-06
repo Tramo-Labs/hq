@@ -16,7 +16,14 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 
 Errors (problem `code`): `unauthorized`, `refresh_token_reused`, `email_taken`,
 `slug_taken`, `cuit_taken`, `already_member`, `invalid_email`, `invalid_cuit`,
-`forbidden`, plus the platform codes.
+`forbidden`, `not_a_member`, plus the platform codes.
+
+`not_a_member` (403, "not a member of that tenant") answers a login with the
+right password and a `tenantId` the user does not belong to. A wrong
+password on any tenant stays the generic 401, so it says nothing to someone
+without the password, and it is not counted as a failed guess
+(`TestLoginIntoAForeignTenantSaysNotAMember`; mutation checked: answering
+the generic 401 again fails it).
 
 ## Sessions
 

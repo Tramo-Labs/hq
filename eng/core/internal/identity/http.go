@@ -212,6 +212,7 @@ func problem(err error) error {
 		ErrInvalidEmail:       {http.StatusBadRequest, "invalid_email"},
 		ErrInvalidCuit:        {http.StatusBadRequest, "invalid_cuit"},
 		ErrForbidden:          {http.StatusForbidden, httpx.CodeForbidden},
+		ErrNotAMember:         {http.StatusForbidden, "not_a_member"},
 	}
 	for target, p := range table {
 		if errors.Is(err, target) {
