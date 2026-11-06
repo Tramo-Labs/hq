@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -344,6 +345,71 @@ func TestIdentityIsAudited(t *testing.T) {
 	})
 	if leaked != 0 {
 		t.Fatal("password in the audit log")
+	}
+}
+
+func TestLoginAndRegisterAreThrottled(t *testing.T) {
+	deps := newDeps(t)
+	deps.TrustProxy = true // the client IP comes from X-Forwarded-For, as behind Caddy
+	c := client{t, serve(t, deps)}
+	from := func(ip string) []string { return []string{"X-Forwarded-For", ip} }
+	login := func(ip, email, password string) resp {
+		return c.do("POST", "/v1/auth/login", "", map[string]any{"email": email, "password": password, "tokenDelivery": "body"}, from(ip)...)
+	}
+	r := c.do("POST", "/v1/auth/register", "", map[string]any{
+		"email": "ana@alfa.test", "password": "a long enough password", "tenantName": "Molino alfa", "tenantSlug": "alfa",
+	}, append(idem(), from("198.51.100.1")...)...)
+	if r.status != 201 {
+		t.Fatalf("register: %d %s", r.status, r.raw)
+	}
+
+	// Guessing from one IP: five failures, then even the right password waits.
+	for i := 0; i < 5; i++ {
+		if r := login("203.0.113.66", "ana@alfa.test", "guess "+string(rune('a'+i))); r.status != 401 {
+			t.Fatalf("guess %d: %d", i+1, r.status)
+		}
+	}
+	blocked := login("203.0.113.66", "ana@alfa.test", "a long enough password")
+	if blocked.status != 429 || blocked.str("code") != "rate_limited" || blocked.header.Get("Retry-After") == "" {
+		t.Fatalf("6th attempt from the guessing IP: %d %v %s", blocked.status, blocked.header.Get("Retry-After"), blocked.raw)
+	}
+	// The owner, from her own IP, is not locked out by that attacker.
+	if r := login("198.51.100.1", "ana@alfa.test", "a long enough password"); r.status != 200 {
+		t.Fatalf("owner from another IP: %d %s", r.status, r.raw)
+	}
+
+	// Distributed guessing: twenty failures from twenty IPs throttle the email.
+	for i := 0; i < 20; i++ {
+		login("192.0.2."+strconv.Itoa(i+1), "beto@alfa.test", "guess")
+	}
+	if r := login("192.0.2.200", "beto@alfa.test", "guess"); r.status != 429 {
+		t.Fatalf("distributed guessing not throttled: %d", r.status)
+	}
+
+	// One IP cannot spray more than 30 logins a minute, whatever the emails.
+	sprayed := 0
+	for i := 0; i < 40; i++ {
+		if r := login("203.0.113.99", "x"+strconv.Itoa(i)+"@alfa.test", "guess"); r.status == 429 {
+			sprayed++
+		}
+	}
+	if sprayed != 10 {
+		t.Fatalf("spray from one IP: %d of 40 throttled, want 10", sprayed)
+	}
+
+	// Registrations: ten per IP per hour.
+	got429 := 0
+	for i := 0; i < 11; i++ {
+		r := c.do("POST", "/v1/auth/register", "", map[string]any{
+			"email": "r" + strconv.Itoa(i) + "@spam.test", "password": "a long enough password",
+			"tenantName": "Spam " + strconv.Itoa(i), "tenantSlug": "spam-" + strconv.Itoa(i),
+		}, append(idem(), from("203.0.113.7")...)...)
+		if r.status == 429 {
+			got429++
+		}
+	}
+	if got429 != 1 {
+		t.Fatalf("register throttle: %d of 11 refused, want 1", got429)
 	}
 }
 

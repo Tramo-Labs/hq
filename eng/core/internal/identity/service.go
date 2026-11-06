@@ -21,6 +21,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/ratelimit"
 )
 
 // Roles (enum role in migration 00001).
@@ -52,6 +53,8 @@ type Service struct {
 	Signer  *Signer
 	Keyring *crypto.Keyring
 	Argon   Argon2Params
+	Limiter *ratelimit.Limiter
+	Limits  Limits
 	now     func() time.Time
 	dummy   string // hash compared when the email is unknown (constant time login)
 }
@@ -62,7 +65,8 @@ func NewService(d *db.DB, s *Signer, k *crypto.Keyring, p Argon2Params) (*Servic
 	if err != nil {
 		return nil, err
 	}
-	return &Service{DB: d, Signer: s, Keyring: k, Argon: p, now: time.Now, dummy: dummy}, nil
+	return &Service{DB: d, Signer: s, Keyring: k, Argon: p, now: time.Now, dummy: dummy,
+		Limiter: ratelimit.New(200_000), Limits: DefaultLimits}, nil
 }
 
 // RegisterInput is a new account with its first tenant.
@@ -74,6 +78,9 @@ type RegisterInput struct {
 // Register creates the user, the tenant, the owner membership and the
 // tenant data key in one transaction.
 func (s *Service) Register(ctx context.Context, in RegisterInput) (user, tenant uuid.UUID, err error) {
+	if err := s.checkRegister(ctx); err != nil {
+		return uuid.Nil, uuid.Nil, err
+	}
 	email, err := normalizeEmail(in.Email)
 	if err != nil {
 		return uuid.Nil, uuid.Nil, err
@@ -123,6 +130,9 @@ type Session struct {
 // tenant, or on the oldest membership when tenant is nil.
 func (s *Service) Login(ctx context.Context, email, password string, tenant *uuid.UUID) (Session, error) {
 	email = strings.TrimSpace(email)
+	if err := s.checkLogin(ctx, email); err != nil {
+		return Session{}, err
+	}
 	var out Session
 	var failed bool
 	err := s.DB.System(ctx, func(tx pgx.Tx) error {
@@ -159,8 +169,10 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 		return Session{}, err
 	}
 	if failed {
+		s.loginFailed(ctx, email)
 		return Session{}, ErrInvalidCredentials
 	}
+	s.loginSucceeded(ctx, email)
 	return out, nil
 }
 

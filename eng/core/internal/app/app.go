@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -146,6 +147,9 @@ func validationError(_ context.Context, err error, w http.ResponseWriter, r *htt
 func writeHandlerError(w http.ResponseWriter, r *http.Request, err error) {
 	var e *httpx.Error
 	if errors.As(err, &e) {
+		if e.RetryAfter > 0 {
+			w.Header().Set("Retry-After", strconv.Itoa(e.RetryAfter))
+		}
 		httpx.WriteProblem(w, r, e.Status, e.Code, e.Detail)
 		return
 	}

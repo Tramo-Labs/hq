@@ -39,6 +39,8 @@ type Error struct {
 	Status int
 	Code   string
 	Detail string
+	// RetryAfter, when positive, is sent as the Retry-After header (seconds).
+	RetryAfter int
 }
 
 func (e *Error) Error() string { return e.Code + ": " + e.Detail }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -187,6 +188,15 @@ func tokens(s Session, delivery *apigen.TokenDelivery) apigen.TokensJSONResponse
 // problem maps service errors to stable problem codes. Unknown errors stay
 // as they are and become a 500 without detail.
 func problem(err error) error {
+	var rl *RateLimitedError
+	if errors.As(err, &rl) {
+		secs := int(rl.RetryAfter.Round(time.Second) / time.Second)
+		if secs < 1 {
+			secs = 1
+		}
+		return &httpx.Error{Status: http.StatusTooManyRequests, Code: httpx.CodeRateLimited,
+			Detail: "too many attempts; try again later", RetryAfter: secs}
+	}
 	type m struct {
 		status int
 		code   string

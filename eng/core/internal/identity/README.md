@@ -66,10 +66,33 @@ ago. To be scheduled by the worker.
 - No clave fiscal and no home banking credential has a field anywhere: the
   request schemas reject unknown properties.
 
+## Throttling (login and registration)
+
+Checked before any password hashing, so a flood costs no argon2 time.
+Answer: 429 `rate_limited` with `Retry-After` (seconds).
+
+| Throttle | Default | Stops |
+|----------|---------|-------|
+| login requests per IP | 30 per minute | spraying many emails from one machine |
+| failed logins per email and IP | 5 per 15 minutes | guessing one person's password |
+| failed logins per email, any IP | 20 per hour | distributed guessing |
+| registrations per IP | 10 per hour | sign up spam |
+
+A success clears that IP's failures for the email. The per email and IP
+counter is the tight one on purpose: one attacker cannot lock the owner out
+from her own IP. Twenty or more IPs failing on the same email do throttle it
+for everyone for up to an hour; that trade off is deliberate.
+
+Limits: counters are in memory, per api process (with several replicas the
+limits multiply; restart clears them). The client IP is the TCP peer, or the
+last `X-Forwarded-For` hop with `TRUST_PROXY_HEADERS=true` behind our Caddy.
+The 429 response is not yet declared in `api/openapi.yaml` (the spec is
+frozen while datos adds its paths); it follows the same Problem schema.
+
 ## Not built yet
 
 Magic link login, TOTP (required for approvers of payments), API keys for
-integrations, rate limiting of login attempts.
+integrations.
 
 ## How it is tested
 
@@ -85,4 +108,11 @@ integrations, rate limiting of login attempts.
   logout; **a tenant does not see another tenant's members**; roles
   (viewer cannot add, owner cannot grant operator); a removed membership
   ends the session at refresh; audit rows with request id and IP and no
-  password.
+  password; throttling: the 6th guess from one IP gets 429 even with the
+  right password while the owner still logs in from her IP, distributed
+  guessing on one email is throttled, one IP spraying 40 emails gets 10
+  refusals, the 11th registration from one IP is refused (mutations checked:
+  without the login check, and with the failure counter not keyed by IP,
+  the test fails).
+- `internal/platform/ratelimit`: windows, expiry, reset, bounded memory,
+  exactly 100 of 400 concurrent events allowed.
