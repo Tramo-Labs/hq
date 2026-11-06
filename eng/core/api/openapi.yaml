@@ -240,6 +240,34 @@ paths:
         "200": { $ref: "#/components/responses/Tokens" }
         "401": { $ref: "#/components/responses/Problem" }
         "403": { $ref: "#/components/responses/Problem" }
+  /v1/auth/switch-tenant:
+    post:
+      operationId: switchTenant
+      tags: [identity]
+      summary: Move the session to another of the caller's tenants, no password
+      description: |
+        Authenticated by the refresh token (cookie or body), like refresh: a
+        stolen 10 minute access token can not open sessions elsewhere. The
+        token rotates within the same family, now bound to the new tenant,
+        and a new access token for it comes back. The role is read from the
+        membership. A tenant the caller does not belong to answers 403
+        not_a_member and leaves the token as it was. With the refresh
+        cookie, the request must come from an allowed origin (403
+        origin_not_allowed). Works for people who sign in by magic link and
+        have no password.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/RefreshCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SwitchTenantRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Tokens" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
   /v1/auth/logout:
     post:
       operationId: logout
@@ -1182,6 +1210,14 @@ components:
       additionalProperties: false
       properties:
         token: { type: string, minLength: 43, maxLength: 64 }
+        tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    SwitchTenantRequest:
+      type: object
+      required: [tenantId]
+      additionalProperties: false
+      properties:
+        tenantId: { type: string, format: uuid }
+        refreshToken: { type: string, maxLength: 128 }
         tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
     RefreshRequest:
       type: object
