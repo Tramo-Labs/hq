@@ -358,12 +358,16 @@ paths:
     get:
       operationId: listMatches
       tags: [matching]
-      summary: Matches without a decision, by tray
+      summary: Matches waiting in a tray
+      description: |
+        `auto`: registered by an exact rule, listed for review; nobody
+        decides on them. `suggested`: no operator decision yet.
+        `exception`: escalated by an operator, no client decision yet.
       parameters:
         - name: tray
           in: query
           required: true
-          schema: { type: string, enum: [auto, suggested] }
+          schema: { type: string, enum: [auto, suggested, exception] }
       responses:
         "200":
           description: ok
@@ -411,10 +415,15 @@ paths:
     post:
       operationId: decideMatch
       tags: [matching]
-      summary: Approve or reject a match (owner, approver or operator)
+      summary: Decide on a match in the Suggested or Exceptions tray
       description: |
-        The decider is the authenticated user. A decision is never edited:
-        a second decision on the same match is 409 `conflict`.
+        Suggested is decided by an operator: approve, reject, or escalate to
+        Exceptions. Exceptions is decided by an owner or approver: approve,
+        reject, or other (note required; back to the operator). Automatic
+        matches are not decided. The tray is the stored one and the role is
+        the caller's current membership, read when deciding. A decision is
+        never edited: a second decision in the same tray is 409 `conflict`;
+        an action the tray does not offer is 400.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
         - name: matchId
@@ -739,14 +748,15 @@ components:
       required: [action]
       additionalProperties: false
       properties:
-        action: { type: string, enum: [approve, reject] }
+        action: { type: string, enum: [approve, reject, escalate, other] }
         note: { type: string, maxLength: 500 }
     Decision:
       type: object
-      required: [matchId, action, userId, role, at]
+      required: [matchId, tray, action, userId, role, at]
       properties:
         matchId: { type: string }
-        action: { type: string, enum: [approve, reject] }
+        tray: { type: string, enum: [suggested, exception] }
+        action: { type: string, enum: [approve, reject, escalate, other] }
         userId: { type: string, format: uuid }
         role: { $ref: "#/components/schemas/Role" }
         at: { type: string, format: date-time }

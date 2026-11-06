@@ -259,39 +259,155 @@ func (e pgEnv) setMembership(t *testing.T, sc db.Scope, role string) {
 	}
 }
 
-// Spec section 1: only an operator decides on matches. The role that counts
-// is the membership's, so the token here always says operator.
-func TestPGOnlyOperatorDecides(t *testing.T) {
+// decideAs sets the membership of tenant a's user to role and records a
+// decision with the operator token of the env: the role that counts is
+// always the membership's.
+func (e pgEnv) decideAs(t *testing.T, role string, m Match, a Action, note string) (Decision, error) {
+	t.Helper()
+	e.setMembership(t, e.a, role)
+	d, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: m, Action: a, Note: note})
+	return d, err
+}
+
+// escalated returns the suggested match after an operator sent it to the
+// Exceptions tray.
+func (e pgEnv) escalated(t *testing.T, r Result) Match {
+	t.Helper()
+	m := suggested(r)
+	if d, err := e.decideAs(t, identity.RoleOperator, m, Escalate, "client has to confirm"); err != nil || d.Tray != Suggested {
+		t.Fatalf("escalate: %v %+v", err, d)
+	}
+	return m
+}
+
+func TestCanDecideTable(t *testing.T) {
+	want := map[Tray][]string{
+		Suggested: {identity.RoleOperator},
+		Exception: {identity.RoleOwner, identity.RoleApprover},
+		Auto:      nil,
+	}
+	all := []string{identity.RoleOwner, identity.RoleApprover, identity.RoleViewer, identity.RoleAccountant, identity.RoleOperator}
+	for tray, allowed := range want {
+		for _, role := range all {
+			ok := false
+			for _, a := range allowed {
+				ok = ok || a == role
+			}
+			if CanDecide(role, tray) != ok {
+				t.Errorf("CanDecide(%s, %s) = %v; want %v", role, tray, !ok, ok)
+			}
+		}
+	}
+}
+
+// Spec sections 1 and 5, Suggested: an operator decides; an approver cannot.
+func TestPGSuggestedIsTheOperators(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
 	for _, role := range []string{identity.RoleOwner, identity.RoleApprover, identity.RoleViewer, identity.RoleAccountant} {
-		e.setMembership(t, e.a, role)
-		_, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve})
-		if !errors.Is(err, ErrForbidden) {
-			t.Errorf("%s decided: %v", role, err)
+		if _, err := e.decideAs(t, role, suggested(r), Approve, ""); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s decided a suggested match: %v", role, err)
 		}
 	}
-	if n := e.count(t, e.ctx, `select count(*) from matching.decisions`); n != 0 {
-		t.Errorf("%d decisions stored by forbidden roles", n)
+	if _, err := e.decideAs(t, identity.RoleOperator, suggested(r), Other, "x"); !errors.Is(err, ErrActionNotInTray) {
+		t.Errorf("other in Suggested: %v", err)
+	}
+	if d, err := e.decideAs(t, identity.RoleOperator, suggested(r), Approve, ""); err != nil || d.Tray != Suggested || d.Role != identity.RoleOperator {
+		t.Errorf("operator: %v %+v", err, d)
+	}
+}
+
+// Spec sections 1 and 5, Exceptions: the client (owner or approver) decides
+// what an operator escalated; the operator cannot close it.
+func TestPGExceptionsAreTheClients(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	m := e.escalated(t, r)
+	for _, role := range []string{identity.RoleOperator, identity.RoleViewer, identity.RoleAccountant} {
+		if _, err := e.decideAs(t, role, m, Approve, ""); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s decided an exception: %v", role, err)
+		}
+	}
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Escalate, ""); !errors.Is(err, ErrActionNotInTray) {
+		t.Errorf("escalate in Exceptions: %v", err)
+	}
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Other, ""); !errors.Is(err, ErrActionNotInTray) {
+		t.Errorf("other without a note: %v", err)
+	}
+	d, err := e.decideAs(t, identity.RoleApprover, m, Approve, "")
+	if err != nil || d.Tray != Exception || d.Role != identity.RoleApprover {
+		t.Fatalf("approver: %v %+v", err, d)
+	}
+	if _, err := e.decideAs(t, identity.RoleOwner, m, Reject, ""); !errors.Is(err, ErrAlreadyDecided) {
+		t.Errorf("second client decision: %v", err)
+	}
+	// Approved by the client: settled for the next run.
+	if r2, _ := e.run(t); len(r2.Matches) != 0 {
+		t.Errorf("approved exception proposed again: %+v", r2.Matches)
+	}
+}
+
+// Nobody decides on an automatic match.
+func TestPGAutomaticIsNotDecided(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	for _, role := range []string{identity.RoleOwner, identity.RoleApprover, identity.RoleOperator} {
+		if _, err := e.decideAs(t, role, auto(r), Reject, ""); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s decided an automatic match: %v", role, err)
+		}
+	}
+}
+
+// Escalated and not yet decided by the client: neither settled nor turned
+// down, it waits in Exceptions. "Other" from the client turns it down.
+func TestPGEscalatedWaitsAndOtherTurnsDown(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	m := e.escalated(t, r)
+	in, err := e.store.LoadInput(e.ctx, e.from, e.to, DefaultConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range append(in.Settled, in.Rejected...) {
+		if s.ID == m.ID && s.Tray != Auto {
+			t.Fatalf("escalated match counted as settled or rejected")
+		}
+	}
+	if list, err := e.store.Undecided(e.ctx, Exception, 10); err != nil || len(list) != 1 || list[0].ID != m.ID {
+		t.Errorf("exception tray: %v %+v", err, list)
+	}
+	if list, _ := e.store.Undecided(e.ctx, Suggested, 10); len(list) != 0 {
+		t.Errorf("still in suggested: %+v", list)
+	}
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Other, "es un adelanto de otro cliente"); err != nil {
+		t.Fatal(err)
+	}
+	if r2, _ := e.run(t); len(r2.Matches) != 0 {
+		t.Errorf("turned down match proposed again: %+v", r2.Matches)
 	}
 }
 
 // A role lowered while the access token is still valid takes effect at
-// once: the token says operator, the membership now says viewer, and the
-// decision is refused. Restoring the membership lets the same token decide.
+// once, in each tray: the membership says viewer and the decision is
+// refused; restoring the membership lets the same token decide.
 func TestPGDowngradedRoleCannotDecide(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
-	e.setMembership(t, e.a, identity.RoleViewer)
 	if sc, _ := db.ScopeFrom(e.ctx); sc.Role != identity.RoleOperator {
-		t.Fatalf("the token should still say operator, says %q", sc.Role)
+		t.Fatalf("the token should say operator, says %q", sc.Role)
 	}
-	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); !errors.Is(err, ErrForbidden) {
-		t.Fatalf("downgraded user decided: %v", err)
+	// Suggested: was operator, now viewer.
+	if _, err := e.decideAs(t, identity.RoleViewer, suggested(r), Escalate, ""); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("downgraded operator decided a suggested match: %v", err)
 	}
-	e.setMembership(t, e.a, identity.RoleOperator)
-	if _, applied, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: suggested(r), Action: Approve}); err != nil || !applied {
-		t.Errorf("restored operator: %v %v", err, applied)
+	m := e.escalated(t, r)
+	// Exceptions: was approver, now viewer.
+	e.setMembership(t, e.a, identity.RoleApprover)
+	if _, err := e.decideAs(t, identity.RoleViewer, m, Approve, ""); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("downgraded approver decided an exception: %v", err)
+	}
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Approve, ""); err != nil {
+		t.Errorf("restored approver: %v", err)
 	}
 }
 

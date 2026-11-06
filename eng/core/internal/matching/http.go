@@ -108,7 +108,9 @@ func (h *Handlers) DecideMatch(ctx context.Context, req apigen.DecideMatchReques
 	case errors.Is(err, ErrForbidden), errors.Is(err, ErrNoUser):
 		return nil, errForbidden
 	case errors.Is(err, ErrAlreadyDecided):
-		return nil, &httpx.Error{Status: http.StatusConflict, Code: httpx.CodeConflict, Detail: "this match already has a decision"}
+		return nil, &httpx.Error{Status: http.StatusConflict, Code: httpx.CodeConflict, Detail: "this match already has a decision in this tray"}
+	case errors.Is(err, ErrActionNotInTray):
+		return nil, &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: ErrActionNotInTray.Error()}
 	case errors.Is(err, ErrKeyReused):
 		return nil, &httpx.Error{Status: http.StatusUnprocessableEntity, Code: httpx.CodeIdempotencyMismatch, Detail: "key used for another decision"}
 	case err != nil:
@@ -118,8 +120,8 @@ func (h *Handlers) DecideMatch(ctx context.Context, req apigen.DecideMatchReques
 	if err != nil {
 		return nil, err
 	}
-	out := apigen.DecideMatch201JSONResponse{MatchId: got.MatchID, Action: apigen.DecisionAction(got.Action),
-		UserId: uid, Role: apigen.Role(got.Role), At: got.At}
+	out := apigen.DecideMatch201JSONResponse{MatchId: got.MatchID, Tray: apigen.DecisionTray(got.Tray),
+		Action: apigen.DecisionAction(got.Action), UserId: uid, Role: apigen.Role(got.Role), At: got.At}
 	if got.Note != "" {
 		note := got.Note
 		out.Note = &note

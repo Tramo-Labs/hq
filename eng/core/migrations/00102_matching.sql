@@ -60,19 +60,26 @@ create table matching.pending (
   foreign key (tenant_id, run_id) references matching.runs (tenant_id, id)
 );
 
+-- One decision per match and tray (product spec section 5): the operator
+-- decides in Suggested (approve, reject, or escalate to Exceptions); after
+-- an escalation the client decides in Exceptions (approve, reject, or
+-- "other": it is something else, back to the operator with the note).
 create table matching.decisions (
   id          bigint generated always as identity primary key,
   tenant_id   uuid not null references tenants(id) on delete cascade,
   key         uuid not null,              -- client's idempotency key
   match_id    text not null,
-  action      text not null check (action in ('approve', 'reject')),
+  tray        text not null check (tray in ('suggested', 'exception')),
+  action      text not null check (action in ('approve', 'reject', 'escalate', 'other')),
   user_id     uuid not null references users(id),
   role        text not null,
   at          timestamptz not null default now(),
   note        text not null default '',
   snapshot    jsonb not null,             -- the match as it was decided on
+  check (action <> 'escalate' or tray = 'suggested'),
+  check (action <> 'other' or (tray = 'exception' and note <> '')),
   unique (tenant_id, key),
-  unique (tenant_id, match_id),
+  unique (tenant_id, match_id, tray),
   foreign key (tenant_id, match_id) references matching.matches (tenant_id, id)
 );
 

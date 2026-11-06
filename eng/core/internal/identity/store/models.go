@@ -165,6 +165,7 @@ type MatchingDecision struct {
 	TenantID uuid.UUID
 	Key      uuid.UUID
 	MatchID  string
+	Tray     string
 	Action   string
 	UserID   uuid.UUID
 	Role     string

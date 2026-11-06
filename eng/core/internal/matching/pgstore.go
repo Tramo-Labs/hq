@@ -136,10 +136,15 @@ func (s *PGStore) LoadInput(ctx context.Context, from, to time.Time, cfg Config)
 			return err
 		}
 
+		// Settled: automatic, or approved in either tray. Turned down:
+		// rejected in either tray, or "other" from the client. A match that
+		// was only escalated is neither: it waits in Exceptions.
 		rows, err = tx.Query(ctx,
-			`select m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids, d.action
+			`select m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids,
+			        coalesce(bool_or(d.action = 'approve'), false),
+			        coalesce(bool_or(d.action in ('reject', 'other')), false)
 			   from matching.matches m left join matching.decisions d on d.tenant_id = m.tenant_id and d.match_id = m.id
-			  where m.tray = 'auto' or d.action is not null`)
+			  group by m.tenant_id, m.id`)
 		if err != nil {
 			return err
 		}
@@ -147,9 +152,9 @@ func (s *PGStore) LoadInput(ctx context.Context, from, to time.Time, cfg Config)
 		for rows.Next() {
 			var m Match
 			var tray string
-			var action *string
+			var approved, turnedDown bool
 			var mv, it []uuid.UUID
-			if err := rows.Scan(&m.Rule.ID, &m.Rule.Version, &tray, &mv, &it, &action); err != nil {
+			if err := rows.Scan(&m.Rule.ID, &m.Rule.Version, &tray, &mv, &it, &approved, &turnedDown); err != nil {
 				return err
 			}
 			m.Tray = Tray(tray)
@@ -160,9 +165,10 @@ func (s *PGStore) LoadInput(ctx context.Context, from, to time.Time, cfg Config)
 				m.ItemIDs = append(m.ItemIDs, u.String())
 			}
 			m.ID = matchID(m.Rule, m.MovementIDs, m.ItemIDs)
-			if action != nil && *action == string(Reject) {
+			switch {
+			case turnedDown:
 				in.Rejected = append(in.Rejected, m)
-			} else { // automatic, or approved
+			case approved || m.Tray == Auto:
 				in.Settled = append(in.Settled, m)
 			}
 		}
@@ -244,17 +250,35 @@ var ErrNoUser = errors.New("matching: a decision needs a user in the scope")
 // ErrForbidden means the caller's role cannot decide on that tray.
 var ErrForbidden = errors.New("matching: your role cannot decide on this tray")
 
-// CanDecide is the decision column of the role table in
-// product/ESPECIFICACION.md section 1: matches (Auto and Suggested trays)
-// are decided by an operator only. The Exceptions tray (owner or approver)
-// has no match to approve; its actions are not built yet.
+// CanDecide follows product/ESPECIFICACION.md sections 1 and 5: Suggested
+// is decided by an operator, Exceptions by the client (owner or approver),
+// and nobody decides on Automatic.
 func CanDecide(role string, tray Tray) bool {
 	switch tray {
-	case Auto, Suggested:
+	case Suggested:
 		return role == identity.RoleOperator
+	case Exception:
+		return role == identity.RoleOwner || role == identity.RoleApprover
 	}
 	return false
 }
+
+// actionFits says which actions each tray offers.
+func actionFits(a Action, tray Tray) bool {
+	switch a {
+	case Approve, Reject:
+		return true
+	case Escalate:
+		return tray == Suggested
+	case Other:
+		return tray == Exception
+	}
+	return false
+}
+
+// ErrActionNotInTray means the action is not offered in the item's tray
+// (escalate outside Suggested, other outside Exceptions or without a note).
+var ErrActionNotInTray = errors.New("matching: this action is not available in the item's tray")
 
 // DecisionInput is everything a caller may say about a decision. Who
 // decides and with which role are never input: the user comes from the
@@ -281,8 +305,13 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 		return Decision{}, false, ErrNoUser
 	}
 	key, err := uuid.Parse(in.Key)
-	if err != nil || in.Match.ID == "" || (in.Action != Approve && in.Action != Reject) ||
+	if err != nil || in.Match.ID == "" ||
 		in.Match.ID != matchID(in.Match.Rule, in.Match.MovementIDs, in.Match.ItemIDs) {
+		return Decision{}, false, ErrInvalid
+	}
+	switch in.Action {
+	case Approve, Reject, Escalate, Other:
+	default:
 		return Decision{}, false, ErrInvalid
 	}
 	d := Decision{Key: in.Key, MatchID: in.Match.ID, Match: in.Match, Action: in.Action, Note: in.Note,
@@ -293,25 +322,16 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 	}
 	applied := false
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx,
-			`select role::text from memberships where user_id = app_current_user() and tenant_id = app_current_tenant()`).Scan(&d.Role)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrForbidden
-		}
-		if err != nil {
-			return err
-		}
-		if !CanDecide(d.Role, in.Match.Tray) {
-			return ErrForbidden
-		}
-		var prevMatch, prevAction, prevRole, prevNote string
+		// Replay first: the same key, match, action and user answers what
+		// was stored, before anything else is looked at again.
+		var prevMatch, prevAction, prevRole, prevNote, prevTray string
 		var prevUser uuid.UUID
 		var prevAt time.Time
-		err = tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note from matching.decisions where key = $1`, key).
-			Scan(&prevMatch, &prevAction, &prevUser, &prevRole, &prevAt, &prevNote)
+		err := tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note, tray from matching.decisions where key = $1`, key).
+			Scan(&prevMatch, &prevAction, &prevUser, &prevRole, &prevAt, &prevNote, &prevTray)
 		if err == nil {
 			if prevMatch == d.MatchID && prevAction == string(d.Action) && prevUser == sc.UserID {
-				d.At, d.Role, d.Note = prevAt, prevRole, prevNote
+				d.At, d.Role, d.Note, d.Tray = prevAt, prevRole, prevNote, Tray(prevTray)
 				return nil
 			}
 			return ErrKeyReused
@@ -319,25 +339,56 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
+
+		// The tray is the stored one, never the caller's: a suggested match
+		// moves to Exceptions only through an escalate decision.
+		var stored string
+		var escalated bool
 		err = tx.QueryRow(ctx,
-			`insert into matching.decisions (tenant_id, key, match_id, action, user_id, role, note, snapshot)
-			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7) returning at`,
-			key, d.MatchID, string(d.Action), sc.UserID, d.Role, d.Note, snap).Scan(&d.At)
+			`select m.tray, exists (select 1 from matching.decisions e where e.tenant_id = m.tenant_id
+			                         and e.match_id = m.id and e.action = 'escalate')
+			   from matching.matches m where m.id = $1`, d.MatchID).Scan(&stored, &escalated)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("%w: unknown match", ErrInvalid)
+		}
+		if err != nil {
+			return err
+		}
+		d.Tray = Tray(stored)
+		if d.Tray == Suggested && escalated {
+			d.Tray = Exception
+		}
+
+		// The role is the membership's now, not the token's.
+		err = tx.QueryRow(ctx,
+			`select role::text from memberships where user_id = app_current_user() and tenant_id = app_current_tenant()`).Scan(&d.Role)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForbidden
+		}
+		if err != nil {
+			return err
+		}
+		if !CanDecide(d.Role, d.Tray) {
+			return ErrForbidden
+		}
+		if !actionFits(d.Action, d.Tray) || (d.Action == Other && d.Note == "") {
+			return ErrActionNotInTray
+		}
+
+		err = tx.QueryRow(ctx,
+			`insert into matching.decisions (tenant_id, key, match_id, tray, action, user_id, role, note, snapshot)
+			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8) returning at`,
+			key, d.MatchID, string(d.Tray), string(d.Action), sc.UserID, d.Role, d.Note, snap).Scan(&d.At)
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			switch {
-			case pgErr.Code == "23505" && pgErr.ConstraintName == "decisions_tenant_id_match_id_key":
-				return ErrAlreadyDecided
-			case pgErr.Code == "23503":
-				return fmt.Errorf("%w: unknown match", ErrInvalid)
-			}
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "decisions_tenant_id_match_id_tray_key" {
+			return ErrAlreadyDecided
 		}
 		if err != nil {
 			return err
 		}
 		applied = true
 		return audit.Record(ctx, tx, audit.Entry{Action: "matching." + string(d.Action), Subject: "matching.matches:" + d.MatchID,
-			Detail: map[string]any{"rule": d.Match.Rule.String(), "role": d.Role}})
+			Detail: map[string]any{"rule": d.Match.Rule.String(), "role": d.Role, "tray": string(d.Tray)}})
 	})
 	if err != nil {
 		return Decision{}, false, err
@@ -402,8 +453,18 @@ func (s *PGStore) GetMatch(ctx context.Context, id string) (Match, error) {
 func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match, error) {
 	var out []Match
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		// auto: nobody decides, listed for review. suggested: no operator
+		// decision yet. exception: escalated, no client decision yet.
 		rows, err := tx.Query(ctx, `select `+matchColumns+` from matching.matches m
-			where tray = $1 and not exists (select 1 from matching.decisions d where d.tenant_id = m.tenant_id and d.match_id = m.id)
+			where case $1
+			  when 'auto' then m.tray = 'auto'
+			  when 'suggested' then m.tray = 'suggested' and not exists (select 1 from matching.decisions d
+			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'suggested')
+			  when 'exception' then exists (select 1 from matching.decisions d
+			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.action = 'escalate')
+			    and not exists (select 1 from matching.decisions d
+			    where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception')
+			  else false end
 			order by created_at, id limit $2`, string(tray), limit)
 		if err != nil {
 			return err
