@@ -13,7 +13,7 @@ GOVULNCHECK_VERSION  := v1.9.0
 BIN := $(CURDIR)/bin
 export PATH := $(BIN):$(PATH)
 
-.PHONY: build test test-short lint sec tools tools-sec gen gen-check up down migrate
+.PHONY: build test test-short lint sec tools tools-sec gen gen-check dev up down migrate
 
 build:
 	$(GO) build ./...
@@ -60,6 +60,13 @@ gen:
 # Fails when gen/ is stale (run in CI).
 gen-check: gen
 	git diff --exit-code -- gen/ internal/*/store/
+
+# Whole core locally without Docker: embedded Postgres, migrations, seed,
+# api on :8080, worker, gateway on the ARCA simulator. Dev only (refuses
+# APP_ENV other than dev). APP_ENV is deliberately not set here, so a shell
+# with APP_ENV=prod is refused instead of overridden.
+dev:
+	$(GO) run ./cmd/dev
 
 up:
 	docker compose -f deploy/docker-compose.yml up --build -d

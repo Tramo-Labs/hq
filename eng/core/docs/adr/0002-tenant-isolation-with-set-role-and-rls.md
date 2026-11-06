@@ -44,7 +44,8 @@ tenant, so "a code bug cannot cross tenants" held only for code that chose
   needs its own grants and policy in a migration that says why.
 - Which packages may reference `System` is an allowlist
   (`internal/platform/db`, `internal/platform/idempotency`,
-  `internal/identity`), enforced by `TestSystemCallersAreAllowlisted`, which
+  `internal/identity`, and `internal/devseed` for the dev only seed of
+  `make dev`, which refuses any environment but dev), enforced by `TestSystemCallersAreAllowlisted`, which
   parses the source tree and flags any `.System` selector outside it: calls,
   method values (`f := d.System`) and method expressions. It matches by name,
   not by type, so it is stricter than needed. Adding an entry means adding a

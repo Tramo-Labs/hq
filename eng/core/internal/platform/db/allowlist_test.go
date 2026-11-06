@@ -17,6 +17,7 @@ var systemCallers = map[string]string{
 	"internal/platform/db":          "definition",
 	"internal/platform/idempotency": "keys are claimed before the tenant transaction; registration has no tenant",
 	"internal/identity":             "registration, login and refresh happen before a tenant scope exists",
+	"internal/devseed":              "dev only: seeds tenants, users and memberships for make dev; Guard refuses any env but dev",
 }
 
 // TestSystemCallersAreAllowlisted fails when production code outside the
