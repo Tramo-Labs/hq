@@ -86,15 +86,18 @@ main en 167f0ef. Nada listo para integrar todavía.
 
 ### Ronda lead-4 (06/11 ~17:30, después de la caída por memoria)
 
-main en 0be5334. Las sesiones de la ronda lead-3 murieron a las 17:03 sin entregar nada a main; cada reemplazo retoma la consigna de su antecesor de arriba, con el tope de memoria obligatorio.
+main en eafb97a. Las sesiones de la ronda lead-3 murieron a las 17:03 sin entregar nada a main; cada reemplazo retoma la consigna de su antecesor de arriba, con el tope de memoria obligatorio.
 
-- competencia-3: f99ce2e (tercera pasada: entrada de extractos y cierre de período, solo growth/) en main (merge 0be5334, árbol igual al que pasó qa-4: merge limpio, sin secretos, ningún número presentado como medido de Tramo). La propuesta 2 ("Colppy pide la clave de home banking, Tramo no") no se publica hasta reconfirmarla leyendo la página. Próxima pasada: reconfirmar leyendo lo marcado "buscador" que sostiene una propuesta (clave de home banking de Colppy), ConciliaBot de Contatech, si el "email" de The Eye es entrada de extractos, posts de precios de Duotach.
-- backend-5: retoma lo de backend-4 (cierre quincenal con los motivos nuevos de cuarentena en la spec; después D-22). Estado pedido.
-- datos-5: retoma lo de datos-4 (Excel de varias hojas con topes y test hostil, siempre con el tope de 4G; evidencia: memoria pico con el tope puesto y si lo tocó). Estado pedido.
-- frontend-4: retoma lo de frontend-3: etiqueta "Ejemplo ilustrativo" en cada tarjeta del panel, solo en modo ejemplo (tests 53/53, typecheck y lint limpios, tres mutaciones que caen, según frontend-4; faltan build y captura a 390 px). Después texto de los motivos de cuarentena, cuando estén en la spec en main.
-- qa-4: arriba, entorno chequeado (tope de 4G probado, puertos 54349-54358). Primer sha: f99ce2e.
+- competencia-3: tercera pasada (f99ce2e, merge 0be5334) y cuarta (91d4b21, merge eafb97a) en main, PASS de qa-4. La cuarta reconfirma leyendo: Colppy pide usuario y contraseña del home banking para conectar y reconectar (la propuesta 2 ya se puede usar citando artículo y fecha; no pierde conciliaciones al reconectar); su Mercado Pago es para facturar cobros, no conciliar; el "email" de The Eye no alcanza para afirmar nada (la casilla para extractos se dice "no lo encontré publicado"); el "desde USD 1.500" de Duotach es de rankings que firma su cofundador, no precio de mercado. Próxima pasada en unas horas: Alegra, reseñas de los cuatro ERP, cambios en Xubio y Colppy.
+- backend-5: 7de9984 (dos commits: 6feb0a0 contrato del cierre quincenal, /v1/closes responde 501 hasta tener tabla y store; 7de9984 motivos de cuarentena unsupported_format, unrouted, period_closed) en qa-4. Sigue: tabla de cierres 00200 con RLS, consulta "¿esta fecha cae en un período cerrado?" con lock por tenant, endpoints, job quincenal. Quincena calendario es el valor por defecto, configurable en un solo lugar.
+- Reparto del cierre (lead-4): backend-5 hace closes (tabla, consulta de período cerrado, endpoints, job, cableado) y no toca internal/matching; datos-5, después del Excel, cambia el gancho del matching que bloquea revertir de mes (YYYY-MM) a fecha, y da dos proveedores por rango: Sugerido pendiente y números del resumen. Interfaz propuesta por backend-5, pasada a datos-5 para aceptar antes de codear.
+- datos-5: Excel de varias hojas con topes chequeados antes de descomprimir y durante la lectura; evidencia pedida: archivo hostil, memoria pico con MemoryMax=4G, qué tope cortó, make build y make test con el tope.
+- frontend-4: "Ejemplo ilustrativo" en cada tarjeta con número, solo en modo ejemplo, en main (904efbb, merge 65b48ef), PASS de qa-4 a 390 px en portal (4 tarjetas, 3 etiquetadas) y consola (5, 4 etiquetadas). La app publicada no cambia: el deploy sigue apagado hasta que Martín lo pida. Sigue: textos de los motivos de cuarentena cuando 7de9984 esté en main.
+- qa-4: tres PASS (f99ce2e, 904efbb, 91d4b21); en curso 7de9984.
 
 ### Para Martín (lead-4 lo pasa por laptop-c4)
+
+Nuevo (lead-4, pasado a laptop-c4): ConciliaBot de Contatech, posible competidor directo en estudios contables, no se puede leer con herramientas (pantalla anti-bot); si interesa, que Martín lo abra una vez en su navegador y anote qué ve.
 
 Ya pasados por laptop-be, sin respuesta: exportes reales de Bancor y Galicia; quincena calendario o 14 días y si un cierre se reabre y quién; recepción de mail propia o Mailgun EU; app de Mercado Pago Developers con dominio de retorno. Siguen abiertos de antes (arriba en la ronda lead-2): aceptar invitación sin contraseña con cuenta existente, titular que quita al operador de Tramo, lista de miembros legible por todo rol, topes por IP para estudios con una sola IP, licencia MPL-2.0 de River, certificado de homologación de ARCA, padrón del Consejo para ventas.
 
