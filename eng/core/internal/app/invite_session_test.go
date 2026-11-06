@@ -141,3 +141,37 @@ func TestAnInvalidBearerOnAcceptSpendsNothing(t *testing.T) {
 		t.Fatalf("accept after invalid bearers: %d %s", r.status, r.raw)
 	}
 }
+
+// A 409 for another account is a refused invitation: it counts on the per
+// IP cap. N of them against a cap of N, then 429; the invitation itself is
+// untouched and its person accepts it from another address.
+func TestAnotherAccountRefusalsCountOnTheIPCap(t *testing.T) {
+	deps := newDeps(t)
+	deps.TrustedProxies = loopback
+	deps.Identity.Limits.InvitePerIP = ratelimit.Rule{Limit: 3, Window: time.Hour}
+	c := client{t, serve(t, deps)}
+	own := c.registerAndLogin("molino-f41c", "owner@f41c.test")
+	other := c.registerAndLogin("otro-f41c", "otro@f41c.test")
+	if r := c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": "nueva@f41c.test", "role": "viewer"}, idem()...); r.status != 201 {
+		t.Fatalf("add: %d %s", r.status, r.raw)
+	}
+	tok := c.invitesTo("nueva@f41c.test")[0]
+	from := func(ip, bearer string, body map[string]any) resp {
+		b := map[string]any{"token": tok, "tokenDelivery": "body"}
+		for k, v := range body {
+			b[k] = v
+		}
+		return c.do("POST", "/v1/auth/invite/accept", bearer, b, "X-Forwarded-For", ip)
+	}
+	for i := 0; i < 3; i++ {
+		if r := from("198.51.100.70", other.access, nil); r.status != 409 {
+			t.Fatalf("another account %d: %d %s", i, r.status, r.raw)
+		}
+	}
+	if r := from("198.51.100.70", other.access, nil); r.status != 429 {
+		t.Fatalf("past the cap: %d %s", r.status, r.raw)
+	}
+	if r := from("198.51.100.71", "", map[string]any{"password": "a long enough password"}); r.status != 200 || r.str("tenantId") != own.tenant {
+		t.Fatalf("the invitation from another address: %d %s", r.status, r.raw)
+	}
+}
