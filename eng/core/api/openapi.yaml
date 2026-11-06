@@ -1758,6 +1758,15 @@ components:
             Mercado Pago's text). revoked: Mercado Pago answered invalid_grant.
             mp_unavailable: no proper answer; it is retried.
         lastErrorAt: { type: string, format: date-time }
+        lastImportAt:
+          type: string
+          format: date-time
+          description: |
+            When movements from Mercado Pago were last accepted. Absent until
+            the first accepted import, so connected without it reads as
+            "conectado, sin importar todavía". Importing is not built yet
+            (ADR 0010, open question on the report's API), so today it is
+            always absent.
         revokeInMercadoPago:
           type: boolean
           description: |

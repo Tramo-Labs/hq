@@ -87,6 +87,23 @@ Decisions:
    ingestion as the mailbox if it comes as CSV); a file in quarantine stops
    the sync without retry loops until an operator resolves it.
 
+**Open, not to be coded until answered.** Datos-5 chose the "Liberaciones"
+(released money) report because its rows carry a balance (BALANCE_AMOUNT)
+and a settlement date (DATE); "Todas las transacciones" has no balance.
+Pages read on 2026-11-06, under
+https://www.mercadopago.com.ar/developers/es/docs/checkout-api-orders/resources/reports/
+(released-money/introduction, generate, report-fields; account-money/...;
+activities-reports/api). Caveat: the tool returned those pages partly
+summarized, not verbatim, so these are leads until read live. What they
+do not say: (a) the API endpoints for the released money report (only
+`/v1/reporting/operations/{reportId}/...` is documented, for the
+"activities" reports, and released money's reportId is not listed); and
+(b) whether those endpoints accept a connected seller's OAuth token, acting
+on the seller's behalf, rather than the app's own production token. (b)
+decides the whole design. To be settled by a single sandbox call once
+Martín creates the app, or by asking Mercado Pago's integrator support.
+`lastImportAt` stays absent until then.
+
 Consequences: Martín's app must enable PKCE and `offline_access`, and
 register the portal's return page. Without `offline_access` every client
 reconnects every 180 days.
