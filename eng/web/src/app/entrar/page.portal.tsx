@@ -12,7 +12,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const sp = await searchParams;
   return (
     <AuthFrame>
-      <Login back={one(sp.volver)} switching={one(sp.cambiar) === "1"} tenantId={one(sp.empresa)} expired={one(sp.motivo) === "vencida"} />
+      <Login back={one(sp.volver)} switching={one(sp.cambiar) === "1"} tenantId={one(sp.empresa)} expired={one(sp.motivo) === "vencida"} elsewhere={one(sp.motivo) === "otra-pestana"} />
     </AuthFrame>
   );
 }

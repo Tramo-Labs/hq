@@ -1,6 +1,6 @@
 import { ApiError } from "./errors";
 import * as live from "./live";
-import { getMode, getSession, setSession } from "./session";
+import { getMode, getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
   Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus, ItemDirection, OpenItems,
@@ -8,7 +8,7 @@ import type {
 
 export type * from "./types";
 export { ApiError, SessionExpired } from "./errors";
-export { getMode, getSession, subscribe, type Mode, type Session } from "./session";
+export { endedElsewhere, getMode, getSession, subscribe, type Mode, type Session } from "./session";
 
 /**
  * The only door the screens use to reach data. Two modes, chosen at build (next.config.ts):
@@ -74,6 +74,17 @@ export async function restore(area: "portal" | "console") {
   if (s) return s;
   if (isLive()) return live.refresh();
   return (await sample()).restore(area);
+}
+
+/**
+ * Who is signed in on this browser, or null, without opening a session for anyone new (F33).
+ * Live: this tab's memory, else the shared refresh cookie (a refresh; no cookie means nobody).
+ * Sample: this tab's memory only, since there is no cookie.
+ */
+export async function whoIsIn(): Promise<Session | null> {
+  const s = getSession();
+  if (s || !isLive()) return s;
+  return live.refresh().catch(() => null);
 }
 
 export async function logout() {

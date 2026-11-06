@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { getSession, logout, restore, subscribe, SessionExpired, type Session } from "@/lib/api";
+import { endedElsewhere, getSession, logout, restore, subscribe, SessionExpired, type Session } from "@/lib/api";
 
 type Area = "portal" | "console";
 
@@ -29,8 +29,8 @@ export function useCurrentSession() {
   return useSyncExternalStore(subscribe, getSession, () => null);
 }
 
-function back(path: string, expired = false) {
-  return `/entrar?volver=${encodeURIComponent(path)}${expired ? "&motivo=vencida" : ""}`;
+function back(path: string, reason?: "vencida" | "otra-pestana") {
+  return `/entrar?volver=${encodeURIComponent(path)}${reason ? `&motivo=${reason}` : ""}`;
 }
 
 /**
@@ -51,9 +51,10 @@ export function SessionGate({ area, loading, children }: { area: Area; loading: 
     }
     if (leaving.current) return;
     const here = window.location.pathname + window.location.search;
-    // It had a session and lost it: the core refused the refresh. No second attempt.
+    // It had a session and lost it: another tab signed in as someone else or out (F33), or the
+    // core refused the refresh. No second attempt either way.
     if (had.current) {
-      router.replace(back(here, true));
+      router.replace(back(here, endedElsewhere() ? "otra-pestana" : "vencida"));
       return;
     }
     let gone = false;

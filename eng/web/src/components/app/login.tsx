@@ -80,7 +80,7 @@ function SampleAccounts() {
  * password lives in this component's state only while the form is open, and the access
  * token only in memory (lib/api/session.ts).
  */
-type LoginProps = { back?: string; switching: boolean; tenantId?: string; expired: boolean };
+type LoginProps = { back?: string; switching: boolean; tenantId?: string; expired: boolean; elsewhere?: boolean };
 
 export function Login(props: LoginProps) {
   // "Cambiar de empresa" opened directly or reloaded: the session is not in memory yet, so it
@@ -96,7 +96,7 @@ export function Login(props: LoginProps) {
   return <LoginForm {...props} current={current} />;
 }
 
-function LoginForm({ back, tenantId, expired, current }: LoginProps & { current: Session | null }) {
+function LoginForm({ back, tenantId, expired, elsewhere, current }: LoginProps & { current: Session | null }) {
   const router = useRouter();
   const ids = { email: useId(), password: useId(), error: useId() };
   const [email, setEmail] = useState(current?.email ?? "");
@@ -168,7 +168,7 @@ function LoginForm({ back, tenantId, expired, current }: LoginProps & { current:
       <p className="font-mono text-[12px] tracking-wide text-white/60">{s.eyebrow}</p>
       <h1 className="mt-3 text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{title}</h1>
       <p className="mt-4 text-[16px] leading-relaxed text-white/70">{body}</p>
-      {expired && !current && <p role="status" className="mt-4 text-[14.5px] text-accent">{s.expired}</p>}
+      {(elsewhere || expired) && !current && <p role="status" className="mt-4 text-[14.5px] text-accent">{elsewhere ? s.elsewhere : s.expired}</p>}
 
       <form onSubmit={submit} noValidate={false} aria-describedby={error ? ids.error : undefined} className="mt-8 grid gap-5">
         {choices && (

@@ -109,3 +109,14 @@ during a switch waits for it, against a fake core that revokes the family on a r
 `src/components/app/login-link.test.ts` checks F32 on /entrar: the emailed link is offered before
 any login attempt and after any failed one, and with no email typed nothing is sent. The rules
 live in `login-link.ts`, apart from the component, because the runner does not render React.
+`src/components/app/invite-rules.test.ts` checks /invitacion: the form only opens with nobody
+signed in on the browser (F33), and the password message is the one that applies to the fields
+as they are now, not the one from the last attempt (F34).
+`src/lib/api/session.test.ts` checks F33 across tabs with two copies of the session module: when
+one tab signs in as someone else or out, the other drops its session at once.
+
+Tabs (F33): every tab of a browser shares the refresh cookie, so in live mode each tab announces
+the email it is signed in with on a BroadcastChannel (only the email, never a token). A tab that
+hears another person, or nobody, drops its session and goes to `/entrar?motivo=otra-pestana`,
+instead of showing the previous name and role until a reload. /invitacion first asks who is in
+(a refresh) and, if someone is, says so and offers to sign out or cancel before showing the form.

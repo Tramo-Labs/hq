@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { app } from "@/content/app";
-import { acceptInvite, acceptMagicLink, ApiError, homeFor } from "@/lib/api";
+import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, whoIsIn, type Session } from "@/lib/api";
+import { inviteStep, passwordProblem } from "@/components/app/invite-rules";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
 const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none";
@@ -42,25 +43,51 @@ export function InviteEntry() {
   const ids = { name: useId(), password: useId(), confirm: useId(), hint: useId(), error: useId() };
   const token = useRef<string | null | undefined>(undefined);
   const [missing, setMissing] = useState(false);
+  // Who is signed in on this browser (F33): undefined while asking, null for nobody.
+  const [who, setWho] = useState<Session | null | undefined>(undefined);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
+  // The core's answer to the last attempt; cleared as soon as a field changes.
   const [error, setError] = useState<string | null>(null);
+  // After the first attempt (sent, or stopped by the browser), the password problem is shown
+  // as it is now, never as it was then (F34).
+  const [tried, setTried] = useState(false);
 
   useEffect(() => {
     let live = true;
     if (token.current === undefined) token.current = readFragmentToken();
     const absent = !token.current;
     Promise.resolve().then(() => { if (live && absent) setMissing(true); });
+    if (!absent) whoIsIn().then((s) => { if (live) setWho(s); }, () => { if (live) setWho(null); });
     return () => { live = false; };
   }, []);
 
+  const problem = tried ? passwordProblem(password, confirm) : null;
+  const shown = problem === "too_short" ? v.tooShort : problem === "mismatch" ? v.mismatch : error;
+  const edit = (set: (x: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => { set(e.target.value); setError(null); };
+
+  async function signOutFirst() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await logout();
+    } catch {
+      // Whatever the core answered, ask again below: the form only opens if nobody is in.
+    }
+    try {
+      setWho(await whoIsIn());
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy || !token.current) return;
-    if (password.length < 12) return setError(v.tooShort);
-    if (password !== confirm) return setError(v.mismatch);
+    setTried(true);
+    if (busy || !token.current || inviteStep(who) !== "form") return;
+    if (passwordProblem(password, confirm)) return;
     setBusy(true);
     setError(null);
     try {
@@ -88,29 +115,54 @@ export function InviteEntry() {
     );
   }
 
+  const step = inviteStep(who);
+  if (step === "checking") {
+    return (
+      <>
+        <p className="font-mono text-[12px] tracking-wide text-white/60">{v.eyebrow}</p>
+        <p role="status" className="mt-4 text-[16px] text-white/80">{v.checking}</p>
+      </>
+    );
+  }
+
+  if (step === "signed_in" && who) {
+    return (
+      <>
+        <p className="font-mono text-[12px] tracking-wide text-white/60">{v.eyebrow}</p>
+        <h1 className="mt-3 text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{v.signedInTitle}</h1>
+        <p className="mt-4 break-words text-[16px] leading-relaxed text-white/85">{v.signedIn(who.name ?? who.email, app.roles[who.role], who.tenantName)}</p>
+        <p className="mt-3 text-[16px] leading-relaxed text-white/70">{v.signedInBody}</p>
+        <div className="mt-8 flex flex-wrap gap-2">
+          <button type="button" disabled={busy} aria-busy={busy} className={primaryBtn} onClick={signOutFirst}>{busy ? v.signingOut : v.signOut}</button>
+          <Link href={homeFor(who.role)} className={ghostBtn}>{v.cancel}</Link>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <p className="font-mono text-[12px] tracking-wide text-white/60">{v.eyebrow}</p>
       <h1 className="mt-3 text-[30px] font-light leading-[1.1] tracking-[-0.01em] sm:text-[40px]">{v.title}</h1>
       <p className="mt-4 text-[16px] leading-relaxed text-white/70">{v.body}</p>
-      <form onSubmit={submit} aria-describedby={error ? ids.error : undefined} className="mt-8 grid gap-5">
+      <form onSubmit={submit} onInvalidCapture={() => setTried(true)} aria-describedby={shown ? ids.error : undefined} className="mt-8 grid gap-5">
         <div className="grid gap-1.5">
           <label htmlFor={ids.name} className="text-[14px] text-white/85">{v.name}</label>
-          <input id={ids.name} name="name" autoComplete="name" maxLength={120} value={name} onChange={(e) => setName(e.target.value)}
+          <input id={ids.name} name="name" autoComplete="name" maxLength={120} value={name} onChange={edit(setName)}
             placeholder={v.namePlaceholder} className={field} />
         </div>
         <div className="grid gap-1.5">
           <label htmlFor={ids.password} className="text-[14px] text-white/85">{v.password}</label>
           <input id={ids.password} type="password" name="new-password" autoComplete="new-password" required minLength={12} maxLength={128}
-            aria-describedby={ids.hint} value={password} onChange={(e) => setPassword(e.target.value)} className={field} />
+            aria-describedby={ids.hint} value={password} onChange={edit(setPassword)} className={field} />
           <p id={ids.hint} className="text-[13px] text-white/60">{v.passwordHint}</p>
         </div>
         <div className="grid gap-1.5">
           <label htmlFor={ids.confirm} className="text-[14px] text-white/85">{v.confirm}</label>
           <input id={ids.confirm} type="password" name="confirm-password" autoComplete="new-password" required minLength={12} maxLength={128}
-            value={confirm} onChange={(e) => setConfirm(e.target.value)} className={field} />
+            value={confirm} onChange={edit(setConfirm)} className={field} />
         </div>
-        {error && <p id={ids.error} role="alert" className="text-[14.5px] text-accent">{error}</p>}
+        {shown && <p id={ids.error} role="alert" className="text-[14.5px] text-accent">{shown}</p>}
         <button type="submit" disabled={busy} aria-busy={busy} className={`${primaryBtn} w-fit`}>{busy ? v.submitting : v.submit}</button>
       </form>
     </>
