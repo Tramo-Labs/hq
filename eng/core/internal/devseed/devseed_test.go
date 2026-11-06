@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -115,7 +116,7 @@ func TestSeedIsIdempotentAndFillsEveryTray(t *testing.T) {
 		t.Fatal(err)
 	}
 	first := count(t, d)
-	want := counts{"tenants": 2, "users": 6, "memberships": 8, "tenant_keys": 2, "accounts": 2, "movements": 20, "items": 6, "runs": 2}
+	want := counts{"tenants": 2, "users": 6, "memberships": 8, "tenant_keys": 2, "accounts": 2, "movements": 20, "items": 10, "runs": 2}
 	for k, v := range want {
 		if first[k] != v {
 			t.Errorf("%s: %d, want %d", k, first[k], v)
@@ -163,6 +164,63 @@ func TestSeedIsIdempotentAndFillsEveryTray(t *testing.T) {
 		if len(auto) == 0 || len(sugM)+len(sugP) == 0 || len(exc) == 0 {
 			t.Errorf("%s trays: auto %d, suggested %d+%d, exception %d", tn.Slug, len(auto), len(sugM), len(sugP), len(exc))
 		}
+		handLink(t, store, tctx, tn, exc, sugM, auto)
+	}
+}
+
+// The case frontend and qa link by hand: the 45.000,00 deposit is in
+// Exceptions with no candidate, the two August items are open and add up
+// to it exactly, no match proposes them, and linking the deposit to both
+// goes through.
+func handLink(t *testing.T, store *matching.PGStore, ctx context.Context, tn devseed.Tenant, exc []matching.PendingRow, sug, auto []matching.Match) {
+	t.Helper()
+	var deposit *matching.PendingRow
+	for i := range exc {
+		if exc[i].Amount == devseed.HandLinkAmount {
+			deposit = &exc[i]
+		}
+	}
+	if deposit == nil {
+		t.Fatalf("%s: no %d movement in Exceptions", tn.Slug, devseed.HandLinkAmount)
+	}
+	if len(deposit.Candidates) != 0 {
+		t.Fatalf("%s: the deposit has candidates: %+v", tn.Slug, deposit.Candidates)
+	}
+	open, _, err := store.OpenItems(ctx, "2026-08", "in", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	var sum int64
+	for _, it := range open {
+		for _, want := range devseed.HandLinkItems {
+			if it.SourceID == want.SourceID {
+				ids = append(ids, it.ID.String())
+				sum += int64(it.Amount)
+			}
+		}
+	}
+	if len(ids) != 2 || sum != devseed.HandLinkAmount {
+		t.Fatalf("%s: open August items %v add up to %d, want 2 adding up to %d", tn.Slug, ids, sum, devseed.HandLinkAmount)
+	}
+	for _, m := range append(sug, auto...) {
+		for _, item := range m.ItemIDs {
+			if slices.Contains(ids, item) {
+				t.Fatalf("%s: match %s already proposes a hand link item", tn.Slug, m.ID)
+			}
+		}
+	}
+	// Exceptions are the client's tray: the tenant's owner links.
+	var owner uuid.UUID
+	if err := store.DB.Pool.QueryRow(ctx,
+		`select user_id from memberships where tenant_id = $1 and role = 'owner'`, tn.ID).Scan(&owner); err != nil {
+		t.Fatal(err)
+	}
+	ctx = db.WithScope(ctx, db.Scope{TenantID: tn.ID, UserID: owner, Role: identity.RoleOwner})
+	dec, _, err := store.DecideMovement(ctx, matching.MovementDecisionInput{
+		Key: uuid.NewString(), MovementID: deposit.MovementID, Action: matching.MovementLink, ItemIDs: ids})
+	if err != nil || dec.MatchID == "" {
+		t.Fatalf("%s: link by hand: %+v %v", tn.Slug, dec, err)
 	}
 }
 

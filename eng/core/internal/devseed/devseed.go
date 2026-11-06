@@ -231,13 +231,29 @@ func seedLedger(ctx context.Context, d *db.DB, t Tenant, data []byte) error {
 // one exact (automatic), one 75 cents off (suggested, within the rounding
 // cap), one for two identical transfers (ambiguous, suggested). Every other
 // movement has no candidate (exception).
-var seedItems = []matching.ItemIn{
+//
+// HandLinkItems are two August invoices (CLIENTE TRES) that add up exactly
+// to the cash deposit of 6 October (45.000,00). They are outside the
+// matching window, so the deposit stays in Exceptions with no candidate,
+// and an operator or the client can link it by hand to both.
+var seedItems = append([]matching.ItemIn{
 	{SourceID: "dev-inv-1", Kind: "invoice", Date: day(1), Due: day(1), Amount: 25000000, Refs: []string{"0001-00000101"}, Confidence: 1, Party: "CLIENTE UNO"},
 	{SourceID: "dev-inv-2", Kind: "invoice", Date: day(9), Due: day(9), Amount: 31025000, Refs: []string{"0001-00000108"}, Confidence: 1, Party: "ECHEQ"},
 	{SourceID: "dev-inv-3", Kind: "invoice", Date: day(6), Due: day(6), Amount: 10000000, Refs: []string{"0001-00000106"}, Confidence: 1, Party: "CLIENTE DOS"},
+}, HandLinkItems...)
+
+// HandLinkItems: see seedItems.
+var HandLinkItems = []matching.ItemIn{
+	{SourceID: "dev-inv-4", Kind: "invoice", Date: aug(10), Due: aug(10), Amount: 3000000, Refs: []string{"0001-00000201"}, Confidence: 1, Party: "CLIENTE TRES"},
+	{SourceID: "dev-inv-5", Kind: "invoice", Date: aug(20), Due: aug(20), Amount: 1500000, Refs: []string{"0001-00000202"}, Confidence: 1, Party: "CLIENTE TRES"},
 }
 
+// HandLinkAmount is the deposit those two items add up to (45.000,00).
+const HandLinkAmount = 4500000
+
 func day(n int) time.Time { return time.Date(2026, 10, n, 0, 0, 0, 0, time.UTC) }
+
+func aug(n int) time.Time { return time.Date(2026, 8, n, 0, 0, 0, 0, time.UTC) }
 
 func seedMatching(ctx context.Context, d *db.DB) error {
 	store := &matching.PGStore{DB: d}
@@ -253,11 +269,7 @@ func seedMatching(ctx context.Context, d *db.DB) error {
 	if runs > 0 {
 		return nil // one run per period: a second seed does not add a run
 	}
-	from, _ := time.Parse("2006-01", Period)
-	in, err := store.LoadInput(ctx, from, from.AddDate(0, 1, -1), matching.DefaultConfig)
-	if err != nil {
-		return err
-	}
-	_, _, err = store.SaveRun(ctx, Period, matching.DefaultConfig, matching.Run(matching.DefaultConfig, in))
+	// The same monthly run the matching.run_month job does.
+	_, err := store.RunMonth(ctx, Period, matching.DefaultConfig)
 	return err
 }

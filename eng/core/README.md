@@ -54,8 +54,12 @@ Seeded data (all synthetic):
 
 Tenants: Molino Alfa (dev), CUIT 30000000015, and Molino Beta (dev), CUIT
 30000000023. Each has a Bancor account with the October 2026 statement (10
-movements) and a matching run for 2026-10. Every tray has items: 1
-automatic, 1 suggested match plus 2 suggested movements, 6 exceptions. The
+movements) and a matching run for 2026-10 (the job's own `RunMonth`). Every
+tray has items: 1 automatic, 1 suggested match plus 2 suggested movements,
+6 exceptions. One exception is there to be linked by hand: the cash deposit
+of 6 October (45.000,00) has no candidate, and two open August invoices of
+CLIENTE TRES (30.000,00 and 15.000,00, outside the matching window) add up
+to it exactly; the client links the deposit to both. The
 onboarding shows ARCA pending, bank verified, ERP pending.
 
 Browsers call the api directly (D-18, ADR 0007): in production the portal
