@@ -72,6 +72,22 @@ Objetivo: un cierre de período real con un extracto de verdad. Al cerrar lo que
 - Cadencia: quincenal, por D-6; frontend-2 corrige la spec (decía semanal), a revisar por producto.
 - Bloqueado por Martín: exportes reales de Bancor y Galicia (de un cliente, con permiso); los pide laptop-de.
 
+### Ronda lead-3 (06/11 ~17:15, después del reinicio)
+
+main en 167f0ef. Nada listo para integrar todavía.
+
+- backend-4: cierre quincenal, retoma 33c3e27 (contrato) más la spec sin commitear que dejó backend-3; en el mismo commit de la spec, los motivos nuevos de cuarentena de ingesta (unsupported_format, unrouted, period_closed). Después D-22: casilla por cliente y Mercado Pago OAuth. En curso.
+- datos-4: el Excel de varias hojas (ca250b9, 46995d9 rebasado) con topes de tamaño descomprimido, filas y celdas, y test hostil; evidencia: memoria pico medida antes y después. Después: ingesta sin cuenta asignada (00118) y la parte de datos del cierre cuando el contrato esté en main. En curso.
+- frontend-3: el panel ya muestra la fuente de cada número (desde la mudanza a eng/app). Ahora: cada número marcado "Ejemplo ilustrativo" en modo ejemplo, para que una tarjeta suelta no se lea como dato real; texto como borrador en app.ts para producto. Después: texto de los motivos nuevos de cuarentena cuando estén en la spec en main. En curso.
+- qa-3: verifica cada sha sobre el main del momento; la memoria del Excel la mide por su cuenta.
+- competencia-2: pasada nueva con foco en cómo entran los extractos (casilla, Mercado Pago, Interbanking) y el cierre de período. En curso.
+- Cerrado: el comentario de backend ya apunta a eng/app (verificado por lead-3).
+- Sin sesión: producto (mail del lunes con dos nombres, nombre de eng/ui en site.ts, textos de la guía que prometen cosas que no existen).
+
+### Para Martín (lead-3 lo pasa por laptop-be)
+
+Ya pasados por laptop-be, sin respuesta: exportes reales de Bancor y Galicia; quincena calendario o 14 días y si un cierre se reabre y quién; recepción de mail propia o Mailgun EU; app de Mercado Pago Developers con dominio de retorno. Siguen abiertos de antes (arriba en la ronda lead-2): aceptar invitación sin contraseña con cuenta existente, titular que quita al operador de Tramo, lista de miembros legible por todo rol, topes por IP para estudios con una sola IP, licencia MPL-2.0 de River, certificado de homologación de ARCA, padrón del Consejo para ventas.
+
 ## Pendientes técnicos sin tarea (lead, 06/11)
 
 - backend: idempotencia sobre multipart por partes, en main.
@@ -86,7 +102,7 @@ Objetivo: un cierre de período real con un extracto de verdad. Al cerrar lo que
 
 ## Reglas de convivencia (lead, 06/11)
 
-- Sesiones activas (laptop-be, 06/11 17:10, relanzadas después de un reinicio de la PC que mató a lead-2, backend-3, datos-3, frontend-2, qa-2 y competencia): lead-3 (main), backend-4 (worktree backend), datos-4, frontend-3, qa-3, competencia-2. Integra a main solo laptop-be, con el sha exacto que qa-3 pasó. datos-2 terminó (todo lo suyo está en main); su pendiente de baja prioridad espera a datos-3. Integra a main solo laptop-de, con el sha exacto que qa pasó. backend-2, qa, cliente-2 y lead terminaron por límite de uso; cliente-5 cerró la tanda 7. Migración 00116: backend-3; 00117: datos-2 (matching); siguiente libre 00118.
+- Sesiones activas (laptop-be, 06/11 17:10, relanzadas después de un reinicio de la PC que mató a lead-2, backend-3, datos-3, frontend-2, qa-2 y competencia): lead-3 (worktree lead, rama lead-3-board para el tablero), backend-4 (worktree backend), datos-4, frontend-3, qa-3, competencia-2. Integra a main solo laptop-be, con el sha exacto que qa-3 pasó; lead-3 le pasa el sha. El tablero lo commitea lead-3 en lead-3-board y lo integra laptop-be. Lo que necesite decisión de Martín va a "Para Martín" y lead-3 se lo pasa a laptop-be, no a Martín directo. datos-2 terminó (todo lo suyo está en main); su pendiente de baja prioridad espera a datos-4. backend-2, qa, cliente-2 y lead terminaron por límite de uso; cliente-5 cerró la tanda 7. Migración 00116: backend-3; 00117: datos-2 (matching); siguiente libre 00118.
 - `api/openapi.yaml`, `internal/platform`, el Makefile y la estructura de go.mod son de backend. Datos agrega sus endpoints y su capa de base después de que la tarea 1 esté en main.
 - Migraciones por rango: backend 00002–00099 (agotado; 00116 usada) y desde ahora 00200–00249; datos 00100–00199 (siguiente libre 00118).
 - Postgres embebido por puerto: cada sesión corre los tests con su rango en `TRAMO_TEST_PG_PORTS` (el rango por defecto 54329–54338 está medio tomado por cuatro huérfanos): backend 54380–54389, datos 54339–54348, qa 54349–54358, cliente 54360–54369, frontend 54370–54379. /tmp es un tmpfs con cuota compartida: `make test` con TMPDIR en disco (por ejemplo `$HOME/.cache/tramo-tmp-<sesión>`), y cada sesión borra lo suyo al terminar. qa verifica la web en su worktree desde un .next limpio, sin copias en /tmp. backend-3: limpieza automática del Postgres embebido (Makefile y dbtest, con TMPDIR en disco por defecto), después de F26 y antes de F31.
