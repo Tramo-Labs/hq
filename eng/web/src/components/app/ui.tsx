@@ -17,11 +17,11 @@ export function Shell({ area, session, children }: { area: "portal" | "console";
   const copy = area === "portal" ? app.portal : app.console;
   return (
     <div className="min-h-dvh">
-      <a href="#contenido" className="sr-only rounded bg-paper px-3 py-2 text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50">{app.skip}</a>
+      <a href="#contenido" className="sr-only rounded bg-paper px-4 text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center">{app.skip}</a>
       <header className="sticky top-0 z-20 border-b border-white/10 bg-ink/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3">
-          <p className="flex items-baseline gap-2">
-            <Link href="/" className="text-[17px] font-medium tracking-tight">{site.name}</Link>
+          <p className="flex items-center gap-2">
+            <Link href="/" className="inline-flex min-h-11 items-center text-[17px] font-medium tracking-tight">{site.name}</Link>
             <span className="font-mono text-[12px] text-white/60">{copy.label}</span>
           </p>
           <p className="text-[13px] text-white/60">{app.signedAs(session.name, app.roles[session.role])}</p>

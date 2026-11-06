@@ -1,4 +1,4 @@
-import type { Match, Metric, Session, Tenant, UploadedFile } from "./types";
+import type { Match, Session, Tenant, UploadedFile } from "./types";
 
 /**
  * Synthetic data for the portal and the console until the core serves these paths.
@@ -37,7 +37,7 @@ export const tenants: Tenant[] = [
       status: "checking", mailbox: "extractos+ferr@tramo.example",
       accounts: [{ bank: "Bancor", kind: "Cuenta corriente", currency: "ARS", last4: "1188", status: "checking", lastStatementAt: "2026-11-05" }],
     },
-    erp: { status: "ready", system: "Odoo", mode: "api", credentialTail: "…k9Qe" },
+    erp: { status: "ready", system: "Odoo", mode: "api", credentialTail: "…XXXX" },
   },
   {
     id: "t-trans", name: "Transportes Río Cuarto SA", cuit: "30-00000004-5", openExceptions: 0,
@@ -72,6 +72,13 @@ export const matches: Match[] = [
     movement: { date: "2026-11-04", account: "Santander CC", description: "DEB AUTOM SEGURO 4471", amountCents: -32_180_00 },
     document: { kind: "Factura B", number: "0012-00088410", counterparty: "Aseguradora Central", amountCents: 32_180_00 },
     rule: rule("r-recurring", "Débito recurrente confirmado", 2),
+  },
+  {
+    id: "m-103", tenantId: "t-trans", tray: "auto", motive: "unique_reference", openedAt: "2026-11-05",
+    summary: "Cobro de $ 58.300 por Mercado Pago", explanation: "El id de la operación de Mercado Pago figura en la factura.",
+    movement: { date: "2026-11-05", account: "Mercado Pago", description: "COBRO MP 81234567890", amountCents: 58_300_00 },
+    document: { kind: "Factura B", number: "0005-00002231", counterparty: "Consumidor final", amountCents: 58_300_00 },
+    rule: rule("r-ref", "Referencia única"),
   },
   {
     id: "m-201", tenantId: "t-agro", tray: "suggested", motive: "tolerance", openedAt: "2026-11-02",
@@ -117,15 +124,6 @@ export const matches: Match[] = [
     movement: { date: "2026-10-30", account: "Bancor CC", description: "EXTRACCION CAJERO", amountCents: -40_000_00 },
     rule: rule("r-none", "Sin candidato"),
   },
-];
-
-export const metrics: Metric[] = [
-  { key: "auto_rate", value: 62, unit: "percent", period: "Octubre · Galicia CC", source: "matches en Automático ÷ movimientos del período", href: "/operador/bandejas?bandeja=auto" },
-  { key: "open_exceptions", value: 4, unit: "count", period: "Hoy", source: "matches en Excepciones sin decisión", href: "/operador/bandejas?bandeja=exception" },
-  { key: "oldest_exception", value: 7, unit: "days", period: "Hoy", source: "días desde la apertura de la excepción abierta más vieja", href: "/operador/bandejas?bandeja=exception" },
-  { key: "duplicates", value: 0, unit: "count", period: "Octubre", source: "excepciones por posible duplicado rechazadas por el cliente", href: "/operador/bandejas?bandeja=exception" },
-  { key: "bank_vs_books", value: null, unit: "ars", period: "Hoy", source: "saldo del extracto menos saldo contable, por cuenta; requiere el sistema contable conectado" },
-  { key: "invoices", value: null, unit: "count", period: "Octubre", source: "documentos leídos, retenidos y duplicados; requiere el módulo de documentos" },
 ];
 
 export const files: UploadedFile[] = [

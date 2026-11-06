@@ -55,9 +55,11 @@ export type Outcome = "approved" | "rejected" | "other";
 
 /** Why an item landed in its tray (spec sections 4 and 5). Labels live in content/app.ts. */
 export type Motive =
-  | "exact" | "recurring"
+  /** Automático: a unique reference (cheque number, Mercado Pago id, invoice number) is the main pass. */
+  | "unique_reference" | "exact" | "recurring"
   | "tolerance" | "combination" | "model"
-  | "no_candidate" | "duplicate" | "balance" | "unauthorized_supplier" | "over_threshold" | "not_verified";
+  /** supplier_or_po: supplier not authorized, or invoice without a purchase order. */
+  | "no_candidate" | "duplicate" | "balance" | "supplier_or_po" | "over_threshold" | "not_verified";
 
 export type Movement = { date: string; account: string; description: string; amountCents: number };
 export type DocumentRef = { kind: string; number: string; counterparty: string; amountCents: number };
@@ -80,7 +82,11 @@ export type Match = {
   decision?: { by: string; at: string; outcome: Outcome; note?: string };
 };
 
-export type MetricKey = "auto_rate" | "open_exceptions" | "oldest_exception" | "bank_vs_books" | "invoices" | "duplicates";
+export type MetricKey = "auto_rate" | "open_exceptions" | "oldest_exception" | "bank_vs_books" | "invoices" | "held_invoices" | "duplicates";
+
+/** The list behind a number, as a tray filter. Each area turns it into its own link. */
+export type MetricList = { tray: Tray; motive?: Motive };
+
 export type Metric = {
   key: MetricKey;
   /** null means "no data yet", which is shown differently from zero. */
@@ -89,8 +95,10 @@ export type Metric = {
   period: string;
   /** Table, filter and formula the number comes from. */
   source: string;
-  /** The list behind the number. A number without one does not go on the panel. */
-  href?: string;
+  /** A number whose list cannot be opened does not go on the panel (spec section 4). */
+  list?: MetricList;
+  /** Per-account breakdown, for numbers the spec asks by account. */
+  byAccount?: { account: string; value: number | null; list?: MetricList }[];
 };
 
 export type UploadedFile = {
