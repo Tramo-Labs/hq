@@ -19,7 +19,7 @@ export type Session = {
 
 export type Mode = "sample" | "live";
 
-/** Inlined at build by next.config.ts from CORE_API_URL; the URL itself never reaches the browser. */
+/** Inlined at build by next.config.ts: live with NEXT_PUBLIC_API_BASE or CORE_API_URL, else sample. */
 const mode: Mode = process.env.TRAMO_CORE_MODE === "live" ? "live" : "sample";
 let current: Session | null = null;
 const listeners = new Set<() => void>();

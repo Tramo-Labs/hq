@@ -1,13 +1,14 @@
 # web
 
-Landing (`/`), client portal (`/app`), operator console (`/operador`) and login (`/entrar`).
+Landing (`/`), client portal (`/app`), operator console (`/operador`), and the pages before a
+session: login (`/entrar`), emailed link (`/ingresar`) and invitation (`/invitacion`).
 Next.js 16 and Tailwind 4. Copy lives in `src/content/` (`site.ts` and `app.ts`, owned by producto).
 
 ## Portal on or off
 
-`PORTAL_ENABLED` decides whether `/entrar`, `/app` and `/operador` exist. Their route files are
-named `*.portal.tsx` and only count as routes when it is on (`pageExtensions` in
-`next.config.ts`), so with it off they are not compiled at all.
+`PORTAL_ENABLED` decides whether `/entrar`, `/ingresar`, `/invitacion`, `/app` and `/operador`
+exist. Their route files are named `*.portal.tsx` and only count as routes when it is on
+(`pageExtensions` in `next.config.ts`), so with it off they are not compiled at all.
 
 | Command | Default | Override |
 |---|---|---|
@@ -16,24 +17,43 @@ named `*.portal.tsx` and only count as routes when it is on (`pageExtensions` in
 
 Checked on 06/11: off builds only `/` and `/_not-found`; `/entrar`, `/app`, `/operador` and
 `/v1/*` answer 404; the built output has no login copy, sample logins, `/v1/auth`, `/entrar`
-or `/operador`. On builds all ten routes. The landing never links to the portal.
+or `/operador`. The landing never links to the portal.
 
-## Two modes (portal on)
+## Where the data comes from (portal on)
 
-| `CORE_API_URL` | Mode | What the portal and the console read |
+| Setting | Mode | What the portal and the console read |
 |---|---|---|
-| unset | sample | Synthetic fixtures in the spec's shapes (`src/lib/api/fixtures.ts`), "Datos de ejemplo" banner. Sample logins are listed on `/entrar`. |
-| `http://host:port` | live | The core, through a same-origin rewrite of `/v1/*` (`next.config.ts`). No banner. |
+| neither | sample | Synthetic fixtures in the spec's shapes (`src/lib/api/fixtures.ts`), "Datos de ejemplo" banner. Sample logins are listed on `/entrar`. |
+| `NEXT_PUBLIC_API_BASE=https://api.X` | live, production (D-18) | The core's API origin, called directly from the browser with CORS and `credentials: 'include'`. |
+| `CORE_API_URL=http://localhost:8080` | live, local development | The core, through a same-origin rewrite of `/v1/*` on the web. |
 
-The mode and the rewrite are compiled into the build: set `CORE_API_URL` for `npm run build`
-and keep it for `npm run start`. Only the mode reaches the browser bundle, never the URL.
+Rules, enforced by `next.config.ts` (the build fails otherwise):
+
+- `NEXT_PUBLIC_API_BASE` is an origin with no path, `https://` only; plain `http://` is accepted
+  for a loopback host (`localhost`, `127.0.0.1`), to try a build on one machine.
+- `CORE_API_URL` is the development proxy: `next dev` takes any origin, a build takes it only
+  for a loopback host, never as the way production reaches the core.
+- Not both at once.
+- The web and the API share the registrable domain (`app.X` and `api.X`, D-18): the refresh
+  cookie is SameSite=Strict and only travels within the same site.
+- The core must list the web's origin in `CORS_ALLOWED_ORIGINS` (in dev, `APP_BASE_URL`), or
+  refresh, switch-tenant and logout answer 403 `origin_not_allowed`.
+
+Only the mode and the public API origin reach the browser bundle; `CORE_API_URL` never does,
+and there is no API secret in the page. Both settings are compiled into the build: set them for
+`npm run build` and keep them for `npm run start`.
 
 ```bash
 npm run build && npm run start                                            # landing only (production default)
 PORTAL_ENABLED=1 npm run build && PORTAL_ENABLED=1 npm run start          # portal on sample data
+export PORTAL_ENABLED=1 NEXT_PUBLIC_API_BASE=https://api.tramo.example
+npm run build && npm run start                                            # portal on the core, production
 export PORTAL_ENABLED=1 CORE_API_URL=http://localhost:8080
-npm run build && npm run start                                            # portal on the core
+npm run dev                                                               # portal on make dev, local
 ```
+
+With `make dev`, set `APP_BASE_URL` and `DEV_APP_BASE_URL` to the web's exact origin (for
+example `http://127.0.0.1:3000`): it is the allowed CORS origin and the base of the emailed links.
 
 Sample mode keeps its session and decisions in memory. Moving through the app's own links keeps
 them; a full page reload (or typing a URL) drops them and comes back as the area's default
@@ -44,29 +64,37 @@ sample person in their first company. Fine for demos and testing, not something 
 - `POST /v1/auth/login` with `tokenDelivery: cookie`. The access token (10 minutes) lives only
   in memory (`src/lib/api/session.ts`); never in localStorage, sessionStorage or a readable cookie.
 - The refresh token is the core's `tramo_refresh` cookie (HttpOnly, Secure, SameSite=Strict,
-  Path=/v1/auth). It works because the browser only ever talks to the web's origin.
-- A reload asks `/v1/auth/refresh` for a new access token. A 401 refreshes once (one flight at a
-  time, since the refresh token rotates) and retries; if that fails, back to `/entrar`.
-- The tenant comes from the token. Several memberships: pick one on `/entrar`; switching company
-  logs in again with `tenantId` (the core has no switch endpoint).
+  Path=/v1/auth). Every call goes with `credentials: 'include'`, so it travels on refresh,
+  switch-tenant and logout, whether the API is the web's own origin (dev) or `api.X` (production).
+- A reload asks `/v1/auth/refresh` for a new access token. A 401 refreshes once and retries; if
+  that fails, back to `/entrar`. Refresh and switch-tenant share one slot (one flight at a time),
+  since both rotate the refresh token and a second use of an old one revokes the family.
+- The tenant comes from the token. Several memberships: pick one on `/entrar`; choosing and
+  "Cambiar de empresa" call `POST /v1/auth/switch-tenant`, no password. Opened directly or
+  reloaded, the switch page restores the session from the cookie first.
+- Login answers that still let the person in by email (429 with `magicLink`, 401
+  `magic_link_required`) offer "Mandame un enlace" (`POST /v1/auth/magic-link`, always 202).
+- `/ingresar` and `/invitacion` read the token from the URL fragment (never sent to a server),
+  wipe it from the address bar and history on read, and send no referrer.
+- The header shows the person's name from `/v1/me`, or the email while it is null; "Tu nombre"
+  sets it with `PATCH /v1/me`.
 - Every decision POST carries an `Idempotency-Key` created per user action and reused on retry.
 
 ## Client IP (live mode)
 
-The `/v1` rewrite passes `X-Forwarded-For` through exactly as it arrives and adds nothing:
-measured on Next 16.4.1 against a header echo, a request without the header reaches the core
-without it, and one with `X-Forwarded-For: 203.0.113.9` reaches it with that value. The web
-cannot see the browser's address itself, so the real IP has to come from the proxy in front.
+In production (D-18) the browser calls the API directly, so the client's address reaches the
+core through our own Caddy in front of the API, as for any other client. The web is not in the
+path and adds or forwards nothing.
 
-- Production: Caddy in front of the web sets the header to the client's address, and the
-  core lists the web's address in `TRUSTED_PROXIES`. That only holds if the web is reachable
-  through Caddy alone; reachable directly, any client could write its own header.
-- Local (`make dev` with the web on its own port): leave the web out of `TRUSTED_PROXIES`.
-  The core then sees every user with the web's address, so login throttling by IP counts
-  all of them together. Fine for testing, not for a deployment.
+The local `/v1` rewrite is different: it passes `X-Forwarded-For` through exactly as it arrives
+and adds nothing (measured on Next 16.4.1 against a header echo). With `make dev`, leave the web
+out of `TRUSTED_PROXIES`: the core then sees every user with the web's address, so login
+throttling by IP counts all of them together. Fine for testing, not for a deployment.
 
 ## Layout
 
 `src/lib/api/`: `types.ts` (hand-written mirror of `eng/core/api/openapi.yaml`), `index.ts` (the
 only door the screens use), `live.ts`, `sample.ts`, `fixtures.ts`. Screens are client components
-in `src/components/app/views/`, because the access token is only in the browser.
+in `src/components/app/views/`, because the access token is only in the browser. The pages before
+a session share `src/components/app/auth-frame.tsx`; the emailed tokens are handled in
+`src/components/app/token-entry.tsx`.

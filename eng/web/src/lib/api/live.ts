@@ -3,15 +3,18 @@ import { getSession, setSession, type Session } from "./session";
 import type { Me, Tokens } from "./types";
 
 /**
- * The real core, reached only through the web's own origin: next.config.ts rewrites /v1/*
- * to CORE_API_URL. That keeps the refresh cookie (SameSite=Strict, Path=/v1/auth) first
- * party and avoids CORS altogether. The access token goes in the Authorization header.
+ * The real core. In production (D-18) the browser calls the API origin directly
+ * (NEXT_PUBLIC_API_BASE, inlined at build as TRAMO_API_BASE) with CORS; in local development
+ * it goes through the web's own /v1 rewrite. Either way credentials are 'include', so the
+ * refresh cookie (HttpOnly, SameSite=Strict, Path=/v1/auth) travels on refresh, switch-tenant
+ * and logout. The access token goes in the Authorization header; no API secret is in the page.
  */
 
 const json = { "Content-Type": "application/json" };
+const base = process.env.TRAMO_API_BASE ?? "";
 
 async function call(path: string, init: RequestInit = {}) {
-  return fetch(path, { ...init, credentials: "same-origin", cache: "no-store" });
+  return fetch(base + path, { ...init, credentials: "include", cache: "no-store" });
 }
 
 async function tokens(res: Response): Promise<Tokens> {
