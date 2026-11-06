@@ -58,6 +58,137 @@ No se reportan, porque ya se conocen: que la web no tenga login, que la web no l
 | Web en 1280 y 390 | Las 8 rutas (`/`, `/app`, `/app/aprobaciones`, `/app/resultados`, `/app/descargas`, `/operador`, `/operador/bandejas`, `/operador/resultados`) dan 200 y no tiran errores de consola. A 390 px ninguna tiene scroll horizontal (scrollWidth = 390): la marquesina de la landing desborda pero queda recortada. |
 | Swagger | `GET /docs/` da 200. |
 
-## Sin probar todavía
+## Tanda 2: `make dev` de c256cf0 (06/11/2026)
 
-Factura real con QR de ARCA (no hay fixture sintético de PDF). Decisiones sobre matches de Sugerido y Auto (no se puede, por F2). El cierre de período (`period_closed`). El gateway ARCA desde la API (el núcleo no lo usa en ningún endpoint del cliente). El login por cookie desde el navegador. El tope de 20 fallos por hora por email desde varias IPs.
+**Cómo se corrió.** Se tomó la rama worktree-backend en c256cf0 (a2dc814, que es lo que verificó qa, más F1) con `git archive` a un directorio temporal. Se corrió `make dev` (el binario `cmd/dev`) con `DEV_PG_PORT=54369`, `DEV_HTTP_ADDR=127.0.0.1:18080`, `DEV_GRPC_ADDR=127.0.0.1:19090` y `DEV_DATA_DIR` en /tmp. Se usaron los usuarios sembrados: owner, approver y viewer @alfa.test, accountant@estudio.test, operator@tramo.test y owner@beta.test. No hubo siembra manual.
+
+### Estado de la tanda 1
+
+| # | Estado en c256cf0 | Evidencia |
+|---|-------------------|-----------|
+| F1 | **resuelta** | Con la clave del owner y el mismo body, viewer y approver reciben 403. El replay del propio owner devuelve el mismo `id`, y con otro body da 422. Sobre una decisión, la clave del approver usada por el viewer o por el owner da 422 `key used for another decision`: no hay replay ajeno. |
+| F2 | sigue | La semilla carga partidas por adentro (`matching.items_loaded` en el audit) y deja 1 match en Auto y 1 en Sugerido. Pero el spec sigue sin un path para cargarlas (lista de paths igual a la de la tanda 1). Para un cliente real, todo sigue cayendo en Excepciones. |
+| F3 | sigue | El Galicia con `CLIENTE UNO` → `CLIENTE 1` da `new: 1, alreadyPresent: 9`. El export muestra dos filas de $250.000 con saldo 1.250.000 y comprobante 000101. Además infla las métricas: el denominador de automatización pasó de 10 a 21 movimientos. |
+| F4 | sigue | El client_other sembrado aparece en el Sugerido del operador. Si el operador lo decide, `revert` y `other` dan 403 y `link` da 400. |
+| F5 | sigue | Después de dos 403 del viewer, el audit tiene solo `identity.login, ledger.account_created, ledger.statement_accepted, matching.items_loaded, matching.movement_other, matching.run`. |
+| F6 | sigue | viewer y approver: movements, matches y audit dan 200, 200 y 200. |
+| F7 | sigue | El owner da accountant u operator: 403. |
+| F8 | sigue | Al invitado nuevo, el login le da 401. |
+| F9 | sigue | El mismo archivo en la cuenta Santander da 200 `duplicate`. |
+| F10 | sin repetir | No quise bloquear a los usuarios sembrados en medio de la pasada. |
+| F11, F12 | siguen | No hay paths nuevos en el spec. |
+| F13 | sigue, y más amplio | El operator da accountant, operator, **owner** y approver: 201 en los cuatro. |
+| F14, F19 | sin cambio | La web no cambió en esta rama. |
+| F15, F16, F17, F18 | siguen | Mismos mensajes que en la tanda 1. |
+
+### Fallas nuevas
+
+| # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
+|---|------|-----------|---------------|----------|------|------|
+| F20 | API | El cliente ve la bandeja Sugerido | owner y viewer de alfa: `GET /v1/matching/matches?tray=suggested` y `GET /v1/matching/pending?tray=suggested`. | Spec §1: "el cliente nunca ve la bandeja Sugerido ni reglas internas sin confirmar". 403 o lista vacía para owner, approver y viewer. | 200 con el match sugerido (regla `amount_tolerance` y el ajuste de redondeo). El pending trae 3 movimientos: los `ambiguous`, con todas las candidatas del operador, y el `client_other`. | alta |
+
+### Lo que pasó bien en la tanda 2
+
+| Escenario | Evidencia |
+|-----------|-----------|
+| Nadie decide Auto | owner y operator, `approve` sobre el match de Auto: 403. |
+| El cliente no decide Sugerido | owner, approver, viewer y accountant, `approve` sobre el sugerido: 403. |
+| Operador: Sugerido → Excepciones | `escalate` 201 (revision 1, role operator). El doble toque con la misma clave devuelve la misma decisión. Una segunda decisión del operador da 403. El match aparece en Excepciones. |
+| El operador no aprueba excepciones ajenas | operator `approve` en Excepciones: 403. viewer y accountant: 403. `escalate` en Excepciones: 400. |
+| El approver decide Excepciones | `approve` 201 (revision 1, role approver, tray exception). El doble toque con la misma clave da la misma respuesta y no aplica dos veces. Un segundo approve del owner da 409. El ítem sale de la bandeja y `openExceptions` baja de 6 a 5. |
+| Revertir | El owner revierte: revision 2. El viewer revierte: 403. En el audit quedan `matching.escalate`, `matching.approve` y `matching.revert`, cada uno con user_id e IP. |
+| Export de matches | Cada fila trae la regla, la versión, el ajuste `rounding:0.75` y la decisión vigente (quién, rol, cuándo, revisión). |
+| Contador con dos clientes sembrados | alfa tiene 21 filas, beta 10, y comparten 0. `/v1/tenants` muestra solo alfa y beta. |
+| Otro tenant por id | El owner de alfa sube a una cuenta de beta: 404. Login del owner de beta con el `tenantId` de alfa: 401. |
+
+## Tanda 3: facturas con QR y login por cookie (mismo `make dev` de c256cf0)
+
+Las facturas son PDFs mínimos generados en el momento. Cada uno lleva un link annotation con un QR RG 4291 que usa el emisor de ejemplo del manual (30000000007) y, como receptor, el CUIT sintético de alfa (30000000015).
+
+### Fallas nuevas
+
+| # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
+|---|------|-----------|---------------|----------|------|------|
+| F21 | API | Factura dirigida a otra empresa | owner de alfa: `POST /v1/documents/invoices` con un PDF cuyo QR trae `nroDocRec: 30000000023` (el CUIT de beta). | Que la factura quede retenida para revisar, o que se rechace: no es del cliente. | 201 `autoEligible: true`, con todos los campos `trusted` y confianza 0.98. Nadie compara el receptor del QR con el CUIT del tenant (el README de documents solo excluye el CUIT propio como emisor). Una factura ajena entra como apta para registrar en automático. | media |
+| F22 | API | Refresh por cookie desde otro origen | 1) login sin `tokenDelivery` → cookie `tramo_refresh`. 2) `POST /v1/auth/refresh` con esa cookie y `Origin: https://evil.example`. | Rechazo por origen como segunda defensa, aunque SameSite=Strict ya frena al navegador. | 200 con un access token nuevo. Hoy lo protege solo SameSite. | baja |
+
+Con F2 hay evidencia nueva. Subí una factura con QR válido por $8.500 con fecha 2026-10-02, igual que un débito de alfa del mismo día, y corrí el matching del período. El débito sigue en Excepciones y Auto sigue con 1. La factura no alimenta al matching ni siquiera cuando el monto y la fecha coinciden exacto.
+
+### Lo que pasó bien en la tanda 3
+
+| Escenario | Evidencia |
+|-----------|-----------|
+| Factura con QR | 201 `autoEligible: true`. Cada campo trae `source: arca_qr`, confianza 0.98 y `trusted`. `GET /v1/documents/invoices/{id}` devuelve lo mismo. |
+| Factura repetida | El mismo archivo da 409 "this file was already uploaded". La misma factura en otro PDF da 409 "this invoice was already uploaded in another file". |
+| QR inválido | Importe con 3 decimales o `tipoCodAut: Z`: 201, pero sin campos, `autoEligible: false` y el motivo en `trail`. Las dos aparecen en `?autoEligible=false`. |
+| Contador sube factura | 201, como dice la spec. |
+| Cookie del navegador | `tramo_refresh` con `Path=/v1/auth; HttpOnly; Secure; SameSite=Strict` y 30 días. El refresh no viaja en el body. Rota con cada refresh. El logout la borra (`Max-Age=0`), y después el refresh da 401. |
+| CORS | Un preflight desde otro origen no recibe `Access-Control-Allow-Origin` (405). |
+
+## Sin probar todavía (hasta la tanda 3)
+
+El cierre de período (`period_closed`): todavía no existe. No hay endpoint para cerrar un período y cómo se cierra depende de una decisión de Martín, así que se prueba cuando esté construido. La factura con QR dentro de una imagen o en la capa de texto (probé solo el link). El gateway ARCA desde la API, que el núcleo no usa en ningún endpoint del cliente. El tope de 20 fallos por hora por email desde varias IPs: el lead pidió no repetir F10.
+
+## Tanda 4: `make dev` de main 10d396f (06/11/2026)
+
+La hizo cliente-2. Corrió `make dev` con datos nuevos (`DEV_DATA_DIR` propio, API en :18080, gateway en :19090, Postgres en :54361, `DEV_APP_BASE_URL=http://localhost:13100`). La web corrió con `CORE_API_URL=http://127.0.0.1:18080 next dev -p 13100` y se recorrió con Playwright headless a 1280 y 390 px. Todo es sintético: los usuarios sembrados `*.test`, los nuevos `*-sint.test` y los fixtures de `internal/ledger/testdata`. Para F10 usé otras direcciones de loopback como origen (`curl --interface 127.0.0.x`). Las pruebas dejaron al approver sembrado con 429 durante 15 minutos desde 127.0.0.1.
+
+### Estado de las tandas 1 a 3
+
+| # | Estado | Evidencia |
+|---|--------|-----------|
+| F1 | resuelta | Ya estaba resuelta en la tanda 2. Se repitió: viewer y approver con la clave del owner reciben 403. El replay del owner devuelve el mismo `id` y con otro body da 422 `idempotency_key_reused`. |
+| F2 | resuelta en lo que se pidió | Subí una factura con QR por el mismo importe y la misma fecha del `PAGO PROVEEDOR EJEMPLO SA` (−120.500,50, 02/10). `GET /v1/matching/items` pasa de 2 a 3 partidas (`source: document`). Después de `POST /v1/matching/runs` el pago deja Excepciones y pasa a Sugerido con `shared_candidate`. Es correcto: el mismo pago está en los fixtures de cuatro bancos. Las partidas del ERP siguen sin un camino de carga. |
+| F3 | resuelta | El Galicia con `CLIENTE UNO` → `CLIENTE 1` queda `quarantined, movement_conflict`, "line 11 has the date, amount, balance and references of a movement already stored, with another description". `new: 0`. |
+| F4 | resuelta | approver `other` con nota: 201. El movimiento aparece en Sugerido del operador. operator `resolve`: 201 (revision 2). operator `other`: 403. |
+| F5 | resuelta | Cada 403 deja una fila `authz.denied` con `operation:…`, user_id, request_id e IP. Los repetidos se agrupan en una fila con `repeated` y `repeated_until`. |
+| F6 | resuelta | viewer y approver: audit, movements y matches dan 403 "your role cannot download the tenant's data". |
+| F7 | resuelta | El owner da accountant, owner, approver y viewer: 201. Si da operator, 403: el primero sale del comando `api create-operator`, como dice el spec. |
+| F8 | resuelta en la API, no en la web | Al invitado sin contraseña le llega un mail al outbox. `POST /v1/auth/invite/accept` da 200 y después el login con la contraseña nueva funciona. Pero el link del mail da 404 en la web: ver F23. |
+| F9 | resuelta | El Galicia subido a la cuenta Santander queda `quarantined, bank_mismatch`, "file is a galicia export, account is santander". |
+| F10 | resuelta | Seis fallos desde 127.0.0.2: el sexto da 429 con `magicLink: true`. El titular entra desde 127.0.0.3 con 200. Veinte fallos desde seis IPs: el login pasa a `magic_link_required`, también con la contraseña correcta. Un email que no existe recibe la misma respuesta, así que no sirve para averiguar qué emails hay. |
+| F11 | resuelta | `DELETE /v1/tenant/members/{id}`: 204. Después de eso, al sacado el login y el cambio de empresa le dan 403 `not_a_member`. Si el owner intenta sacar al último owner, 409 `last_owner`. |
+| F12 | resuelta | `GET /v1/ledger/files` lista cada archivo con quién lo subió, la fecha, el estado y el motivo. `GET /v1/ledger/movements?period=2026-10` da 200. |
+| F13 | resuelta para un tenant con owner | operator da accountant, operator, owner o approver: 403 en los cuatro. El caso "solo mientras no hay owner" no se pudo armar sin el comando. |
+| F14 | sin repetir del todo | En vivo, Excepciones ofrece "Es otra cosa" y "Vincular a mano", que corresponden a `other` y `link`. Cuando recorrí la web no había un match con candidato en Excepciones, así que "Rechazar" no apareció. |
+| F15 | resuelta | `other` sin nota da 400 `note_required`, "note required: say why". |
+| F16 | resuelta | Con una comilla suelta: `row_parse`, "line 2: bare \" in non-quoted-field". Con una comilla sin cerrar: `row_parse`, "line 11: extraneous or missing \" in quoted-field". |
+| F17 | resuelta | `period=2026-13` da "invalid parameter \"period\"". Un body sin `name` da "invalid request body: /name". |
+| F18 | resuelta | El owner de beta con el `tenantId` de alfa: 403 `not_a_member`. |
+| F19 | resuelta, con una variante nueva | `reject` sin nota o con espacios: 400 `note_required`. Una nota hecha solo de un carácter invisible pasa: ver F28. |
+| F20 | resuelta | owner, viewer y approver piden Sugerido (matches y pending): 403. |
+| F21 | resuelta | Factura con `nroDocRec` de beta: 201 `autoEligible: false`, `itemReason: not_this_tenant`. |
+| F22 | resuelta | Refresh por cookie con Origin `https://evil.example`, sin Origin, `null` o `http://localhost:13100.evil.example`: 403 `origin_not_allowed`. Con el origen de la web: 200. |
+
+### Fallas nuevas
+
+| # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
+|---|------|-----------|---------------|----------|------|------|
+| F23 | Web + API | Los links de los mails llevan a páginas que no existen | 1) owner: `POST /v1/tenant/members {"email":"nuevo-viewer@alfa-sint.test","role":"viewer"}`. 2) Abrir el link del outbox. 3) `POST /v1/auth/magic-link {"email":"approver@alfa.test"}` y abrir ese link. | Una página que acepta la invitación (contraseña y nombre) y otra que abre la sesión con el link. | Los links son `http://localhost:13100/invitacion#token=…` y `http://localhost:13100/ingresar#token=…`. Los dos dan 404 en la web: `curl` da 404 en los dos, y en la web no hay código de invitación, link mágico ni cambio de empresa por refresh. El invitado no tiene forma de entrar desde el producto. | alta |
+| F24 | Web | Con el login frenado, la web no ofrece el link mágico | 1) Cinco logins malos desde la misma IP. 2) Entrar desde `/entrar` con la contraseña correcta. | Spec: el 429 trae `magicLink: true` porque "the person can still get in with POST /v1/auth/magic-link". La web debería ofrecer el link. Con `magic_link_required` (D-17), el link es la única forma de entrar. | La web muestra "Hubo demasiados intentos. Probá de nuevo en 13 minutos." y no ofrece el link. Con un ataque repartido entre varias IPs, la persona queda afuera una hora aunque sepa la contraseña. | media |
+| F25 | API | El owner de otra empresa cambia el email guardado de un usuario ajeno | 1) owner de beta: `POST /v1/tenant/members {"email":"APPROVER@ALFA.TEST","role":"viewer"}`. 2) owner de alfa: `GET /v1/tenant/members`. 3) approver: `GET /v1/me`. | Que alta en beta no toque nada de la cuenta en alfa. El email guardado no lo cambia nadie más que su dueño. | 201. Desde ese momento alfa lo ve como `APPROVER@ALFA.TEST`, y el `/v1/me` del approver devuelve `APPROVER@ALFA.TEST`. Un alta que el owner de alfa vuelve a intentar con otras mayúsculas y que da 409 `already_member` también le cambia el email guardado. Por ahora solo cambia las mayúsculas, pero es una escritura de un tenant sobre datos que ve otro. | media |
+| F26 | API | Sumar a cualquiera con cuenta, sin aviso | 1) owner de beta: `POST /v1/tenant/members {"email":"viewer@alfa.test","role":"viewer"}`. 2) Mirar el outbox. 3) viewer: `GET /v1/me`. | Que la persona se entere: un mail, o una invitación que tenga que aceptar. | 201, y el outbox no tiene ningún mail para `viewer@alfa.test`. Beta aparece en `memberships` y en el selector de empresa del viewer. Cualquiera que se registre puede meter su empresa en la cuenta de otra persona con el nombre que quiera (ver F27). La respuesta no expone el nombre de la persona: `name: null` aunque ella lo haya cargado. | media |
+| F27 | API + Web | Nombres de empresa y de cuenta con caracteres invisibles o de inversión de texto | 1) `POST /v1/auth/register` con `tenantName` `"​​​"`, `"ㅤㅤ"`, `"  "` y `"Tramo Soporte ‮)ved( ofla oniloM"`. 2) owner: `POST /v1/ledger/accounts` con `name` `"​​"`, `"ㅤ"` y `"Cuenta ‮laicnes"`. 3) Ese owner invita a alguien. | Las mismas reglas que se pusieron para el nombre de la persona en 10d396f: algo visible, sin controles bidi. | 201 en los siete casos. En el alta del portal las cuentas se ven en blanco y con el texto invertido. El mail de invitación dice "You were added to Tramo Soporte ‮)ved( ofla oniloM as viewer.", y el lector de correo invierte el resto de la línea. También se puede registrar una empresa que se llame "Tramo Soporte". El nombre de la persona con los mismos caracteres da 400 `invalid_name`. | media |
+| F28 | API | Motivo de rechazo invisible | operator escala el sugerido. owner: `POST /v1/matching/matches/{id}/decision {"action":"reject","note":"​"}`. | 400 `note_required`, igual que con espacios. | 201 con `note: "​"`. El operador recibe un rechazo "con motivo" que en realidad no tiene texto. | baja |
+| F29 | API | Volver a sumar a alguien que no llegó a entrar | 1) owner invita a `nuevo-approver@alfa-sint.test`. 2) Lo saca (`DELETE`, 204). 3) Esa persona abre la invitación: 403 `not_a_member`. 4) owner lo suma de nuevo: 201. 5) Login con la contraseña que puso en el paso 3. | El paso 3 no cambia nada. Si lo vuelven a sumar, le llega una invitación nueva. | El paso 3 da 403 pero guarda la contraseña igual: en el paso 5 entra con 200. El paso 4 no manda ningún mail (hay uno solo para esa dirección) y el token viejo da 401. Si la persona no hubiera usado el link antes, ahora no tendría cómo entrar desde la web (F23, F24). | media |
+| F30 | API | Email de miembro con un carácter invisible | owner: `POST /v1/tenant/members {"email":"owner​@alfa.test","role":"viewer"}`. | 400: no es un email válido. | 201: crea un usuario nuevo y le manda una invitación. En la lista de miembros se ve idéntico a `owner@alfa.test`. | baja |
+| F31 | API | Mails al cliente en inglés | Ver el outbox después de una invitación y de un link mágico. | Castellano, como el resto del producto (mercado AR). | "Subject: Your invitation", "You were added to Molino Alfa (dev) as viewer.", "Your sign in link". El rol también sale en inglés. | baja |
+
+### Lo que pasó bien en la tanda 4
+
+| Escenario | Evidencia |
+|-----------|-----------|
+| Una carga por banco | Galicia, Santander, Macro y Mercado Pago: 201 `accepted` con 10, 10, 10 y 4 movimientos y su `layoutId`. El mismo Galicia otra vez: 200 `duplicate`, `new: 0`. |
+| Invitación | Token corto: 400. Token desconocido: 401 `invalid_invite`. Contraseña débil: 400. Aceptar: 200. Reusar el token: 401. Nombre con un carácter invisible: 400 `invalid_name`. El mismo email con otras mayúsculas da 409 `already_member`, sin duplicar la persona. |
+| Link mágico | Un email que no existe y uno que existe: 202 en los dos. El link se usa una vez y el segundo uso da 401 `invalid_magic_link`. Pedido para un tenant ajeno: el accept da 403 `not_a_member`. A un invitado sin contraseña le sirve para entrar. Con el mismo `Idempotency-Key` y otro email: 422. Doce pedidos seguidos: 2 dan 202 y 10 dan 429. |
+| Cambio de empresa (API) | Contador de alfa a beta: 200, y `/v1/me` muestra beta activa con rol accountant. Los archivos de beta no traen ninguna cuenta de alfa. Reusar el refresh viejo: 401 `refresh_token_reused`. Un tenant ajeno o inexistente da 403 `not_a_member` y el refresh sigue sirviendo. Con el access token en lugar del refresh: 401. Por cookie con un origen ajeno: 403 `origin_not_allowed`. Después de que lo sacan: 403. |
+| Cambio de empresa (web, 390 px) | El contador entra, elige Alfa y va a "Cambiar de empresa". Confirma la contraseña y elige Beta: el encabezado pasa a "Molino Beta (dev)" y la página no menciona Alfa. |
+| Nombre de persona | `PATCH /v1/me` rechaza con `invalid_name` 16 variantes: solo ZWSP, solo NBSP, el relleno Hangul, el blanco Braille, RLO, ZWJ, solo combinantes, tab, salto de línea, BOM, caracteres tag, soft hyphen, word joiner, solo selector de variación y el separador mongol. Más de 120 caracteres: 400. Acentos y emoji: 200. En el registro, un nombre con RLO da 400. |
+| CORS | Al preflight desde `http://localhost:13100` vuelve ese origen exacto, con credenciales y los tres headers. Desde las mayúsculas, la barra final, https, otro puerto, 127.0.0.1, un subdominio parecido, `evil.localhost` o `null`: 403 sin `Access-Control-Allow-Origin`. Un GET con origen ajeno no recibe ACAO, así que el navegador no puede leerlo. |
+| Portal a 390 px | `/app`, `/app/aprobaciones`, `/app/resultados` y `/app/descargas`, y lo mismo a 1280: sin scroll horizontal y sin errores de consola ni respuestas 4xx. El owner que entra en `/operador` ve "La consola es para operadores y contadores" con un link al portal. |
+| Decidir desde el celular | owner, "Es otra cosa": la nota es obligatoria en el formulario y el POST da 201 con `{"action":"other","note":…}`. En "Vincular a mano", con "Todos los meses" aparecen las dos facturas de agosto. Al elegirlas, el total dice "Coincide" y el POST da 201 `link` con los dos `itemIds`. El contador baja de 5 a 4. |
+| Las decisiones sobreviven a una nueva corrida | Después de `POST /v1/matching/runs` para 2026-10, el `other` y el `link` de Bancor no vuelven a Excepciones. El resuelto por el operador tampoco. |
+
+### Sin probar en la tanda 4
+
+Los vencimientos: la invitación a las 72 horas y el link mágico a los 15 minutos. Que el access token de alguien a quien sacaron deje de servir en 10 minutos. El grant del operator a un tenant sin owner, porque hace falta el comando `create-operator`. El botón "Rechazar" del portal en vivo. El cierre de período sigue sin construir.
