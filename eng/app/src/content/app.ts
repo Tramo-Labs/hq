@@ -8,7 +8,7 @@ import type { Bank, ExportKind, PendingReason, Role, StepKind, StepStatus } from
 export const app = {
   sample: "Datos de ejemplo · el núcleo todavía no está conectado",
   skip: "Saltar al contenido",
-  roles: { owner: "titular", approver: "aprobador", viewer: "lectura", accountant: "contador", operator: "operador" } satisfies Record<Role, string>,
+  roles: { owner: "dueño", approver: "aprobador", viewer: "solo lectura", accountant: "contador", operator: "operador" } satisfies Record<Role, string>,
   portal: {
     label: "Portal",
     nav: [
@@ -33,11 +33,11 @@ export const app = {
     title: "Tres pasos y empezamos a conciliar.",
     body: "Cada paso se verifica solo. Nunca te pedimos clave fiscal ni usuario de home banking.",
     progress: (done: number) => `${done} de 3 pasos listos`,
-    names: { arca: "ARCA", bank: "Banco", erp: "Sistema contable" } satisfies Record<StepKind, string>,
+    names: { arca: "ARCA", bank: "Bancos", erp: "Sistema contable" } satisfies Record<StepKind, string>,
     bodies: {
       arca: "Confirmá tu CUIT. Para conciliar no hace falta delegar nada.",
-      bank: "Subí el exporte de tu home banking (CSV, XLS o PDF).",
-      erp: "Con Xubio, Odoo o Alegra pegás una clave de API que generás en tu sistema. Con Tango, Colppy, Contabilium o planilla, subís el exporte del mayor de bancos o de las partidas abiertas.",
+      bank: "Dá de alta cada cuenta y subí el primer extracto como lo exporta tu home banking (CSV, Excel o PDF).",
+      erp: "Con Xubio, Odoo o Alegra generás una credencial en tu sistema y la pegás acá. Con Tango, Colppy, Contabilium o planilla, subís cada período el exporte de las partidas abiertas o del mayor de bancos.",
     } satisfies Record<StepKind, string>,
     actions: {
       arca: ["Confirmar CUIT"],
@@ -127,7 +127,7 @@ export const app = {
     eyebrow: "Miembros",
     title: "Quién entra a esta empresa.",
     body: "Invitá a tu equipo o a tu contador. Cada persona entra recién cuando acepta la invitación que le llega por mail.",
-    noRole: "Solo el titular ve y cambia quién entra a esta empresa.",
+    noRole: "Solo el dueño ve y cambia quién entra a esta empresa.",
     activeTitle: "Con acceso",
     pendingTitle: "Invitaciones pendientes",
     pendingNote: "Todavía no la aceptaron: hasta entonces no ven nada de la empresa.",
@@ -137,7 +137,7 @@ export const app = {
     inviteTitle: "Invitar a alguien",
     email: "Email",
     role: "Rol",
-    roleHelp: { owner: "Todo, incluido quién entra.", approver: "Decide las excepciones.", viewer: "Solo mira.", accountant: "Mira y descarga.", operator: "" } satisfies Record<Role, string>,
+    roleHelp: { owner: "Todo: decide excepciones, invita y quita gente, maneja credenciales, descarga todo.", approver: "Decide excepciones y sube archivos.", viewer: "Ve todo, no toca nada.", accountant: "Ve y descarga; puede tener varias empresas a la vez; no aprueba.", operator: "" } satisfies Record<Role, string>,
     invite: "Mandar invitación",
     inviting: "Mandando…",
     invited: (email: string) => `Le mandamos la invitación a ${email}. Queda pendiente hasta que la acepte.`,
@@ -151,7 +151,7 @@ export const app = {
     keep: "No",
     removing: "Quitando…",
     problems: {
-      last_owner: "No se puede quitar al único titular: la empresa necesita al menos uno. Invitá a otro titular y, cuando acepte, quitá a este.",
+      last_owner: "Al último dueño no se lo puede quitar: la empresa necesita al menos uno. Invitá a otro dueño y, cuando acepte, quitá a este.",
       already_member: "Esa persona ya tiene acceso a esta empresa.",
       invalid_email: "Revisá el email: no parece válido.",
       forbidden: "Tu rol no permite hacer esto.",
@@ -172,7 +172,7 @@ export const app = {
     downloading: "Descargando…",
     downloadFailed: "No se pudo descargar. Probá de nuevo.",
     notBuilt: "Esta descarga todavía no está disponible.",
-    noRole: "Tu rol no puede descargar. Pedíselo al titular del portal.",
+    noRole: "Tu rol no puede descargar. Pedíselo al dueño de la empresa.",
     quarantineTitle: "Archivos que no entraron",
     quarantineEmpty: "Todos los archivos que subiste entraron.",
     quarantineBody: "Un archivo entra entero o no entra. Estos no se usaron para conciliar.",
@@ -194,7 +194,7 @@ export const app = {
     body: "Lo más trabado arriba: primero por pasos faltantes, después por excepciones abiertas.",
     missing: (n: number) => (n === 0 ? "alta completa" : n === 1 ? "falta 1 paso" : `faltan ${n} pasos`),
     exceptions: (n: number, capped: boolean) => (n === 0 ? "sin excepciones" : n === 1 ? "1 excepción abierta" : `${capped ? "más de " : ""}${n} excepciones abiertas`),
-    steps: { arca: "ARCA", bank: "Banco", erp: "Contable" } satisfies Record<StepKind, string>,
+    steps: { arca: "ARCA", bank: "Bancos", erp: "Contable" } satisfies Record<StepKind, string>,
     active: "Cliente activo",
     work: "Trabajar en este cliente",
   },
@@ -270,8 +270,8 @@ export const app = {
 
   // ---------------------------------------------------------------------------------------
   // BORRADOR DE FRONTEND PARA QUE PRODUCTO REVISE (06/11): login y sesión.
-  // Escrito sin sesión de producto. No promete nada que no esté construido: no hay
-  // "olvidé mi contraseña", link mágico ni segundo factor todavía, así que no se mencionan.
+  // Escrito sin sesión de producto. No promete nada que no esté construido: el enlace por mail
+  // existe; "olvidé mi contraseña" y el segundo factor todavía no, así que no se mencionan.
   // ---------------------------------------------------------------------------------------
   session: {
     eyebrow: "Entrar",
@@ -323,7 +323,7 @@ export const app = {
       opening: "Abriendo tu sesión…",
       noToken: "Por seguridad, el enlace se lee una sola vez y no queda en la dirección. Si no llegaste a entrar, pedí uno nuevo.",
       invalid: "El enlace ya se usó o venció. Pedí otro desde la pantalla de entrada.",
-      notMember: "Con este enlace no podés entrar: hoy no tenés acceso a esa empresa. Si te invitaron, aceptá la invitación desde el mail que te llegó; si no, pedile al titular que te sume.",
+      notMember: "Con este enlace no podés entrar: hoy no tenés acceso a esa empresa. Si te invitaron, aceptá la invitación desde el mail que te llegó; si no, pedile al dueño que te sume.",
       again: "Ir a entrar",
     },
     // Draft for producto (frontend, 06/11): the person's own name in the header.
