@@ -55,7 +55,7 @@ type Upload struct {
 type Result struct {
 	Status         Status
 	Reason         string // set when quarantined
-	Detail         string // human readable, never contains amounts or names from the file header
+	Detail         string // for the tenant only (may name the amounts that do not close); never logged nor audited
 	FileHash       string
 	Fingerprint    string
 	LayoutID       string
@@ -223,6 +223,12 @@ func sameAccount(a, b string) bool {
 // fingerprint of the header it found.
 func Parse(data []byte) (*Statement, string, string) {
 	det := detect(decodeText(data))
+	// A line the CSV reader cannot split stops the file with that line,
+	// whether or not the header was recognized: the layout is not the
+	// problem, the row is (F16). Its contents never go in the detail.
+	if det.Broken != nil && (det.Layout != nil || det.Fingerprint == "") {
+		return nil, ReasonRowParse, fmt.Sprintf("line %d: %v", det.Broken.Line, det.Broken.Err)
+	}
 	if det.Layout == nil {
 		return nil, ReasonUnknownLayout, det.Fingerprint
 	}

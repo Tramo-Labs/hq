@@ -314,6 +314,37 @@ func TestDescriptionIsNotPartOfTheIdentity(t *testing.T) {
 	}
 }
 
+// F16: a line the CSV reader cannot split (a stray or unclosed quote) is
+// row_parse naming the line, not an unknown layout with an empty
+// fingerprint; the detail carries nothing from the cell.
+func TestBrokenQuoteNamesTheLine(t *testing.T) {
+	cases := []struct {
+		file, from, to string
+		bank           Bank
+		line           string
+	}{
+		{"galicia_ok.csv", "TRANSFERENCIA RECIBIDA CLIENTE UNO", `=HYPERLINK("http://x","a")`, Galicia, "line 11:"},
+		{"bancor_ok.csv", `"TRANSFERENCIA RECIBIDA CLIENTE UNO"`, `"TRANSFERENCIA "RECIBIDA" CLIENTE UNO"`, Bancor, "line 2:"},
+	}
+	for _, c := range cases {
+		t.Run(c.file, func(t *testing.T) {
+			data := strings.Replace(string(fixture(t, c.file)), c.from, c.to, 1)
+			st, reason, detail := Parse([]byte(data))
+			if st != nil || reason != ReasonRowParse || !strings.HasPrefix(detail, c.line) {
+				t.Fatalf("%s %q; want row_parse at %s", reason, detail, c.line)
+			}
+			if strings.Contains(detail, "HYPERLINK") || strings.Contains(detail, "RECIBIDA") {
+				t.Errorf("detail carries the cell: %q", detail)
+			}
+			r, err := (&Ingester{Store: NewMemStore()}).Ingest(context.Background(),
+				Upload{TenantID: "t1", AccountID: "acc", Bank: c.bank, Data: []byte(data)})
+			if err != nil || r.Status != Quarantined || r.Reason != ReasonRowParse {
+				t.Errorf("ingest: %v %s %s", err, r.Status, r.Reason)
+			}
+		})
+	}
+}
+
 // Identical movements without a running balance still get distinct keys.
 func TestTwinsWithoutBalance(t *testing.T) {
 	m := Movement{Description: "X", Amount: 100}

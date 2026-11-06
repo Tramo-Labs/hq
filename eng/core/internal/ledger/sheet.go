@@ -27,6 +27,10 @@ type sheet struct {
 	Delimiter rune
 	Rows      []row
 	Header    int // index in Rows of the header row, -1 if none
+	// Broken is the first line the CSV reader could not split (a stray or
+	// unclosed quote). Rows stops before it: a broken sheet is never read
+	// as a whole statement.
+	Broken *csv.ParseError
 }
 
 // decodeText strips a UTF-8 BOM and converts Latin-1 (what most home
@@ -52,6 +56,11 @@ func readSheet(text string, delim rune) (*sheet, error) {
 	for {
 		rec, err := r.Read()
 		if errors.Is(err, io.EOF) {
+			break
+		}
+		var pe *csv.ParseError
+		if errors.As(err, &pe) {
+			s.Broken = pe
 			break
 		}
 		if err != nil {
