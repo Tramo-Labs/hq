@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useState, type ReactNode } from "react";
-import { site } from "@/content/site";
+import { brand } from "@tramo/ui/brand";
 import { app } from "@/content/app";
 import { ApiError, areaAllows, getMode, homeFor, updateName, type Session } from "@/lib/api";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
@@ -130,7 +130,7 @@ function Frame({ area, copy, session, children }: { area: Area; copy: typeof app
       <header className="sticky top-0 z-20 border-b border-white/10 bg-ink/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
           <p className="flex items-center gap-2">
-            <Link href="/" className="inline-flex min-h-11 items-center text-[17px] font-medium tracking-tight">{site.name}</Link>
+            <Link href="/" className="inline-flex min-h-11 items-center text-[17px] font-medium tracking-tight">{brand.name}</Link>
             <span className="font-mono text-[12px] text-white/60">{copy.label}</span>
           </p>
           {session && <Account session={session} />}

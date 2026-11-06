@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { site } from "@/content/site";
+import { brand } from "@tramo/ui/brand";
 import { app } from "@/content/app";
 import { Login } from "@/components/app/login";
 import { AuthFrame } from "@/components/app/auth-frame";
 
-export const metadata: Metadata = { title: `${app.session.eyebrow} · ${site.name}`, robots: { index: false } };
+export const metadata: Metadata = { title: `${app.session.eyebrow} · ${brand.name}`, robots: { index: false } };
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 

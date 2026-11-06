@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { site } from "@/content/site";
+import { brand } from "@tramo/ui/brand";
 import { app } from "@/content/app";
 import { Shell } from "@/components/app/shell";
 
 export const metadata: Metadata = {
-  title: { template: `%s · ${app.portal.label} · ${site.name}`, default: `${app.portal.label} · ${site.name}` },
+  title: { template: `%s · ${app.portal.label} · ${brand.name}`, default: `${app.portal.label} · ${brand.name}` },
   robots: { index: false },
 };
 
