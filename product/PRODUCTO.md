@@ -57,7 +57,7 @@ Tasa de conciliación automática por cuenta y por mes, tasa de sugerencias acep
 - Semanas 1 y 2: modelo de datos; parsers de los siete bancos con exportes reales de tres pymes de diseño; PDF con confianza por campo; control de saldos; deduplicación.
 - Semanas 3 y 4: motor pasadas 1 a 3, regla guardada en cada match, cola de pendientes con motivo, suite de prueba con los seis casos de Duotach más 200 movimientos etiquetados a mano por pyme. Entregable: tasa de automatización medida por pyme.
 - Semanas 5 y 6: combinaciones, plantillas de neto de comisión, Mercado Pago de punta a punta.
-- Semanas 7 y 8: consola del operador, página de aprobación del cliente, LLM para normalización y explicaciones, decisiones a reglas en sombra. Entregable: cierre semanal operado para las tres pymes.
+- Semanas 7 y 8: consola del operador, página de aprobación del cliente, LLM para normalización y explicaciones, decisiones a reglas en sombra. Entregable: cierre quincenal operado para las tres pymes.
 - Semanas 9 y 10: escritura en Xubio por API y plantillas de Tango, Colppy y Contabilium; cuentas a pagar de la casilla al ERP con cola de revisión.
 - Semanas 11 y 12: panel, paquete de cierre, audit log, roles (operador, aprobador, contador de solo lectura), política de retención y cifrado escrita, checklist de alta. Entregable: tres pymes en piloto pago con su número publicado.
 

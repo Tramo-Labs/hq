@@ -137,7 +137,7 @@ export const app = {
     inviteTitle: "Invitar a alguien",
     email: "Email",
     role: "Rol",
-    roleHelp: { owner: "Todo: decide excepciones, invita y quita gente, maneja credenciales, descarga todo.", approver: "Decide excepciones y sube archivos.", viewer: "Ve todo, no toca nada.", accountant: "Ve y descarga; puede tener varias empresas a la vez; no aprueba.", operator: "" } satisfies Record<Role, string>,
+    roleHelp: { owner: "Todo: decide excepciones, invita y quita gente, maneja credenciales, descarga todo.", approver: "Decide excepciones y sube archivos.", viewer: "Ve el panel, los movimientos y las conciliaciones; no decide, no sube ni descarga.", accountant: "Ve y descarga; puede tener varias empresas a la vez; no aprueba.", operator: "" } satisfies Record<Role, string>,
     invite: "Mandar invitación",
     inviting: "Mandando…",
     invited: (email: string) => `Le mandamos la invitación a ${email}. Queda pendiente hasta que la acepte.`,

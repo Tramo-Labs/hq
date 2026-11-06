@@ -17,6 +17,13 @@ import type { Member, Role } from "../../lib/api/types";
 
 const roles: Role[] = ["owner", "approver", "viewer", "accountant", "operator"];
 
+test("the viewer's help says what it sees and promises no download or decision (spec §1)", () => {
+  // Viewer: panel, movements, documents and matches; no decisions, uploads, downloads or audit.
+  const help = app.members.roleHelp.viewer;
+  assert.equal(help, "Ve el panel, los movimientos y las conciliaciones; no decide, no sube ni descarga.");
+  assert.doesNotMatch(help, /ve todo|descarga todo|auditor/i);
+});
+
 test("an owner gives owner, approver, viewer and accountant, never operator", () => {
   assert.deepEqual(grantableRoles("owner"), ["owner", "approver", "viewer", "accountant"]);
   assert.ok(!grantableRoles("owner").includes("operator"));
