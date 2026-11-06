@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/documents/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 )
@@ -57,6 +59,21 @@ func keyInt(inv *Invoice, n Name) *int64 {
 	return &i
 }
 
+// keyInt32 is keyInt for the int columns. A trusted value that does not
+// fit is an error, as the database would have refused it: the invoice does
+// not enter rather than enter without its key.
+func keyInt32(inv *Invoice, n Name) (*int32, error) {
+	v := keyInt(inv, n)
+	if v == nil {
+		return nil, nil
+	}
+	if *v < math.MinInt32 || *v > math.MaxInt32 {
+		return nil, fmt.Errorf("documents: %s out of range", n)
+	}
+	i := int32(*v)
+	return &i, nil
+}
+
 // Save stores an extracted invoice for the tenant in the context.
 func (s *PGStore) Save(ctx context.Context, doc []byte, inv *Invoice) (uuid.UUID, error) {
 	sum := sha256.Sum256(doc)
@@ -77,12 +94,21 @@ func (s *PGStore) Save(ctx context.Context, doc []byte, inv *Invoice) (uuid.UUID
 			total = &t
 		}
 	}
+	docType, err := keyInt32(inv, DocType)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	pos, err := keyInt32(inv, PointOfSale)
+	if err != nil {
+		return uuid.Nil, err
+	}
 	var id uuid.UUID
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		// The tenant's CUIT, read in this transaction, tells which side of
 		// the invoice the tenant is on.
-		var cuit *int64
-		if err := tx.QueryRow(ctx, `select cuit from tenants where id = app_current_tenant()`).Scan(&cuit); err != nil {
+		q := store.New(tx)
+		cuit, err := q.TenantCUIT(ctx)
+		if err != nil {
 			return err
 		}
 		own := ""
@@ -103,13 +129,13 @@ func (s *PGStore) Save(ctx context.Context, doc []byte, inv *Invoice) (uuid.UUID
 		if reason != "" {
 			itemReason = &reason
 		}
-		err = tx.QueryRow(ctx,
-			`insert into documents.invoices (tenant_id, sha256, fields, trail, auto_eligible, min_confidence,
-			   issuer_cuit, doc_type, point_of_sale, number, issue_date, total, item_reason, direction_uncertain)
-			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) returning id`,
-			sum[:], fields, trail, inv.AutoEligible(), inv.MinConfidence(),
-			keyValue(inv, IssuerCUIT), keyInt(inv, DocType), keyInt(inv, PointOfSale), keyInt(inv, Number),
-			date, total, itemReason, inv.DirectionUncertain).Scan(&id)
+		id, err = q.InsertInvoice(ctx, store.InsertInvoiceParams{
+			Sha256: sum[:], Fields: fields, Trail: trail,
+			AutoEligible: inv.AutoEligible(), MinConfidence: float32(inv.MinConfidence()),
+			IssuerCuit: keyValue(inv, IssuerCUIT), DocType: docType,
+			PointOfSale: pos, Number: keyInt(inv, Number),
+			IssueDate: date, Total: total, ItemReason: itemReason, DirectionUncertain: inv.DirectionUncertain,
+		})
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			if pgErr.ConstraintName == "invoices_tenant_id_sha256_key" {
@@ -140,7 +166,9 @@ func (s *PGStore) Save(ctx context.Context, doc []byte, inv *Invoice) (uuid.UUID
 func (s *PGStore) OwnCUIT(ctx context.Context) (string, error) {
 	var cuit *int64
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `select cuit from tenants where id = app_current_tenant()`).Scan(&cuit)
+		var err error
+		cuit, err = store.New(tx).TenantCUIT(ctx)
+		return err
 	})
 	if err != nil || cuit == nil {
 		return "", err
@@ -176,35 +204,24 @@ type ListFilter struct {
 func (s *PGStore) List(ctx context.Context, f ListFilter, limit int) ([]Summary, error) {
 	var out []Summary
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `
-			select id, issuer_cuit, doc_type, point_of_sale, number, issue_date, total, auto_eligible, min_confidence,
-			       fields, coalesce(item_reason, ''), created_at
-			  from documents.invoices
-			 where ($1 = '' or to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1)
-			   and ($2::boolean is null or auto_eligible = $2)
-			   and (not $3 or not auto_eligible or item_reason is not null)
-			 order by created_at desc, id limit $4`, f.Period, f.AutoEligible, f.Review, limit)
+		rows, err := store.New(tx).ListInvoices(ctx, store.ListInvoicesParams{
+			Period: f.Period, AutoEligible: f.AutoEligible, Review: f.Review, MaxRows: int32(limit), // #nosec G115 -- callers clamp limit
+		})
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var sm Summary
-			var conf float32
-			var fields []byte
-			if err := rows.Scan(&sm.ID, &sm.IssuerCUIT, &sm.DocType, &sm.PointOfSale, &sm.Number, &sm.IssueDate, &sm.Total,
-				&sm.AutoEligible, &conf, &fields, &sm.ItemReason, &sm.CreatedAt); err != nil {
-				return err
-			}
-			sm.MinConfidence = float64(conf)
+		for _, r := range rows {
+			sm := Summary{ID: r.ID, IssuerCUIT: r.IssuerCuit, DocType: r.DocType, PointOfSale: r.PointOfSale,
+				Number: r.Number, IssueDate: r.IssueDate, Total: r.Total, AutoEligible: r.AutoEligible,
+				MinConfidence: float64(r.MinConfidence), ItemReason: r.ItemReason, CreatedAt: r.CreatedAt}
 			inv := newInvoice()
-			if err := json.Unmarshal(fields, &inv.Fields); err != nil {
+			if err := json.Unmarshal(r.Fields, &inv.Fields); err != nil {
 				return err
 			}
 			sm.Missing = inv.Missing()
 			out = append(out, sm)
 		}
-		return rows.Err()
+		return nil
 	})
 	return out, err
 }
@@ -216,19 +233,18 @@ var ErrNotFound = errors.New("documents: not found")
 func (s *PGStore) Get(ctx context.Context, id uuid.UUID) (*Invoice, error) {
 	inv := newInvoice()
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		var fields, trail []byte
-		var reason *string
-		if err := tx.QueryRow(ctx, `select fields, trail, item_reason, direction_uncertain from documents.invoices where id = $1`, id).
-			Scan(&fields, &trail, &reason, &inv.DirectionUncertain); err != nil {
+		r, err := store.New(tx).GetInvoice(ctx, id)
+		if err != nil {
 			return err
 		}
-		if reason != nil {
-			inv.ItemReason = *reason
+		inv.DirectionUncertain = r.DirectionUncertain
+		if r.ItemReason != nil {
+			inv.ItemReason = *r.ItemReason
 		}
-		if err := json.Unmarshal(fields, &inv.Fields); err != nil {
+		if err := json.Unmarshal(r.Fields, &inv.Fields); err != nil {
 			return err
 		}
-		return json.Unmarshal(trail, &inv.Trail)
+		return json.Unmarshal(r.Trail, &inv.Trail)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
