@@ -1,0 +1,5577 @@
+{
+ "note": "synthetic, labeled by construction; see gen_suite.py",
+ "movements": [
+  {
+   "id": "mv-i2",
+   "date": "2026-10-24",
+   "amount": 57702432,
+   "description": "CREDITO VARIOS",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a24",
+   "date": "2026-10-12",
+   "amount": 8501354,
+   "description": "TRANSF RECIBIDA CLIENTE 24 FC 0003-00001024",
+   "reference": "500024",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b10",
+   "date": "2026-10-22",
+   "amount": -25300861,
+   "description": "TRANSFERENCIA A PROVEEDOR 10",
+   "reference": "600010",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a43",
+   "date": "2026-10-23",
+   "amount": 14207851,
+   "description": "TRANSF RECIBIDA CLIENTE 43 FC 0003-00001043",
+   "reference": "500043",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a5",
+   "date": "2026-10-06",
+   "amount": 2802250,
+   "description": "TRANSF RECIBIDA CLIENTE 5 FC 0003-00001005",
+   "reference": "500005",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a30",
+   "date": "2026-10-10",
+   "amount": 10305649,
+   "description": "TRANSF RECIBIDA CLIENTE 30 FC 0003-00001030",
+   "reference": "500030",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a47",
+   "date": "2026-10-11",
+   "amount": 15409033,
+   "description": "TRANSF RECIBIDA CLIENTE 47 FC 0003-00001047",
+   "reference": "500047",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f7",
+   "date": "2026-10-15",
+   "amount": 159619335,
+   "description": "DEPOSITO CLIENTE F7",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a18",
+   "date": "2026-10-02",
+   "amount": 6703468,
+   "description": "TRANSF RECIBIDA CLIENTE 18 FC 0003-00001018",
+   "reference": "500018",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d7",
+   "date": "2026-10-16",
+   "amount": 38740195,
+   "description": "payment",
+   "reference": "91000000007",
+   "external_ref": "PEDIDO-2007",
+   "gross": 40908337,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1677242
+    },
+    {
+     "kind": "taxes",
+     "amount": -490900
+    }
+   ]
+  },
+  {
+   "id": "mv-b32",
+   "date": "2026-10-06",
+   "amount": -31906378,
+   "description": "TRANSFERENCIA A PROVEEDOR 32",
+   "reference": "600032",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a20",
+   "date": "2026-10-07",
+   "amount": 7302297,
+   "description": "TRANSF RECIBIDA CLIENTE 20 FC 0003-00001020",
+   "reference": "500020",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j0",
+   "date": "2026-10-12",
+   "amount": 29303061,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003000",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j1",
+   "date": "2026-10-09",
+   "amount": 29452897,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003001",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b28",
+   "date": "2026-10-25",
+   "amount": -30707581,
+   "description": "TRANSFERENCIA A PROVEEDOR 28",
+   "reference": "600028",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j9",
+   "date": "2026-10-04",
+   "amount": 30653051,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003009",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b31",
+   "date": "2026-10-28",
+   "amount": -31603088,
+   "description": "TRANSFERENCIA A PROVEEDOR 31",
+   "reference": "600031",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b19",
+   "date": "2026-10-15",
+   "amount": -28002446,
+   "description": "TRANSFERENCIA A PROVEEDOR 19",
+   "reference": "600019",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a15",
+   "date": "2026-10-23",
+   "amount": 5802868,
+   "description": "TRANSF RECIBIDA CLIENTE 15 FC 0003-00001015",
+   "reference": "500015",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-h4-0",
+   "date": "2026-10-25",
+   "amount": 56805055,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a44",
+   "date": "2026-10-14",
+   "amount": 14506630,
+   "description": "TRANSF RECIBIDA CLIENTE 44 FC 0003-00001044",
+   "reference": "500044",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-i4",
+   "date": "2026-10-04",
+   "amount": 58306232,
+   "description": "CREDITO VARIOS",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d16",
+   "date": "2026-10-23",
+   "amount": 41296765,
+   "description": "payment",
+   "reference": "91000000016",
+   "external_ref": "PEDIDO-2016",
+   "gross": 43607989,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1787928
+    },
+    {
+     "kind": "taxes",
+     "amount": -523296
+    }
+   ]
+  },
+  {
+   "id": "mv-a4",
+   "date": "2026-10-07",
+   "amount": 2501855,
+   "description": "TRANSF RECIBIDA CLIENTE 4 FC 0003-00001004",
+   "reference": "500004",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a38",
+   "date": "2026-10-04",
+   "amount": 12706092,
+   "description": "TRANSF RECIBIDA CLIENTE 38 FC 0003-00001038",
+   "reference": "500038",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b7",
+   "date": "2026-10-17",
+   "amount": -24403624,
+   "description": "TRANSFERENCIA A PROVEEDOR 7",
+   "reference": "600007",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b29",
+   "date": "2026-10-12",
+   "amount": -31006480,
+   "description": "TRANSFERENCIA A PROVEEDOR 29",
+   "reference": "600029",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a63",
+   "date": "2026-10-07",
+   "amount": 20207680,
+   "description": "TRANSF RECIBIDA CLIENTE 63 FC 0003-00001063",
+   "reference": "500063",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g9",
+   "date": "2026-10-16",
+   "amount": -881844,
+   "description": "IVA 21% S/COMISION",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a7",
+   "date": "2026-10-08",
+   "amount": 3400042,
+   "description": "TRANSF RECIBIDA CLIENTE 7 FC 0003-00001007",
+   "reference": "500007",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b17",
+   "date": "2026-10-12",
+   "amount": -27407612,
+   "description": "TRANSFERENCIA A PROVEEDOR 17",
+   "reference": "600017",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c10",
+   "date": "2026-10-27",
+   "amount": 37301851,
+   "description": "ECHEQ 70819583 COBRADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b9",
+   "date": "2026-10-22",
+   "amount": -25002794,
+   "description": "TRANSFERENCIA A PROVEEDOR 9",
+   "reference": "600009",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j7",
+   "date": "2026-10-03",
+   "amount": 30353701,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003007",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d2",
+   "date": "2026-10-10",
+   "amount": 37317015,
+   "description": "payment",
+   "reference": "91000000002",
+   "external_ref": "PEDIDO-2002",
+   "gross": 39405507,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1615626
+    },
+    {
+     "kind": "taxes",
+     "amount": -472866
+    }
+   ]
+  },
+  {
+   "id": "mv-g5",
+   "date": "2026-10-27",
+   "amount": -302017,
+   "description": "IVA 21% S/COMISION",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c0",
+   "date": "2026-10-17",
+   "amount": 34307559,
+   "description": "ECHEQ 29438373 COBRADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c12",
+   "date": "2026-10-24",
+   "amount": 37904350,
+   "description": "ECHEQ 95680834 COBRADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b24",
+   "date": "2026-10-11",
+   "amount": -29508440,
+   "description": "TRANSFERENCIA A PROVEEDOR 24",
+   "reference": "600024",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-e4",
+   "date": "2026-10-05",
+   "amount": 46001151,
+   "description": "TRANSF RECIBIDA CLIENTE E4",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b39",
+   "date": "2026-10-09",
+   "amount": -34005606,
+   "description": "TRANSFERENCIA A PROVEEDOR 39",
+   "reference": "600039",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b33",
+   "date": "2026-10-05",
+   "amount": -32204421,
+   "description": "TRANSFERENCIA A PROVEEDOR 33",
+   "reference": "600033",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b8",
+   "date": "2026-10-15",
+   "amount": -24705960,
+   "description": "TRANSFERENCIA A PROVEEDOR 8",
+   "reference": "600008",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a58",
+   "date": "2026-10-16",
+   "amount": 18707207,
+   "description": "TRANSF RECIBIDA CLIENTE 58 FC 0003-00001058",
+   "reference": "500058",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c3",
+   "date": "2026-10-25",
+   "amount": -35206134,
+   "description": "CHEQUE 44078024 DEBITADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b21",
+   "date": "2026-10-16",
+   "amount": -28603229,
+   "description": "TRANSFERENCIA A PROVEEDOR 21",
+   "reference": "600021",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a67",
+   "date": "2026-10-25",
+   "amount": 21401743,
+   "description": "TRANSF RECIBIDA CLIENTE 67 FC 0003-00001067",
+   "reference": "500067",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-e2",
+   "date": "2026-10-24",
+   "amount": 45405880,
+   "description": "TRANSF RECIBIDA CLIENTE E2",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b37",
+   "date": "2026-10-07",
+   "amount": -33405411,
+   "description": "TRANSFERENCIA A PROVEEDOR 37",
+   "reference": "600037",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g7",
+   "date": "2026-10-14",
+   "amount": -881525,
+   "description": "PERCEPCION IIBB SIRCREB",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a57",
+   "date": "2026-10-05",
+   "amount": 18404811,
+   "description": "TRANSF RECIBIDA CLIENTE 57 FC 0003-00001057",
+   "reference": "500057",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d1",
+   "date": "2026-10-08",
+   "amount": 37030153,
+   "description": "payment",
+   "reference": "91000000001",
+   "external_ref": "PEDIDO-2001",
+   "gross": 39102590,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1603206
+    },
+    {
+     "kind": "taxes",
+     "amount": -469231
+    }
+   ]
+  },
+  {
+   "id": "mv-b5",
+   "date": "2026-10-23",
+   "amount": -23801654,
+   "description": "TRANSFERENCIA A PROVEEDOR 5",
+   "reference": "600005",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b22",
+   "date": "2026-10-26",
+   "amount": -28909380,
+   "description": "TRANSFERENCIA A PROVEEDOR 22",
+   "reference": "600022",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b34",
+   "date": "2026-10-27",
+   "amount": -32508986,
+   "description": "TRANSFERENCIA A PROVEEDOR 34",
+   "reference": "600034",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c2",
+   "date": "2026-10-22",
+   "amount": 34901595,
+   "description": "ECHEQ 35717476 COBRADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-i3",
+   "date": "2026-10-18",
+   "amount": 58006307,
+   "description": "CREDITO VARIOS",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b12",
+   "date": "2026-10-18",
+   "amount": -25903736,
+   "description": "TRANSFERENCIA A PROVEEDOR 12",
+   "reference": "600012",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-h2-0",
+   "date": "2026-10-12",
+   "amount": 56201631,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a33",
+   "date": "2026-10-20",
+   "amount": 11208235,
+   "description": "TRANSF RECIBIDA CLIENTE 33 FC 0003-00001033",
+   "reference": "500033",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c8",
+   "date": "2026-10-29",
+   "amount": 36707568,
+   "description": "ECHEQ 65044388 COBRADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c11",
+   "date": "2026-10-23",
+   "amount": -37608082,
+   "description": "CHEQUE 38575299 DEBITADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a25",
+   "date": "2026-10-01",
+   "amount": 8809797,
+   "description": "TRANSF RECIBIDA CLIENTE 25 FC 0003-00001025",
+   "reference": "500025",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-h0-0",
+   "date": "2026-10-07",
+   "amount": 55609412,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g1",
+   "date": "2026-10-27",
+   "amount": -672092,
+   "description": "IVA 21% S/COMISION",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b13",
+   "date": "2026-10-10",
+   "amount": -26208209,
+   "description": "TRANSFERENCIA A PROVEEDOR 13",
+   "reference": "600013",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a45",
+   "date": "2026-10-19",
+   "amount": 14803871,
+   "description": "TRANSF RECIBIDA CLIENTE 45 FC 0003-00001045",
+   "reference": "500045",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a3",
+   "date": "2026-10-21",
+   "amount": 2200191,
+   "description": "TRANSF RECIBIDA CLIENTE 3 FC 0003-00001003",
+   "reference": "500003",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a22",
+   "date": "2026-10-08",
+   "amount": 7904732,
+   "description": "TRANSF RECIBIDA CLIENTE 22 FC 0003-00001022",
+   "reference": "500022",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a68",
+   "date": "2026-10-12",
+   "amount": 21702159,
+   "description": "TRANSF RECIBIDA CLIENTE 68 FC 0003-00001068",
+   "reference": "500068",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a26",
+   "date": "2026-10-20",
+   "amount": 9101068,
+   "description": "TRANSF RECIBIDA CLIENTE 26 FC 0003-00001026",
+   "reference": "500026",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a14",
+   "date": "2026-10-19",
+   "amount": 5501467,
+   "description": "TRANSF RECIBIDA CLIENTE 14 FC 0003-00001014",
+   "reference": "500014",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-i1",
+   "date": "2026-10-16",
+   "amount": 57403134,
+   "description": "CREDITO VARIOS",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-e3",
+   "date": "2026-10-13",
+   "amount": 45706140,
+   "description": "TRANSF RECIBIDA CLIENTE E3",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f9",
+   "date": "2026-10-14",
+   "amount": 110308603,
+   "description": "DEPOSITO CLIENTE F9",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a50",
+   "date": "2026-10-19",
+   "amount": 16301476,
+   "description": "TRANSF RECIBIDA CLIENTE 50 FC 0003-00001050",
+   "reference": "500050",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a46",
+   "date": "2026-10-19",
+   "amount": 15109907,
+   "description": "TRANSF RECIBIDA CLIENTE 46 FC 0003-00001046",
+   "reference": "500046",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-e6",
+   "date": "2026-10-02",
+   "amount": 46602136,
+   "description": "TRANSF RECIBIDA CLIENTE E6",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a54",
+   "date": "2026-10-04",
+   "amount": 17502785,
+   "description": "TRANSF RECIBIDA CLIENTE 54 FC 0003-00001054",
+   "reference": "500054",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d19",
+   "date": "2026-10-10",
+   "amount": 42144276,
+   "description": "payment",
+   "reference": "91000000019",
+   "external_ref": "PEDIDO-2019",
+   "gross": 44502931,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1824620
+    },
+    {
+     "kind": "taxes",
+     "amount": -534035
+    }
+   ]
+  },
+  {
+   "id": "mv-h1-1",
+   "date": "2026-10-05",
+   "amount": 55901748,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j5",
+   "date": "2026-10-02",
+   "amount": 30052118,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003005",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a59",
+   "date": "2026-10-09",
+   "amount": 19007892,
+   "description": "TRANSF RECIBIDA CLIENTE 59 FC 0003-00001059",
+   "reference": "500059",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b26",
+   "date": "2026-10-26",
+   "amount": -30105461,
+   "description": "TRANSFERENCIA A PROVEEDOR 26",
+   "reference": "600026",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c9",
+   "date": "2026-10-27",
+   "amount": -37000629,
+   "description": "CHEQUE 74463360 DEBITADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a13",
+   "date": "2026-10-26",
+   "amount": 5202601,
+   "description": "TRANSF RECIBIDA CLIENTE 13 FC 0003-00001013",
+   "reference": "500013",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c7",
+   "date": "2026-10-22",
+   "amount": -36406002,
+   "description": "CHEQUE 48957744 DEBITADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a60",
+   "date": "2026-10-16",
+   "amount": 19306811,
+   "description": "TRANSF RECIBIDA CLIENTE 60 FC 0003-00001060",
+   "reference": "500060",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g8",
+   "date": "2026-10-17",
+   "amount": -235667,
+   "description": "COMISION MANTENIMIENTO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a27",
+   "date": "2026-10-10",
+   "amount": 9403354,
+   "description": "TRANSF RECIBIDA CLIENTE 27 FC 0003-00001027",
+   "reference": "500027",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a17",
+   "date": "2026-10-11",
+   "amount": 6403795,
+   "description": "TRANSF RECIBIDA CLIENTE 17 FC 0003-00001017",
+   "reference": "500017",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b15",
+   "date": "2026-10-14",
+   "amount": -26807485,
+   "description": "TRANSFERENCIA A PROVEEDOR 15",
+   "reference": "600015",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-h1-0",
+   "date": "2026-10-05",
+   "amount": 55901748,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c6",
+   "date": "2026-10-26",
+   "amount": 36101818,
+   "description": "ECHEQ 58045653 COBRADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a65",
+   "date": "2026-10-10",
+   "amount": 20808730,
+   "description": "TRANSF RECIBIDA CLIENTE 65 FC 0003-00001065",
+   "reference": "500065",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a10",
+   "date": "2026-10-08",
+   "amount": 4308455,
+   "description": "TRANSF RECIBIDA CLIENTE 10 FC 0003-00001010",
+   "reference": "500010",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b23",
+   "date": "2026-10-15",
+   "amount": -29206010,
+   "description": "TRANSFERENCIA A PROVEEDOR 23",
+   "reference": "600023",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f4",
+   "date": "2026-10-18",
+   "amount": 203812545,
+   "description": "DEPOSITO CLIENTE F4",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a51",
+   "date": "2026-10-26",
+   "amount": 16603654,
+   "description": "TRANSF RECIBIDA CLIENTE 51 FC 0003-00001051",
+   "reference": "500051",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d8",
+   "date": "2026-10-23",
+   "amount": 39024711,
+   "description": "payment",
+   "reference": "91000000008",
+   "external_ref": "PEDIDO-2008",
+   "gross": 41208776,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1689560
+    },
+    {
+     "kind": "taxes",
+     "amount": -494505
+    }
+   ]
+  },
+  {
+   "id": "mv-a64",
+   "date": "2026-10-15",
+   "amount": 20506775,
+   "description": "TRANSF RECIBIDA CLIENTE 64 FC 0003-00001064",
+   "reference": "500064",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a42",
+   "date": "2026-10-15",
+   "amount": 13906500,
+   "description": "TRANSF RECIBIDA CLIENTE 42 FC 0003-00001042",
+   "reference": "500042",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c4",
+   "date": "2026-10-22",
+   "amount": 35504056,
+   "description": "ECHEQ 20921335 COBRADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g0",
+   "date": "2026-10-17",
+   "amount": -886938,
+   "description": "COMISION MANTENIMIENTO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a29",
+   "date": "2026-10-19",
+   "amount": 10005644,
+   "description": "TRANSF RECIBIDA CLIENTE 29 FC 0003-00001029",
+   "reference": "500029",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-h3-0",
+   "date": "2026-10-07",
+   "amount": 56505939,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b18",
+   "date": "2026-10-15",
+   "amount": -27703748,
+   "description": "TRANSFERENCIA A PROVEEDOR 18",
+   "reference": "600018",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g11",
+   "date": "2026-10-02",
+   "amount": -774207,
+   "description": "PERCEPCION IIBB SIRCREB",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d6",
+   "date": "2026-10-16",
+   "amount": 38452524,
+   "description": "payment",
+   "reference": "91000000006",
+   "external_ref": "PEDIDO-2006",
+   "gross": 40604566,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1664787
+    },
+    {
+     "kind": "taxes",
+     "amount": -487255
+    }
+   ]
+  },
+  {
+   "id": "mv-h2-1",
+   "date": "2026-10-12",
+   "amount": 56201631,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a9",
+   "date": "2026-10-27",
+   "amount": 4008235,
+   "description": "TRANSF RECIBIDA CLIENTE 9 FC 0003-00001009",
+   "reference": "500009",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c14",
+   "date": "2026-10-30",
+   "amount": 38508965,
+   "description": "ECHEQ 50088332 COBRADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b6",
+   "date": "2026-10-03",
+   "amount": -24101139,
+   "description": "TRANSFERENCIA A PROVEEDOR 6",
+   "reference": "600006",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c5",
+   "date": "2026-10-17",
+   "amount": -35802582,
+   "description": "CHEQUE 73357703 DEBITADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d9",
+   "date": "2026-10-28",
+   "amount": 39306193,
+   "description": "payment",
+   "reference": "91000000009",
+   "external_ref": "PEDIDO-2009",
+   "gross": 41506011,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1701746
+    },
+    {
+     "kind": "taxes",
+     "amount": -498072
+    }
+   ]
+  },
+  {
+   "id": "mv-e7",
+   "date": "2026-10-09",
+   "amount": 46900664,
+   "description": "TRANSF RECIBIDA CLIENTE E7",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b30",
+   "date": "2026-10-03",
+   "amount": -31309723,
+   "description": "TRANSFERENCIA A PROVEEDOR 30",
+   "reference": "600030",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d15",
+   "date": "2026-10-12",
+   "amount": 41013192,
+   "description": "payment",
+   "reference": "91000000015",
+   "external_ref": "PEDIDO-2015",
+   "gross": 43308545,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1775650
+    },
+    {
+     "kind": "taxes",
+     "amount": -519703
+    }
+   ]
+  },
+  {
+   "id": "mv-a41",
+   "date": "2026-10-10",
+   "amount": 13605960,
+   "description": "TRANSF RECIBIDA CLIENTE 41 FC 0003-00001041",
+   "reference": "500041",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a53",
+   "date": "2026-10-17",
+   "amount": 17209363,
+   "description": "TRANSF RECIBIDA CLIENTE 53 FC 0003-00001053",
+   "reference": "500053",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a21",
+   "date": "2026-10-04",
+   "amount": 7607007,
+   "description": "TRANSF RECIBIDA CLIENTE 21 FC 0003-00001021",
+   "reference": "500021",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f5",
+   "date": "2026-10-12",
+   "amount": 103710273,
+   "description": "DEPOSITO CLIENTE F5",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b1",
+   "date": "2026-10-19",
+   "amount": -22604664,
+   "description": "TRANSFERENCIA A PROVEEDOR 1",
+   "reference": "600001",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d13",
+   "date": "2026-10-04",
+   "amount": 40438299,
+   "description": "payment",
+   "reference": "91000000013",
+   "external_ref": "PEDIDO-2013",
+   "gross": 42701478,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1750761
+    },
+    {
+     "kind": "taxes",
+     "amount": -512418
+    }
+   ]
+  },
+  {
+   "id": "mv-g3",
+   "date": "2026-10-01",
+   "amount": -399946,
+   "description": "PERCEPCION IIBB SIRCREB",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b4",
+   "date": "2026-10-07",
+   "amount": -23504962,
+   "description": "TRANSFERENCIA A PROVEEDOR 4",
+   "reference": "600004",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b14",
+   "date": "2026-10-22",
+   "amount": -26502730,
+   "description": "TRANSFERENCIA A PROVEEDOR 14",
+   "reference": "600014",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b11",
+   "date": "2026-10-06",
+   "amount": -25607266,
+   "description": "TRANSFERENCIA A PROVEEDOR 11",
+   "reference": "600011",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a19",
+   "date": "2026-10-20",
+   "amount": 7009083,
+   "description": "TRANSF RECIBIDA CLIENTE 19 FC 0003-00001019",
+   "reference": "500019",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-h0-1",
+   "date": "2026-10-07",
+   "amount": 55609412,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a6",
+   "date": "2026-10-05",
+   "amount": 3109480,
+   "description": "TRANSF RECIBIDA CLIENTE 6 FC 0003-00001006",
+   "reference": "500006",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f8",
+   "date": "2026-10-19",
+   "amount": 217025223,
+   "description": "DEPOSITO CLIENTE F8",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-h4-1",
+   "date": "2026-10-25",
+   "amount": 56805055,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a0",
+   "date": "2026-10-03",
+   "amount": 1300792,
+   "description": "TRANSF RECIBIDA CLIENTE 0 FC 0003-00001000",
+   "reference": "500000",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b2",
+   "date": "2026-10-09",
+   "amount": -22902452,
+   "description": "TRANSFERENCIA A PROVEEDOR 2",
+   "reference": "600002",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a61",
+   "date": "2026-10-16",
+   "amount": 19602258,
+   "description": "TRANSF RECIBIDA CLIENTE 61 FC 0003-00001061",
+   "reference": "500061",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g10",
+   "date": "2026-10-22",
+   "amount": -658570,
+   "description": "IMP LEY 25413 DEBITO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a37",
+   "date": "2026-10-13",
+   "amount": 12407379,
+   "description": "TRANSF RECIBIDA CLIENTE 37 FC 0003-00001037",
+   "reference": "500037",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d4",
+   "date": "2026-10-15",
+   "amount": 37885080,
+   "description": "payment",
+   "reference": "91000000004",
+   "external_ref": "PEDIDO-2004",
+   "gross": 40005364,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1640220
+    },
+    {
+     "kind": "taxes",
+     "amount": -480064
+    }
+   ]
+  },
+  {
+   "id": "mv-d18",
+   "date": "2026-10-04",
+   "amount": 41858426,
+   "description": "payment",
+   "reference": "91000000018",
+   "external_ref": "PEDIDO-2018",
+   "gross": 44201083,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1812244
+    },
+    {
+     "kind": "taxes",
+     "amount": -530413
+    }
+   ]
+  },
+  {
+   "id": "mv-f2",
+   "date": "2026-10-11",
+   "amount": 147919917,
+   "description": "DEPOSITO CLIENTE F2",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a12",
+   "date": "2026-10-14",
+   "amount": 4908933,
+   "description": "TRANSF RECIBIDA CLIENTE 12 FC 0003-00001012",
+   "reference": "500012",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a36",
+   "date": "2026-10-01",
+   "amount": 12105915,
+   "description": "TRANSF RECIBIDA CLIENTE 36 FC 0003-00001036",
+   "reference": "500036",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a34",
+   "date": "2026-10-28",
+   "amount": 11504726,
+   "description": "TRANSF RECIBIDA CLIENTE 34 FC 0003-00001034",
+   "reference": "500034",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b27",
+   "date": "2026-10-07",
+   "amount": -30406111,
+   "description": "TRANSFERENCIA A PROVEEDOR 27",
+   "reference": "600027",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g4",
+   "date": "2026-10-26",
+   "amount": -287396,
+   "description": "COMISION MANTENIMIENTO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-e5",
+   "date": "2026-10-21",
+   "amount": 46301897,
+   "description": "TRANSF RECIBIDA CLIENTE E5",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d0",
+   "date": "2026-10-26",
+   "amount": 36744695,
+   "description": "payment",
+   "reference": "91000000000",
+   "external_ref": "PEDIDO-2000",
+   "gross": 38801156,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1590847
+    },
+    {
+     "kind": "taxes",
+     "amount": -465614
+    }
+   ]
+  },
+  {
+   "id": "mv-d10",
+   "date": "2026-10-04",
+   "amount": 39591819,
+   "description": "payment",
+   "reference": "91000000010",
+   "external_ref": "PEDIDO-2010",
+   "gross": 41807623,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1714113
+    },
+    {
+     "kind": "taxes",
+     "amount": -501691
+    }
+   ]
+  },
+  {
+   "id": "mv-g2",
+   "date": "2026-10-06",
+   "amount": -561558,
+   "description": "IMP LEY 25413 DEBITO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b38",
+   "date": "2026-10-24",
+   "amount": -33702965,
+   "description": "TRANSFERENCIA A PROVEEDOR 38",
+   "reference": "600038",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d11",
+   "date": "2026-10-16",
+   "amount": 39874799,
+   "description": "payment",
+   "reference": "91000000011",
+   "external_ref": "PEDIDO-2011",
+   "gross": 42106440,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1726364
+    },
+    {
+     "kind": "taxes",
+     "amount": -505277
+    }
+   ]
+  },
+  {
+   "id": "mv-a16",
+   "date": "2026-10-07",
+   "amount": 6107132,
+   "description": "TRANSF RECIBIDA CLIENTE 16 FC 0003-00001016",
+   "reference": "500016",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a31",
+   "date": "2026-10-27",
+   "amount": 10600401,
+   "description": "TRANSF RECIBIDA CLIENTE 31 FC 0003-00001031",
+   "reference": "500031",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-h3-1",
+   "date": "2026-10-07",
+   "amount": 56505939,
+   "description": "TRANSF RECIBIDA",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a11",
+   "date": "2026-10-12",
+   "amount": 4601169,
+   "description": "TRANSF RECIBIDA CLIENTE 11 FC 0003-00001011",
+   "reference": "500011",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a39",
+   "date": "2026-10-08",
+   "amount": 13006036,
+   "description": "TRANSF RECIBIDA CLIENTE 39 FC 0003-00001039",
+   "reference": "500039",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j4",
+   "date": "2026-10-08",
+   "amount": 29900715,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003004",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a49",
+   "date": "2026-10-25",
+   "amount": 16002530,
+   "description": "TRANSF RECIBIDA CLIENTE 49 FC 0003-00001049",
+   "reference": "500049",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a55",
+   "date": "2026-10-03",
+   "amount": 17800273,
+   "description": "TRANSF RECIBIDA CLIENTE 55 FC 0003-00001055",
+   "reference": "500055",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a8",
+   "date": "2026-10-03",
+   "amount": 3700089,
+   "description": "TRANSF RECIBIDA CLIENTE 8 FC 0003-00001008",
+   "reference": "500008",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j6",
+   "date": "2026-10-07",
+   "amount": 30200598,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003006",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d17",
+   "date": "2026-10-08",
+   "amount": 41581332,
+   "description": "payment",
+   "reference": "91000000017",
+   "external_ref": "PEDIDO-2017",
+   "gross": 43908482,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1800248
+    },
+    {
+     "kind": "taxes",
+     "amount": -526902
+    }
+   ]
+  },
+  {
+   "id": "mv-a2",
+   "date": "2026-10-13",
+   "amount": 1905326,
+   "description": "TRANSF RECIBIDA CLIENTE 2 FC 0003-00001002",
+   "reference": "500002",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j2",
+   "date": "2026-10-10",
+   "amount": 29600369,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003002",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d14",
+   "date": "2026-10-16",
+   "amount": 40723643,
+   "description": "payment",
+   "reference": "91000000014",
+   "external_ref": "PEDIDO-2014",
+   "gross": 43002790,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1763114
+    },
+    {
+     "kind": "taxes",
+     "amount": -516033
+    }
+   ]
+  },
+  {
+   "id": "mv-c1",
+   "date": "2026-10-16",
+   "amount": -34609491,
+   "description": "CHEQUE 65287393 DEBITADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a66",
+   "date": "2026-10-12",
+   "amount": 21104573,
+   "description": "TRANSF RECIBIDA CLIENTE 66 FC 0003-00001066",
+   "reference": "500066",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d3",
+   "date": "2026-10-25",
+   "amount": 37596368,
+   "description": "payment",
+   "reference": "91000000003",
+   "external_ref": "PEDIDO-2003",
+   "gross": 39700494,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1627720
+    },
+    {
+     "kind": "taxes",
+     "amount": -476406
+    }
+   ]
+  },
+  {
+   "id": "mv-e1",
+   "date": "2026-10-02",
+   "amount": 45107996,
+   "description": "TRANSF RECIBIDA CLIENTE E1",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a48",
+   "date": "2026-10-11",
+   "amount": 15702708,
+   "description": "TRANSF RECIBIDA CLIENTE 48 FC 0003-00001048",
+   "reference": "500048",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-e0",
+   "date": "2026-10-18",
+   "amount": 44806505,
+   "description": "TRANSF RECIBIDA CLIENTE E0",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a62",
+   "date": "2026-10-26",
+   "amount": 19906904,
+   "description": "TRANSF RECIBIDA CLIENTE 62 FC 0003-00001062",
+   "reference": "500062",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b16",
+   "date": "2026-10-25",
+   "amount": -27107043,
+   "description": "TRANSFERENCIA A PROVEEDOR 16",
+   "reference": "600016",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f0",
+   "date": "2026-10-07",
+   "amount": 142514629,
+   "description": "DEPOSITO CLIENTE F0",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b20",
+   "date": "2026-10-21",
+   "amount": -28306133,
+   "description": "TRANSFERENCIA A PROVEEDOR 20",
+   "reference": "600020",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j3",
+   "date": "2026-10-07",
+   "amount": 29753089,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003003",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f6",
+   "date": "2026-10-12",
+   "amount": 104916479,
+   "description": "DEPOSITO CLIENTE F6",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b25",
+   "date": "2026-10-06",
+   "amount": -29807602,
+   "description": "TRANSFERENCIA A PROVEEDOR 25",
+   "reference": "600025",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a28",
+   "date": "2026-10-17",
+   "amount": 9707830,
+   "description": "TRANSF RECIBIDA CLIENTE 28 FC 0003-00001028",
+   "reference": "500028",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b35",
+   "date": "2026-10-19",
+   "amount": -32802614,
+   "description": "TRANSFERENCIA A PROVEEDOR 35",
+   "reference": "600035",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a40",
+   "date": "2026-10-02",
+   "amount": 13301232,
+   "description": "TRANSF RECIBIDA CLIENTE 40 FC 0003-00001040",
+   "reference": "500040",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d12",
+   "date": "2026-10-10",
+   "amount": 40159886,
+   "description": "payment",
+   "reference": "91000000012",
+   "external_ref": "PEDIDO-2012",
+   "gross": 42407483,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1738707
+    },
+    {
+     "kind": "taxes",
+     "amount": -508890
+    }
+   ]
+  },
+  {
+   "id": "mv-a69",
+   "date": "2026-10-10",
+   "amount": 22005128,
+   "description": "TRANSF RECIBIDA CLIENTE 69 FC 0003-00001069",
+   "reference": "500069",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a35",
+   "date": "2026-10-22",
+   "amount": 11805842,
+   "description": "TRANSF RECIBIDA CLIENTE 35 FC 0003-00001035",
+   "reference": "500035",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-j8",
+   "date": "2026-10-26",
+   "amount": 30500022,
+   "description": "TRANSF RECIBIDA PAGO A CUENTA FC 0005-00003008",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b0",
+   "date": "2026-10-12",
+   "amount": -22305322,
+   "description": "TRANSFERENCIA A PROVEEDOR 0",
+   "reference": "600000",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b3",
+   "date": "2026-10-14",
+   "amount": -23208025,
+   "description": "TRANSFERENCIA A PROVEEDOR 3",
+   "reference": "600003",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f1",
+   "date": "2026-10-11",
+   "amount": 145218230,
+   "description": "DEPOSITO CLIENTE F1",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-d5",
+   "date": "2026-10-02",
+   "amount": 38170088,
+   "description": "payment",
+   "reference": "91000000005",
+   "external_ref": "PEDIDO-2005",
+   "gross": 40306323,
+   "fees": [
+    {
+     "kind": "mp_fee",
+     "amount": -1652559
+    },
+    {
+     "kind": "taxes",
+     "amount": -483676
+    }
+   ]
+  },
+  {
+   "id": "mv-a23",
+   "date": "2026-10-13",
+   "amount": 8200331,
+   "description": "TRANSF RECIBIDA CLIENTE 23 FC 0003-00001023",
+   "reference": "500023",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a56",
+   "date": "2026-10-15",
+   "amount": 18106081,
+   "description": "TRANSF RECIBIDA CLIENTE 56 FC 0003-00001056",
+   "reference": "500056",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-f3",
+   "date": "2026-10-23",
+   "amount": 100110686,
+   "description": "DEPOSITO CLIENTE F3",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a32",
+   "date": "2026-10-07",
+   "amount": 10907289,
+   "description": "TRANSF RECIBIDA CLIENTE 32 FC 0003-00001032",
+   "reference": "500032",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-c13",
+   "date": "2026-10-19",
+   "amount": -38203946,
+   "description": "CHEQUE 44288172 DEBITADO",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a1",
+   "date": "2026-10-01",
+   "amount": 1603852,
+   "description": "TRANSF RECIBIDA CLIENTE 1 FC 0003-00001001",
+   "reference": "500001",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-a52",
+   "date": "2026-10-24",
+   "amount": 16900182,
+   "description": "TRANSF RECIBIDA CLIENTE 52 FC 0003-00001052",
+   "reference": "500052",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-b36",
+   "date": "2026-10-19",
+   "amount": -33105840,
+   "description": "TRANSFERENCIA A PROVEEDOR 36",
+   "reference": "600036",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-i0",
+   "date": "2026-10-15",
+   "amount": 57100021,
+   "description": "CREDITO VARIOS",
+   "reference": "",
+   "external_ref": ""
+  },
+  {
+   "id": "mv-g6",
+   "date": "2026-10-12",
+   "amount": -617413,
+   "description": "IMP LEY 25413 DEBITO",
+   "reference": "",
+   "external_ref": ""
+  }
+ ],
+ "items": [
+  {
+   "id": "inv-f4-0",
+   "kind": "invoice",
+   "date": "2026-10-16",
+   "amount": 50500369,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F4"
+  },
+  {
+   "id": "inv-a2",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 1905326,
+   "refs": [
+    "0003-00001002"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 2"
+  },
+  {
+   "id": "inv-a5",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 2802250,
+   "refs": [
+    "0003-00001005"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 5"
+  },
+  {
+   "id": "inv-a15",
+   "kind": "invoice",
+   "date": "2026-10-06",
+   "amount": 5802868,
+   "refs": [
+    "0003-00001015"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 15"
+  },
+  {
+   "id": "pay-b5",
+   "kind": "payment",
+   "date": "2026-10-22",
+   "amount": -23801654,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 5"
+  },
+  {
+   "id": "inv-a8",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 3700089,
+   "refs": [
+    "0003-00001008"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 8"
+  },
+  {
+   "id": "inv-a6",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 3109480,
+   "refs": [
+    "0003-00001006"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 6"
+  },
+  {
+   "id": "inv-open14",
+   "kind": "invoice",
+   "date": "2026-10-15",
+   "amount": 65808944,
+   "refs": [
+    "0007-00004014"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a58",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 18707207,
+   "refs": [
+    "0003-00001058"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 58"
+  },
+  {
+   "id": "pay-b7",
+   "kind": "payment",
+   "date": "2026-10-13",
+   "amount": -24403624,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 7"
+  },
+  {
+   "id": "pay-b28",
+   "kind": "payment",
+   "date": "2026-10-20",
+   "amount": -30707581,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 28"
+  },
+  {
+   "id": "inv-f8-2",
+   "kind": "invoice",
+   "date": "2026-10-18",
+   "amount": 54409380,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F8"
+  },
+  {
+   "id": "inv-open12",
+   "kind": "invoice",
+   "date": "2026-10-12",
+   "amount": 65206689,
+   "refs": [
+    "0007-00004012"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-e3",
+   "kind": "invoice",
+   "date": "2026-10-13",
+   "amount": 45705455,
+   "refs": [],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d16",
+   "kind": "invoice",
+   "date": "2026-10-23",
+   "amount": 43607989,
+   "refs": [
+    "PEDIDO-2016"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "chq-c1",
+   "kind": "payment",
+   "date": "2026-10-04",
+   "amount": -34609491,
+   "refs": [
+    "CH 65287393"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a12",
+   "kind": "invoice",
+   "date": "2026-10-07",
+   "amount": 4908933,
+   "refs": [
+    "0003-00001012"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 12"
+  },
+  {
+   "id": "inv-j3",
+   "kind": "invoice",
+   "date": "2026-09-20",
+   "amount": 59506165,
+   "refs": [
+    "0005-00003003"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "pay-b1",
+   "kind": "payment",
+   "date": "2026-10-17",
+   "amount": -22604664,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 1"
+  },
+  {
+   "id": "inv-a65",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 20808730,
+   "refs": [
+    "0003-00001065"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 65"
+  },
+  {
+   "id": "inv-a27",
+   "kind": "invoice",
+   "date": "2026-10-05",
+   "amount": 9403354,
+   "refs": [
+    "0003-00001027"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 27"
+  },
+  {
+   "id": "inv-a26",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 9101068,
+   "refs": [
+    "0003-00001026"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 26"
+  },
+  {
+   "id": "inv-f9-1",
+   "kind": "invoice",
+   "date": "2026-10-12",
+   "amount": 55302336,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F9"
+  },
+  {
+   "id": "inv-a49",
+   "kind": "invoice",
+   "date": "2026-10-09",
+   "amount": 16002530,
+   "refs": [
+    "0003-00001049"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 49"
+  },
+  {
+   "id": "inv-open4",
+   "kind": "invoice",
+   "date": "2026-10-12",
+   "amount": 62804552,
+   "refs": [
+    "0007-00004004"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "pay-b32",
+   "kind": "payment",
+   "date": "2026-10-05",
+   "amount": -31906378,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 32"
+  },
+  {
+   "id": "chq-c2",
+   "kind": "payment",
+   "date": "2026-10-08",
+   "amount": 34901595,
+   "refs": [
+    "CH 35717476"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d0",
+   "kind": "invoice",
+   "date": "2026-10-26",
+   "amount": 38801156,
+   "refs": [
+    "PEDIDO-2000"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a54",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 17502785,
+   "refs": [
+    "0003-00001054"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 54"
+  },
+  {
+   "id": "inv-a21",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 7607007,
+   "refs": [
+    "0003-00001021"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 21"
+  },
+  {
+   "id": "inv-h4-1",
+   "kind": "invoice",
+   "date": "2026-10-24",
+   "amount": 56805055,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H41"
+  },
+  {
+   "id": "inv-f1-2",
+   "kind": "invoice",
+   "date": "2026-10-11",
+   "amount": 48707967,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F1"
+  },
+  {
+   "id": "pay-b35",
+   "kind": "payment",
+   "date": "2026-10-15",
+   "amount": -32802614,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 35"
+  },
+  {
+   "id": "inv-e2",
+   "kind": "invoice",
+   "date": "2026-10-23",
+   "amount": 45406029,
+   "refs": [],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f3-0",
+   "kind": "invoice",
+   "date": "2026-10-23",
+   "amount": 49904380,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F3"
+  },
+  {
+   "id": "ord-d13",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 42701478,
+   "refs": [
+    "PEDIDO-2013"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d9",
+   "kind": "invoice",
+   "date": "2026-10-28",
+   "amount": 41506011,
+   "refs": [
+    "PEDIDO-2009"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a68",
+   "kind": "invoice",
+   "date": "2026-10-06",
+   "amount": 21702159,
+   "refs": [
+    "0003-00001068"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 68"
+  },
+  {
+   "id": "pay-b31",
+   "kind": "payment",
+   "date": "2026-10-29",
+   "amount": -31603088,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 31"
+  },
+  {
+   "id": "inv-a22",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 7904732,
+   "refs": [
+    "0003-00001022"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 22"
+  },
+  {
+   "id": "pay-b34",
+   "kind": "payment",
+   "date": "2026-10-27",
+   "amount": -32508986,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 34"
+  },
+  {
+   "id": "pay-b11",
+   "kind": "payment",
+   "date": "2026-10-02",
+   "amount": -25607266,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 11"
+  },
+  {
+   "id": "ord-d2",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 39405507,
+   "refs": [
+    "PEDIDO-2002"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f8-1",
+   "kind": "invoice",
+   "date": "2026-10-16",
+   "amount": 54107812,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F8"
+  },
+  {
+   "id": "ord-d11",
+   "kind": "invoice",
+   "date": "2026-10-16",
+   "amount": 42106440,
+   "refs": [
+    "PEDIDO-2011"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a9",
+   "kind": "invoice",
+   "date": "2026-10-07",
+   "amount": 4008235,
+   "refs": [
+    "0003-00001009"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 9"
+  },
+  {
+   "id": "inv-f1-0",
+   "kind": "invoice",
+   "date": "2026-10-08",
+   "amount": 48108022,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F1"
+  },
+  {
+   "id": "chq-c11",
+   "kind": "payment",
+   "date": "2026-10-13",
+   "amount": -37608082,
+   "refs": [
+    "CH 38575299"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f0-2",
+   "kind": "invoice",
+   "date": "2026-10-03",
+   "amount": 47801950,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F0"
+  },
+  {
+   "id": "inv-a69",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 22005128,
+   "refs": [
+    "0003-00001069"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 69"
+  },
+  {
+   "id": "inv-f9-0",
+   "kind": "invoice",
+   "date": "2026-10-11",
+   "amount": 55006267,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F9"
+  },
+  {
+   "id": "inv-a64",
+   "kind": "invoice",
+   "date": "2026-10-05",
+   "amount": 20506775,
+   "refs": [
+    "0003-00001064"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 64"
+  },
+  {
+   "id": "inv-a41",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 13605960,
+   "refs": [
+    "0003-00001041"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 41"
+  },
+  {
+   "id": "pay-b36",
+   "kind": "payment",
+   "date": "2026-10-23",
+   "amount": -33105840,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 36"
+  },
+  {
+   "id": "inv-a61",
+   "kind": "invoice",
+   "date": "2026-10-03",
+   "amount": 19602258,
+   "refs": [
+    "0003-00001061"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 61"
+  },
+  {
+   "id": "pay-b6",
+   "kind": "payment",
+   "date": "2026-10-02",
+   "amount": -24101139,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 6"
+  },
+  {
+   "id": "inv-a42",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 13906500,
+   "refs": [
+    "0003-00001042"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 42"
+  },
+  {
+   "id": "pay-b23",
+   "kind": "payment",
+   "date": "2026-10-19",
+   "amount": -29206010,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 23"
+  },
+  {
+   "id": "inv-e0",
+   "kind": "invoice",
+   "date": "2026-10-17",
+   "amount": 44806315,
+   "refs": [],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-j4",
+   "kind": "invoice",
+   "date": "2026-09-20",
+   "amount": 59801416,
+   "refs": [
+    "0005-00003004"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-open10",
+   "kind": "invoice",
+   "date": "2026-10-15",
+   "amount": 64603870,
+   "refs": [
+    "0007-00004010"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "chq-c10",
+   "kind": "payment",
+   "date": "2026-10-17",
+   "amount": 37301851,
+   "refs": [
+    "CH 70819583"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a4",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 2501855,
+   "refs": [
+    "0003-00001004"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 4"
+  },
+  {
+   "id": "inv-f2-2",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 49609483,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F2"
+  },
+  {
+   "id": "inv-a43",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 14207851,
+   "refs": [
+    "0003-00001043"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 43"
+  },
+  {
+   "id": "chq-c7",
+   "kind": "payment",
+   "date": "2026-10-10",
+   "amount": -36406002,
+   "refs": [
+    "CH 48957744"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-e7",
+   "kind": "invoice",
+   "date": "2026-10-07",
+   "amount": 46900064,
+   "refs": [],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d3",
+   "kind": "invoice",
+   "date": "2026-10-25",
+   "amount": 39700494,
+   "refs": [
+    "PEDIDO-2003"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "pay-b13",
+   "kind": "payment",
+   "date": "2026-10-08",
+   "amount": -26208209,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 13"
+  },
+  {
+   "id": "pay-b12",
+   "kind": "payment",
+   "date": "2026-10-15",
+   "amount": -25903736,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 12"
+  },
+  {
+   "id": "inv-f0-1",
+   "kind": "invoice",
+   "date": "2026-10-05",
+   "amount": 47506869,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F0"
+  },
+  {
+   "id": "inv-a35",
+   "kind": "invoice",
+   "date": "2026-10-02",
+   "amount": 11805842,
+   "refs": [
+    "0003-00001035"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 35"
+  },
+  {
+   "id": "inv-h4-0",
+   "kind": "invoice",
+   "date": "2026-10-24",
+   "amount": 56805055,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H40"
+  },
+  {
+   "id": "inv-a45",
+   "kind": "invoice",
+   "date": "2026-10-08",
+   "amount": 14803871,
+   "refs": [
+    "0003-00001045"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 45"
+  },
+  {
+   "id": "pay-b39",
+   "kind": "payment",
+   "date": "2026-10-12",
+   "amount": -34005606,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 39"
+  },
+  {
+   "id": "ord-d10",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 41807623,
+   "refs": [
+    "PEDIDO-2010"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f7-0",
+   "kind": "invoice",
+   "date": "2026-10-14",
+   "amount": 52907676,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F7"
+  },
+  {
+   "id": "inv-f0-0",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 47205810,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F0"
+  },
+  {
+   "id": "ord-d12",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 42407483,
+   "refs": [
+    "PEDIDO-2012"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d6",
+   "kind": "invoice",
+   "date": "2026-10-16",
+   "amount": 40604566,
+   "refs": [
+    "PEDIDO-2006"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a23",
+   "kind": "invoice",
+   "date": "2026-10-07",
+   "amount": 8200331,
+   "refs": [
+    "0003-00001023"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 23"
+  },
+  {
+   "id": "inv-a0",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 1300792,
+   "refs": [
+    "0003-00001000"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 0"
+  },
+  {
+   "id": "inv-j8",
+   "kind": "invoice",
+   "date": "2026-10-08",
+   "amount": 61000030,
+   "refs": [
+    "0005-00003008"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-h2-0",
+   "kind": "invoice",
+   "date": "2026-10-11",
+   "amount": 56201631,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H20"
+  },
+  {
+   "id": "inv-j0",
+   "kind": "invoice",
+   "date": "2026-10-11",
+   "amount": 58606109,
+   "refs": [
+    "0005-00003000"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a66",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 21104573,
+   "refs": [
+    "0003-00001066"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 66"
+  },
+  {
+   "id": "chq-c6",
+   "kind": "payment",
+   "date": "2026-10-12",
+   "amount": 36101818,
+   "refs": [
+    "CH 58045653"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d19",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 44502931,
+   "refs": [
+    "PEDIDO-2019"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a19",
+   "kind": "invoice",
+   "date": "2026-10-14",
+   "amount": 7009083,
+   "refs": [
+    "0003-00001019"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 19"
+  },
+  {
+   "id": "inv-open3",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 62502231,
+   "refs": [
+    "0007-00004003"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "chq-c8",
+   "kind": "payment",
+   "date": "2026-10-15",
+   "amount": 36707568,
+   "refs": [
+    "CH 65044388"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a10",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 4308455,
+   "refs": [
+    "0003-00001010"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 10"
+  },
+  {
+   "id": "inv-a28",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 9707830,
+   "refs": [
+    "0003-00001028"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 28"
+  },
+  {
+   "id": "inv-open1",
+   "kind": "invoice",
+   "date": "2026-10-03",
+   "amount": 61900577,
+   "refs": [
+    "0007-00004001"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f3-1",
+   "kind": "invoice",
+   "date": "2026-10-22",
+   "amount": 50206306,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F3"
+  },
+  {
+   "id": "ord-d18",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 44201083,
+   "refs": [
+    "PEDIDO-2018"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "pay-b30",
+   "kind": "payment",
+   "date": "2026-10-07",
+   "amount": -31309723,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 30"
+  },
+  {
+   "id": "inv-a14",
+   "kind": "invoice",
+   "date": "2026-10-05",
+   "amount": 5501467,
+   "refs": [
+    "0003-00001014"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 14"
+  },
+  {
+   "id": "pay-b29",
+   "kind": "payment",
+   "date": "2026-10-15",
+   "amount": -31006480,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 29"
+  },
+  {
+   "id": "inv-a67",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 21401743,
+   "refs": [
+    "0003-00001067"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 67"
+  },
+  {
+   "id": "inv-a51",
+   "kind": "invoice",
+   "date": "2026-10-14",
+   "amount": 16603654,
+   "refs": [
+    "0003-00001051"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 51"
+  },
+  {
+   "id": "inv-j5",
+   "kind": "invoice",
+   "date": "2026-09-12",
+   "amount": 60104222,
+   "refs": [
+    "0005-00003005"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-e1",
+   "kind": "invoice",
+   "date": "2026-09-28",
+   "amount": 45108089,
+   "refs": [],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "chq-c0",
+   "kind": "payment",
+   "date": "2026-10-04",
+   "amount": 34307559,
+   "refs": [
+    "CH 29438373"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-e5",
+   "kind": "invoice",
+   "date": "2026-10-20",
+   "amount": 46301389,
+   "refs": [],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "pay-b18",
+   "kind": "payment",
+   "date": "2026-10-18",
+   "amount": -27703748,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 18"
+  },
+  {
+   "id": "inv-a59",
+   "kind": "invoice",
+   "date": "2026-10-03",
+   "amount": 19007892,
+   "refs": [
+    "0003-00001059"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 59"
+  },
+  {
+   "id": "inv-a29",
+   "kind": "invoice",
+   "date": "2026-10-03",
+   "amount": 10005644,
+   "refs": [
+    "0003-00001029"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 29"
+  },
+  {
+   "id": "inv-a36",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 12105915,
+   "refs": [
+    "0003-00001036"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 36"
+  },
+  {
+   "id": "inv-a57",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 18404811,
+   "refs": [
+    "0003-00001057"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 57"
+  },
+  {
+   "id": "pay-b33",
+   "kind": "payment",
+   "date": "2026-09-30",
+   "amount": -32204421,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 33"
+  },
+  {
+   "id": "inv-f8-3",
+   "kind": "invoice",
+   "date": "2026-10-18",
+   "amount": 54704139,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F8"
+  },
+  {
+   "id": "inv-a13",
+   "kind": "invoice",
+   "date": "2026-10-08",
+   "amount": 5202601,
+   "refs": [
+    "0003-00001013"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 13"
+  },
+  {
+   "id": "inv-a46",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 15109907,
+   "refs": [
+    "0003-00001046"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 46"
+  },
+  {
+   "id": "inv-a47",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 15409033,
+   "refs": [
+    "0003-00001047"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 47"
+  },
+  {
+   "id": "inv-a55",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 17800273,
+   "refs": [
+    "0003-00001055"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 55"
+  },
+  {
+   "id": "pay-b17",
+   "kind": "payment",
+   "date": "2026-10-13",
+   "amount": -27407612,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 17"
+  },
+  {
+   "id": "pay-b8",
+   "kind": "payment",
+   "date": "2026-10-15",
+   "amount": -24705960,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 8"
+  },
+  {
+   "id": "pay-b26",
+   "kind": "payment",
+   "date": "2026-10-29",
+   "amount": -30105461,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 26"
+  },
+  {
+   "id": "chq-c3",
+   "kind": "payment",
+   "date": "2026-10-12",
+   "amount": -35206134,
+   "refs": [
+    "CH 44078024"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d8",
+   "kind": "invoice",
+   "date": "2026-10-23",
+   "amount": 41208776,
+   "refs": [
+    "PEDIDO-2008"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "chq-c12",
+   "kind": "payment",
+   "date": "2026-10-12",
+   "amount": 37904350,
+   "refs": [
+    "CH 95680834"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a24",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 8501354,
+   "refs": [
+    "0003-00001024"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 24"
+  },
+  {
+   "id": "pay-b25",
+   "kind": "payment",
+   "date": "2026-10-11",
+   "amount": -29807602,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 25"
+  },
+  {
+   "id": "ord-d1",
+   "kind": "invoice",
+   "date": "2026-10-08",
+   "amount": 39102590,
+   "refs": [
+    "PEDIDO-2001"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f4-3",
+   "kind": "invoice",
+   "date": "2026-10-14",
+   "amount": 51406439,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F4"
+  },
+  {
+   "id": "inv-a7",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 3400042,
+   "refs": [
+    "0003-00001007"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 7"
+  },
+  {
+   "id": "inv-a37",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 12407379,
+   "refs": [
+    "0003-00001037"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 37"
+  },
+  {
+   "id": "inv-a25",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 8809797,
+   "refs": [
+    "0003-00001025"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 25"
+  },
+  {
+   "id": "ord-d17",
+   "kind": "invoice",
+   "date": "2026-10-08",
+   "amount": 43908482,
+   "refs": [
+    "PEDIDO-2017"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-open2",
+   "kind": "invoice",
+   "date": "2026-10-28",
+   "amount": 62207482,
+   "refs": [
+    "0007-00004002"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "chq-c14",
+   "kind": "payment",
+   "date": "2026-10-18",
+   "amount": 38508965,
+   "refs": [
+    "CH 50088332"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-j7",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 60707389,
+   "refs": [
+    "0005-00003007"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a31",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 10600401,
+   "refs": [
+    "0003-00001031"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 31"
+  },
+  {
+   "id": "chq-c13",
+   "kind": "payment",
+   "date": "2026-10-07",
+   "amount": -38203946,
+   "refs": [
+    "CH 44288172"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f4-1",
+   "kind": "invoice",
+   "date": "2026-10-18",
+   "amount": 50804221,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F4"
+  },
+  {
+   "id": "inv-f6-1",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 52607318,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F6"
+  },
+  {
+   "id": "pay-b16",
+   "kind": "payment",
+   "date": "2026-10-23",
+   "amount": -27107043,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 16"
+  },
+  {
+   "id": "inv-a3",
+   "kind": "invoice",
+   "date": "2026-10-16",
+   "amount": 2200191,
+   "refs": [
+    "0003-00001003"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 3"
+  },
+  {
+   "id": "inv-h3-0",
+   "kind": "invoice",
+   "date": "2026-10-06",
+   "amount": 56505939,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H30"
+  },
+  {
+   "id": "inv-open8",
+   "kind": "invoice",
+   "date": "2026-10-14",
+   "amount": 64001584,
+   "refs": [
+    "0007-00004008"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f7-1",
+   "kind": "invoice",
+   "date": "2026-10-13",
+   "amount": 53205340,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F7"
+  },
+  {
+   "id": "inv-e4",
+   "kind": "invoice",
+   "date": "2026-10-02",
+   "amount": 46000170,
+   "refs": [],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-open9",
+   "kind": "invoice",
+   "date": "2026-10-12",
+   "amount": 64308907,
+   "refs": [
+    "0007-00004009"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a32",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 10907289,
+   "refs": [
+    "0003-00001032"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 32"
+  },
+  {
+   "id": "inv-a30",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 10305649,
+   "refs": [
+    "0003-00001030"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 30"
+  },
+  {
+   "id": "inv-h0-0",
+   "kind": "invoice",
+   "date": "2026-10-06",
+   "amount": 55609412,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H00"
+  },
+  {
+   "id": "inv-a16",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 6107132,
+   "refs": [
+    "0003-00001016"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 16"
+  },
+  {
+   "id": "inv-a62",
+   "kind": "invoice",
+   "date": "2026-10-11",
+   "amount": 19906904,
+   "refs": [
+    "0003-00001062"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 62"
+  },
+  {
+   "id": "chq-c9",
+   "kind": "payment",
+   "date": "2026-10-14",
+   "amount": -37000629,
+   "refs": [
+    "CH 74463360"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "pay-b9",
+   "kind": "payment",
+   "date": "2026-10-19",
+   "amount": -25002794,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 9"
+  },
+  {
+   "id": "pay-b37",
+   "kind": "payment",
+   "date": "2026-10-09",
+   "amount": -33405411,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 37"
+  },
+  {
+   "id": "pay-b14",
+   "kind": "payment",
+   "date": "2026-10-22",
+   "amount": -26502730,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 14"
+  },
+  {
+   "id": "inv-j2",
+   "kind": "invoice",
+   "date": "2026-09-29",
+   "amount": 59200725,
+   "refs": [
+    "0005-00003002"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f5-1",
+   "kind": "invoice",
+   "date": "2026-10-12",
+   "amount": 52001560,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F5"
+  },
+  {
+   "id": "inv-f8-0",
+   "kind": "invoice",
+   "date": "2026-10-19",
+   "amount": 53803892,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F8"
+  },
+  {
+   "id": "inv-f2-0",
+   "kind": "invoice",
+   "date": "2026-10-07",
+   "amount": 49008911,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F2"
+  },
+  {
+   "id": "inv-f1-1",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 48402241,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F1"
+  },
+  {
+   "id": "inv-a39",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 13006036,
+   "refs": [
+    "0003-00001039"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 39"
+  },
+  {
+   "id": "inv-open11",
+   "kind": "invoice",
+   "date": "2026-10-16",
+   "amount": 64905018,
+   "refs": [
+    "0007-00004011"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a33",
+   "kind": "invoice",
+   "date": "2026-10-07",
+   "amount": 11208235,
+   "refs": [
+    "0003-00001033"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 33"
+  },
+  {
+   "id": "inv-f5-0",
+   "kind": "invoice",
+   "date": "2026-10-11",
+   "amount": 51708713,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F5"
+  },
+  {
+   "id": "inv-a1",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 1603852,
+   "refs": [
+    "0003-00001001"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 1"
+  },
+  {
+   "id": "inv-a50",
+   "kind": "invoice",
+   "date": "2026-10-06",
+   "amount": 16301476,
+   "refs": [
+    "0003-00001050"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 50"
+  },
+  {
+   "id": "inv-a38",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 12706092,
+   "refs": [
+    "0003-00001038"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 38"
+  },
+  {
+   "id": "inv-f4-2",
+   "kind": "invoice",
+   "date": "2026-10-17",
+   "amount": 51101516,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F4"
+  },
+  {
+   "id": "pay-b19",
+   "kind": "payment",
+   "date": "2026-10-16",
+   "amount": -28002446,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 19"
+  },
+  {
+   "id": "inv-h1-0",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 55901748,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H10"
+  },
+  {
+   "id": "inv-a60",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 19306811,
+   "refs": [
+    "0003-00001060"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 60"
+  },
+  {
+   "id": "ord-d4",
+   "kind": "invoice",
+   "date": "2026-10-15",
+   "amount": 40005364,
+   "refs": [
+    "PEDIDO-2004"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "pay-b10",
+   "kind": "payment",
+   "date": "2026-10-21",
+   "amount": -25300861,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 10"
+  },
+  {
+   "id": "pay-b3",
+   "kind": "payment",
+   "date": "2026-10-19",
+   "amount": -23208025,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 3"
+  },
+  {
+   "id": "pay-b0",
+   "kind": "payment",
+   "date": "2026-10-08",
+   "amount": -22305322,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 0"
+  },
+  {
+   "id": "chq-c5",
+   "kind": "payment",
+   "date": "2026-10-07",
+   "amount": -35802582,
+   "refs": [
+    "CH 73357703"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a34",
+   "kind": "invoice",
+   "date": "2026-10-08",
+   "amount": 11504726,
+   "refs": [
+    "0003-00001034"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 34"
+  },
+  {
+   "id": "chq-c4",
+   "kind": "payment",
+   "date": "2026-10-11",
+   "amount": 35504056,
+   "refs": [
+    "CH 20921335"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-open13",
+   "kind": "invoice",
+   "date": "2026-10-14",
+   "amount": 65500893,
+   "refs": [
+    "0007-00004013"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f2-1",
+   "kind": "invoice",
+   "date": "2026-10-09",
+   "amount": 49301523,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F2"
+  },
+  {
+   "id": "pay-b20",
+   "kind": "payment",
+   "date": "2026-10-18",
+   "amount": -28306133,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 20"
+  },
+  {
+   "id": "inv-open7",
+   "kind": "invoice",
+   "date": "2026-10-17",
+   "amount": 63700522,
+   "refs": [
+    "0007-00004007"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "pay-b15",
+   "kind": "payment",
+   "date": "2026-10-16",
+   "amount": -26807485,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 15"
+  },
+  {
+   "id": "pay-b24",
+   "kind": "payment",
+   "date": "2026-10-13",
+   "amount": -29508440,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 24"
+  },
+  {
+   "id": "inv-a20",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 7302297,
+   "refs": [
+    "0003-00001020"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 20"
+  },
+  {
+   "id": "inv-a63",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 20207680,
+   "refs": [
+    "0003-00001063"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 63"
+  },
+  {
+   "id": "ord-d14",
+   "kind": "invoice",
+   "date": "2026-10-16",
+   "amount": 43002790,
+   "refs": [
+    "PEDIDO-2014"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a53",
+   "kind": "invoice",
+   "date": "2026-10-02",
+   "amount": 17209363,
+   "refs": [
+    "0003-00001053"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 53"
+  },
+  {
+   "id": "ord-d15",
+   "kind": "invoice",
+   "date": "2026-10-12",
+   "amount": 43308545,
+   "refs": [
+    "PEDIDO-2015"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-h2-1",
+   "kind": "invoice",
+   "date": "2026-10-11",
+   "amount": 56201631,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H21"
+  },
+  {
+   "id": "inv-j6",
+   "kind": "invoice",
+   "date": "2026-10-02",
+   "amount": 60401183,
+   "refs": [
+    "0005-00003006"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a44",
+   "kind": "invoice",
+   "date": "2026-10-05",
+   "amount": 14506630,
+   "refs": [
+    "0003-00001044"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 44"
+  },
+  {
+   "id": "inv-f7-2",
+   "kind": "invoice",
+   "date": "2026-10-13",
+   "amount": 53506319,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F7"
+  },
+  {
+   "id": "inv-open6",
+   "kind": "invoice",
+   "date": "2026-10-15",
+   "amount": 63407387,
+   "refs": [
+    "0007-00004006"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a40",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 13301232,
+   "refs": [
+    "0003-00001040"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 40"
+  },
+  {
+   "id": "pay-b4",
+   "kind": "payment",
+   "date": "2026-10-04",
+   "amount": -23504962,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 4"
+  },
+  {
+   "id": "pay-b27",
+   "kind": "payment",
+   "date": "2026-10-04",
+   "amount": -30406111,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 27"
+  },
+  {
+   "id": "inv-a18",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 6703468,
+   "refs": [
+    "0003-00001018"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 18"
+  },
+  {
+   "id": "pay-b22",
+   "kind": "payment",
+   "date": "2026-10-29",
+   "amount": -28909380,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 22"
+  },
+  {
+   "id": "inv-open0",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 61604733,
+   "refs": [
+    "0007-00004000"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a11",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 4601169,
+   "refs": [
+    "0003-00001011"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 11"
+  },
+  {
+   "id": "pay-b21",
+   "kind": "payment",
+   "date": "2026-10-15",
+   "amount": -28603229,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 21"
+  },
+  {
+   "id": "inv-e6",
+   "kind": "invoice",
+   "date": "2026-09-30",
+   "amount": 46601605,
+   "refs": [],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-f6-0",
+   "kind": "invoice",
+   "date": "2026-10-10",
+   "amount": 52309161,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE F6"
+  },
+  {
+   "id": "inv-h3-1",
+   "kind": "invoice",
+   "date": "2026-10-06",
+   "amount": 56505939,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H31"
+  },
+  {
+   "id": "inv-j1",
+   "kind": "invoice",
+   "date": "2026-09-23",
+   "amount": 58905780,
+   "refs": [
+    "0005-00003001"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a17",
+   "kind": "invoice",
+   "date": "2026-10-05",
+   "amount": 6403795,
+   "refs": [
+    "0003-00001017"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 17"
+  },
+  {
+   "id": "inv-h1-1",
+   "kind": "invoice",
+   "date": "2026-10-04",
+   "amount": 55901748,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H11"
+  },
+  {
+   "id": "inv-a48",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 15702708,
+   "refs": [
+    "0003-00001048"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 48"
+  },
+  {
+   "id": "inv-h0-1",
+   "kind": "invoice",
+   "date": "2026-10-06",
+   "amount": 55609412,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "CLIENTE H01"
+  },
+  {
+   "id": "pay-b2",
+   "kind": "payment",
+   "date": "2026-10-05",
+   "amount": -22902452,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 2"
+  },
+  {
+   "id": "inv-j9",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 61306089,
+   "refs": [
+    "0005-00003009"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d5",
+   "kind": "invoice",
+   "date": "2026-10-02",
+   "amount": 40306323,
+   "refs": [
+    "PEDIDO-2005"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "ord-d7",
+   "kind": "invoice",
+   "date": "2026-10-16",
+   "amount": 40908337,
+   "refs": [
+    "PEDIDO-2007"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  },
+  {
+   "id": "inv-a52",
+   "kind": "invoice",
+   "date": "2026-10-02",
+   "amount": 16900182,
+   "refs": [
+    "0003-00001052"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 52"
+  },
+  {
+   "id": "pay-b38",
+   "kind": "payment",
+   "date": "2026-10-24",
+   "amount": -33702965,
+   "refs": [],
+   "confidence": 1.0,
+   "party": "PROVEEDOR 38"
+  },
+  {
+   "id": "inv-a56",
+   "kind": "invoice",
+   "date": "2026-10-01",
+   "amount": 18106081,
+   "refs": [
+    "0003-00001056"
+   ],
+   "confidence": 1.0,
+   "party": "CLIENTE 56"
+  },
+  {
+   "id": "inv-open5",
+   "kind": "invoice",
+   "date": "2026-10-06",
+   "amount": 63104375,
+   "refs": [
+    "0007-00004005"
+   ],
+   "confidence": 1.0,
+   "party": ""
+  }
+ ],
+ "labels": {
+  "mv-a0": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a0"
+   ]
+  },
+  "mv-a1": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a1"
+   ]
+  },
+  "mv-a2": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a2"
+   ]
+  },
+  "mv-a3": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a3"
+   ]
+  },
+  "mv-a4": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a4"
+   ]
+  },
+  "mv-a5": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a5"
+   ]
+  },
+  "mv-a6": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a6"
+   ]
+  },
+  "mv-a7": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a7"
+   ]
+  },
+  "mv-a8": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a8"
+   ]
+  },
+  "mv-a9": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a9"
+   ]
+  },
+  "mv-a10": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a10"
+   ]
+  },
+  "mv-a11": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a11"
+   ]
+  },
+  "mv-a12": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a12"
+   ]
+  },
+  "mv-a13": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a13"
+   ]
+  },
+  "mv-a14": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a14"
+   ]
+  },
+  "mv-a15": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a15"
+   ]
+  },
+  "mv-a16": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a16"
+   ]
+  },
+  "mv-a17": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a17"
+   ]
+  },
+  "mv-a18": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a18"
+   ]
+  },
+  "mv-a19": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a19"
+   ]
+  },
+  "mv-a20": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a20"
+   ]
+  },
+  "mv-a21": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a21"
+   ]
+  },
+  "mv-a22": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a22"
+   ]
+  },
+  "mv-a23": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a23"
+   ]
+  },
+  "mv-a24": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a24"
+   ]
+  },
+  "mv-a25": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a25"
+   ]
+  },
+  "mv-a26": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a26"
+   ]
+  },
+  "mv-a27": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a27"
+   ]
+  },
+  "mv-a28": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a28"
+   ]
+  },
+  "mv-a29": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a29"
+   ]
+  },
+  "mv-a30": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a30"
+   ]
+  },
+  "mv-a31": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a31"
+   ]
+  },
+  "mv-a32": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a32"
+   ]
+  },
+  "mv-a33": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a33"
+   ]
+  },
+  "mv-a34": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a34"
+   ]
+  },
+  "mv-a35": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a35"
+   ]
+  },
+  "mv-a36": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a36"
+   ]
+  },
+  "mv-a37": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a37"
+   ]
+  },
+  "mv-a38": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a38"
+   ]
+  },
+  "mv-a39": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a39"
+   ]
+  },
+  "mv-a40": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a40"
+   ]
+  },
+  "mv-a41": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a41"
+   ]
+  },
+  "mv-a42": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a42"
+   ]
+  },
+  "mv-a43": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a43"
+   ]
+  },
+  "mv-a44": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a44"
+   ]
+  },
+  "mv-a45": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a45"
+   ]
+  },
+  "mv-a46": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a46"
+   ]
+  },
+  "mv-a47": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a47"
+   ]
+  },
+  "mv-a48": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a48"
+   ]
+  },
+  "mv-a49": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a49"
+   ]
+  },
+  "mv-a50": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a50"
+   ]
+  },
+  "mv-a51": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a51"
+   ]
+  },
+  "mv-a52": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a52"
+   ]
+  },
+  "mv-a53": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a53"
+   ]
+  },
+  "mv-a54": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a54"
+   ]
+  },
+  "mv-a55": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a55"
+   ]
+  },
+  "mv-a56": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a56"
+   ]
+  },
+  "mv-a57": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a57"
+   ]
+  },
+  "mv-a58": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a58"
+   ]
+  },
+  "mv-a59": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a59"
+   ]
+  },
+  "mv-a60": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a60"
+   ]
+  },
+  "mv-a61": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a61"
+   ]
+  },
+  "mv-a62": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a62"
+   ]
+  },
+  "mv-a63": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a63"
+   ]
+  },
+  "mv-a64": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a64"
+   ]
+  },
+  "mv-a65": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a65"
+   ]
+  },
+  "mv-a66": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a66"
+   ]
+  },
+  "mv-a67": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a67"
+   ]
+  },
+  "mv-a68": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a68"
+   ]
+  },
+  "mv-a69": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "inv-a69"
+   ]
+  },
+  "mv-b0": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b0"
+   ]
+  },
+  "mv-b1": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b1"
+   ]
+  },
+  "mv-b2": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b2"
+   ]
+  },
+  "mv-b3": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b3"
+   ]
+  },
+  "mv-b4": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b4"
+   ]
+  },
+  "mv-b5": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b5"
+   ]
+  },
+  "mv-b6": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b6"
+   ]
+  },
+  "mv-b7": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b7"
+   ]
+  },
+  "mv-b8": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b8"
+   ]
+  },
+  "mv-b9": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b9"
+   ]
+  },
+  "mv-b10": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b10"
+   ]
+  },
+  "mv-b11": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b11"
+   ]
+  },
+  "mv-b12": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b12"
+   ]
+  },
+  "mv-b13": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b13"
+   ]
+  },
+  "mv-b14": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b14"
+   ]
+  },
+  "mv-b15": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b15"
+   ]
+  },
+  "mv-b16": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b16"
+   ]
+  },
+  "mv-b17": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b17"
+   ]
+  },
+  "mv-b18": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b18"
+   ]
+  },
+  "mv-b19": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b19"
+   ]
+  },
+  "mv-b20": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b20"
+   ]
+  },
+  "mv-b21": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b21"
+   ]
+  },
+  "mv-b22": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b22"
+   ]
+  },
+  "mv-b23": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b23"
+   ]
+  },
+  "mv-b24": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b24"
+   ]
+  },
+  "mv-b25": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b25"
+   ]
+  },
+  "mv-b26": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b26"
+   ]
+  },
+  "mv-b27": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b27"
+   ]
+  },
+  "mv-b28": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b28"
+   ]
+  },
+  "mv-b29": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b29"
+   ]
+  },
+  "mv-b30": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b30"
+   ]
+  },
+  "mv-b31": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b31"
+   ]
+  },
+  "mv-b32": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b32"
+   ]
+  },
+  "mv-b33": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b33"
+   ]
+  },
+  "mv-b34": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b34"
+   ]
+  },
+  "mv-b35": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b35"
+   ]
+  },
+  "mv-b36": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b36"
+   ]
+  },
+  "mv-b37": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b37"
+   ]
+  },
+  "mv-b38": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b38"
+   ]
+  },
+  "mv-b39": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "amount_date_window",
+   "items": [
+    "pay-b39"
+   ]
+  },
+  "mv-c0": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c0"
+   ]
+  },
+  "mv-c1": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c1"
+   ]
+  },
+  "mv-c2": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c2"
+   ]
+  },
+  "mv-c3": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c3"
+   ]
+  },
+  "mv-c4": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c4"
+   ]
+  },
+  "mv-c5": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c5"
+   ]
+  },
+  "mv-c6": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c6"
+   ]
+  },
+  "mv-c7": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c7"
+   ]
+  },
+  "mv-c8": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c8"
+   ]
+  },
+  "mv-c9": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c9"
+   ]
+  },
+  "mv-c10": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c10"
+   ]
+  },
+  "mv-c11": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c11"
+   ]
+  },
+  "mv-c12": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c12"
+   ]
+  },
+  "mv-c13": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c13"
+   ]
+  },
+  "mv-c14": {
+   "outcome": "match",
+   "tray": "auto",
+   "rule": "reference_exact",
+   "items": [
+    "chq-c14"
+   ]
+  },
+  "mv-d0": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d0"
+   ]
+  },
+  "mv-d1": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d1"
+   ]
+  },
+  "mv-d2": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d2"
+   ]
+  },
+  "mv-d3": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d3"
+   ]
+  },
+  "mv-d4": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d4"
+   ]
+  },
+  "mv-d5": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d5"
+   ]
+  },
+  "mv-d6": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d6"
+   ]
+  },
+  "mv-d7": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d7"
+   ]
+  },
+  "mv-d8": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d8"
+   ]
+  },
+  "mv-d9": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d9"
+   ]
+  },
+  "mv-d10": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d10"
+   ]
+  },
+  "mv-d11": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d11"
+   ]
+  },
+  "mv-d12": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d12"
+   ]
+  },
+  "mv-d13": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d13"
+   ]
+  },
+  "mv-d14": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d14"
+   ]
+  },
+  "mv-d15": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d15"
+   ]
+  },
+  "mv-d16": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d16"
+   ]
+  },
+  "mv-d17": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d17"
+   ]
+  },
+  "mv-d18": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d18"
+   ]
+  },
+  "mv-d19": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "net_of_documented_fees",
+   "items": [
+    "ord-d19"
+   ]
+  },
+  "mv-e0": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "amount_tolerance",
+   "items": [
+    "inv-e0"
+   ]
+  },
+  "mv-e1": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "amount_tolerance",
+   "items": [
+    "inv-e1"
+   ]
+  },
+  "mv-e2": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "amount_tolerance",
+   "items": [
+    "inv-e2"
+   ]
+  },
+  "mv-e3": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "amount_tolerance",
+   "items": [
+    "inv-e3"
+   ]
+  },
+  "mv-e4": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "amount_tolerance",
+   "items": [
+    "inv-e4"
+   ]
+  },
+  "mv-e5": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "amount_tolerance",
+   "items": [
+    "inv-e5"
+   ]
+  },
+  "mv-e6": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "amount_tolerance",
+   "items": [
+    "inv-e6"
+   ]
+  },
+  "mv-e7": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "amount_tolerance",
+   "items": [
+    "inv-e7"
+   ]
+  },
+  "mv-f0": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f0-0",
+    "inv-f0-1",
+    "inv-f0-2"
+   ]
+  },
+  "mv-f1": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f1-0",
+    "inv-f1-1",
+    "inv-f1-2"
+   ]
+  },
+  "mv-f2": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f2-0",
+    "inv-f2-1",
+    "inv-f2-2"
+   ]
+  },
+  "mv-f3": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f3-0",
+    "inv-f3-1"
+   ]
+  },
+  "mv-f4": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f4-0",
+    "inv-f4-1",
+    "inv-f4-2",
+    "inv-f4-3"
+   ]
+  },
+  "mv-f5": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f5-0",
+    "inv-f5-1"
+   ]
+  },
+  "mv-f6": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f6-0",
+    "inv-f6-1"
+   ]
+  },
+  "mv-f7": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f7-0",
+    "inv-f7-1",
+    "inv-f7-2"
+   ]
+  },
+  "mv-f8": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f8-0",
+    "inv-f8-1",
+    "inv-f8-2",
+    "inv-f8-3"
+   ]
+  },
+  "mv-f9": {
+   "outcome": "match",
+   "tray": "suggested",
+   "rule": "one_movement_many_items",
+   "items": [
+    "inv-f9-0",
+    "inv-f9-1"
+   ]
+  },
+  "mv-g0": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g1": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g2": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g3": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g4": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g5": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g6": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g7": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g8": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g9": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g10": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-g11": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-h0-0": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h0-1": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h1-0": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h1-1": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h2-0": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h2-1": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h3-0": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h3-1": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h4-0": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-h4-1": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-i0": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-i1": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-i2": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-i3": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-i4": {
+   "outcome": "exception",
+   "tray": "exception",
+   "rule": "",
+   "items": []
+  },
+  "mv-j0": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j1": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j2": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j3": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j4": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j5": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j6": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j7": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j8": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  },
+  "mv-j9": {
+   "outcome": "pending",
+   "tray": "suggested",
+   "rule": "",
+   "items": []
+  }
+ }
+}
