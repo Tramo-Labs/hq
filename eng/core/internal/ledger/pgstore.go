@@ -125,7 +125,8 @@ func (s *PGStore) SaveAccepted(ctx context.Context, u Upload, r Result, fresh []
 			return &PeriodClosedError{Period: ClosedPeriod{Start: p.Start, End: p.End}}
 		}
 		fileID, err := q.InsertAcceptedFile(ctx, store.InsertAcceptedFileParams{
-			AccountID: acc, Sha256: h, Filename: &u.Filename, Fingerprint: &r.Fingerprint, LayoutID: &r.LayoutID,
+			AccountID: &acc, Sha256: h, Filename: &u.Filename, Fingerprint: &r.Fingerprint, LayoutID: &r.LayoutID,
+			Source: u.source(), Routed: nullText(u.Routed),
 		})
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "files_accepted_once" {
@@ -179,9 +180,14 @@ func (s *PGStore) SaveQuarantined(ctx context.Context, u Upload, r Result) error
 	if err != nil {
 		return err
 	}
-	acc, err := uuid.Parse(u.AccountID)
-	if err != nil {
-		return err
+	// A mailed file nobody could route has no account.
+	var acc *uuid.UUID
+	if u.AccountID != "" {
+		id, err := uuid.Parse(u.AccountID)
+		if err != nil {
+			return err
+		}
+		acc = &id
 	}
 	var closedStart, closedEnd *time.Time
 	if r.ClosedPeriod != nil {
@@ -191,7 +197,7 @@ func (s *PGStore) SaveQuarantined(ctx context.Context, u Upload, r Result) error
 		fileID, err := store.New(tx).InsertQuarantinedFile(ctx, store.InsertQuarantinedFileParams{
 			AccountID: acc, Sha256: h, Filename: &u.Filename, Reason: &r.Reason, Detail: &r.Detail,
 			Fingerprint: &r.Fingerprint, LayoutID: nullText(r.LayoutID),
-			ClosedStart: closedStart, ClosedEnd: closedEnd,
+			ClosedStart: closedStart, ClosedEnd: closedEnd, Source: u.source(), Routed: nullText(u.Routed),
 		})
 		if err != nil {
 			return fmt.Errorf("ledger: insert quarantined file: %w", err)
@@ -313,7 +319,12 @@ func (s *PGStore) Quarantine(ctx context.Context, limit int) ([]QuarantinedFile,
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		rows, err := store.New(tx).ListQuarantine(ctx, int32(min(limit, math.MaxInt32))) // #nosec G115 -- clamped
 		for _, r := range rows {
-			out = append(out, QuarantinedFile{ID: r.ID, AccountID: r.AccountID, Filename: r.Filename, Reason: r.Reason,
+			// This list (to be deprecated) always had an account; a mailed
+			// file with none is in the Archivos list (Files) only.
+			if r.AccountID == nil {
+				continue
+			}
+			out = append(out, QuarantinedFile{ID: r.ID, AccountID: *r.AccountID, Filename: r.Filename, Reason: r.Reason,
 				Detail: r.Detail, Fingerprint: r.Fingerprint, ReceivedAt: r.ReceivedAt})
 		}
 		return err

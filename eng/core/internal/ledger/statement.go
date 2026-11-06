@@ -52,9 +52,12 @@ type Statement struct {
 	Fingerprint   string
 	AccountNumber string // when the file states it
 	Currency      string
-	From, To      time.Time
-	Opening       money.Amount
-	Closing       money.Amount
+	// CurrencyStated says the layout read the currency from the file; when
+	// false, Currency is the default (ARS) and routing does not rely on it.
+	CurrencyStated bool
+	From, To       time.Time
+	Opening        money.Amount
+	Closing        money.Amount
 	// OpeningStated and ClosingStated say whether the file states the
 	// balance or it was derived from the running balance column.
 	OpeningStated bool

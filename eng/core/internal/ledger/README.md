@@ -178,6 +178,38 @@ For Mercado Pago, each release with a gross amount has to satisfy gross plus
 documented fees equals net, or the file is refused. Those fees travel with
 the movement so matching can explain the difference without inventing it.
 
+### Statements with no account (the inbox)
+
+`Ingester.IngestUnassigned` takes a file that arrived with no account (the
+per tenant inbox, D-22), finds its account, and then runs every check of an
+upload. It runs under the tenant's scope with no user. The rule, by default
+since 06/11 (lead):
+
+1. The file states its account number: the account of that bank with that
+   number. None, or more than one, is `unrouted`.
+2. It does not: the tenant's only account of that bank (and of the file's
+   currency, when the layout states it; no layout does today, so every
+   account of the bank counts), and only when that account already has an
+   accepted statement. The first statement of an account is uploaded by a
+   person, so a second account nobody registered never lands on the first
+   one unnoticed.
+3. Anything else is `unrouted`, never a guess. A file that cannot be read
+   keeps its reading reason (`unknown_layout`, `unsupported_format`,
+   `row_parse`); `unrouted` is only for a readable file.
+
+Today only the Santander layout states its account number, so most mailed
+statements are routed by rule 2. A file that is not routed is stored with
+no account (migration 00251) and listed in `GET /v1/ledger/files`; a file
+already accepted is a duplicate instead. Each file keeps how it came in
+(`source`: upload or mail) and, for mail, how it was routed (`routed`:
+number or single_account). The detail of an unrouted file names the bank,
+never an account number.
+
+`TestIngestUnassignedRoutes` covers each case of the rule,
+`TestIngestUnassignedRunsTheChecks` that duplicates and the chain still
+apply, and `TestPGIngestUnassigned` the stored rows with no user. Six
+mutations (each rule or stored field switched off) fail them.
+
 ## Endpoints, tables, jobs, events
 
 Tables (migration 00100, schema `ledger`): `accounts`, `files` (accepted

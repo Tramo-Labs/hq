@@ -72,6 +72,23 @@ type Upload struct {
 	Filename      string
 	Data          []byte
 	ReceivedAt    time.Time
+	Source        string // SourceUpload (default) or SourceMail
+	Routed        string // for a mailed file: RoutedByNumber or RoutedSingleAccount
+}
+
+// How a file came in, and how an account was found for a mailed one.
+const (
+	SourceUpload        = "upload"
+	SourceMail          = "mail"
+	RoutedByNumber      = "number"
+	RoutedSingleAccount = "single_account"
+)
+
+func (u Upload) source() string {
+	if u.Source == "" {
+		return SourceUpload
+	}
+	return u.Source
 }
 
 // Result is the outcome of Ingest.
@@ -86,6 +103,8 @@ type Result struct {
 	New            int           // movements stored by this upload
 	AlreadyPresent int           // movements skipped because an earlier upload had them
 	ClosedPeriod   *ClosedPeriod // with ReasonPeriodClosed, the period the new movements hit
+	AccountID      string        // the account the file went to; empty when a mailed file was not routed
+	Routed         string        // for a mailed file routed to an account: RoutedByNumber or RoutedSingleAccount
 }
 
 // Store persists files and movements. The Postgres implementation enforces

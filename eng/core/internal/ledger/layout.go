@@ -220,3 +220,14 @@ func finish(st *Statement, running bool) {
 		st.Currency = "ARS"
 	}
 }
+
+// bankOfLayout is the bank of a registered layout by its ID, empty when
+// none has it.
+func bankOfLayout(id string) Bank {
+	for _, l := range registry {
+		if l.ID == id {
+			return l.Bank
+		}
+	}
+	return ""
+}
