@@ -13,7 +13,7 @@ set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 export PATH="$HOME/.local/go/bin:$HOME/go/bin:$PATH"
-ROLES="producto backend datos frontend ventas qa"
+ROLES="producto backend datos frontend ventas qa cliente competencia"
 MODO="team"
 case "${1:-}" in
   --bg)     MODO="bg"; shift ;;
@@ -27,7 +27,7 @@ NOMBRE="team-$(date +%d%H%M)"
 
 if [ "$MODO" = "team" ]; then
   exec claude --agent lead -n "$NOMBRE" --permission-mode auto \
-    "Objetivo: $OBJ. Leé TEAM.md y CLAUDE.md. Spawneá un teammate por rol usando los agent types producto, backend, datos, frontend, ventas y qa. Asigná las tareas del tablero, mantenelo al día, y reportame en castellano corto cuando terminen."
+    "Objetivo: $OBJ. Leé TEAM.md y CLAUDE.md. Spawneá un teammate por rol usando los agent types producto, backend, datos, frontend, ventas, qa, cliente y competencia. Asigná las tareas del tablero, mantenelo al día, y reportame en castellano corto cuando terminen."
 fi
 
 for r in $ROLES; do
@@ -35,4 +35,4 @@ for r in $ROLES; do
     "Sos el teammate $r. Objetivo: $OBJ. Leé TEAM.md y CLAUDE.md, tomá tus tareas, y avisá al lead por SendMessage (usá ListAgents para encontrarlo) cuando termines o te trabes."
 done
 claude --bg --agent lead -n lead --permission-mode auto \
-  "Objetivo: $OBJ. Los teammates producto, backend, datos, frontend, ventas y qa ya corren como sesiones de fondo en sus worktrees. Coordinalos por SendMessage, integrá sus ramas worktree-<rol> y mantené TEAM.md."
+  "Objetivo: $OBJ. Los teammates producto, backend, datos, frontend, ventas, qa, cliente y competencia ya corren como sesiones de fondo en sus worktrees. Coordinalos por SendMessage, integrá sus ramas worktree-<rol> y mantené TEAM.md."
