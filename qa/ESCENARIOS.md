@@ -101,6 +101,30 @@ No se reportan, porque ya se conocen: que la web no tenga login, que la web no l
 | Contador con dos clientes sembrados | alfa tiene 21 filas, beta 10, y comparten 0. `/v1/tenants` muestra solo alfa y beta. |
 | Otro tenant por id | El owner de alfa sube a una cuenta de beta: 404. Login del owner de beta con el `tenantId` de alfa: 401. |
 
+## Tanda 3: facturas con QR y login por cookie (mismo `make dev` de c256cf0)
+
+Las facturas son PDFs mínimos generados en el momento. Cada uno lleva un link annotation con un QR RG 4291 que usa el emisor de ejemplo del manual (30000000007) y, como receptor, el CUIT sintético de alfa (30000000015).
+
+### Fallas nuevas
+
+| # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
+|---|------|-----------|---------------|----------|------|------|
+| F21 | API | Factura dirigida a otra empresa | owner de alfa: `POST /v1/documents/invoices` con un PDF cuyo QR trae `nroDocRec: 30000000023` (el CUIT de beta). | Que la factura quede retenida para revisar, o que se rechace: no es del cliente. | 201 `autoEligible: true`, con todos los campos `trusted` y confianza 0.98. Nadie compara el receptor del QR con el CUIT del tenant (el README de documents solo excluye el CUIT propio como emisor). Una factura ajena entra como apta para registrar en automático. | media |
+| F22 | API | Refresh por cookie desde otro origen | 1) login sin `tokenDelivery` → cookie `tramo_refresh`. 2) `POST /v1/auth/refresh` con esa cookie y `Origin: https://evil.example`. | Rechazo por origen como segunda defensa, aunque SameSite=Strict ya frena al navegador. | 200 con un access token nuevo. Hoy lo protege solo SameSite. | baja |
+
+Con F2 hay evidencia nueva. Subí una factura con QR válido por $8.500 con fecha 2026-10-02, igual que un débito de alfa del mismo día, y corrí el matching del período. El débito sigue en Excepciones y Auto sigue con 1. La factura no alimenta al matching ni siquiera cuando el monto y la fecha coinciden exacto.
+
+### Lo que pasó bien en la tanda 3
+
+| Escenario | Evidencia |
+|-----------|-----------|
+| Factura con QR | 201 `autoEligible: true`. Cada campo trae `source: arca_qr`, confianza 0.98 y `trusted`. `GET /v1/documents/invoices/{id}` devuelve lo mismo. |
+| Factura repetida | El mismo archivo da 409 "this file was already uploaded". La misma factura en otro PDF da 409 "this invoice was already uploaded in another file". |
+| QR inválido | Importe con 3 decimales o `tipoCodAut: Z`: 201, pero sin campos, `autoEligible: false` y el motivo en `trail`. Las dos aparecen en `?autoEligible=false`. |
+| Contador sube factura | 201, como dice la spec. |
+| Cookie del navegador | `tramo_refresh` con `Path=/v1/auth; HttpOnly; Secure; SameSite=Strict` y 30 días. El refresh no viaja en el body. Rota con cada refresh. El logout la borra (`Max-Age=0`), y después el refresh da 401. |
+| CORS | Un preflight desde otro origen no recibe `Access-Control-Allow-Origin` (405). |
+
 ## Sin probar todavía
 
-Factura real con QR de ARCA (no hay fixture sintético de PDF). Decisiones sobre matches de Sugerido y Auto (no se puede, por F2). El cierre de período (`period_closed`). El gateway ARCA desde la API (el núcleo no lo usa en ningún endpoint del cliente). El login por cookie desde el navegador. El tope de 20 fallos por hora por email desde varias IPs.
+El cierre de período (`period_closed`): no hay endpoint para cerrar un período, así que el cliente no puede llegar a ese estado. La factura con QR dentro de una imagen o en la capa de texto (probé solo el link). El gateway ARCA desde la API, que el núcleo no usa en ningún endpoint del cliente. El tope de 20 fallos por hora por email desde varias IPs: el lead pidió no repetir F10.
