@@ -130,6 +130,22 @@ func (h *Handlers) Refresh(ctx context.Context, req apigen.RefreshRequestObject)
 	return apigen.Refresh200JSONResponse{TokensJSONResponse: tokens(sess, delivery)}, nil
 }
 
+// SwitchTenant moves the session to another of the caller's tenants.
+func (h *Handlers) SwitchTenant(ctx context.Context, req apigen.SwitchTenantRequestObject) (apigen.SwitchTenantResponseObject, error) {
+	tok, delivery := "", req.Body.TokenDelivery
+	if req.Body.RefreshToken != nil {
+		tok = *req.Body.RefreshToken
+	}
+	if tok == "" && req.Params.TramoRefresh != nil {
+		tok = *req.Params.TramoRefresh
+	}
+	sess, err := h.s.SwitchTenant(ctx, tok, uuid.UUID(req.Body.TenantId))
+	if err != nil {
+		return nil, problem(err)
+	}
+	return apigen.SwitchTenant200JSONResponse{TokensJSONResponse: tokens(sess, delivery)}, nil
+}
+
 // Logout revokes the session and clears the cookie.
 func (h *Handlers) Logout(ctx context.Context, req apigen.LogoutRequestObject) (apigen.LogoutResponseObject, error) {
 	tok, _ := refreshInput(req.Params.TramoRefresh, req.Body)

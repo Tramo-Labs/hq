@@ -243,6 +243,20 @@ func (s *Service) openSession(ctx context.Context, q *store.Queries, p Principal
 // rotated revokes every token of its family and fails: whoever holds the
 // newest one (the legitimate client or the thief) has to log in again.
 func (s *Service) Refresh(ctx context.Context, token string) (Session, error) {
+	return s.rotate(ctx, token, nil)
+}
+
+// SwitchTenant moves a session to another of the caller's tenants without
+// a password: the refresh token rotates within the same family, now bound
+// to tenant, with the role of that membership. A tenant the caller does not
+// belong to answers ErrNotAMember and leaves the token as it was. Reuse of
+// an old token revokes the family, as on Refresh.
+func (s *Service) SwitchTenant(ctx context.Context, token string, tenant uuid.UUID) (Session, error) {
+	return s.rotate(ctx, token, &tenant)
+}
+
+// rotate is Refresh, or SwitchTenant when target is set.
+func (s *Service) rotate(ctx context.Context, token string, target *uuid.UUID) (Session, error) {
 	if token == "" {
 		return Session{}, ErrInvalidRefresh
 	}
@@ -278,7 +292,16 @@ func (s *Service) Refresh(ctx context.Context, token string) (Session, error) {
 			outcome = ErrInvalidRefresh
 			return nil
 		}
+		from := tenant
+		if target != nil {
+			tenant = *target
+		}
 		role, err := q.GetMembershipRole(ctx, store.GetMembershipRoleParams{UserID: rt.UserID, TenantID: tenant})
+		if errors.Is(err, pgx.ErrNoRows) && target != nil {
+			// Not one of the caller's tenants: refused, token untouched.
+			outcome = ErrNotAMember
+			return nil
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Membership removed since login: the session ends.
 			outcome = ErrInvalidRefresh
@@ -292,7 +315,11 @@ func (s *Service) Refresh(ctx context.Context, token string) (Session, error) {
 			return err
 		}
 		out, err = s.openSession(ctx, q, Principal{UserID: rt.UserID, TenantID: tenant, Role: string(role)}, rt.FamilyID)
-		return err
+		if err != nil || target == nil {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Entry{Action: "identity.tenant_switched", Subject: subject, TenantID: tenant,
+			UserID: rt.UserID, Detail: map[string]any{"from": from.String(), "to": tenant.String(), "role": string(role)}})
 	})
 	if err != nil {
 		return Session{}, err

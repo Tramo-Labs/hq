@@ -12,6 +12,7 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 | `POST /v1/auth/magic-link` | none | required | Emails a one time login link (15 minutes) if the email has an account. Always 202, so it does not reveal which emails exist. |
 | `POST /v1/auth/magic-link/accept` | link token | no (creates nothing; like login) | Opens a session with the link, on the tenant asked for or the oldest membership. |
 | `POST /v1/auth/refresh` | refresh token | no | Rotates the refresh token. Reuse of an old one revokes the whole family. |
+| `POST /v1/auth/switch-tenant` | refresh token | no (returns tokens, like refresh) | Moves the session to another of the caller's tenants, same family, no password. |
 | `POST /v1/auth/logout` | refresh token | no | Revokes the family and clears the cookie. |
 | `GET /v1/me` | bearer | | The caller, active tenant and role, every membership. |
 | `GET /v1/tenant/members` | bearer | | Members of the active tenant. |
@@ -135,7 +136,19 @@ as `identity.member_removed` with the removed role.
   needs no Origin (`TestRefreshAndLogoutByCookieNeedAnAllowedOrigin`;
   mutations checked: letting a missing Origin through, and leaving logout
   out, each fail it). The check is not audited: these calls have no tenant
-  scope yet.
+  scope yet. Switching tenant follows the same rule.
+- **Switching company (no password)**: `POST /v1/auth/switch-tenant` takes
+  the refresh token, not the access token, so a stolen 10 minute access
+  token cannot open sessions in other companies. The token rotates in the
+  **same family**, now bound to the target tenant with that membership's
+  role; replaying an old one revokes the family as on refresh. A tenant the
+  caller is not in is 403 `not_a_member` and the token stays usable.
+  Audited as `identity.tenant_switched` in the target tenant, with from and
+  to. It is how someone who signed in by magic link changes company
+  (`TestSwitchTenantWithoutPassword`,
+  `TestSwitchTenantByCookieNeedsAnAllowedOrigin`; mutations checked: the
+  refused switch consuming the token, a new family on switch, no Origin
+  check, the role of the old tenant, not audited, each fails).
 - **Passwords**: argon2id, RFC 9106 second recommendation (64 MiB, t=3, p=4),
   PHC string with its parameters so they can be raised later. Verification is
   constant time and bounds the parameters a stored hash may demand. Unknown

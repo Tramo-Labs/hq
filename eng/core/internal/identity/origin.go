@@ -10,8 +10,9 @@ import (
 // a browser attaches it on its own, so a page on another origin could fire
 // them (F22).
 var cookieAuthorized = map[string]bool{
-	"/v1/auth/refresh": true,
-	"/v1/auth/logout":  true,
+	"/v1/auth/refresh":       true,
+	"/v1/auth/logout":        true,
+	"/v1/auth/switch-tenant": true,
 }
 
 // RequireAllowedOrigin refuses refresh and logout carrying the refresh
