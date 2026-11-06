@@ -98,3 +98,10 @@ only door the screens use), `live.ts`, `sample.ts`, `fixtures.ts`. Screens are c
 in `src/components/app/views/`, because the access token is only in the browser. The pages before
 a session share `src/components/app/auth-frame.tsx`; the emailed tokens are handled in
 `src/components/app/token-entry.tsx`.
+
+## Tests
+
+`npm test` runs `src/**/*.test.ts` with Node's own test runner (Node 22.18 or later strips the
+types; `scripts/test-resolve.mjs` resolves the extensionless imports). No test dependency.
+`src/lib/api/live.test.ts` checks that refresh and switch-tenant never overlap and that a 401
+during a switch waits for it, against a fake core that revokes the family on a reused token.
