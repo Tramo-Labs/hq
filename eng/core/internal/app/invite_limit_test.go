@@ -136,6 +136,42 @@ func TestLoginFailureCapHoldsUnderABurst(t *testing.T) {
 	}
 }
 
+// qa-2's S4 probe: a right password on a tenant the person is not in (403
+// not_a_member) is not a guess, so the failure taken before checking it is
+// given back. With one failure left, three such logins leave it there: the
+// next wrong password still gets its 401, and only the one after is 429.
+func TestRightPasswordOnAnotherTenantIsNotAFailure(t *testing.T) {
+	deps := newDeps(t)
+	deps.Identity.Limits.LoginPerIP = ratelimit.Rule{Limit: 1000, Window: time.Hour}
+	deps.Identity.Limits.FailPerEmailIP = ratelimit.Rule{Limit: 5, Window: time.Hour}
+	c := client{t, serve(t, deps)}
+	me := c.registerAndLogin("molino-s4", "owner@s4.test")
+	other := c.registerAndLogin("otro-s4", "owner@otro-s4.test")
+	login := func(password, tenant string) resp {
+		body := map[string]any{"email": me.email, "password": password, "tokenDelivery": "body"}
+		if tenant != "" {
+			body["tenantId"] = tenant
+		}
+		return c.do("POST", "/v1/auth/login", "", body)
+	}
+	for i := 0; i < 4; i++ {
+		if r := login("a wrong guess, long", ""); r.status != 401 {
+			t.Fatalf("wrong %d: %d %s", i, r.status, r.raw)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		if r := login(me.password, other.tenant); r.status != 403 || r.str("code") != "not_a_member" {
+			t.Fatalf("right password, other tenant %d: %d %s", i, r.status, r.raw)
+		}
+	}
+	if r := login("a wrong guess, long", ""); r.status != 401 {
+		t.Fatalf("the last failure was spent by right passwords: %d %s", r.status, r.raw)
+	}
+	if r := login("a wrong guess, long", ""); r.status != 429 {
+		t.Fatalf("past the cap: %d %s", r.status, r.raw)
+	}
+}
+
 // Only a usable invitation reaches the password step. Without a password,
 // an unknown, used, revoked or expired token, or one whose pending
 // membership was removed, still gets its rejection, counted and audited,
