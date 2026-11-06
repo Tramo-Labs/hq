@@ -4,7 +4,16 @@
 -- member management runs in tenant transactions under RLS.
 
 -- name: CreateUser :one
-insert into users (email, password_hash) values ($1, $2) returning id;
+insert into users (email, password_hash, display_name) values ($1, $2, $3) returning id;
+
+-- name: GetUserProfile :one
+select email, display_name from users where id = $1;
+
+-- name: SetUserName :exec
+update users set display_name = $2 where id = $1;
+
+-- name: SetUserNameIfUnset :exec
+update users set display_name = $2 where id = $1 and display_name is null;
 
 -- name: EnsureUser :one
 -- Creates a user without password (magic link later) or returns the existing one.
@@ -34,7 +43,7 @@ order by t.created_at, t.id;
 select role from memberships where user_id = $1 and tenant_id = $2;
 
 -- name: ListMembers :many
-select u.id, u.email, m.role
+select u.id, u.email, u.display_name, m.role
 from memberships m join users u on u.id = m.user_id
 where m.tenant_id = $1
 order by u.email;

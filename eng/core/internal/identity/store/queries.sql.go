@@ -57,12 +57,13 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (uui
 
 const createUser = `-- name: CreateUser :one
 
-insert into users (email, password_hash) values ($1, $2) returning id
+insert into users (email, password_hash, display_name) values ($1, $2, $3) returning id
 `
 
 type CreateUserParams struct {
 	Email        string
 	PasswordHash *string
+	DisplayName  *string
 }
 
 // Queries of the identity module. `make gen` compiles them with sqlc into
@@ -70,7 +71,7 @@ type CreateUserParams struct {
 // system transactions (no tenant yet, or tables tramo_app cannot read);
 // member management runs in tenant transactions under RLS.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.PasswordHash)
+	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.PasswordHash, arg.DisplayName)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
@@ -301,6 +302,22 @@ func (q *Queries) GetUserPasswordSet(ctx context.Context, id uuid.UUID) (bool, e
 	return has_password, err
 }
 
+const getUserProfile = `-- name: GetUserProfile :one
+select email, display_name from users where id = $1
+`
+
+type GetUserProfileRow struct {
+	Email       string
+	DisplayName *string
+}
+
+func (q *Queries) GetUserProfile(ctx context.Context, id uuid.UUID) (GetUserProfileRow, error) {
+	row := q.db.QueryRow(ctx, getUserProfile, id)
+	var i GetUserProfileRow
+	err := row.Scan(&i.Email, &i.DisplayName)
+	return i, err
+}
+
 const insertInvite = `-- name: InsertInvite :exec
 insert into invites (tenant_id, user_id, created_by, token_hash, expires_at)
 values ($1, $2, $3, $4, $5)
@@ -372,16 +389,17 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 }
 
 const listMembers = `-- name: ListMembers :many
-select u.id, u.email, m.role
+select u.id, u.email, u.display_name, m.role
 from memberships m join users u on u.id = m.user_id
 where m.tenant_id = $1
 order by u.email
 `
 
 type ListMembersRow struct {
-	ID    uuid.UUID
-	Email string
-	Role  Role
+	ID          uuid.UUID
+	Email       string
+	DisplayName *string
+	Role        Role
 }
 
 func (q *Queries) ListMembers(ctx context.Context, tenantID uuid.UUID) ([]ListMembersRow, error) {
@@ -393,7 +411,12 @@ func (q *Queries) ListMembers(ctx context.Context, tenantID uuid.UUID) ([]ListMe
 	var items []ListMembersRow
 	for rows.Next() {
 		var i ListMembersRow
-		if err := rows.Scan(&i.ID, &i.Email, &i.Role); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.DisplayName,
+			&i.Role,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -535,4 +558,32 @@ func (q *Queries) SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnset
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setUserName = `-- name: SetUserName :exec
+update users set display_name = $2 where id = $1
+`
+
+type SetUserNameParams struct {
+	ID          uuid.UUID
+	DisplayName *string
+}
+
+func (q *Queries) SetUserName(ctx context.Context, arg SetUserNameParams) error {
+	_, err := q.db.Exec(ctx, setUserName, arg.ID, arg.DisplayName)
+	return err
+}
+
+const setUserNameIfUnset = `-- name: SetUserNameIfUnset :exec
+update users set display_name = $2 where id = $1 and display_name is null
+`
+
+type SetUserNameIfUnsetParams struct {
+	ID          uuid.UUID
+	DisplayName *string
+}
+
+func (q *Queries) SetUserNameIfUnset(ctx context.Context, arg SetUserNameIfUnsetParams) error {
+	_, err := q.db.Exec(ctx, setUserNameIfUnset, arg.ID, arg.DisplayName)
+	return err
 }

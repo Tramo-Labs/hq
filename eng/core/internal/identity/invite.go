@@ -93,12 +93,16 @@ func inviteMessage(base, to, tenantName, role, token string) mail.Message {
 // on the inviting tenant (or, if that membership was removed meanwhile, on
 // their oldest one). Any token that can not be used answers
 // ErrInvalidInvite and the attempt is audited.
-func (s *Service) AcceptInvite(ctx context.Context, token, password string) (Session, error) {
+func (s *Service) AcceptInvite(ctx context.Context, token, password string, name *string) (Session, error) {
 	if err := s.checkInvite(ctx); err != nil {
 		return Session{}, err
 	}
 	if n := len(password); n < MinPassword || n > MaxPassword {
 		return Session{}, ErrInvalidInvite
+	}
+	displayName, err := optionalName(name)
+	if err != nil {
+		return Session{}, err
 	}
 	hash, err := HashPassword(s.Argon, password)
 	if err != nil {
@@ -138,6 +142,12 @@ func (s *Service) AcceptInvite(ctx context.Context, token, password string) (Ses
 		}
 		if n == 0 {
 			return reject(subject, inv.TenantID, "password already set")
+		}
+		// The name given here, if the person has none yet.
+		if displayName != nil {
+			if err := q.SetUserNameIfUnset(ctx, store.SetUserNameIfUnsetParams{ID: inv.UserID, DisplayName: displayName}); err != nil {
+				return err
+			}
 		}
 		if err := audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_accepted", Subject: subject,
 			TenantID: inv.TenantID, UserID: inv.UserID}); err != nil {

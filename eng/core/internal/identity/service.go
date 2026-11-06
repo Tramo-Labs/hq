@@ -95,7 +95,8 @@ func NewService(d *db.DB, s *Signer, k *crypto.Keyring, p Argon2Params) (*Servic
 // RegisterInput is a new account with its first tenant.
 type RegisterInput struct {
 	Email, Password, TenantName, TenantSlug string
-	Cuit                                    string // optional, 11 digits
+	Cuit                                    string  // optional, 11 digits
+	Name                                    *string // optional, the person's name
 }
 
 // Register creates the user, the tenant, the owner membership and the
@@ -116,13 +117,17 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (user, tenant 
 		}
 		cuitNum = &n
 	}
+	name, err := optionalName(in.Name)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, err
+	}
 	hash, err := HashPassword(s.Argon, in.Password)
 	if err != nil {
 		return uuid.Nil, uuid.Nil, err
 	}
 	err = s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
-		if user, err = q.CreateUser(ctx, store.CreateUserParams{Email: email, PasswordHash: &hash}); err != nil {
+		if user, err = q.CreateUser(ctx, store.CreateUserParams{Email: email, PasswordHash: &hash, DisplayName: name}); err != nil {
 			return mapUnique(err)
 		}
 		if tenant, err = q.CreateTenant(ctx, store.CreateTenantParams{Slug: in.TenantSlug, Name: in.TenantName, Cuit: cuitNum}); err != nil {
@@ -359,6 +364,7 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 type MeView struct {
 	Principal   Principal
 	Email       string
+	Name        *string // nil until the person sets one
 	Memberships []store.ListMembershipsForUserRow
 }
 
@@ -369,9 +375,11 @@ func (s *Service) Me(ctx context.Context, p Principal) (MeView, error) {
 	err := s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
 		var err error
-		if v.Email, err = q.GetUserEmail(ctx, p.UserID); err != nil {
+		prof, err := q.GetUserProfile(ctx, p.UserID)
+		if err != nil {
 			return err
 		}
+		v.Email, v.Name = prof.Email, prof.DisplayName
 		v.Memberships, err = q.ListMembershipsForUser(ctx, p.UserID)
 		return err
 	})

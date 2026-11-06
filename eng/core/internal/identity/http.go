@@ -73,7 +73,7 @@ func NewHandlers(s *Service) *Handlers { return &Handlers{s: s} }
 // Register creates an account and its first tenant.
 func (h *Handlers) Register(ctx context.Context, req apigen.RegisterRequestObject) (apigen.RegisterResponseObject, error) {
 	b := req.Body
-	in := RegisterInput{Email: string(b.Email), Password: b.Password, TenantName: b.TenantName, TenantSlug: b.TenantSlug}
+	in := RegisterInput{Email: string(b.Email), Password: b.Password, TenantName: b.TenantName, TenantSlug: b.TenantSlug, Name: b.Name}
 	if b.Cuit != nil {
 		in.Cuit = *b.Cuit
 	}
@@ -96,7 +96,7 @@ func (h *Handlers) Login(ctx context.Context, req apigen.LoginRequestObject) (ap
 
 // AcceptInvite sets the password with an invitation and opens a session.
 func (h *Handlers) AcceptInvite(ctx context.Context, req apigen.AcceptInviteRequestObject) (apigen.AcceptInviteResponseObject, error) {
-	sess, err := h.s.AcceptInvite(ctx, req.Body.Token, req.Body.Password)
+	sess, err := h.s.AcceptInvite(ctx, req.Body.Token, req.Body.Password, req.Body.Name)
 	if err != nil {
 		return nil, problem(err)
 	}
@@ -164,14 +164,29 @@ func (h *Handlers) GetMe(ctx context.Context, _ apigen.GetMeRequestObject) (apig
 	if err != nil {
 		return nil, err
 	}
-	out := apigen.GetMe200JSONResponse{
-		UserId: p.UserID, Email: v.Email, ActiveTenantId: p.TenantID, Role: apigen.Role(p.Role),
+	return apigen.GetMe200JSONResponse(meBody(v)), nil
+}
+
+// UpdateMe sets the caller's own name.
+func (h *Handlers) UpdateMe(ctx context.Context, req apigen.UpdateMeRequestObject) (apigen.UpdateMeResponseObject, error) {
+	p, _ := PrincipalFrom(ctx)
+	v, err := h.s.SetName(ctx, p, string(req.Body.Name))
+	if err != nil {
+		return nil, problem(err)
+	}
+	return apigen.UpdateMe200JSONResponse(meBody(v)), nil
+}
+
+func meBody(v MeView) apigen.Me {
+	p := v.Principal
+	out := apigen.Me{
+		UserId: p.UserID, Email: v.Email, Name: v.Name, ActiveTenantId: p.TenantID, Role: apigen.Role(p.Role),
 		Memberships: make([]apigen.Membership, 0, len(v.Memberships)),
 	}
 	for _, m := range v.Memberships {
 		out.Memberships = append(out.Memberships, apigen.Membership{TenantId: m.TenantID, TenantName: m.TenantName, Role: apigen.Role(m.Role)})
 	}
-	return out, nil
+	return out
 }
 
 // ListMembers lists the members of the active tenant.
@@ -182,7 +197,7 @@ func (h *Handlers) ListMembers(ctx context.Context, _ apigen.ListMembersRequestO
 	}
 	out := apigen.ListMembers200JSONResponse{Items: make([]apigen.Member, 0, len(rows))}
 	for _, m := range rows {
-		out.Items = append(out.Items, apigen.Member{UserId: m.ID, Email: m.Email, Role: apigen.Role(m.Role)})
+		out.Items = append(out.Items, apigen.Member{UserId: m.ID, Email: m.Email, Name: m.DisplayName, Role: apigen.Role(m.Role)})
 	}
 	return out, nil
 }
@@ -267,6 +282,7 @@ func problem(err error) error {
 		ErrMemberNotFound:     {http.StatusNotFound, httpx.CodeNotFound},
 		ErrLastOwner:          {http.StatusConflict, "last_owner"},
 		ErrInvalidInvite:      {http.StatusUnauthorized, "invalid_invite"},
+		ErrInvalidName:        {http.StatusBadRequest, "invalid_name"},
 		ErrMagicLinkRequired:  {http.StatusUnauthorized, "magic_link_required"},
 		ErrInvalidMagicLink:   {http.StatusUnauthorized, "invalid_magic_link"},
 	}

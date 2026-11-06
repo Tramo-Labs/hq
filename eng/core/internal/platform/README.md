@@ -84,7 +84,7 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
 | Table | RLS for tramo_app | Notes |
 |-------|-------------------|-------|
 | `tenants` | own row only | |
-| `users` | self or members of the current tenant; only `id`, `email`, `created_at` readable | `password_hash` and `totp_secret` are not readable by `tramo_app` |
+| `users` | self or members of the current tenant; only `id`, `email`, `display_name` (00113), `created_at` readable | `password_hash` and `totp_secret` are not readable by `tramo_app` |
 | `memberships` | current tenant, or the caller's own memberships | |
 | `refresh_tokens` | no access | identity only, through `System` (`tramo_system`) |
 | `invites` | no access | identity only, through `System`; token hashes only |

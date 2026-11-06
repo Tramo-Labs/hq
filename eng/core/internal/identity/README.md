@@ -14,13 +14,14 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 | `POST /v1/auth/refresh` | refresh token | no | Rotates the refresh token. Reuse of an old one revokes the whole family. |
 | `POST /v1/auth/switch-tenant` | refresh token | no (returns tokens, like refresh) | Moves the session to another of the caller's tenants, same family, no password. |
 | `POST /v1/auth/logout` | refresh token | no | Revokes the family and clears the cookie. |
-| `GET /v1/me` | bearer | | The caller, active tenant and role, every membership. |
+| `GET /v1/me` | bearer | | The caller (with their name, null until set), active tenant and role, every membership. |
+| `PATCH /v1/me` | bearer, any role, only oneself | no (changes, creates nothing) | Sets the caller's own name: trimmed, 1 to 120 characters, no control characters (400 `invalid_name`). |
 | `GET /v1/tenant/members` | bearer | | Members of the active tenant. |
 | `POST /v1/tenant/members` | bearer, owner or operator | required | Adds a person under the grant rules below. |
 | `DELETE /v1/tenant/members/{userId}` | bearer, owner | | Removes a person (204). 404 if not a member, 409 `last_owner` for the last owner. |
 
 Errors (problem `code`): `unauthorized`, `refresh_token_reused`, `origin_not_allowed`,
-`magic_link_required`, `invalid_magic_link`, `email_taken`,
+`magic_link_required`, `invalid_magic_link`, `invalid_name`, `email_taken`,
 `slug_taken`, `cuit_taken`, `already_member`, `invalid_email`, `invalid_cuit`,
 `forbidden`, `not_a_member`, plus the platform codes.
 
@@ -176,6 +177,15 @@ expired more than 7 days ago. All run in the worker's daily
 ## Sensitive data
 
 - Password hashes: argon2id only, not readable by `tramo_app`.
+- The person's name (`users.display_name`, 00113): personal data, set at
+  registration, on accepting an invitation (only if none yet) or with
+  `PATCH /v1/me`, only by the person. Visible in `/me` and to the members
+  of the same tenant, accountant and operator included, as the email is
+  (column grant to `tramo_app`); not in any export. `identity.name_changed`
+  is audited without the value (`TestPersonName`,
+  `TestInvitedPersonGivesTheirName`; mutations checked: not trimmed,
+  control characters allowed, no column grant, the value audited, `/me`
+  without it, the invitation ignoring it, each fails).
 - Refresh tokens: only SHA-256 stored; not readable by `tramo_app`.
 - Invitation and magic link tokens: only SHA-256 stored; the clear token
   exists only in the email (the outbox file in dev and tests), in the URL
