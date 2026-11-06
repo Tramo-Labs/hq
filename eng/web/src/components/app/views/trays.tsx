@@ -70,7 +70,7 @@ export function Trays({ asked }: { asked?: MatchTray }) {
                       {movements.map((p) => (
                         <MovementCard key={p.movementId} p={p} meta={tr.of(session.tenantName)} title={app.reasons[p.reason]}>
                           {(p.reason === "client_other" || p.reason === "client_rejected") && can(session.role, "decideSuggested") ? (
-                            <Decision target={{ movement: p.movementId }} variant="operator" />
+                            <Decision target={{ movement: p.movementId }} variant="operator" movement={p} />
                           ) : (
                             <p className={`text-[14px] ${tray === "exception" ? "text-accent" : "text-white/70"}`}>{tray === "exception" ? tr.waitingClient : tr.noMovementAction}</p>
                           )}

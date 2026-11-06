@@ -3,7 +3,7 @@ import * as fx from "./fixtures";
 import { getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, Role, TenantStatus,
+  Page, PendingMovement, PendingTray, Role, TenantStatus, ItemDirection, OpenItems,
 } from "./types";
 
 /**
@@ -161,6 +161,17 @@ export async function decideMatch(matchId: string, body: DecisionRequest, idempo
   });
 }
 
+/** Items linked by hand in this tab, by item id, to the movement that took them. */
+const linked = new Map<string, string>();
+
+export async function listOpenItems(direction: ItemDirection, period?: string): Promise<OpenItems> {
+  const s = session();
+  const items = (fx.openItems[s.tenantId] ?? [])
+    .filter((o) => (direction === "in" ? o.amount > 0 : o.amount < 0) && (!period || o.date.startsWith(period)) && !linked.has(o.id))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return { items, truncated: false };
+}
+
 export async function decideMovement(movementId: string, body: MovementDecisionRequest, idempotencyKey: string): Promise<MovementDecision> {
   const s = session();
   return replay(idempotencyKey, () => {
@@ -180,11 +191,21 @@ export async function decideMovement(movementId: string, body: MovementDecisionR
       if (!prior) throw new ApiError(409, "nothing_to_revert");
       if ((prior.role === "operator") !== operator) throw new ApiError(403, "forbidden");
       decided.delete(movementId);
+      for (const [itemId, by] of linked) if (by === movementId) linked.delete(itemId);
     } else {
       if (operator && !withOperator) throw new ApiError(409, "not_with_operator");
       if (!operator && x.pending.tray !== "exception") throw new ApiError(409, "not_in_exceptions");
-      if (body.action === "link") throw new ApiError(400, "bad_request", "sample mode has no open items to link");
       if (prior) throw new ApiError(409, "conflict");
+      if (body.action === "link") {
+        const ids = body.itemIds ?? [];
+        if (ids.length === 0 || new Set(ids).size !== ids.length) throw new ApiError(400, "bad_request", "itemIds required");
+        const open = fx.openItems[s.tenantId] ?? [];
+        const picked = ids.map((i) => open.find((o) => o.id === i));
+        if (picked.some((o) => !o)) throw new ApiError(400, "bad_request", "unknown item");
+        if (ids.some((i) => linked.has(i))) throw new ApiError(409, "item_taken");
+        if (picked.reduce((t, o) => t + o!.amount, 0) !== x.pending.amount) throw new ApiError(400, "bad_request", "amounts do not add up");
+        for (const i of ids) linked.set(i, movementId);
+      }
     }
     const d: MovementDecision = { movementId, action: body.action, userId: userId(s.email), role: s.role, at: new Date().toISOString(),
       note: body.note, revision: (prior?.revision ?? 0) + 1 };

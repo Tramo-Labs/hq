@@ -3,7 +3,7 @@ import * as live from "./live";
 import { getMode, getSession, setSession } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus,
+  Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus, ItemDirection, OpenItems,
 } from "./types";
 
 export type * from "./types";
@@ -82,6 +82,11 @@ export async function listMatches(tray: MatchTray, period?: string): Promise<Pag
 
 export async function listPending(tray: PendingTray, period?: string): Promise<Page<PendingMovement>> {
   return isLive() ? live.getJson(`/v1/matching/pending${q({ tray, period })}`) : (await sample()).listPending(tray, period);
+}
+
+/** Open items to link a movement by hand; without period, every open item (oldest first, up to 500). */
+export async function listOpenItems(direction: ItemDirection, period?: string): Promise<OpenItems> {
+  return isLive() ? live.getJson(`/v1/matching/items${q({ direction, period })}`) : (await sample()).listOpenItems(direction, period);
 }
 
 export async function listMetrics(period: string): Promise<Page<Metric>> {

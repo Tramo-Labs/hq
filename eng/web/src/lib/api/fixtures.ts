@@ -1,4 +1,4 @@
-import type { Account, Match, Membership, PendingMovement, QuarantinedFile, Role, TenantStatus } from "./types";
+import type { Account, Match, Membership, OpenItem, PendingMovement, QuarantinedFile, Role, TenantStatus } from "./types";
 
 /**
  * Synthetic data for sample mode (no CORE_API_URL), in the exact shapes of
@@ -141,6 +141,28 @@ export const pending: SamplePending[] = [
 ];
 
 /** Movements per tenant and month, for the automation rate and the movements export. */
+/**
+ * Open items per tenant, for "Vincular a mano". Two of agro's add up exactly to movement 3001
+ * (-12.000.000 + -6.450.000 = -18.450.000 cents), one of ferr's to 3003 and two to 3004.
+ */
+const item = (n: number, date: string, amount: number, refs: string[], party?: string): OpenItem => ({
+  id: id(n), source: "document", sourceId: id(n + 1000), kind: amount < 0 ? "payable" : "receivable", date, amount, refs, party, confidence: 1,
+});
+export const openItems: Record<string, OpenItem[]> = {
+  [T.agro]: [
+    item(5001, "2026-10-28", -1_230_000, ["FC A 0003-00000412"], "30000000041"),
+    item(5002, "2026-11-02", -12_000_000, ["FC A 0001-00001234"], "30000000011"),
+    item(5003, "2026-11-03", -6_450_000, ["FC A 0001-00001240"], "30000000011"),
+    item(5004, "2026-11-05", -3_000_000, ["FC B 0002-00000077"]),
+    item(5005, "2026-11-04", 4_235_000, ["FC A 0005-00000900"], "30000000021"),
+  ],
+  [T.ferr]: [
+    item(5101, "2026-11-01", -912_000, ["FC C 0004-00000031"], "30000000051"),
+    item(5102, "2026-11-01", -2_000_000, ["FC A 0006-00000210"], "20000000031"),
+    item(5103, "2026-11-02", -600_000, ["FC A 0006-00000211"], "20000000031"),
+  ],
+};
+
 export const movementCount: Record<string, Record<string, number>> = {
   [T.agro]: { "2026-11": 7 },
   [T.trans]: { "2026-11": 2 },

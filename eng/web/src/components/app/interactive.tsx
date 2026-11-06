@@ -5,12 +5,13 @@ import { app } from "@/content/app";
 import { ApiError, decideMatch, decideMovement } from "@/lib/api";
 import type { MovementDecisionAction } from "@/lib/api";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
+import { LinkPicker } from "@/components/app/link-picker";
 
-type Action = "approve" | "reject" | "escalate" | "other" | "resolve" | "return" | "revert";
+type Action = "approve" | "reject" | "escalate" | "other" | "resolve" | "return" | "link" | "revert";
 /** Actions that open a note field first; the note is required for all of them. */
 type NoteAction = "reject" | "other" | "resolve" | "return";
 
-const actions: Action[] = ["approve", "reject", "escalate", "other", "resolve", "return", "revert"];
+const actions: Action[] = ["approve", "reject", "escalate", "other", "resolve", "return", "link", "revert"];
 const keysFor = () => Object.fromEntries(actions.map((x) => [x, crypto.randomUUID()])) as Record<Action, string>;
 
 function message(e: unknown) {
@@ -31,7 +32,12 @@ function message(e: unknown) {
  *   was done), return to the client (note: what is needed), link (disabled, as above).
  * "Deshacer" only appears after a decision made here, so each side reverts only its own row.
  */
-export function Decision({ target, variant }: { target: { match: string } | { movement: string }; variant: "client" | "operator" }) {
+export function Decision({ target, variant, movement }: {
+  target: { match: string } | { movement: string };
+  variant: "client" | "operator";
+  /** The movement's amount and date, needed to link it by hand. */
+  movement?: { movementId: string; amount: number; date: string };
+}) {
   const a = app.approvals;
   const tr = app.trays;
   const labels: Record<string, string> = variant === "client" ? a.actions : tr.actions;
@@ -43,15 +49,17 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
   const [noteFor, setNoteFor] = useState<NoteAction | null>(null);
   const [note, setNote] = useState("");
   const [decided, setDecided] = useState<{ action: Action; at: string } | null>(null);
+  const [linking, setLinking] = useState(false);
+  const [pickKey, setPickKey] = useState(0);
 
-  async function send(action: Action) {
+  async function send(action: Action, itemIds?: string[]) {
     if (saving) return;
     setSaving(true);
     setError(null);
     try {
       const text = action === noteFor ? note.trim() || undefined : undefined;
       const res = isMovement
-        ? await decideMovement(target.movement, { action: action as MovementDecisionAction, note: text }, keys[action])
+        ? await decideMovement(target.movement, { action: action as MovementDecisionAction, note: text, itemIds }, keys[action])
         : await decideMatch(target.match, { action: action as "approve" | "reject" | "escalate" | "other" | "revert", note: text }, keys[action]);
       if (action === "revert") {
         setDecided(null);
@@ -61,8 +69,14 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
         setDecided({ action, at: res.at });
       }
       setNoteFor(null);
+      setLinking(false);
     } catch (e) {
       setError(message(e));
+      // Someone else took an item: show the list as it is now. A new pick is a new action.
+      if (e instanceof ApiError && e.code === "item_taken") {
+        setPickKey((k) => k + 1);
+        setKeys((k) => ({ ...k, link: crypto.randomUUID() }));
+      }
     } finally {
       setSaving(false);
     }
@@ -80,6 +94,16 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
           </p>
           <button type="button" disabled={saving} aria-busy={saving} className={ghostBtn} onClick={() => send("revert")}>{labels.revert}</button>
         </div>
+        {err}
+      </div>
+    );
+  }
+
+  if (linking && movement) {
+    return (
+      <div className="grid gap-2">
+        <LinkPicker reload={pickKey} movement={movement} saving={saving} onLink={(ids) => send("link", ids)}
+          onCancel={() => { setLinking(false); setError(null); }} />
         {err}
       </div>
     );
@@ -107,11 +131,8 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
     );
   }
 
-  const link = isMovement && (
-    <>
-      <button type="button" disabled className={ghostBtn} aria-describedby={`link-${target.movement}`}>{a.actions.link}</button>
-      <span id={`link-${target.movement}`} className="self-center text-[13px] text-white/60">{a.linkSoon}</span>
-    </>
+  const link = isMovement && movement && (
+    <button type="button" className={ghostBtn} onClick={() => { setLinking(true); setError(null); }}>{a.actions.link}</button>
   );
 
   return (

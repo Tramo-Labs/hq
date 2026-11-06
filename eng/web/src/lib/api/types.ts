@@ -147,6 +147,26 @@ export type Match = {
 
 export type Candidate = { rule: string; itemIds: string[] };
 
+/** An item nothing settles yet (GET /v1/matching/items), what "Vincular a mano" offers. */
+export type OpenItem = {
+  id: string;
+  /** erp, document or manual. */
+  source: string;
+  sourceId: string;
+  kind: string;
+  date: string;
+  due?: string;
+  /** Cents, with the sign it will have in the bank. */
+  amount: Cents;
+  refs: string[];
+  /** The CUIT on the other side, when known. */
+  party?: string;
+  confidence: number;
+  invoiceId?: string;
+};
+export type OpenItems = { items: OpenItem[]; truncated: boolean };
+export type ItemDirection = "in" | "out";
+
 export type PendingReason =
   | "ambiguous" | "shared_candidate" | "combination_ambiguous" | "reference_amount_differs" | "no_candidate"
   | "client_other" | "client_rejected" | "operator_returned";

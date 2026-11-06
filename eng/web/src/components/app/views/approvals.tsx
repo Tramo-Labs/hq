@@ -30,7 +30,7 @@ export function Approvals() {
               <ul className="grid gap-4">
                 {movements.map((p) => (
                   <MovementCard key={p.movementId} p={p} title={a.movementTitle}>
-                    {canDecide && <Decision target={{ movement: p.movementId }} variant="client" />}
+                    {canDecide && <Decision target={{ movement: p.movementId }} variant="client" movement={p} />}
                   </MovementCard>
                 ))}
                 {matches.map((m) => (
