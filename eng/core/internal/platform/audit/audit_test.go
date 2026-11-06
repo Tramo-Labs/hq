@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"testing"
 
@@ -92,6 +93,55 @@ func TestRecordFillsWhoWhereAndStaysInTenant(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The audit trail stores the IP resolved by httpx.RequestMeta: the TCP peer
+// unless it is a trusted proxy, then the last X-Forwarded-For hop. A
+// spoofed header from an untrusted peer never reaches audit_log.ip.
+func TestAuditStoresTheResolvedIP(t *testing.T) {
+	d := dbtest.New(t)
+	bg := context.Background()
+	s := db.Scope{TenantID: uuid.New(), UserID: uuid.New()}
+	err := d.System(bg, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(bg, `insert into tenants (id, slug, name) values ($1, 'a', 'x')`, s.TenantID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(bg, `insert into users (id, email) values ($1, 'a@x.test')`, s.UserID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxies := []netip.Prefix{netip.MustParsePrefix("172.30.0.10/32")}
+	record := func(peer, xff, subject string) {
+		var ctx context.Context
+		h := httpx.RequestMeta(proxies)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { ctx = r.Context() }))
+		r := httptest.NewRequest(http.MethodPost, "/", nil)
+		r.RemoteAddr = peer
+		r.Header.Set("X-Forwarded-For", xff)
+		h.ServeHTTP(httptest.NewRecorder(), r)
+		ctx = db.WithScope(ctx, s)
+		if err := d.InTenant(ctx, func(tx pgx.Tx) error {
+			return audit.Record(ctx, tx, audit.Entry{Action: "test.ip", Subject: subject})
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	record("203.0.113.7:5000", "198.51.100.66", "untrusted")
+	record("172.30.0.10:5000", "6.6.6.6, 198.51.100.1", "trusted")
+
+	for subject, want := range map[string]string{"untrusted": "203.0.113.7", "trusted": "198.51.100.1"} {
+		var ip string
+		err := d.System(bg, func(tx pgx.Tx) error {
+			return tx.QueryRow(bg, `select host(ip) from audit_log where subject = $1`, subject).Scan(&ip)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ip != want {
+			t.Errorf("%s peer: audit_log.ip = %s, want %s", subject, ip, want)
+		}
 	}
 }
 

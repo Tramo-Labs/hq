@@ -74,6 +74,56 @@ func TestForwardedForOnlyFromTrustedProxies(t *testing.T) {
 	}
 }
 
+// A trusted proxy list is a few addresses, never a slice of the internet.
+// IPv4 prefixes broader than /8 and IPv6 broader than /32 are refused, and
+// IPv4-mapped IPv6 prefixes (::ffff:0:0/96 is all of IPv4) are judged as
+// the IPv4 range they cover.
+func TestParseTrustedProxiesFloor(t *testing.T) {
+	for in, want := range map[string]string{
+		"172.30.0.10":                "172.30.0.10/32",
+		"10.0.0.0/8":                 "10.0.0.0/8",
+		"fd00:30::/32":               "fd00:30::/32",
+		"2001:db8::1":                "2001:db8::1/128",
+		"::ffff:172.30.0.10":         "172.30.0.10/32",
+		"::ffff:10.0.0.0/104":        "10.0.0.0/8",
+		" 172.30.0.10 , 10.1.0.0/16": "172.30.0.10/32 10.1.0.0/16",
+	} {
+		got, err := httpx.ParseTrustedProxies(in)
+		if err != nil {
+			t.Errorf("%q: %v", in, err)
+			continue
+		}
+		var s []string
+		for _, p := range got {
+			s = append(s, p.String())
+		}
+		if strings.Join(s, " ") != want {
+			t.Errorf("%q: got %v, want %s", in, s, want)
+		}
+	}
+	for _, bad := range []string{
+		"0.0.0.0/0", "::/0", "10.0.0.0/7", "128.0.0.0/1",
+		"2001::/31", "2000::/3",
+		"::ffff:0:0/96", "::ffff:0.0.0.0/100", "::ffff:10.0.0.0/103",
+		"proxy.local", "10.0.0.1/33",
+	} {
+		if _, err := httpx.ParseTrustedProxies(bad); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+	// A mapped prefix matches a plain IPv4 peer (peers are unmapped).
+	proxies, _ := httpx.ParseTrustedProxies("::ffff:172.30.0.10")
+	var got httpx.Meta
+	h := httpx.RequestMeta(proxies)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got, _ = httpx.MetaFrom(r.Context()) }))
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = "172.30.0.10:4000"
+	r.Header.Set("X-Forwarded-For", "198.51.100.9")
+	h.ServeHTTP(httptest.NewRecorder(), r)
+	if got.IP.String() != "198.51.100.9" {
+		t.Fatalf("mapped trusted proxy not matched: %s", got.IP)
+	}
+}
+
 func TestProblemAndRecover(t *testing.T) {
 	h := httpx.RequestID(httpx.Recover(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		panic("boom with secret detail")

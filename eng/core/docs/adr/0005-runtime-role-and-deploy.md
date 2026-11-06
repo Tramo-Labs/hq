@@ -50,6 +50,21 @@ and audit_log while `InTenant` sees exactly one tenant (mutation: deleting
 the `alter role` line of 00004 fails it). `TestMigrationDefaults` checks the
 api does not migrate by itself outside dev.
 
+## What has NOT run (read before trusting any of this)
+
+| Piece | Status |
+|-------|--------|
+| Docker image build (`deploy/Dockerfile`) | Never ran: no Docker on the dev machine. Checked only that the three binaries build static with the same flags (`CGO_ENABLED=0 -trimpath`). |
+| `docker-compose.prod.yml`, `docker-compose.yml` | Never ran. Checked only that they parse as YAML. |
+| `postgres-init/10-runtime-role.sh` | Never ran in a container. Checked with `sh -n`. The role it creates is exercised by the Go test above, created by the test itself. |
+| `api migrate` as a separate binary call | Never ran against a container; the same `Migrate` code runs in every database test. |
+| `.github/workflows/core.yml` | Never ran: nothing has been pushed. Actions pinned by commit SHA. |
+| gosec | Never ran on this code (not installed on the dev machine). Its first run is in CI and may report findings. |
+| govulncheck | Never ran locally either; same as gosec. |
+| `terraform fmt -check`, `init -backend=false`, `validate` | Ran once, by backend, with the official 1.9.8 binary (SHA256 checked): fmt clean, validate "Success". Not reproduced by qa (no terraform binary there); CI will be the second run. |
+| `terraform plan` / `apply`, cloud-init on a real VPS | Never ran: no accounts or credentials. |
+| ARCA homologación or producción | Never called. Only the simulator and ARCA's manual examples. |
+
 Not done here (needs accounts or credentials; listed in
 `deploy/terraform/README.md`): remote Terraform state, the deploy job that
 runs `docker compose pull && up` on the VPS, backups to the bucket, mTLS
