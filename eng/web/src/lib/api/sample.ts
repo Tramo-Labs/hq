@@ -3,7 +3,7 @@ import * as fx from "./fixtures";
 import { getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, Role, TenantStatus, ItemDirection, OpenItems,
+  Page, PendingMovement, PendingTray, Role, TenantStatus, ItemDirection, OpenItems, Member,
 } from "./types";
 
 /**
@@ -312,4 +312,48 @@ export async function downloadExport(kind: ExportKind) {
   if (rows.length === 0) throw new ApiError(501, "not_implemented");
   const text = rows.map((r) => r.join(",")).join("\n") + "\n";
   return { blob: new Blob([text], { type: "text/csv" }), filename: `tramo-${kind}-ejemplo.csv` };
+}
+
+// Members, like the core (D-19): adding is always an invitation, pending until accepted, which
+// never happens in sample mode (no mail). Changes live in this tab's memory.
+const removed = new Set<string>(); // `${tenantId}:${email}`
+const invited = new Map<string, Map<string, Role>>(); // tenantId -> email -> role
+
+function members(tenantId: string): Member[] {
+  const active = fx.users
+    .filter((u) => !removed.has(`${tenantId}:${u.email}`))
+    .flatMap((u) => u.memberships.filter((m) => m.tenantId === tenantId).map((m) => ({ userId: userId(u.email), email: u.email, name: names.get(u.email) ?? null, role: m.role, status: "active" as const })));
+  const pending = [...(invited.get(tenantId) ?? [])].map(([email, role]) => ({ userId: `pending-${email}`, email, name: null, role, status: "pending" as const }));
+  return [...active, ...pending];
+}
+
+export async function listMembers() {
+  return page(members(session().tenantId));
+}
+
+export async function addMember(email: string, role: Role) {
+  const s = session();
+  const ok = s.role === "owner" ? ["owner", "approver", "viewer", "accountant"] : s.role === "operator" ? ["owner"] : [];
+  if (!ok.includes(role)) throw new ApiError(403, "forbidden");
+  const e = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) || invisible.test(e) || e.length > 254) throw new ApiError(400, "invalid_email");
+  if (members(s.tenantId).some((m) => m.email === e && m.status === "active")) throw new ApiError(409, "already_member");
+  const list = invited.get(s.tenantId) ?? new Map<string, Role>();
+  list.set(e, role);
+  invited.set(s.tenantId, list);
+  return members(s.tenantId).find((m) => m.email === e && m.status === "pending")!;
+}
+
+export async function removeMember(id: string) {
+  const s = session();
+  if (s.role !== "owner") throw new ApiError(403, "forbidden");
+  const all = members(s.tenantId);
+  const m = all.find((x) => x.userId === id);
+  if (!m) throw new ApiError(404, "not_found");
+  if (m.status === "pending") {
+    invited.get(s.tenantId)?.delete(m.email);
+    return;
+  }
+  if (m.role === "owner" && all.filter((x) => x.status === "active" && x.role === "owner").length === 1) throw new ApiError(409, "last_owner");
+  removed.add(`${s.tenantId}:${m.email}`);
 }

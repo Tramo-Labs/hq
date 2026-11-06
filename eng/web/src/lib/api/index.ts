@@ -3,7 +3,7 @@ import * as live from "./live";
 import { getMode, getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus, ItemDirection, OpenItems,
+  Page, PendingMovement, PendingTray, QuarantinedFile, Account, Role, TenantStatus, ItemDirection, OpenItems, Member,
 } from "./types";
 
 export type * from "./types";
@@ -27,6 +27,7 @@ export { endedElsewhere, getMode, getSession, subscribe, type Mode, type Session
  *   GET  /v1/matching/items?direction=&period=
  *   POST /v1/matching/matches/{id}/decision      POST /v1/matching/movements/{id}/decision
  *   GET  /v1/metrics?period=                     GET /v1/exports, GET /v1/exports/{kind}
+ *   GET, POST /v1/tenant/members                 DELETE /v1/tenant/members/{userId}
  * Every POST except auth carries an Idempotency-Key the caller created for that user action.
  */
 
@@ -141,6 +142,28 @@ export async function downloadExport(kind: ExportKind): Promise<{ blob: Blob; fi
   const res = await live.request(`/v1/exports/${kind}`);
   const name = /filename="?([^";]+)"?/.exec(res.headers.get("Content-Disposition") ?? "")?.[1];
   return { blob: await res.blob(), filename: name ?? `tramo-${kind}.csv` };
+}
+
+// members (owner; D-19: adding is always an invitation, pending until accepted)
+
+/** GET /v1/tenant/members: active people first, then pending invitations. */
+export async function listMembers(): Promise<Page<Member>> {
+  return isLive() ? live.getJson("/v1/tenant/members") : (await sample()).listMembers();
+}
+
+/** POST /v1/tenant/members: invites by email with a role; 201 with status pending. */
+export async function addMember(email: string, role: Role, idempotencyKey: string): Promise<Member> {
+  if (!idempotencyKey) throw new ApiError(400, "bad_request", "Idempotency-Key is required");
+  return isLive() ? live.postJson("/v1/tenant/members", { email, role }, idempotencyKey) : (await sample()).addMember(email, role);
+}
+
+/** DELETE /v1/tenant/members/{userId}: an active person or a pending invitation; 409 last_owner. */
+export async function removeMember(userId: string): Promise<void> {
+  if (isLive()) {
+    await live.request(`/v1/tenant/members/${encodeURIComponent(userId)}`, { method: "DELETE" });
+    return;
+  }
+  return (await sample()).removeMember(userId);
 }
 
 // decisions

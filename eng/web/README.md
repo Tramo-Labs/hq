@@ -128,3 +128,11 @@ nothing tells the page which one it is. /invitacion shows "Aceptar la invitació
 accept without a password: an existing account is in with that, and its password is never sent.
 Only a 400 password_required (the link stays usable) opens the name and password step. Both
 sends go through the F33 re-check. `invite-rules.test.ts` covers both paths.
+
+Miembros (`/app/miembros`, owner only, spec §1, D-19): who has access and who is invited, apart;
+invite by email with the roles the core lets an owner give (owner, approver, viewer, accountant;
+never operator); remove an active person or cancel a pending invitation, each after a
+confirmation; 409 last_owner is explained. The menu item shows only to an owner; anyone else who
+opens the page gets a notice. The rules mirror the core's CanGrant and CanRemoveMembers in
+`members-rules.ts` (tested in `members-rules.test.ts`); sample mode answers like the core
+(`sample.test.ts`).

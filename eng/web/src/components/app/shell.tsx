@@ -9,6 +9,7 @@ import { ApiError, areaAllows, getMode, homeFor, updateName, type Session } from
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 import { SessionGate, useSignOut } from "@/components/app/session";
 import { Notice } from "@/components/app/ui";
+import { managesMembers } from "@/components/app/members-rules";
 
 type Area = "portal" | "console";
 
@@ -133,7 +134,9 @@ function Frame({ area, copy, session, children }: { area: Area; copy: typeof app
             <span className="font-mono text-[12px] text-white/60">{copy.label}</span>
           </p>
           {session && <Account session={session} />}
-          {session && areaAllows(area, session.role) && <NavLinks items={copy.nav} />}
+          {session && areaAllows(area, session.role) && (
+            <NavLinks items={copy.nav.filter((n) => !("onlyOwner" in n && n.onlyOwner) || managesMembers(session.role))} />
+          )}
         </div>
       </header>
       {getMode() === "sample" && <p className="border-b border-accent/30 bg-accent/10 px-4 py-2 text-center font-mono text-[12px] text-accent">{app.sample}</p>}
