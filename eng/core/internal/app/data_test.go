@@ -118,7 +118,7 @@ func TestDataPathsEndToEnd(t *testing.T) {
 		t.Errorf("exception without its movement: %v", firstExc)
 	}
 	mpath := "/v1/matching/movements/" + mv + "/decision"
-	if r := c.do("POST", mpath, own.access, map[string]any{"action": "other"}, idem()...); r.status != 400 {
+	if r := c.do("POST", mpath, own.access, map[string]any{"action": "other"}, idem()...); r.status != 400 || r.str("code") != "note_required" {
 		t.Errorf("other without a note: %d %s", r.status, r.raw)
 	}
 	if r := c.do("POST", mpath, own.access, map[string]any{"action": "other", "note": "gasto bancario"}, idem()...); r.status != 201 || r.body["revision"] != float64(1) {

@@ -77,7 +77,7 @@ func TestPGMovementOtherGoesBackToTheOperator(t *testing.T) {
 		row.Bank != "bancor" || row.AccountName != "Cuenta" {
 		t.Errorf("pending row without its movement: %+v", row)
 	}
-	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, ""); !errors.Is(err, ErrActionNotInTray) {
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "  "); !errors.Is(err, ErrNoteRequired) {
 		t.Errorf("other without a note: %v", err)
 	}
 	for _, role := range []string{identity.RoleOperator, identity.RoleViewer, identity.RoleAccountant} {
@@ -480,10 +480,10 @@ func TestPGOperatorAnswersClientOther(t *testing.T) {
 			t.Errorf("%s resolved: %v", role, err)
 		}
 	}
-	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, ""); !errors.Is(err, ErrActionNotInTray) {
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementResolve, ""); !errors.Is(err, ErrNoteRequired) {
 		t.Errorf("resolve without a note: %v", err)
 	}
-	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementReturn, ""); !errors.Is(err, ErrActionNotInTray) {
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, fee, MovementReturn, ""); !errors.Is(err, ErrNoteRequired) {
 		t.Errorf("return without a note: %v", err)
 	}
 

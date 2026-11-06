@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -307,8 +308,15 @@ func actionFits(a Action, tray Tray) bool {
 }
 
 // ErrActionNotInTray means the action is not offered in the item's tray
-// (escalate outside Suggested, other outside Exceptions or without a note).
+// (escalate outside Suggested, other outside Exceptions).
 var ErrActionNotInTray = errors.New("matching: this action is not available in the item's tray")
+
+// ErrNoteRequired means the action needs a note saying why, and none came
+// (blank counts as none).
+var ErrNoteRequired = errors.New("matching: this action requires a note")
+
+// noteMissing reports whether a note is empty or only spaces.
+func noteMissing(note string) bool { return strings.TrimSpace(note) == "" }
 
 // DecisionInput is everything a caller may say about a decision. Who
 // decides and with which role are never input: the user comes from the
@@ -524,8 +532,11 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			if !CanDecide(d.Role, d.Tray) {
 				return ErrForbidden
 			}
-			if !actionFits(d.Action, d.Tray) || (d.Action == Other && d.Note == "") {
+			if !actionFits(d.Action, d.Tray) {
 				return ErrActionNotInTray
+			}
+			if d.Action == Other && noteMissing(d.Note) {
+				return ErrNoteRequired
 			}
 			target = states[d.Tray]
 			if target.action != "" {

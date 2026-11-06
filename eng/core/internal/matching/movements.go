@@ -105,8 +105,8 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 	}
 	switch in.Action {
 	case MovementOther, MovementResolve, MovementReturn:
-		if in.Note == "" {
-			return MovementDecision{}, false, ErrActionNotInTray
+		if noteMissing(in.Note) {
+			return MovementDecision{}, false, ErrNoteRequired
 		}
 	case MovementLink:
 		if len(in.ItemIDs) == 0 {

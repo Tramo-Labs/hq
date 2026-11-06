@@ -332,7 +332,7 @@ func TestPGExceptionsAreTheClients(t *testing.T) {
 	if _, err := e.decideAs(t, identity.RoleApprover, m, Escalate, ""); !errors.Is(err, ErrActionNotInTray) {
 		t.Errorf("escalate in Exceptions: %v", err)
 	}
-	if _, err := e.decideAs(t, identity.RoleApprover, m, Other, ""); !errors.Is(err, ErrActionNotInTray) {
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Other, ""); !errors.Is(err, ErrNoteRequired) {
 		t.Errorf("other without a note: %v", err)
 	}
 	d, err := e.decideAs(t, identity.RoleApprover, m, Approve, "")
