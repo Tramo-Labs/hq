@@ -63,6 +63,7 @@ ago. To be scheduled by the worker.
 - Audit (`audit_log`): `identity.register`, `identity.login`,
   `identity.login_failed`, `identity.refresh_reuse`, `identity.logout`,
   `identity.member_added`, with request id and IP. Never passwords or tokens.
+  Every 403 of any module also leaves `authz.denied` (platform README).
 - No clave fiscal and no home banking credential has a field anywhere: the
   request schemas reject unknown properties.
 

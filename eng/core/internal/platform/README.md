@@ -107,6 +107,15 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   `readyz` logs the cause and answers without it.
 - The audit log stores IP and request id, never bodies. `Detail` must not
   carry secrets, third party CUIT or amounts.
+- Every 403 is audited (`authz.denied`, spec §1): a strict middleware in
+  `internal/app` writes it in its own tenant transaction with the caller,
+  resolved IP, request id, the operationId as subject (`operation:<id>`)
+  and role, method and path as detail; never the body or query string. If
+  that write fails the caller still gets the 403 and the failure is logged.
+  Rows are not throttled: a member hammering a forbidden operation grows
+  their own tenant's log (`TestEveryDenialIsAudited`; mutations checked:
+  without the middleware the test fails, auditing only the module 403s
+  misses identity and portal ones).
 - `X-Forwarded-For` is believed only when the TCP peer is in
   `TRUSTED_PROXIES` (our Caddy's address), and then only its last hop, the
   one Caddy appended. A client reaching the api directly cannot choose its

@@ -24,6 +24,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	middleware "github.com/oapi-codegen/nethttp-middleware"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
@@ -31,6 +32,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
@@ -112,7 +114,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 			ErrorHandlerWithOpts: validationError,
 		}))
 		r.Use(idempotency.Middleware(d.DB))
-		strict := apigen.NewStrictHandlerWithOptions(h, nil, apigen.StrictHTTPServerOptions{
+		strict := apigen.NewStrictHandlerWithOptions(h, []apigen.StrictMiddlewareFunc{auditDenials(d.DB)}, apigen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "malformed request body")
 			},
@@ -150,6 +152,42 @@ func validationError(_ context.Context, err error, w http.ResponseWriter, r *htt
 		// The first line of a kin-openapi error names the parameter or
 		// field and the rule; it never echoes the submitted value.
 		httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, err.Error())
+	}
+}
+
+// auditDenials writes an `authz.denied` audit row for every operation that
+// answers 403 (spec §1: every action of the roles table is audited with
+// who, when and from where). The row is written in its own tenant
+// transaction, since the denied action's transaction rolled back, and
+// carries the caller (user_id), the resolved client IP and request id
+// (httpx.MetaFrom, through audit.Record), the operationId as subject and the
+// role, method and path as detail. Never the body or the query string. A
+// failure to write it is logged and the caller still gets the 403.
+func auditDenials(d *db.DB) apigen.StrictMiddlewareFunc {
+	return func(next apigen.StrictHandlerFunc, operationID string) apigen.StrictHandlerFunc {
+		// The generator passes the Go name; the spec's operationId is the
+		// same with a lower case first letter.
+		if operationID != "" {
+			operationID = strings.ToLower(operationID[:1]) + operationID[1:]
+		}
+		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, req any) (any, error) {
+			resp, err := next(ctx, w, r, req)
+			var e *httpx.Error
+			if !errors.As(err, &e) || e.Status != http.StatusForbidden {
+				return resp, err
+			}
+			p, ok := identity.PrincipalFrom(ctx)
+			if !ok {
+				return resp, err
+			}
+			if aerr := d.InTenant(ctx, func(tx pgx.Tx) error {
+				return audit.Record(ctx, tx, audit.Entry{Action: "authz.denied", Subject: "operation:" + operationID,
+					Detail: map[string]any{"role": p.Role, "method": r.Method, "path": r.URL.Path}})
+			}); aerr != nil {
+				httpx.Logger(ctx).Error("audit denial", "err", aerr, "operation", operationID)
+			}
+			return resp, err
+		}
 	}
 }
 
