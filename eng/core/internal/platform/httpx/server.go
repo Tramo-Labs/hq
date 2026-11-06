@@ -100,13 +100,27 @@ func clientIP(r *http.Request, trustedProxies []netip.Prefix) netip.Addr {
 	if !trusted(peer, trustedProxies) {
 		return peer
 	}
-	if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
-		hops := strings.Split(xff[len(xff)-1], ",")
-		if a, err := netip.ParseAddr(strings.TrimSpace(hops[len(hops)-1])); err == nil {
-			return a.Unmap()
+	// Walk the hops from the right, the ones our proxies appended. Each
+	// trusted hop is one of our own proxies (Caddy, the web's Next server)
+	// and is skipped; the first hop that is not ours is the client.
+	// Anything to its left was written by the client and never read. A hop
+	// that does not parse stops the walk at the last proxy seen.
+	ip := peer
+	xff := r.Header.Values("X-Forwarded-For")
+	for i := len(xff) - 1; i >= 0; i-- {
+		hops := strings.Split(xff[i], ",")
+		for j := len(hops) - 1; j >= 0; j-- {
+			a, err := netip.ParseAddr(strings.TrimSpace(hops[j]))
+			if err != nil {
+				return ip
+			}
+			ip = a.Unmap()
+			if !trusted(ip, trustedProxies) {
+				return ip
+			}
 		}
 	}
-	return peer
+	return ip
 }
 
 func peerIP(remote string) netip.Addr {

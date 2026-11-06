@@ -179,6 +179,10 @@ counter is the tight one on purpose: one attacker cannot lock the owner out
 from her own IP. Twenty or more IPs failing on the same email do throttle it
 for everyone for up to an hour; that trade off is deliberate.
 
+Behind the web app's same origin proxy, the web server must be in
+`TRUSTED_PROXIES` and forward the browser's address, or every person shares
+the web server's per IP counters (platform README).
+
 Limits: counters are in memory, per api process (with several replicas the
 limits multiply; restart clears them). The client IP is the TCP peer, or the
 last `X-Forwarded-For` hop only when the peer is a configured trusted proxy

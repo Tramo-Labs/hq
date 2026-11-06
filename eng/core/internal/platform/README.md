@@ -119,8 +119,20 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   without the middleware the test fails, auditing only the module 403s
   misses identity and portal ones).
 - `X-Forwarded-For` is believed only when the TCP peer is in
-  `TRUSTED_PROXIES` (our Caddy's address), and then only its last hop, the
-  one Caddy appended. A client reaching the api directly cannot choose its
+  `TRUSTED_PROXIES` (our own proxies). Then its hops are read from the
+  right, skipping those that are also our proxies; the first hop that is not
+  ours is the client, and everything to its left (written by the client) is
+  ignored. A hop that does not parse stops the walk at the last proxy.
+  **The web's Next server is a proxy too**: it forwards `/v1` same origin,
+  so every browser reaches the api from its address. It must be in
+  `TRUSTED_PROXIES` and must append the browser's address to
+  `X-Forwarded-For`; otherwise every user shares one per IP throttle and a
+  single attacker can lock everyone out of login
+  (`TestClientsBehindTheWebProxyCountSeparately`: trusted, an attacker
+  behind the web is throttled and the owner behind it still logs in; not
+  trusted, the owner is throttled too. Mutation checked: ignoring the
+  header from a trusted proxy fails it. `TestForwardedForOnlyFromTrustedProxies`
+  covers Caddy then Next in a row, and a client spoofing hops behind both). A client reaching the api directly cannot choose its
   IP, so it cannot dodge per IP throttles or forge the IP in the audit log
   (`TestForwardedForOnlyFromTrustedProxies`,
   `TestSpoofedForwardedForDoesNotDodgeThrottles`). The old

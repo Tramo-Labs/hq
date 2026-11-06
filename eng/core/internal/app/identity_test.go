@@ -437,4 +437,33 @@ func TestSpoofedForwardedForDoesNotDodgeThrottles(t *testing.T) {
 	}
 }
 
+// The web's Next server proxies /v1 same origin, so every login reaches
+// the core from its address. With the web in TRUSTED_PROXIES and the
+// browser's address in X-Forwarded-For, two people behind it are throttled
+// separately: one guessing a password does not lock out the other.
+func TestClientsBehindTheWebProxyCountSeparately(t *testing.T) {
+	login := func(c client, ip, password string) int {
+		return c.do("POST", "/v1/auth/login", "", map[string]any{"email": "owner@proxy.test", "password": password},
+			"X-Forwarded-For", ip).status
+	}
+	run := func(proxies []netip.Prefix) (attacker, owner int) {
+		deps := newDeps(t)
+		deps.TrustedProxies = proxies
+		c := client{t, serve(t, deps)}
+		c.registerAndLogin("molino-proxy", "owner@proxy.test")
+		for i := 0; i < 5; i++ {
+			login(c, "203.0.113.66", "wrong password")
+		}
+		return login(c, "203.0.113.66", "wrong password"), login(c, "198.51.100.7", "a long enough password")
+	}
+	// The test client is the web server (127.0.0.1), trusted.
+	if attacker, owner := run([]netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}); attacker != 429 || owner != 200 {
+		t.Fatalf("web trusted: attacker %d (want 429), owner %d (want 200)", attacker, owner)
+	}
+	// Not trusted: everyone is the web's address and the owner pays for it.
+	if _, owner := run(nil); owner != 429 {
+		t.Fatalf("web not trusted: owner %d, want 429 (shared bucket)", owner)
+	}
+}
+
 var _ = app.Deps{}

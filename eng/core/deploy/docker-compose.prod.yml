@@ -41,7 +41,15 @@ services:
     env_file: core.env
     environment:
       ARCA_GATEWAY_ADDR: arca-gateway:9090
-      # Only Caddy's fixed address is believed for X-Forwarded-For.
+      # Only our own proxies' fixed addresses are believed for
+      # X-Forwarded-For: Caddy today. When the web's Next server proxies /v1
+      # to the api (same origin), it MUST be added here with a fixed address
+      # on this network (e.g. 172.30.0.10,172.30.0.20) and must append the
+      # browser's address to X-Forwarded-For; otherwise every user shares
+      # one login throttle. A web host without a fixed egress address (the
+      # Vercel deploy) can not be listed, so behind it the browser's address
+      # is lost: open item, the web proxy should run on this host.
+      # platform README, "Sensitive data".
       TRUSTED_PROXIES: 172.30.0.10
       MIGRATE_ON_START: "false"
     depends_on:
