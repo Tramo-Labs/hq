@@ -147,7 +147,8 @@ export type Match = {
 
 export type Candidate = { rule: string; itemIds: string[] };
 
-export type PendingReason = "ambiguous" | "combination_ambiguous" | "reference_amount_differs" | "no_candidate" | "client_other";
+export type PendingReason =
+  | "ambiguous" | "shared_candidate" | "combination_ambiguous" | "reference_amount_differs" | "no_candidate" | "client_other" | "operator_returned";
 
 export type PendingMovement = {
   movementId: string;

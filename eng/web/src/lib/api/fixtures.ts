@@ -132,6 +132,12 @@ export const pending: SamplePending[] = [
   { tenantId: T.ferr, period: "2026-11", pending: { movementId: id(3004), runId: id(4002), date: "2026-11-02", amount: -2_600_000,
     description: "TRANSF A 20-00000000-3", accountId: id(103), accountName: "Bancor CC", bank: "bancor",
     tray: "suggested", reason: "client_other", note: "Adelanto a un proveedor, todavía sin factura", candidates: [] } },
+  { tenantId: T.agro, period: "2026-11", pending: { movementId: id(3005), runId: id(4001), date: "2026-11-06", amount: -1_230_000,
+    description: "TRANSF A 30-00000000-4", accountId: id(101), accountName: "Galicia CC", bank: "galicia",
+    tray: "exception", reason: "operator_returned", note: "Necesito el número de factura o el nombre del proveedor", candidates: [] } },
+  { tenantId: T.agro, period: "2026-11", pending: { movementId: id(3006), runId: id(4001), date: "2026-11-06", amount: 980_000,
+    description: "CREDITO TRANSF 30-00000000-5", accountId: id(101), accountName: "Galicia CC", bank: "galicia",
+    tray: "suggested", reason: "shared_candidate", candidates: [{ rule: "amount_date_window", itemIds: [id(2203)] }] } },
 ];
 
 /** Movements per tenant and month, for the automation rate and the movements export. */

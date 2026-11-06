@@ -60,7 +60,7 @@ export function MovementCard({ p, meta, title, children }: { p: PendingMovement;
           {app.trays.candidates(p.candidates.length)}
           {p.candidates.map((c, i) => <span key={i} className="block text-white/70">{rule(c.rule)} · {a.items(c.itemIds.length)}</span>)}
         </Field>
-        {p.note && <Field label={app.trays.clientNote}>{p.note}</Field>}
+        {p.note && <Field label={p.reason === "operator_returned" ? app.trays.operatorNote : app.trays.clientNote}>{p.note}</Field>}
       </dl>
       {p.reason === "no_candidate" && <p className="mt-4 text-[14px] text-white/70">{a.noProposal}</p>}
     </Shell>

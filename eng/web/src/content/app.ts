@@ -153,6 +153,7 @@ export const app = {
     movementsTitle: "Movimientos sin conciliar",
     candidates: (n: number) => (n === 0 ? "sin candidatos" : n === 1 ? "1 candidato" : `${n} candidatos`),
     clientNote: "Nota del cliente",
+    operatorNote: "Nota del operador",
     noMovementAction: "Desde la consola todavía no se decide sobre un movimiento suelto.",
     waitingClient: "Esperando la decisión del cliente",
     actions: { approve: "Aprobar", reject: "Rechazar", escalate: "Mandar a excepciones", revert: "Deshacer" },
@@ -169,10 +170,13 @@ export const app = {
   } as Record<string, string>,
   reasons: {
     ambiguous: "más de un candidato posible",
+    // Draft for producto (frontend, 06/11): shared_candidate and operator_returned.
+    shared_candidate: "el candidato también le sirve a otro movimiento",
     combination_ambiguous: "más de una combinación posible",
     reference_amount_differs: "la referencia coincide, el monto no",
     no_candidate: "sin candidato",
     client_other: "el cliente dice que es otra cosa",
+    operator_returned: "el operador lo devolvió con una nota",
   } satisfies Record<PendingReason, string>,
   results: {
     eyebrow: "Resultados",
