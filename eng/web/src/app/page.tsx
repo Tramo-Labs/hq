@@ -20,7 +20,7 @@ export default function Home() {
     <main>
       <header className="sticky top-0 z-20 border-b border-white/10 bg-ink/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <a href="#" className="text-[17px] font-medium tracking-tight">{site.name}</a>
+          <a href="#" className="inline-flex min-h-11 items-center text-[17px] font-medium tracking-tight">{site.name}</a>
           <nav className="hidden gap-7 text-[14px] text-white/65 md:flex">{site.nav.map((n) => <a key={n.href} href={n.href} className="hover:text-white">{n.label}</a>)}</nav>
           <a href="#contacto" className={`${primary} min-h-9 px-4 py-2 text-[13.5px]`}>{h.primary.label}</a>
         </div>
