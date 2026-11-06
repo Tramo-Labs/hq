@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/ledger/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -50,53 +52,48 @@ func (s *PGStore) FileSeen(ctx context.Context, tenantID, fileHash string) (bool
 	}
 	var seen bool
 	err = s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx,
-			`select exists (select 1 from ledger.files where sha256 = $1 and status = 'accepted')`, h).Scan(&seen)
+		var err error
+		seen, err = store.New(tx).FileAccepted(ctx, h)
+		return err
 	})
 	return seen, err
 }
 
 func (s *PGStore) MovementsSeen(ctx context.Context, tenantID, accountID string, keys []string) (map[string]string, error) {
+	acc, err := uuid.Parse(accountID)
+	if err != nil {
+		return nil, err
+	}
 	out := map[string]string{}
-	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx,
-			`select key, description from ledger.movements where account_id = $1 and key = any($2)`, accountID, keys)
-		if err != nil {
-			return err
+	err = s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		rows, err := store.New(tx).MovementsWithKeys(ctx, store.MovementsWithKeysParams{AccountID: acc, Keys: keys})
+		for _, r := range rows {
+			out[r.Key] = r.Description
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var k, d string
-			if err := rows.Scan(&k, &d); err != nil {
-				return err
-			}
-			out[k] = d
-		}
-		return rows.Err()
+		return err
 	})
 	return out, err
 }
 
 func (s *PGStore) LastStatement(ctx context.Context, tenantID, accountID string) (*StatementSummary, error) {
+	acc, err := uuid.Parse(accountID)
+	if err != nil {
+		return nil, err
+	}
 	var sum *StatementSummary
-	err := s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
-		var from, to *time.Time
-		var closing int64
-		err := tx.QueryRow(ctx,
-			`select period_from, period_to, closing from ledger.statements
-			  where account_id = $1 and period_to is not null
-			  order by period_to desc, created_at desc limit 1`, accountID).Scan(&from, &to, &closing)
+	err = s.inTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		r, err := store.New(tx).LastStatement(ctx, acc)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		sum = &StatementSummary{Closing: money.Amount(closing)}
-		if from != nil {
-			sum.From = *from
+		sum = &StatementSummary{Closing: money.Amount(r.Closing)}
+		if r.PeriodFrom != nil {
+			sum.From = *r.PeriodFrom
 		}
-		sum.To = *to
+		sum.To = *r.PeriodTo // the query keeps only statements with an end
 		return nil
 	})
 	return sum, err
@@ -107,13 +104,16 @@ func (s *PGStore) SaveAccepted(ctx context.Context, u Upload, r Result, fresh []
 	if err != nil {
 		return err
 	}
+	acc, err := uuid.Parse(u.AccountID)
+	if err != nil {
+		return err
+	}
 	st := r.Statement
 	return s.inTenant(ctx, u.TenantID, func(tx pgx.Tx) error {
-		var fileID uuid.UUID
-		err := tx.QueryRow(ctx,
-			`insert into ledger.files (tenant_id, account_id, sha256, filename, status, fingerprint, layout_id, uploaded_by)
-			 values (app_current_tenant(), $1, $2, $3, 'accepted', $4, $5, app_current_user()) returning id`,
-			u.AccountID, h, u.Filename, r.Fingerprint, r.LayoutID).Scan(&fileID)
+		q := store.New(tx)
+		fileID, err := q.InsertAcceptedFile(ctx, store.InsertAcceptedFileParams{
+			AccountID: acc, Sha256: h, Filename: &u.Filename, Fingerprint: &r.Fingerprint, LayoutID: &r.LayoutID,
+		})
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "files_accepted_once" {
 			return ErrRaced
@@ -121,26 +121,19 @@ func (s *PGStore) SaveAccepted(ctx context.Context, u Upload, r Result, fresh []
 		if err != nil {
 			return fmt.Errorf("ledger: insert file: %w", err)
 		}
-		var stID uuid.UUID
-		err = tx.QueryRow(ctx,
-			`insert into ledger.statements (tenant_id, account_id, file_id, layout_id, period_from, period_to,
-			   opening, closing, opening_stated, closing_stated, running)
-			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
-			u.AccountID, fileID, st.LayoutID, nullDate(st.From), nullDate(st.To), int64(st.Opening), int64(st.Closing),
-			st.OpeningStated, st.ClosingStated, st.Running).Scan(&stID)
+		stID, err := q.InsertStatement(ctx, store.InsertStatementParams{
+			AccountID: acc, FileID: fileID, LayoutID: st.LayoutID, PeriodFrom: nullDate(st.From), PeriodTo: nullDate(st.To),
+			Opening: int64(st.Opening), Closing: int64(st.Closing),
+			OpeningStated: st.OpeningStated, ClosingStated: st.ClosingStated, Running: st.Running,
+		})
 		if err != nil {
 			return fmt.Errorf("ledger: insert statement: %w", err)
 		}
-		batch := &pgx.Batch{}
+		rows := make([]store.InsertMovementParams, 0, len(fresh))
 		for _, m := range fresh {
-			var bal, gross *int64
-			if m.Balance != nil {
-				v := int64(*m.Balance)
-				bal = &v
-			}
-			if m.Gross != nil {
-				v := int64(*m.Gross)
-				gross = &v
+			line, err := int32Of(m.Line)
+			if err != nil {
+				return err
 			}
 			var fees []byte
 			if len(m.Fees) > 0 {
@@ -148,15 +141,20 @@ func (s *PGStore) SaveAccepted(ctx context.Context, u Upload, r Result, fresh []
 					return err
 				}
 			}
-			batch.Queue(`insert into ledger.movements (tenant_id, account_id, statement_id, key, line, date, amount,
-			   balance, description, reference, external_ref, gross, fees)
-			 values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-			 on conflict (tenant_id, account_id, key) do nothing`,
-				u.AccountID, stID, m.Key, m.Line, m.Date, int64(m.Amount), bal, m.Description, m.Reference,
-				m.ExternalRef, gross, fees)
+			rows = append(rows, store.InsertMovementParams{
+				AccountID: acc, StatementID: stID, Key: m.Key, Line: line, Date: m.Date, Amount: int64(m.Amount),
+				Balance: cents(m.Balance), Description: m.Description, Reference: m.Reference,
+				ExternalRef: m.ExternalRef, Gross: cents(m.Gross), Fees: fees,
+			})
 		}
-		if err := tx.SendBatch(ctx, batch).Close(); err != nil {
-			return fmt.Errorf("ledger: insert movements: %w", err)
+		var batchErr error
+		q.InsertMovement(ctx, rows).Exec(func(_ int, err error) {
+			if err != nil && batchErr == nil {
+				batchErr = err
+			}
+		})
+		if batchErr != nil {
+			return fmt.Errorf("ledger: insert movements: %w", batchErr)
 		}
 		return audit.Record(ctx, tx, audit.Entry{Action: "ledger.statement_accepted", Subject: "ledger.files:" + fileID.String(),
 			Detail: map[string]any{"layout": r.LayoutID, "new": r.New, "already_present": r.AlreadyPresent}})
@@ -168,12 +166,15 @@ func (s *PGStore) SaveQuarantined(ctx context.Context, u Upload, r Result) error
 	if err != nil {
 		return err
 	}
+	acc, err := uuid.Parse(u.AccountID)
+	if err != nil {
+		return err
+	}
 	return s.inTenant(ctx, u.TenantID, func(tx pgx.Tx) error {
-		var fileID uuid.UUID
-		err := tx.QueryRow(ctx,
-			`insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id, uploaded_by)
-			 values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7, app_current_user()) returning id`,
-			u.AccountID, h, u.Filename, r.Reason, r.Detail, r.Fingerprint, nullText(r.LayoutID)).Scan(&fileID)
+		fileID, err := store.New(tx).InsertQuarantinedFile(ctx, store.InsertQuarantinedFileParams{
+			AccountID: acc, Sha256: h, Filename: &u.Filename, Reason: &r.Reason, Detail: &r.Detail,
+			Fingerprint: &r.Fingerprint, LayoutID: nullText(r.LayoutID),
+		})
 		if err != nil {
 			return fmt.Errorf("ledger: insert quarantined file: %w", err)
 		}
@@ -194,39 +195,24 @@ type StoredMovement struct {
 func (s *PGStore) MovementsBetween(ctx context.Context, from, to time.Time) ([]StoredMovement, error) {
 	var out []StoredMovement
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx,
-			`select id, account_id, key, line, date, amount, balance, description, reference, external_ref, gross, fees
-			   from ledger.movements where date between $1 and $2 order by date, id`, from, to)
+		rows, err := store.New(tx).MovementsBetween(ctx, store.MovementsBetweenParams{DateFrom: from, DateTo: to})
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var m StoredMovement
-			var amount int64
-			var bal, gross *int64
-			var fees []byte
-			if err := rows.Scan(&m.ID, &m.AccountID, &m.Key, &m.Line, &m.Date, &amount, &bal, &m.Description,
-				&m.Reference, &m.ExternalRef, &gross, &fees); err != nil {
-				return err
-			}
-			m.Amount = money.Amount(amount)
-			if bal != nil {
-				b := money.Amount(*bal)
-				m.Balance = &b
-			}
-			if gross != nil {
-				g := money.Amount(*gross)
-				m.Gross = &g
-			}
-			if len(fees) > 0 {
-				if err := json.Unmarshal(fees, &m.Fees); err != nil {
+		for _, r := range rows {
+			m := StoredMovement{ID: r.ID, AccountID: r.AccountID, Movement: Movement{
+				Key: r.Key, Line: int(r.Line), Date: r.Date, Amount: money.Amount(r.Amount),
+				Balance: amountOf(r.Balance), Description: r.Description, Reference: r.Reference,
+				ExternalRef: r.ExternalRef, Gross: amountOf(r.Gross),
+			}}
+			if len(r.Fees) > 0 {
+				if err := json.Unmarshal(r.Fees, &m.Fees); err != nil {
 					return err
 				}
 			}
 			out = append(out, m)
 		}
-		return rows.Err()
+		return nil
 	})
 	return out, err
 }
@@ -245,9 +231,9 @@ func (s *PGStore) CreateAccount(ctx context.Context, bank Bank, number, name str
 	}
 	var id uuid.UUID
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx,
-			`insert into ledger.accounts (tenant_id, bank, number, name) values (app_current_tenant(), $1, $2, $3) returning id`,
-			string(bank), nullText(number), name).Scan(&id); err != nil {
+		var err error
+		id, err = store.New(tx).InsertAccount(ctx, store.InsertAccountParams{Bank: string(bank), Number: nullText(number), Name: name})
+		if err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, audit.Entry{Action: "ledger.account_created", Subject: "ledger.accounts:" + id.String()})
@@ -271,19 +257,11 @@ var ErrNotFound = errors.New("ledger: not found")
 func (s *PGStore) Accounts(ctx context.Context) ([]Account, error) {
 	var out []Account
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `select id, bank, coalesce(number, ''), name, currency from ledger.accounts order by created_at, id`)
-		if err != nil {
-			return err
+		rows, err := store.New(tx).ListAccounts(ctx)
+		for _, r := range rows {
+			out = append(out, Account{ID: r.ID, Bank: Bank(r.Bank), Number: r.Number, Name: r.Name, Currency: r.Currency})
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var a Account
-			if err := rows.Scan(&a.ID, &a.Bank, &a.Number, &a.Name, &a.Currency); err != nil {
-				return err
-			}
-			out = append(out, a)
-		}
-		return rows.Err()
+		return err
 	})
 	return out, err
 }
@@ -292,8 +270,9 @@ func (s *PGStore) Accounts(ctx context.Context) ([]Account, error) {
 func (s *PGStore) GetAccount(ctx context.Context, id uuid.UUID) (Account, error) {
 	a := Account{ID: id}
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `select bank, coalesce(number, ''), name, currency from ledger.accounts where id = $1`, id).
-			Scan(&a.Bank, &a.Number, &a.Name, &a.Currency)
+		r, err := store.New(tx).GetAccount(ctx, id)
+		a.Bank, a.Number, a.Name, a.Currency = Bank(r.Bank), r.Number, r.Name, r.Currency
+		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, ErrNotFound
@@ -314,21 +293,12 @@ type QuarantinedFile struct {
 func (s *PGStore) Quarantine(ctx context.Context, limit int) ([]QuarantinedFile, error) {
 	var out []QuarantinedFile
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx,
-			`select id, account_id, coalesce(filename, ''), reason, coalesce(detail, ''), coalesce(fingerprint, ''), received_at
-			   from ledger.files where status = 'quarantined' order by received_at desc, id limit $1`, limit)
-		if err != nil {
-			return err
+		rows, err := store.New(tx).ListQuarantine(ctx, int32(min(limit, math.MaxInt32))) // #nosec G115 -- clamped
+		for _, r := range rows {
+			out = append(out, QuarantinedFile{ID: r.ID, AccountID: r.AccountID, Filename: r.Filename, Reason: r.Reason,
+				Detail: r.Detail, Fingerprint: r.Fingerprint, ReceivedAt: r.ReceivedAt})
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var f QuarantinedFile
-			if err := rows.Scan(&f.ID, &f.AccountID, &f.Filename, &f.Reason, &f.Detail, &f.Fingerprint, &f.ReceivedAt); err != nil {
-				return err
-			}
-			out = append(out, f)
-		}
-		return rows.Err()
+		return err
 	})
 	return out, err
 }
@@ -345,4 +315,30 @@ func nullText(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// cents and amountOf convert between money and the nullable bigint columns.
+func cents(a *money.Amount) *int64 {
+	if a == nil {
+		return nil
+	}
+	v := int64(*a)
+	return &v
+}
+
+func amountOf(c *int64) *money.Amount {
+	if c == nil {
+		return nil
+	}
+	a := money.Amount(*c)
+	return &a
+}
+
+// int32Of refuses a line number the int column cannot hold, as the database
+// did before: the file does not enter rather than enter with a wrong line.
+func int32Of(n int) (int32, error) {
+	if n < math.MinInt32 || n > math.MaxInt32 {
+		return 0, fmt.Errorf("ledger: line %d out of range", n)
+	}
+	return int32(n), nil
 }

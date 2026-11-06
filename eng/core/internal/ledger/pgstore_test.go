@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -126,6 +127,36 @@ func TestPGIngestLifecycle(t *testing.T) {
 	}
 	if mv[0].ID == uuid.Nil || mv[0].Key == "" || mv[0].Balance == nil {
 		t.Errorf("stored movement %+v", mv[0])
+	}
+}
+
+// A movement that slips past the duplicate check (two overlapping uploads at
+// once) meets the stored one in the database: the stored line stays as it
+// was and only the new one is added.
+func TestPGSaveKeepsStoredMovement(t *testing.T) {
+	e := newPGEnv(t)
+	e.upload(t, e.ctx, e.scope, e.acct, "bancor_part1.csv")
+	day := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	stored, err := e.store.MovementsBetween(e.ctx, day, day.AddDate(0, 1, 0))
+	if err != nil || len(stored) == 0 {
+		t.Fatalf("%d stored (%v)", len(stored), err)
+	}
+	old := stored[0].Movement
+	again := old
+	again.Description = "RACED COPY"
+	fresh := Movement{Line: 99, Date: day, Description: "NEW LINE", Amount: 100, Key: "synthetic-new-key"}
+	u := Upload{TenantID: e.scope.TenantID.String(), AccountID: e.acct.String(), Filename: "raced.csv"}
+	r := Result{FileHash: strings.Repeat("ab", 32), Fingerprint: "fp", LayoutID: "bancor_csv_v1",
+		Statement: &Statement{LayoutID: "bancor_csv_v1"}}
+	if err := e.store.SaveAccepted(e.ctx, u, r, []Movement{again, fresh}); err != nil {
+		t.Fatal(err)
+	}
+	seen, err := e.store.MovementsSeen(e.ctx, u.TenantID, u.AccountID, []string{old.Key, fresh.Key})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seen[old.Key] != old.Description || seen[fresh.Key] != "NEW LINE" {
+		t.Errorf("after a raced save: %q", seen)
 	}
 }
 
