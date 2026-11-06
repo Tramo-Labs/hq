@@ -129,12 +129,13 @@ func roleLabel(role string) string {
 // valid token, so it tells nothing to someone guessing. Every other
 // outcome, success included, counts.
 func (s *Service) AcceptInvite(ctx context.Context, token, password string, name *string) (Session, error) {
-	if err := s.checkInvite(ctx); err != nil {
+	giveBack, err := s.checkInvite(ctx)
+	if err != nil {
 		return Session{}, err
 	}
 	sess, err := s.acceptInvite(ctx, token, password, name)
-	if !errors.Is(err, ErrPasswordRequired) {
-		s.countInvite(ctx)
+	if errors.Is(err, ErrPasswordRequired) {
+		giveBack()
 	}
 	return sess, err
 }

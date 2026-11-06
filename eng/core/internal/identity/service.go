@@ -169,12 +169,13 @@ type Session struct {
 // tenant, or on the oldest membership when tenant is nil.
 func (s *Service) Login(ctx context.Context, email, password string, tenant *uuid.UUID) (Session, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
-	if err := s.checkLogin(ctx, email); err != nil {
+	notAFailure, err := s.checkLogin(ctx, email)
+	if err != nil {
 		return Session{}, err
 	}
 	var out Session
 	var failed, notMember bool
-	err := s.DB.System(ctx, func(tx pgx.Tx) error {
+	err = s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
 		u, err := q.GetUserForLogin(ctx, email)
 		hash := s.dummy
@@ -208,6 +209,7 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 		return audit.Record(ctx, tx, audit.Entry{Action: "identity.login", Subject: "users:" + u.ID.String(), TenantID: p.TenantID, UserID: p.UserID})
 	})
 	if err != nil {
+		notAFailure()
 		return Session{}, err
 	}
 	if failed {
@@ -218,6 +220,7 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 	}
 	if notMember {
 		// The password was right: not a guess, so no failure is counted.
+		notAFailure()
 		return Session{}, ErrNotAMember
 	}
 	s.loginSucceeded(ctx, email)

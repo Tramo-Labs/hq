@@ -43,20 +43,17 @@ func TestAllowCountsAndWindowEnds(t *testing.T) {
 	}
 }
 
-func TestExceededAddReset(t *testing.T) {
+func TestReset(t *testing.T) {
 	l := New(100)
 	r := Rule{Limit: 2, Window: time.Hour}
-	l.Add("f", r)
-	if ex, _ := l.Exceeded("f", r); ex {
-		t.Fatal("exceeded after one")
-	}
-	l.Add("f", r)
-	if ex, retry := l.Exceeded("f", r); !ex || retry <= 0 {
-		t.Fatalf("not exceeded after two: %v %v", ex, retry)
+	l.Allow("f", r)
+	l.Allow("f", r)
+	if ok, retry := l.Allow("f", r); ok || retry <= 0 {
+		t.Fatalf("third allowed: %v %v", ok, retry)
 	}
 	l.Reset("f")
-	if ex, _ := l.Exceeded("f", r); ex {
-		t.Fatal("still exceeded after reset")
+	if ok, _ := l.Allow("f", r); !ok {
+		t.Fatal("still limited after reset")
 	}
 }
 
@@ -66,7 +63,7 @@ func TestBoundedMemory(t *testing.T) {
 	l := New(50)
 	r := Rule{Limit: 1, Window: time.Hour}
 	for i := 0; i < 500; i++ {
-		l.Add(fmt.Sprint("ip-", i), r)
+		l.Allow(fmt.Sprint("ip-", i), r)
 	}
 	if n := len(l.buckets); n > 50 {
 		t.Fatalf("%d keys tracked, cap is 50", n)
@@ -99,5 +96,62 @@ func TestConcurrentUse(t *testing.T) {
 	wg.Wait()
 	if allowed != 100 {
 		t.Fatalf("allowed %d of 400 concurrent events, want exactly 100", allowed)
+	}
+}
+
+// Take counts and checks in one step: under a burst exactly Limit pass.
+func TestTakeHoldsTheLimitUnderABurst(t *testing.T) {
+	l := New(100)
+	r := Rule{Limit: 10, Window: time.Minute}
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	passed := 0
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if ok, _, _ := l.Take("k", r); ok {
+				mu.Lock()
+				passed++
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	if passed != r.Limit {
+		t.Fatalf("%d passed a limit of %d", passed, r.Limit)
+	}
+}
+
+// The give back returns the unit once, and only to the window it came
+// from: a new window is not credited.
+func TestTakeGiveBack(t *testing.T) {
+	c := &clock{t: time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)}
+	l := New(100)
+	l.SetClock(c.now)
+	r := Rule{Limit: 2, Window: time.Minute}
+	_, _, back := l.Take("k", r)
+	if ok, _, _ := l.Take("k", r); !ok {
+		t.Fatal("second take refused")
+	}
+	back()
+	back() // twice: still one unit
+	if ok, _, _ := l.Take("k", r); !ok {
+		t.Fatal("the unit given back was not usable")
+	}
+	if ok, _, _ := l.Take("k", r); ok {
+		t.Fatal("a double give back credited two units")
+	}
+	_, _, late := l.Take("other", r)
+	c.add(time.Minute)
+	if ok, _, _ := l.Take("other", r); !ok {
+		t.Fatal("new window refused")
+	}
+	late() // from the old window: must not credit the new one
+	if ok, _, _ := l.Take("other", r); !ok {
+		t.Fatal("second take of the new window refused")
+	}
+	if ok, _, _ := l.Take("other", r); ok {
+		t.Fatal("an old give back credited the new window")
 	}
 }

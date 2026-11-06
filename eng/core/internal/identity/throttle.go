@@ -99,26 +99,33 @@ func (s *Service) attacks() *attackWatch {
 // checkLogin counts the request against the IP and refuses when a login
 // throttle is exhausted, or when the email is in magic link mode. Nothing
 // here looks at the password.
-func (s *Service) checkLogin(ctx context.Context, email string) error {
+//
+// The failure of the email and IP pair is taken here, before the password
+// is checked, in the same step as the check: counting it only after a
+// wrong password let a burst of guesses through before any was counted.
+// notAFailure gives that unit back when the attempt turns out not to be a
+// wrong guess (right password, or an error); a success resets the pair.
+func (s *Service) checkLogin(ctx context.Context, email string) (notAFailure func(), err error) {
 	ip := clientIP(ctx)
 	if ok, retry := s.Limiter.Allow("login:ip:"+ip, s.Limits.LoginPerIP); !ok {
-		return limited(retry)
+		return func() {}, limited(retry)
 	}
-	if ex, retry := s.Limiter.Exceeded(pairKey(email, ip), s.Limits.FailPerEmailIP); ex {
-		return &RateLimitedError{RetryAfter: retry, MagicLink: true}
+	ok, retry, back := s.Limiter.Take(pairKey(email, ip), s.Limits.FailPerEmailIP)
+	if !ok {
+		return back, &RateLimitedError{RetryAfter: retry, MagicLink: true}
 	}
 	if s.attacks().inMode(emailKey(email), s.now()) {
-		return ErrMagicLinkRequired
+		back()
+		return func() {}, ErrMagicLinkRequired
 	}
-	return nil
+	return back, nil
 }
 
-// loginFailed counts a failure for the pair and for the email's attack
-// watch. It reports whether this failure switched the email to magic link.
+// loginFailed counts a failure for the email's attack watch (the pair's
+// was taken in checkLogin). It reports whether this failure switched the
+// email to magic link.
 func (s *Service) loginFailed(ctx context.Context, email string) bool {
-	ip := clientIP(ctx)
-	s.Limiter.Add(pairKey(email, ip), s.Limits.FailPerEmailIP)
-	return s.attacks().fail(emailKey(email), ip, s.now())
+	return s.attacks().fail(emailKey(email), clientIP(ctx), s.now())
 }
 
 // loginSucceeded forgives this IP's failures for the email. Failures from
@@ -127,20 +134,16 @@ func (s *Service) loginSucceeded(ctx context.Context, email string) {
 	s.Limiter.Reset(pairKey(email, clientIP(ctx)))
 }
 
-// checkInvite refuses when the IP spent its accepts; it does not count.
-// countInvite counts one, after the outcome is known (AcceptInvite).
-func (s *Service) checkInvite(ctx context.Context) error {
-	if ex, retry := s.Limiter.Exceeded(inviteKey(ctx), s.Limits.InvitePerIP); ex {
-		return limited(retry)
+// checkInvite takes one of the IP's accepts, checked and counted in one
+// step so a burst can not pass the cap. giveBack returns it (AcceptInvite
+// does, only for the password step).
+func (s *Service) checkInvite(ctx context.Context) (giveBack func(), err error) {
+	ok, retry, back := s.Limiter.Take("invite:ip:"+clientIP(ctx), s.Limits.InvitePerIP)
+	if !ok {
+		return back, limited(retry)
 	}
-	return nil
+	return back, nil
 }
-
-func (s *Service) countInvite(ctx context.Context) {
-	s.Limiter.Add(inviteKey(ctx), s.Limits.InvitePerIP)
-}
-
-func inviteKey(ctx context.Context) string { return "invite:ip:" + clientIP(ctx) }
 
 func (s *Service) checkRegister(ctx context.Context) error {
 	if ok, retry := s.Limiter.Allow("register:ip:"+clientIP(ctx), s.Limits.RegisterPerIP); !ok {

@@ -52,24 +52,9 @@ func (l *Limiter) current(key string, now time.Time) *bucket {
 	return b
 }
 
-// Exceeded reports whether key already used its quota, and how long until
-// the window ends. It does not count.
-func (l *Limiter) Exceeded(key string, r Rule) (bool, time.Duration) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	now := l.now()
-	if b := l.current(key, now); b != nil && b.n >= r.Limit {
-		return true, b.ends.Sub(now)
-	}
-	return false, 0
-}
-
-// Add counts one event for key.
-func (l *Limiter) Add(key string, r Rule) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.add(key, r, l.now())
-}
+// There is no separate check and count: checking before and counting
+// after lets a burst through before anything is counted. Allow and Take
+// do both in one step under the lock.
 
 func (l *Limiter) add(key string, r Rule, now time.Time) *bucket {
 	b := l.current(key, now)
@@ -92,6 +77,32 @@ func (l *Limiter) Allow(key string, r Rule) (bool, time.Duration) {
 	}
 	l.add(key, r, now)
 	return true, 0
+}
+
+// Take is Allow that can be undone: it counts one event and reports
+// whether it is within the quota, in one step under the lock, so a burst
+// can not pass before anyone is counted. giveBack returns that unit when
+// the outcome turns out not to be one the limit is for. It is safe to call
+// more than once and does nothing on a refusal or once the window it came
+// from has ended (a new window is never credited).
+func (l *Limiter) Take(key string, r Rule) (ok bool, retry time.Duration, giveBack func()) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	if b := l.current(key, now); b != nil && b.n >= r.Limit {
+		return false, b.ends.Sub(now), func() {}
+	}
+	b := l.add(key, r, now)
+	var once sync.Once
+	return true, 0, func() {
+		once.Do(func() {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+			if cur, live := l.buckets[key]; live && cur == b && b.n > 0 {
+				b.n--
+			}
+		})
+	}
 }
 
 // Reset forgets key (a successful login clears its failures).

@@ -104,11 +104,17 @@ invitation; adding an active member is 409 `already_member`.
   invitation used, moves the pending row into `memberships` and opens a
   session on that tenant. Unknown, used, revoked and expired tokens all
   answer the same 401 `invalid_invite`. 10 attempts per IP per 15 minutes,
-  checked before any hashing (429 `rate_limited`). The portal tries without
-  a password first, so the 400 `password_required` a new person gets is a
-  step: it does not count toward that cap and is not audited as a rejection
-  (`TestPasswordRequiredIsAStepNotARejection`). Every other outcome counts
-  (`TestRealInviteRejectionsCountAndAreAudited`).
+  taken before any hashing (429 `rate_limited`). The attempt is checked and
+  counted in one step (a burst of 25 against a cap of 10 lets exactly 10
+  through, `TestInviteCapHoldsUnderABurst`). The portal tries without a
+  password first, so the 400 `password_required` a new person gets is a
+  step: its unit is given back and it is not audited as a rejection
+  (`TestPasswordRequiredIsAStepNotARejection`,
+  `TestPasswordStepsAtOnceConsumeNothing`). While in flight a step holds a
+  unit, so steps beyond the cap at the same instant may get 429; none stays
+  counted. Every other outcome counts
+  (`TestRealInviteRejectionsCountAndAreAudited`), and only a usable
+  invitation reaches the step (`TestOnlyAUsableInvitationReachesThePasswordStep`).
 - Audit: `identity.invite_created` (by the inviter, with the role),
   `identity.invite_accepted`, `identity.invite_rejected` (with the reason:
   unknown, used, revoked, expired, no membership, password already set). Adding is `identity.member_invited`; removing a
@@ -281,6 +287,14 @@ alone**. Nobody can lock the owner out of her account from anywhere.
 | magic link acceptances per IP | 10 per 15 minutes | bounds anonymous work |
 
 A success (password or magic link) clears that IP's failures for the email.
+The pair's failure is taken before the password is checked, in the same
+step as the check, and given back when the password was right or the
+attempt errored (a success resets the pair anyway). Checking before and
+counting after let a burst of guesses through: 20 at once against a cap of
+5 all got an answer (`TestLoginFailureCapHoldsUnderABurst`). The limiter
+has no separate check and count any more; `Allow` and `Take` do both
+under one lock.
+
 The pair's 429 carries `magicLink: true`: the web offers "send me a link",
 so even the owner throttled on her own IP gets in. The per IP 429 does not
 carry it (that one is about spraying, not about one person).

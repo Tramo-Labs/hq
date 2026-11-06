@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -59,6 +60,79 @@ func TestRealInviteRejectionsCountAndAreAudited(t *testing.T) {
 	}
 	if rejected != 3 {
 		t.Fatalf("%d unknown token rejections audited, want 3", rejected)
+	}
+}
+
+// burst sends n requests at once and counts the answers by status.
+func burst(n int, do func() resp) map[int]int {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	got := map[int]int{}
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r := do()
+			mu.Lock()
+			got[r.status]++
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+	return got
+}
+
+// qa-2's measure: 25 accepts at once with unknown tokens, cap 10. The cap
+// is taken and counted in one step, so exactly 10 get through.
+func TestInviteCapHoldsUnderABurst(t *testing.T) {
+	deps := newDeps(t)
+	deps.Identity.Limits.InvitePerIP = ratelimit.Rule{Limit: 10, Window: time.Hour}
+	c := client{t, serve(t, deps)}
+	got := burst(25, func() resp { return accept(c, strings.Repeat("A", 43), "a long enough password") })
+	if got[401] != 10 || got[429] != 15 {
+		t.Fatalf("25 at once against a cap of 10: %v", got)
+	}
+}
+
+// Password steps at once consume nothing: after a burst of them the whole
+// cap is still there for real attempts. While in flight each holds a unit
+// (counting first is what keeps the cap under a burst), so steps beyond the
+// cap at the same instant may get 429; none is a 401 and none stays counted.
+func TestPasswordStepsAtOnceConsumeNothing(t *testing.T) {
+	deps := newDeps(t)
+	deps.Identity.Limits.InvitePerIP = ratelimit.Rule{Limit: 3, Window: time.Hour}
+	c := client{t, serve(t, deps)}
+	own := c.registerAndLogin("molino-limp", "owner@limp.test")
+	if r := c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": "nueva@limp.test", "role": "viewer"}, idem()...); r.status != 201 {
+		t.Fatalf("add: %d %s", r.status, r.raw)
+	}
+	tok := c.invitesTo("nueva@limp.test")[0]
+	got := burst(10, func() resp {
+		return c.do("POST", "/v1/auth/invite/accept", "", map[string]any{"token": tok, "tokenDelivery": "body"})
+	})
+	if got[400] < 3 || got[400]+got[429] != 10 {
+		t.Fatalf("10 password steps at once against a cap of 3: %v", got)
+	}
+	got = burst(5, func() resp { return accept(c, strings.Repeat("B", 43), "a long enough password") })
+	if got[401] != 3 || got[429] != 2 {
+		t.Fatalf("after the steps the cap is not whole: %v", got)
+	}
+}
+
+// Login had the same split: the failures per email and IP were checked
+// before and counted after the password, so a burst of guesses could pass
+// the cap. Exactly the cap get an answer about the password.
+func TestLoginFailureCapHoldsUnderABurst(t *testing.T) {
+	deps := newDeps(t)
+	deps.Identity.Limits.LoginPerIP = ratelimit.Rule{Limit: 1000, Window: time.Hour}
+	deps.Identity.Limits.FailPerEmailIP = ratelimit.Rule{Limit: 5, Window: time.Hour}
+	c := client{t, serve(t, deps)}
+	c.registerAndLogin("molino-limb", "owner@limb.test")
+	got := burst(20, func() resp {
+		return c.do("POST", "/v1/auth/login", "", map[string]any{"email": "owner@limb.test", "password": "a wrong guess, long", "tokenDelivery": "body"})
+	})
+	if got[401] != 5 || got[429] != 15 {
+		t.Fatalf("20 wrong passwords at once against a cap of 5: %v", got)
 	}
 }
 
