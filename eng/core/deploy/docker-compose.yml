@@ -1,0 +1,40 @@
+# Local development: everything on one machine, ARCA answered by the simulator.
+# make up  ->  http://localhost:8080/docs
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tramo
+      POSTGRES_PASSWORD: tramo
+      POSTGRES_DB: tramo
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tramo"]
+      interval: 5s
+      retries: 10
+  api:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["/app/api"]
+    environment: &env
+      APP_ENV: dev
+      DATABASE_URL: postgres://tramo:tramo@postgres:5432/tramo?sslmode=disable
+      ARCA_GATEWAY_ADDR: arca-gateway:9090
+      ARCA_ENV: sim
+    ports: ["8080:8080"]
+    depends_on: { postgres: { condition: service_healthy } }
+  worker:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["/app/worker"]
+    environment: *env
+    depends_on: { postgres: { condition: service_healthy } }
+  arca-gateway:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    command: ["/app/arca-gateway"]
+    environment: *env
+    ports: ["9090:9090"]
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["8025:8025", "1025:1025"]
+volumes:
+  pgdata:

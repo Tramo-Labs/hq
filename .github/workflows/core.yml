@@ -1,0 +1,20 @@
+name: Core
+on:
+  push:
+    branches: [main]
+    paths: ["eng/core/**", ".github/workflows/core.yml"]
+  pull_request:
+    paths: ["eng/core/**"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: eng/core } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: eng/core/go.mod }
+      - run: gofmt -l . && test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test -race ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...

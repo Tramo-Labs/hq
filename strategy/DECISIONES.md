@@ -11,3 +11,9 @@
 | D-7 | 2026-11-05 | Núcleo del producto propio, no n8n; cliente SOAP de ARCA propio, no AfipSDK | El matching necesita reglas versionadas y tests; un tercero no custodia certificados ni datos fiscales de clientes |
 | D-8 | 2026-11-05 | Nunca claves fiscales ni de home banking de clientes; solo delegaciones, tokens y exportes | ARCA y los bancos lo prohíben y el cliente pierde cobertura |
 | D-9 | 2026-11-05 | Deploy de la landing por GitHub Actions, no por la integración de Vercel | El plan Hobby no acepta repos privados de organización |
+| D-10 | 2026-11-06 | Núcleo en Go: monolito modular `core` (api y worker) más `arca-gateway` separado; gRPC entre ellos, SOAP solo dentro del gateway | Un deploy para dos personas; la clave de ARCA vive en un solo proceso |
+| D-11 | 2026-11-06 | Postgres único, multi-tenant con `tenant_id` y RLS desde la migración cero | El software se vende entero: cada comprador es un tenant o un despliegue idéntico |
+| D-12 | 2026-11-06 | Contrato primero: OpenAPI 3.1 con Swagger en `/docs`, proto para gRPC; `Idempotency-Key` obligatoria en todo POST que crea | Cualquier frontend o integrador consume el contrato; los reintentos nunca duplican |
+| D-13 | 2026-11-06 | Sesión con JWT EdDSA de 10 minutos más refresh opaco rotado por familia; argon2id; TOTP para quien aprueba pagos | Robo de refresh detectado y revocado; nada reutilizable a largo plazo |
+| D-14 | 2026-11-06 | Cifrado de sobre por tenant para certificados, tokens OAuth, claves de ERP y extractos; audit log append-only; backups cifrados probados por mes | Ley 25.326 y 11.683; la clave maestra nunca está en la base |
+| D-15 | 2026-11-06 | Infra: imágenes en GHCR por commit, compose en un VPS con Caddy, Terraform desde el día uno aunque sea una máquina | El mismo repo levanta un ambiente para un cliente que compre el software |

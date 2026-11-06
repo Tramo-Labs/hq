@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package arca.v1;
+
+option go_package = "github.com/Tramo-Labs/hq/eng/core/gen/arca/v1;arcav1";
+
+// Arca is the only door from core to ARCA. The gateway owns the certificate,
+// caches one access ticket per service and CUIT, and every call is
+// idempotent: CAE requests check the last authorized voucher first.
+service Arca {
+  rpc GetPersona(GetPersonaRequest) returns (GetPersonaResponse);
+  rpc ConstatarComprobante(ConstatarComprobanteRequest) returns (ConstatarComprobanteResponse);
+  rpc UltimoAutorizado(UltimoAutorizadoRequest) returns (UltimoAutorizadoResponse);
+  rpc SolicitarCAE(SolicitarCAERequest) returns (SolicitarCAEResponse);
+}
+
+message GetPersonaRequest { int64 cuit_representado = 1; int64 cuit_consultado = 2; }
+message GetPersonaResponse { string razon_social = 1; string condicion_iva = 2; bool activo = 3; string raw_json = 4; }
+
+message ConstatarComprobanteRequest {
+  int64 cuit_representado = 1; int64 cuit_emisor = 2; int32 punto_venta = 3;
+  int32 tipo_comprobante = 4; int64 numero = 5; string fecha = 6; double importe = 7;
+  string cae = 8; string tipo_emision = 9;
+}
+message ConstatarComprobanteResponse { bool valido = 1; repeated string observaciones = 2; }
+
+message UltimoAutorizadoRequest { int64 cuit = 1; int32 punto_venta = 2; int32 tipo_comprobante = 3; }
+message UltimoAutorizadoResponse { int64 numero = 1; }
+
+message SolicitarCAERequest { int64 cuit = 1; string comprobante_json = 2; string idempotency_key = 3; }
+message SolicitarCAEResponse { string cae = 1; string vencimiento = 2; int64 numero = 3; repeated string observaciones = 4; }

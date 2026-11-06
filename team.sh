@@ -3,7 +3,7 @@
 #
 #   ./team.sh "objetivo"          abre el lead en esta terminal con agent teams
 #                                 (el lead spawnea producto, frontend, ventas y qa)
-#   ./team.sh --bg "objetivo"     cada rol como sesión de fondo en su worktree
+#   ./team.sh --bg "objetivo"     cada rol y el lead como sesiones de fondo (roles en worktrees)
 #   ./team.sh --status            lista las sesiones de fondo
 #   ./team.sh --stop              las para todas
 #
@@ -12,6 +12,7 @@
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+export PATH="$HOME/.local/go/bin:$HOME/go/bin:$PATH"
 ROLES="producto backend datos frontend ventas qa"
 MODO="team"
 case "${1:-}" in
@@ -33,5 +34,5 @@ for r in $ROLES; do
   claude --bg --agent "$r" -n "$r" --worktree "$r" --permission-mode acceptEdits \
     "Sos el teammate $r. Objetivo: $OBJ. Leé TEAM.md y CLAUDE.md, tomá tus tareas, y avisá al lead por SendMessage (usá ListAgents para encontrarlo) cuando termines o te trabes."
 done
-claude --agent lead -n lead --permission-mode acceptEdits \
+claude --bg --agent lead -n lead --permission-mode acceptEdits \
   "Objetivo: $OBJ. Los teammates producto, backend, datos, frontend, ventas y qa ya corren como sesiones de fondo en sus worktrees. Coordinalos por SendMessage, integrá sus ramas worktree-<rol> y mantené TEAM.md."

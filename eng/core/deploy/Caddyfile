@@ -1,0 +1,11 @@
+# Production edge: TLS automatic, api behind /api, web served by Vercel for now.
+{$APP_DOMAIN} {
+  encode zstd gzip
+  handle /api/* {
+    uri strip_prefix /api
+    reverse_proxy api:8080
+  }
+  handle /docs/* {
+    reverse_proxy api:8080
+  }
+}

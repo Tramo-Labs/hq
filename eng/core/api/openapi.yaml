@@ -1,0 +1,34 @@
+openapi: 3.1.0
+info:
+  title: Tramo Core API
+  version: 0.1.0
+  description: |
+    REST contract of the core. Spec first: handlers are generated from this
+    file with oapi-codegen. Every POST that creates a resource requires an
+    Idempotency-Key header (see eng/ARQUITECTURA.md section 7).
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Liveness
+      responses:
+        "204": { description: alive }
+  /readyz:
+    get:
+      summary: Readiness (database and gateway reachable)
+      responses:
+        "204": { description: ready }
+        "503": { description: not ready }
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
