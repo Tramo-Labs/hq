@@ -521,7 +521,7 @@ func (s *Service) AddMember(ctx context.Context, p Principal, email, role string
 	if err != nil {
 		return Member{}, err
 	}
-	if err := s.invite(ctx, p, user, email, role); err != nil {
+	if err := s.invite(ctx, p, user, role); err != nil {
 		return Member{}, err
 	}
 	return Member{ID: user, Email: email, Role: role, Pending: true}, nil

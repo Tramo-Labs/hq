@@ -146,6 +146,10 @@ delete from pending_memberships where tenant_id = $1 and user_id = $2;
 -- name: ListPendingMembers :many
 select user_id, email, role from pending_memberships where tenant_id = $1 order by email;
 
+-- name: ListPendingForUser :many
+-- A person's pending invitations, oldest first (system: across tenants).
+select tenant_id, role, invited_by from pending_memberships where user_id = $1 order by created_at, tenant_id;
+
 -- name: CountPendingOwners :one
 select count(*) from pending_memberships where tenant_id = $1 and role = 'owner';
 

@@ -548,6 +548,37 @@ func (q *Queries) ListMembershipsForUser(ctx context.Context, userID uuid.UUID) 
 	return items, nil
 }
 
+const listPendingForUser = `-- name: ListPendingForUser :many
+select tenant_id, role, invited_by from pending_memberships where user_id = $1 order by created_at, tenant_id
+`
+
+type ListPendingForUserRow struct {
+	TenantID  uuid.UUID
+	Role      Role
+	InvitedBy *uuid.UUID
+}
+
+// A person's pending invitations, oldest first (system: across tenants).
+func (q *Queries) ListPendingForUser(ctx context.Context, userID uuid.UUID) ([]ListPendingForUserRow, error) {
+	rows, err := q.db.Query(ctx, listPendingForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPendingForUserRow
+	for rows.Next() {
+		var i ListPendingForUserRow
+		if err := rows.Scan(&i.TenantID, &i.Role, &i.InvitedBy); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPendingMembers = `-- name: ListPendingMembers :many
 select user_id, email, role from pending_memberships where tenant_id = $1 order by email
 `

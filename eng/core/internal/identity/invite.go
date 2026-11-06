@@ -27,38 +27,14 @@ var ErrInvalidInvite = errors.New("invalid or expired invitation")
 
 // invite mails the invitation to a pending member, with or without an
 // account (D-19). The token goes only into the email: never in a response,
-// a log or the audit log. It revokes the person's earlier unused
-// invitations to this tenant only: one from another tenant stays valid. A
-// delivery failure is logged; the pending membership stays, and adding the
-// person again sends a new invitation.
-func (s *Service) invite(ctx context.Context, p Principal, user uuid.UUID, email, role string) error {
-	token, hash, err := newRefreshToken()
-	if err != nil {
-		return err
-	}
-	var hasPassword bool
-	var tenantName string
-	err = s.DB.System(ctx, func(tx pgx.Tx) error {
-		q := store.New(tx)
+// a log or the audit log. A delivery failure is logged; the pending
+// membership stays, and adding the person again sends a new invitation.
+func (s *Service) invite(ctx context.Context, p Principal, user uuid.UUID, role string) error {
+	var iv issuedInvite
+	err := s.DB.System(ctx, func(tx pgx.Tx) error {
 		var err error
-		if hasPassword, err = q.GetUserPasswordSet(ctx, user); err != nil {
-			return err
-		}
-		// To the stored address, not the casing typed (F35).
-		if email, err = q.GetUserEmail(ctx, user); err != nil {
-			return err
-		}
-		t, err := q.GetTenant(ctx, p.TenantID)
-		if err != nil {
-			return err
-		}
-		tenantName = t.Name
-		if _, err := q.RevokeOpenTenantInvites(ctx, store.RevokeOpenTenantInvitesParams{UserID: user, TenantID: p.TenantID}); err != nil {
-			return err
-		}
 		inviter := p.UserID
-		if err := q.InsertInvite(ctx, store.InsertInviteParams{TenantID: p.TenantID, UserID: user, CreatedBy: &inviter,
-			TokenHash: hash, ExpiresAt: s.now().Add(InviteTTL)}); err != nil {
+		if iv, err = issueInvite(ctx, store.New(tx), p.TenantID, user, &inviter, role, s.now()); err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_created", Subject: "users:" + user.String(),
@@ -67,14 +43,56 @@ func (s *Service) invite(ctx context.Context, p Principal, user uuid.UUID, email
 	if err != nil {
 		return err
 	}
-	if s.Mailer == nil {
-		httpx.Logger(ctx).Warn("invitation not delivered: no mail transport configured", "user", user)
-		return nil
+	sendInvite(ctx, s.Mailer, s.AppBaseURL, user, iv)
+	return nil
+}
+
+// issuedInvite is an invitation stored and ready to mail.
+type issuedInvite struct {
+	to, tenantName, role, token string
+	hasPassword                 bool
+}
+
+// issueInvite stores a new invitation of user to tenant and revokes the
+// person's earlier unused ones to that tenant only: one from another
+// tenant stays valid. It goes to the address stored for the account
+// (F35). Used when a person is added and when a pending person asks for a
+// sign in link (F36).
+func issueInvite(ctx context.Context, q *store.Queries, tenant, user uuid.UUID, createdBy *uuid.UUID, role string, now time.Time) (issuedInvite, error) {
+	token, hash, err := newRefreshToken()
+	if err != nil {
+		return issuedInvite{}, err
 	}
-	if err := s.Mailer.Send(ctx, inviteMessage(s.AppBaseURL, email, tenantName, role, token, hasPassword)); err != nil {
+	iv := issuedInvite{role: role, token: token}
+	if iv.hasPassword, err = q.GetUserPasswordSet(ctx, user); err != nil {
+		return iv, err
+	}
+	if iv.to, err = q.GetUserEmail(ctx, user); err != nil {
+		return iv, err
+	}
+	t, err := q.GetTenant(ctx, tenant)
+	if err != nil {
+		return iv, err
+	}
+	iv.tenantName = t.Name
+	if _, err := q.RevokeOpenTenantInvites(ctx, store.RevokeOpenTenantInvitesParams{UserID: user, TenantID: tenant}); err != nil {
+		return iv, err
+	}
+	err = q.InsertInvite(ctx, store.InsertInviteParams{TenantID: tenant, UserID: user, CreatedBy: createdBy,
+		TokenHash: hash, ExpiresAt: now.Add(InviteTTL)})
+	return iv, err
+}
+
+// sendInvite mails iv. A failure, or no transport, is logged: the
+// invitation stays stored and a new one can be sent.
+func sendInvite(ctx context.Context, m mail.Sender, base string, user uuid.UUID, iv issuedInvite) {
+	if m == nil {
+		httpx.Logger(ctx).Warn("invitation not delivered: no mail transport configured", "user", user)
+		return
+	}
+	if err := m.Send(ctx, inviteMessage(base, iv.to, iv.tenantName, iv.role, iv.token, iv.hasPassword)); err != nil {
 		httpx.Logger(ctx).Error("invitation not delivered", "user", user, "err", err)
 	}
-	return nil
 }
 
 // inviteMessage is the invitation email, in Spanish with voseo (F31). A

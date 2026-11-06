@@ -90,6 +90,12 @@ type MagicLinkWorker struct {
 // Work takes the pending request (deleting it), and in that same
 // transaction looks the email up and, if it has an account, stores the
 // link; then mails it. A second run finds no request and does nothing.
+//
+// A link that could only answer 403 is not sent (F36): when the person
+// asked for a company where their membership is pending, or has no active
+// membership but pending ones, the invitation goes again instead (a new
+// token, that company's earlier ones revoked), at most maxResent of them.
+// The request's public answer was the same 202 either way.
 func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs]) error {
 	token, hash, err := newRefreshToken()
 	if err != nil {
@@ -97,6 +103,8 @@ func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs
 	}
 	var email string
 	var sent bool
+	var resent []issuedInvite
+	var user uuid.UUID
 	err = w.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
 		req, err := q.TakeMagicLinkRequest(ctx, job.Args.Request)
@@ -124,6 +132,25 @@ func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs
 		if email, err = q.GetUserEmail(actx, u.ID); err != nil {
 			return err
 		}
+		user = u.ID
+		targets, err := pendingTargets(actx, q, u.ID, req.TenantID)
+		if err != nil {
+			return err
+		}
+		if len(targets) > 0 {
+			for _, p := range targets {
+				iv, err := issueInvite(actx, q, p.TenantID, u.ID, p.InvitedBy, string(p.Role), time.Now())
+				if err != nil {
+					return err
+				}
+				resent = append(resent, iv)
+				if err := audit.Record(actx, tx, audit.Entry{Action: "identity.invite_resent", Subject: "users:" + u.ID.String(),
+					TenantID: p.TenantID, UserID: u.ID, Detail: map[string]any{"via": "magic_link"}}); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		if err := q.InsertMagicLink(actx, store.InsertMagicLinkParams{UserID: u.ID, TenantID: req.TenantID,
 			TokenHash: hash, ExpiresAt: time.Now().Add(MagicLinkTTL)}); err != nil {
 			return err
@@ -131,8 +158,14 @@ func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs
 		sent = true
 		return audit.Record(actx, tx, audit.Entry{Action: "identity.magic_link_sent", Subject: "users:" + u.ID.String(), UserID: u.ID})
 	})
-	if err != nil || !sent {
+	if err != nil {
 		return err
+	}
+	for _, iv := range resent {
+		sendInvite(ctx, w.Mailer, w.AppBaseURL, user, iv)
+	}
+	if !sent {
+		return nil
 	}
 	if w.Mailer == nil {
 		httpx.Logger(ctx).Warn("magic link not delivered: no mail transport configured")
@@ -142,6 +175,37 @@ func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs
 		httpx.Logger(ctx).Error("magic link not delivered", "err", err)
 	}
 	return nil
+}
+
+// maxResent bounds the invitations one link request sends again; the
+// request itself is throttled per email.
+const maxResent = 5
+
+// pendingTargets lists the pending invitations a link request should get
+// instead of a link: the one to the company asked for, or, with no company
+// asked and no active membership, the person's pending ones (oldest first,
+// at most maxResent). None means a link is the right answer.
+func pendingTargets(ctx context.Context, q *store.Queries, user uuid.UUID, tenant *uuid.UUID) ([]store.ListPendingForUserRow, error) {
+	pending, err := q.ListPendingForUser(ctx, user)
+	if err != nil || len(pending) == 0 {
+		return nil, err
+	}
+	if tenant != nil {
+		for _, p := range pending {
+			if p.TenantID == *tenant {
+				return []store.ListPendingForUserRow{p}, nil
+			}
+		}
+		return nil, nil
+	}
+	active, err := q.ListMembershipsForUser(ctx, user)
+	if err != nil || len(active) > 0 {
+		return nil, err
+	}
+	if len(pending) > maxResent {
+		pending = pending[:maxResent]
+	}
+	return pending, nil
 }
 
 // PurgeStaleMagicLinkRequests deletes requests older than a day: left only

@@ -237,6 +237,14 @@ expired more than 7 days ago. All run in the worker's daily
   overwriting, the limit off by one, format characters allowed, no visible
   character needed, each fails.
 - Refresh tokens: only SHA-256 stored; not readable by `tramo_app`.
+- A link that could only answer 403 is never sent (F36). When the person
+  asks for a company where their membership is pending, or has no active
+  membership but pending ones, the worker mails the invitation again
+  instead (a new token, that company's earlier ones revoked, at most 5,
+  audited as `identity.invite_resent` with `via: magic_link`). The request
+  still answers the same 202 (`TestAPendingPersonAskingForALinkGetsTheInvitation`;
+  mutations checked: never resending, and not resending for the company
+  asked, each fail it).
 - Invitation and magic link tokens: only SHA-256 stored; the clear token
   exists only in the email (the outbox file in dev and tests), in the URL
   fragment so it never reaches a server log. Never in a response.
@@ -293,7 +301,10 @@ attempt errored (a success resets the pair anyway). Checking before and
 counting after let a burst of guesses through: 20 at once against a cap of
 5 all got an answer (`TestLoginFailureCapHoldsUnderABurst`). The limiter
 has no separate check and count any more; `Allow` and `Take` do both
-under one lock.
+under one lock. Accepted cost of counting first: a burst of logins with
+the right password, from the same IP and account and larger than the
+pair's cap, also gets 429 until the units are given back (8 at once
+against 5: 5 sign in, 3 get 429).
 
 The pair's 429 carries `magicLink: true`: the web offers "send me a link",
 so even the owner throttled on her own IP gets in. The per IP 429 does not
