@@ -94,8 +94,32 @@ catches it when the next statement arrives.
 
 ### Excel workbooks
 
-`.xlsx` is read with the standard library (zip and XML, `xlsx.go`); each
-part is capped at 64 MiB decompressed. Every sheet is read like a CSV
+`.xlsx` is read with the standard library (zip and XML, `xlsx.go`),
+streaming each part, never holding one whole. A 20 MiB upload can expand
+a thousand times, so a workbook over any of these limits is
+`unsupported_format`, with the limit named in the detail:
+
+| Limit | Value | Checked |
+|-------|-------|---------|
+| zip central directory, entries | 1 MiB, 1,000 | before the zip is opened |
+| decompressed size, all entries | 64 MiB | declared sizes before decompressing; bytes read while reading |
+| one XML token (tag, text run, comment) | 1 MiB | while reading |
+| element nesting | 32 | while reading |
+| text in one cell | 128 KiB | while reading |
+| sheets | 50 | while reading the workbook part |
+| rows with cells, all sheets | 200,000 | while reading |
+| cells, all sheets, skipped columns included | 1,000,000 | while reading |
+| shared strings, cell formats, number formats | 500,000, 65,536, 4,096 | while reading |
+
+Zip64 and a zip with data before its directory are refused too.
+`TestHostileWorkbooks` holds fourteen hostile files of at most 2.1 MiB and
+checks which limit stops each one; with `TRAMO_XLSX_MEASURE=1` it logs what
+each cost. Measured on 06/11 under `MemoryMax=4G`, no race detector: the
+worst growth of resident memory while reading was 81 MiB (a million cells,
+stopped by the cell limit), and a realistic year of 30,000 rows (8.6 MiB of
+XML) took 28 MiB. The reader before these limits took the same test
+process to 1.5 GB on fifty 8 MiB sheets and did not finish in 90 seconds
+on rows padded to column XFD. Every sheet is read like a CSV
 sheet, with its own fingerprint (delimiter `SheetDelimiter`, so an Excel
 layout never shares a fingerprint with the CSV of the same columns). A
 cell Excel stores as a number is read as a number whatever the layout's

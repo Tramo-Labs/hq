@@ -130,7 +130,7 @@ func TestUnsupportedContainers(t *testing.T) {
 	var bomb bytes.Buffer
 	zw = zip.NewWriter(&bomb)
 	w, _ = zw.Create("xl/workbook.xml")
-	w.Write(make([]byte, maxPartSize+1))
+	w.Write(make([]byte, xlsxMaxXML+1))
 	zw.Close()
 
 	cases := map[string][]byte{
