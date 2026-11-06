@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { app } from "@/content/app";
-import { ApiError, areaAllows, getMode, getSession, homeFor, login, logout, requestMagicLink, type Membership, type Session } from "@/lib/api";
+import { ApiError, areaAllows, getMode, getSession, homeFor, login, requestMagicLink, restore, switchTenant, type Membership, type Session } from "@/lib/api";
 import { primaryBtn, ghostBtn } from "@/components/app/buttons";
 
 const s = app.session;
@@ -48,6 +48,7 @@ const offersLink = (e: unknown) => e instanceof ApiError && ((e.status === 429 &
 function explain(e: unknown) {
   if (e instanceof ApiError) {
     if (e.code === "magic_link_required") return s.magic.required;
+    if (e.code === "not_a_member") return s.notMember;
     if (e.status === 401) return s.wrong;
     if (e.status === 429) return e.retryAfter ? s.rateLimited(e.retryAfter) : s.rateLimitedNoWait;
     if (e.status === 400) return s.invalid;
@@ -76,14 +77,30 @@ function SampleAccounts() {
 
 /**
  * /entrar. Email and password; with several memberships, the person picks the company.
- * The token is for one tenant, so picking another one logs in again with its tenantId
- * (the first session is revoked first). The password lives in this component's state
- * only while the form is open, and the access token only in memory (lib/api/session.ts).
+ * The token is for one tenant, so picking another one (or "Cambiar de empresa" later) moves
+ * the session there with /v1/auth/switch-tenant, without asking for the password again. The
+ * password lives in this component's state only while the form is open, and the access
+ * token only in memory (lib/api/session.ts).
  */
-export function Login({ back, switching, tenantId, expired }: { back?: string; switching: boolean; tenantId?: string; expired: boolean }) {
+type LoginProps = { back?: string; switching: boolean; tenantId?: string; expired: boolean };
+
+export function Login(props: LoginProps) {
+  // "Cambiar de empresa" opened directly or reloaded: the session is not in memory yet, so it
+  // is restored from the refresh cookie first; only with no session at all does it ask to log in.
+  const [current, setCurrent] = useState<Session | null | undefined>(() => (props.switching ? getSession() ?? undefined : null));
+  useEffect(() => {
+    if (current !== undefined) return;
+    let live = true;
+    restore("portal").then((s) => { if (live) setCurrent(s); }, () => { if (live) setCurrent(null); });
+    return () => { live = false; };
+  }, [current]);
+  if (current === undefined) return <p role="status" className="text-[15px] text-white/70">{app.load.loading}</p>;
+  return <LoginForm {...props} current={current} />;
+}
+
+function LoginForm({ back, tenantId, expired, current }: LoginProps & { current: Session | null }) {
   const router = useRouter();
   const ids = { email: useId(), password: useId(), error: useId() };
-  const [current] = useState<Session | null>(() => (switching ? getSession() : null));
   const [email, setEmail] = useState(current?.email ?? "");
   const [password, setPassword] = useState("");
   const [choices, setChoices] = useState<Membership[] | null>(current && current.memberships.length > 1 ? current.memberships : null);
@@ -120,16 +137,12 @@ export function Login({ back, switching, tenantId, expired }: { back?: string; s
     setBusy(true);
     setError(null);
     try {
-      if (current) {
-        // Switching company: log in again for the chosen tenant (needs the password).
-        go(await login(email.trim(), password, chosen));
-        return;
-      }
-      if (choices) {
+      if (current || choices) {
+        // Choosing or switching company: the session moves there with the refresh cookie,
+        // no password (it also works for people who sign in by emailed link).
         const active = getSession();
         if (active && active.tenantId === chosen) return go(active);
-        await logout();
-        go(await login(email.trim(), password, chosen));
+        go(await switchTenant(chosen));
         return;
       }
       const session = await login(email.trim(), password, tenantId);
@@ -149,7 +162,7 @@ export function Login({ back, switching, tenantId, expired }: { back?: string; s
 
   const title = current ? s.switchTitle : choices ? s.chooseTitle : s.title;
   const body = current ? s.switchBody : choices ? s.chooseBody : s.body;
-  const askCredentials = !choices || !!current;
+  const askCredentials = !choices && !current;
 
   return (
     <>

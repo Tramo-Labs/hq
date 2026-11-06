@@ -92,6 +92,25 @@ export function refresh() {
   return refreshing;
 }
 
+/**
+ * Moves the session to another of the person's tenants, no password: the refresh cookie
+ * authorizes it and rotates. It waits for any refresh in flight and holds the same slot, since
+ * two uses of one refresh token would revoke the whole family.
+ */
+export async function switchTenant(tenantId: string) {
+  if (refreshing) await refreshing.catch(() => undefined);
+  const run = (async () => {
+    try {
+      const res = await call("/v1/auth/switch-tenant", { method: "POST", headers: json, body: JSON.stringify({ tenantId, tokenDelivery: "cookie" }) });
+      return await open(await tokens(res));
+    } finally {
+      refreshing = null;
+    }
+  })();
+  refreshing = run;
+  return run;
+}
+
 export async function logout() {
   try {
     await call("/v1/auth/logout", { method: "POST" });

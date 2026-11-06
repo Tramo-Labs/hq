@@ -56,6 +56,11 @@ export async function acceptInvite(token: string, password: string, name?: strin
   return isLive() ? live.acceptInvite(token, password, name) : (await sample()).acceptInvite();
 }
 
+/** POST /v1/auth/switch-tenant: another of the person's companies, without the password. */
+export async function switchTenant(tenantId: string) {
+  return isLive() ? live.switchTenant(tenantId) : (await sample()).switchTenant(tenantId);
+}
+
 /** After a reload: a new access token from the refresh cookie (live) or the default person (sample). */
 export async function restore(area: "portal" | "console") {
   const s = getSession();

@@ -54,6 +54,13 @@ export async function acceptMagicLink(): Promise<Session> {
   throw new ApiError(401, "invalid_magic_link");
 }
 
+/** Like the core: a tenant the person does not belong to is 403 not_a_member. */
+export async function switchTenant(tenantId: string) {
+  const s = session();
+  if (!fx.memberships(s.email).some((m) => m.tenantId === tenantId)) throw new ApiError(403, "not_a_member");
+  return open(s.email, tenantId);
+}
+
 /** Sample mode sends no invitations either: any token is unknown (401 invalid_invite). */
 export async function acceptInvite(): Promise<Session> {
   throw new ApiError(401, "invalid_invite");
