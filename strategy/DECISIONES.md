@@ -17,3 +17,4 @@
 | D-13 | 2026-11-06 | Sesión con JWT EdDSA de 10 minutos más refresh opaco rotado por familia; argon2id; TOTP para quien aprueba pagos | Robo de refresh detectado y revocado; nada reutilizable a largo plazo |
 | D-14 | 2026-11-06 | Cifrado de sobre por tenant para certificados, tokens OAuth, claves de ERP y extractos; audit log append-only; backups cifrados probados por mes | Ley 25.326 y 11.683; la clave maestra nunca está en la base |
 | D-15 | 2026-11-06 | Infra: imágenes en GHCR por commit, compose en un VPS con Caddy, Terraform desde el día uno aunque sea una máquina | El mismo repo levanta un ambiente para un cliente que compre el software |
+| D-16 | 2026-11-06 | River (cola de jobs sobre Postgres, licencia MPL-2.0) se usa sin modificar sus archivos | MPL-2.0 es compatible con vender el software entero mientras no se toquen los archivos de la librería |
