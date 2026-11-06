@@ -6,7 +6,7 @@ import { addMember, listMembers, removeMember, type Member, type Role } from "@/
 import { Card, Notice, PageHead } from "@/components/app/ui";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 import { useData, useSession, useSignOut } from "@/components/app/session";
-import { byStatus, grantableRoles, managesMembers, memberProblem } from "@/components/app/members-rules";
+import { byStatus, grantableRoles, managesMembers, memberProblem, removeWording } from "@/components/app/members-rules";
 import { Loaded } from "./loaded";
 
 const t = app.members;
@@ -122,6 +122,7 @@ function Row({ m, self, onDone, onGone }: { m: Member; self: boolean; onDone: ()
   const [error, setError] = useState<string | null>(null);
   const who = m.name ?? m.email;
   const pending = m.status === "pending";
+  const words = removeWording(m.status);
 
   async function remove() {
     if (busy) return;
@@ -154,14 +155,14 @@ function Row({ m, self, onDone, onGone }: { m: Member; self: boolean; onDone: ()
         <div className="flex items-center gap-2">
           <span className="font-mono text-[12px] text-white/70">{app.roles[m.role]}</span>
           {pending && <span className="rounded-full border border-white/25 px-2 py-0.5 font-mono text-[11.5px] text-white/80">{t.pendingBadge}</span>}
-          {!asking && <button type="button" onClick={() => { setAsking(true); setError(null); }} className={ghostBtn}>{pending ? t.cancelInvite : t.remove}</button>}
+          {!asking && <button type="button" onClick={() => { setAsking(true); setError(null); }} className={ghostBtn}>{t[words.open]}</button>}
         </div>
       </div>
       {asking && (
-        <div role="group" aria-label={pending ? t.cancelInvite : t.remove} className="grid gap-2 rounded-lg border border-white/15 p-3">
+        <div role="group" aria-label={t[words.open]} className="grid gap-2 rounded-lg border border-white/15 p-3">
           <p className="break-words text-[14px] text-white/85">{self ? t.confirmSelf : pending ? t.confirmPending(who) : t.confirmActive(who)}</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={remove} disabled={busy} aria-busy={busy} className={primaryBtn}>{busy ? t.removing : t.confirm}</button>
+            <button type="button" onClick={remove} disabled={busy} aria-busy={busy} className={primaryBtn}>{busy ? t.removing : t[words.confirm]}</button>
             <button type="button" onClick={() => setAsking(false)} disabled={busy} className={ghostBtn}>{t.keep}</button>
           </div>
         </div>

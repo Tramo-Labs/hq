@@ -22,6 +22,14 @@ export function byStatus(items: Member[]) {
   return { active: items.filter((m) => m.status === "active"), pending: items.filter((m) => m.status === "pending") };
 }
 
+/**
+ * The words of the remove action (F37): a pending invitation is cancelled, an active person is
+ * removed, and the confirm button says the same verb as the button that opened it.
+ */
+export function removeWording(status: Member["status"]) {
+  return status === "pending" ? ({ open: "cancelInvite", confirm: "confirmCancel" } as const) : ({ open: "remove", confirm: "confirm" } as const);
+}
+
 export type MemberProblem = "last_owner" | "already_member" | "invalid_email" | "forbidden" | "gone" | "offline" | "failed";
 
 /** What went wrong inviting or removing, from the core's answer. */

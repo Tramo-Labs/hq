@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { app } from "@/content/app";
 import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, whoIsIn, type Session } from "@/lib/api";
 import { acceptStep, inviteStep, passwordProblem, type InviteStage } from "@/components/app/invite-rules";
+import { tokenProblem } from "@/components/app/token-rules";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
 const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none";
@@ -24,13 +25,13 @@ export function readFragmentToken() {
 /** Errors shared by the pages that take an emailed token. */
 export function explainToken(e: unknown, invalid: string) {
   const s = app.session;
-  if (e instanceof ApiError) {
-    if (e.status === 401) return invalid;
-    if (e.code === "not_a_member") return s.magic.notMember;
-    if (e.status === 429) return e.retryAfter ? s.rateLimited(e.retryAfter) : s.rateLimitedNoWait;
-    if (e.status >= 500) return s.offline;
+  switch (tokenProblem(e)) {
+    case "invalid": return invalid;
+    case "not_member": return s.magic.notMember;
+    case "rate_limited": return e instanceof ApiError && e.retryAfter ? s.rateLimited(e.retryAfter) : s.rateLimitedNoWait;
+    case "offline": return s.offline;
+    default: return s.failed;
   }
-  return e instanceof TypeError ? s.offline : s.failed;
 }
 
 /**

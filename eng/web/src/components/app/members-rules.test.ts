@@ -2,7 +2,16 @@
 // what each refusal from the core means. The roles mirror the core's CanGrant.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { byStatus, grantableRoles, managesMembers, memberProblem } from "./members-rules";
+import { byStatus, grantableRoles, managesMembers, memberProblem, removeWording } from "./members-rules";
+import { app } from "../../content/app";
+
+test("cancelling an invitation confirms with Sí, cancelar; removing a person with Sí, quitar (F37)", () => {
+  const t = app.members;
+  const pending = removeWording("pending");
+  const active = removeWording("active");
+  assert.deepEqual([t[pending.open], t[pending.confirm]], ["Cancelar invitación", "Sí, cancelar"]);
+  assert.deepEqual([t[active.open], t[active.confirm]], ["Quitar", "Sí, quitar"]);
+});
 import { ApiError } from "../../lib/api/errors";
 import type { Member, Role } from "../../lib/api/types";
 

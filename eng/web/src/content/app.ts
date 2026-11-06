@@ -147,6 +147,7 @@ export const app = {
     confirmPending: (who: string) => `¿Cancelar la invitación a ${who}? El enlace que le llegó deja de servir.`,
     confirmSelf: "¿Quitarte a vos? Vas a dejar de entrar a esta empresa y se cierra tu sesión.",
     confirm: "Sí, quitar",
+    confirmCancel: "Sí, cancelar",
     keep: "No",
     removing: "Quitando…",
     problems: {
@@ -296,7 +297,7 @@ export const app = {
     choose: "Seguir",
     switchTitle: "Cambiar de empresa",
     switchBody: "Elegí con qué empresa seguir.",
-    notMember: "Ya no tenés acceso a esa empresa. Elegí otra.",
+    notMember: "Hoy no tenés acceso a esa empresa. Si te invitaron, aceptá la invitación desde el mail; si no, elegí otra.",
     switch: "Cambiar",
     cancel: "Volver",
     expired: "Tu sesión terminó. Entrá de nuevo para seguir.",
@@ -322,7 +323,7 @@ export const app = {
       opening: "Abriendo tu sesión…",
       noToken: "Este enlace está incompleto. Abrilo de nuevo desde el mail o pedí otro.",
       invalid: "El enlace ya se usó o venció. Pedí otro desde la pantalla de entrada.",
-      notMember: "Ese enlace era para una empresa en la que ya no tenés acceso.",
+      notMember: "Con este enlace no podés entrar: hoy no tenés acceso a esa empresa. Si te invitaron, aceptá la invitación desde el mail que te llegó; si no, pedile al titular que te sume.",
       again: "Ir a entrar",
     },
     // Draft for producto (frontend, 06/11): the person's own name in the header.
