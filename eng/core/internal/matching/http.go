@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -79,6 +80,10 @@ func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingReques
 		}
 		pm := apigen.PendingMovement{MovementId: mid, RunId: r.RunID, Tray: apigen.PendingMovementTray(r.Tray),
 			Reason: apigen.PendingMovementReason(r.Reason), Candidates: []apigen.Candidate{}}
+		if r.Note != "" {
+			note := r.Note
+			pm.Note = &note
+		}
 		for _, c := range r.Candidates {
 			ids, err := uuids(c.ItemIDs)
 			if err != nil {
@@ -104,29 +109,86 @@ func (h *Handlers) DecideMatch(ctx context.Context, req apigen.DecideMatchReques
 		in.Note = *req.Body.Note
 	}
 	got, _, err := h.store.Record(ctx, in)
-	switch {
-	case errors.Is(err, ErrForbidden), errors.Is(err, ErrNoUser):
-		return nil, errForbidden
-	case errors.Is(err, ErrAlreadyDecided):
-		return nil, &httpx.Error{Status: http.StatusConflict, Code: httpx.CodeConflict, Detail: "this match already has a decision in this tray"}
-	case errors.Is(err, ErrActionNotInTray):
-		return nil, &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: ErrActionNotInTray.Error()}
-	case errors.Is(err, ErrKeyReused):
-		return nil, &httpx.Error{Status: http.StatusUnprocessableEntity, Code: httpx.CodeIdempotencyMismatch, Detail: "key used for another decision"}
-	case err != nil:
-		return nil, err
+	if err != nil {
+		return nil, decisionProblem(err)
 	}
 	uid, err := uuid.Parse(got.By)
 	if err != nil {
 		return nil, err
 	}
 	out := apigen.DecideMatch201JSONResponse{MatchId: got.MatchID, Tray: apigen.DecisionTray(got.Tray),
-		Action: apigen.DecisionAction(got.Action), UserId: uid, Role: apigen.Role(got.Role), At: got.At}
+		Action: apigen.DecisionAction(got.Action), UserId: uid, Role: apigen.Role(got.Role), At: got.At,
+		Revision: got.Revision}
 	if got.Note != "" {
 		note := got.Note
 		out.Note = &note
 	}
 	return out, nil
+}
+
+func (h *Handlers) DecideMovement(ctx context.Context, req apigen.DecideMovementRequestObject) (apigen.DecideMovementResponseObject, error) {
+	in := MovementDecisionInput{Key: req.Params.IdempotencyKey.String(), MovementID: req.MovementId.String(),
+		Action: MovementAction(req.Body.Action)}
+	if req.Body.Note != nil {
+		in.Note = *req.Body.Note
+	}
+	if req.Body.ItemIds != nil {
+		for _, id := range *req.Body.ItemIds {
+			in.ItemIDs = append(in.ItemIDs, id.String())
+		}
+	}
+	got, _, err := h.store.DecideMovement(ctx, in)
+	if err != nil {
+		if errors.Is(err, ErrInvalid) && strings.Contains(err.Error(), "unknown movement") {
+			return nil, &httpx.Error{Status: http.StatusNotFound, Code: httpx.CodeNotFound, Detail: "movement not found"}
+		}
+		return nil, decisionProblem(err)
+	}
+	mid, err := uuid.Parse(got.MovementID)
+	if err != nil {
+		return nil, err
+	}
+	uid, err := uuid.Parse(got.By)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.DecideMovement201JSONResponse{MovementId: mid, Action: apigen.MovementDecisionAction(got.Action),
+		UserId: uid, Role: apigen.Role(got.Role), At: got.At, Revision: got.Revision}
+	if got.Note != "" {
+		note := got.Note
+		out.Note = &note
+	}
+	if got.MatchID != "" {
+		m := got.MatchID
+		out.MatchId = &m
+	}
+	return out, nil
+}
+
+// decisionProblem maps the store's decision errors to problems.
+func decisionProblem(err error) error {
+	conflict := func(code, detail string) error {
+		return &httpx.Error{Status: http.StatusConflict, Code: code, Detail: detail}
+	}
+	switch {
+	case errors.Is(err, ErrForbidden), errors.Is(err, ErrNoUser):
+		return errForbidden
+	case errors.Is(err, ErrAlreadyDecided):
+		return conflict(httpx.CodeConflict, "there is already a decision in effect")
+	case errors.Is(err, ErrNothingToRevert):
+		return conflict("nothing_to_revert", ErrNothingToRevert.Error())
+	case errors.Is(err, ErrClosed):
+		return conflict("period_closed", ErrClosed.Error())
+	case errors.Is(err, ErrNotInExceptions):
+		return conflict("not_in_exceptions", ErrNotInExceptions.Error())
+	case errors.Is(err, ErrItemTaken):
+		return conflict("item_taken", ErrItemTaken.Error())
+	case errors.Is(err, ErrActionNotInTray), errors.Is(err, ErrLinkDoesNotAdd), errors.Is(err, ErrInvalid):
+		return &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: err.Error()}
+	case errors.Is(err, ErrKeyReused):
+		return &httpx.Error{Status: http.StatusUnprocessableEntity, Code: httpx.CodeIdempotencyMismatch, Detail: "key used for another decision"}
+	}
+	return err
 }
 
 func toAPIMatch(m Match) (apigen.Match, error) {

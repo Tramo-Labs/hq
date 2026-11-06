@@ -106,6 +106,34 @@ func TestDataPathsEndToEnd(t *testing.T) {
 	if r := c.do("GET", "/v1/matching/pending?tray=exception", other.access, nil); len(r.body["items"].([]any)) != 0 {
 		t.Errorf("other tenant sees exceptions: %s", r.raw)
 	}
+	// The owner (client) explains one exception, then reverts it.
+	items, _ := exc.body["items"].([]any)
+	firstExc, _ := items[0].(map[string]any)
+	mv, _ := firstExc["movementId"].(string)
+	mpath := "/v1/matching/movements/" + mv + "/decision"
+	if r := c.do("POST", mpath, own.access, map[string]any{"action": "other"}, idem()...); r.status != 400 {
+		t.Errorf("other without a note: %d %s", r.status, r.raw)
+	}
+	if r := c.do("POST", mpath, own.access, map[string]any{"action": "other", "note": "gasto bancario"}, idem()...); r.status != 201 || r.body["revision"] != float64(1) {
+		t.Errorf("other: %d %s", r.status, r.raw)
+	}
+	if r := c.do("GET", "/v1/matching/pending?tray=exception", own.access, nil); len(r.body["items"].([]any)) != 9 {
+		t.Errorf("decided movement still in the client's tray: %s", r.raw)
+	}
+	if r := c.do("POST", mpath, own.access, map[string]any{"action": "other", "note": "otra"}, idem()...); r.status != 409 {
+		t.Errorf("second decision: %d %s", r.status, r.raw)
+	}
+	if r := c.do("POST", mpath, own.access, map[string]any{"action": "revert"}, idem()...); r.status != 201 || r.body["revision"] != float64(2) {
+		t.Errorf("revert: %d %s", r.status, r.raw)
+	}
+	if r := c.do("POST", "/v1/matching/movements/"+uuid.NewString()+"/decision", own.access,
+		map[string]any{"action": "other", "note": "x"}, idem()...); r.status != 404 {
+		t.Errorf("unknown movement: %d %s", r.status, r.raw)
+	}
+	if r := c.do("POST", mpath, other.access, map[string]any{"action": "other", "note": "x"}, idem()...); r.status != 404 {
+		t.Errorf("other tenant decided on a's movement: %d %s", r.status, r.raw)
+	}
+
 	if r := c.do("GET", "/v1/matching/matches?tray=suggested", own.access, nil); r.status != 200 {
 		t.Errorf("matches: %d %s", r.status, r.raw)
 	}

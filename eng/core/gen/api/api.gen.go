@@ -76,6 +76,7 @@ const (
 	DecisionActionEscalate DecisionAction = "escalate"
 	DecisionActionOther    DecisionAction = "other"
 	DecisionActionReject   DecisionAction = "reject"
+	DecisionActionRevert   DecisionAction = "revert"
 )
 
 // Valid indicates whether the value is a known member of the DecisionAction enum.
@@ -88,6 +89,8 @@ func (e DecisionAction) Valid() bool {
 	case DecisionActionOther:
 		return true
 	case DecisionActionReject:
+		return true
+	case DecisionActionRevert:
 		return true
 	default:
 		return false
@@ -118,6 +121,7 @@ const (
 	DecisionRequestActionEscalate DecisionRequestAction = "escalate"
 	DecisionRequestActionOther    DecisionRequestAction = "other"
 	DecisionRequestActionReject   DecisionRequestAction = "reject"
+	DecisionRequestActionRevert   DecisionRequestAction = "revert"
 )
 
 // Valid indicates whether the value is a known member of the DecisionRequestAction enum.
@@ -130,6 +134,8 @@ func (e DecisionRequestAction) Valid() bool {
 	case DecisionRequestActionOther:
 		return true
 	case DecisionRequestActionReject:
+		return true
+	case DecisionRequestActionRevert:
 		return true
 	default:
 		return false
@@ -238,9 +244,52 @@ func (e MatchTray) Valid() bool {
 	}
 }
 
+// Defines values for MovementDecisionAction.
+const (
+	MovementDecisionActionLink   MovementDecisionAction = "link"
+	MovementDecisionActionOther  MovementDecisionAction = "other"
+	MovementDecisionActionRevert MovementDecisionAction = "revert"
+)
+
+// Valid indicates whether the value is a known member of the MovementDecisionAction enum.
+func (e MovementDecisionAction) Valid() bool {
+	switch e {
+	case MovementDecisionActionLink:
+		return true
+	case MovementDecisionActionOther:
+		return true
+	case MovementDecisionActionRevert:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MovementDecisionRequestAction.
+const (
+	MovementDecisionRequestActionLink   MovementDecisionRequestAction = "link"
+	MovementDecisionRequestActionOther  MovementDecisionRequestAction = "other"
+	MovementDecisionRequestActionRevert MovementDecisionRequestAction = "revert"
+)
+
+// Valid indicates whether the value is a known member of the MovementDecisionRequestAction enum.
+func (e MovementDecisionRequestAction) Valid() bool {
+	switch e {
+	case MovementDecisionRequestActionLink:
+		return true
+	case MovementDecisionRequestActionOther:
+		return true
+	case MovementDecisionRequestActionRevert:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PendingMovementReason.
 const (
 	Ambiguous              PendingMovementReason = "ambiguous"
+	ClientOther            PendingMovementReason = "client_other"
 	CombinationAmbiguous   PendingMovementReason = "combination_ambiguous"
 	NoCandidate            PendingMovementReason = "no_candidate"
 	ReferenceAmountDiffers PendingMovementReason = "reference_amount_differs"
@@ -250,6 +299,8 @@ const (
 func (e PendingMovementReason) Valid() bool {
 	switch e {
 	case Ambiguous:
+		return true
+	case ClientOther:
 		return true
 	case CombinationAmbiguous:
 		return true
@@ -437,13 +488,16 @@ type Cuit = string
 
 // Decision defines model for Decision.
 type Decision struct {
-	Action  DecisionAction     `json:"action"`
-	At      time.Time          `json:"at"`
-	MatchId string             `json:"matchId"`
-	Note    *string            `json:"note,omitempty"`
-	Role    Role               `json:"role"`
-	Tray    DecisionTray       `json:"tray"`
-	UserId  openapi_types.UUID `json:"userId"`
+	Action  DecisionAction `json:"action"`
+	At      time.Time      `json:"at"`
+	MatchId string         `json:"matchId"`
+	Note    *string        `json:"note,omitempty"`
+
+	// Revision Per match and tray; a revert is a new revision.
+	Revision int                `json:"revision"`
+	Role     Role               `json:"role"`
+	Tray     DecisionTray       `json:"tray"`
+	UserId   openapi_types.UUID `json:"userId"`
 }
 
 // DecisionAction defines model for Decision.Action.
@@ -571,19 +625,51 @@ type Membership struct {
 	TenantName string             `json:"tenantName"`
 }
 
+// MovementDecision defines model for MovementDecision.
+type MovementDecision struct {
+	Action MovementDecisionAction `json:"action"`
+	At     time.Time              `json:"at"`
+
+	// MatchId The manual match of a link (or of the link a revert undid).
+	MatchId    *string            `json:"matchId,omitempty"`
+	MovementId openapi_types.UUID `json:"movementId"`
+	Note       *string            `json:"note,omitempty"`
+	Revision   int                `json:"revision"`
+	Role       Role               `json:"role"`
+	UserId     openapi_types.UUID `json:"userId"`
+}
+
+// MovementDecisionAction defines model for MovementDecision.Action.
+type MovementDecisionAction string
+
+// MovementDecisionRequest defines model for MovementDecisionRequest.
+type MovementDecisionRequest struct {
+	Action  MovementDecisionRequestAction `json:"action"`
+	ItemIds *[]openapi_types.UUID         `json:"itemIds,omitempty"`
+	Note    *string                       `json:"note,omitempty"`
+}
+
+// MovementDecisionRequestAction defines model for MovementDecisionRequest.Action.
+type MovementDecisionRequestAction string
+
 // Password defines model for Password.
 type Password = string
 
 // PendingMovement defines model for PendingMovement.
 type PendingMovement struct {
-	Candidates []Candidate           `json:"candidates"`
-	MovementId openapi_types.UUID    `json:"movementId"`
-	Reason     PendingMovementReason `json:"reason"`
-	RunId      openapi_types.UUID    `json:"runId"`
-	Tray       PendingMovementTray   `json:"tray"`
+	Candidates []Candidate        `json:"candidates"`
+	MovementId openapi_types.UUID `json:"movementId"`
+
+	// Note The client's note
+	Note *string `json:"note,omitempty"`
+
+	// Reason client_other is a movement the client said is something else, back with the operator.
+	Reason PendingMovementReason `json:"reason"`
+	RunId  openapi_types.UUID    `json:"runId"`
+	Tray   PendingMovementTray   `json:"tray"`
 }
 
-// PendingMovementReason defines model for PendingMovement.Reason.
+// PendingMovementReason client_other is a movement the client said is something else, back with the operator.
 type PendingMovementReason string
 
 // PendingMovementTray defines model for PendingMovement.Tray.
@@ -763,6 +849,14 @@ type DecideMatchParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
+// DecideMovementParams defines parameters for DecideMovement.
+type DecideMovementParams struct {
+	// IdempotencyKey Client generated UUID. Same key and same body replays the first
+	// response for 24 hours; same key with another body is 422; a key
+	// whose first request is still running is 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
 // ListPendingParams defines parameters for ListPending.
 type ListPendingParams struct {
 	Tray ListPendingParamsTray `form:"tray" json:"tray"`
@@ -810,6 +904,9 @@ type UploadStatementMultipartRequestBody UploadStatementMultipartBody
 
 // DecideMatchJSONRequestBody defines body for DecideMatch for application/json ContentType.
 type DecideMatchJSONRequestBody = DecisionRequest
+
+// DecideMovementJSONRequestBody defines body for DecideMovement for application/json ContentType.
+type DecideMovementJSONRequestBody = MovementDecisionRequest
 
 // RunMatchingJSONRequestBody defines body for RunMatching for application/json ContentType.
 type RunMatchingJSONRequestBody = RunRequest
@@ -861,6 +958,9 @@ type ServerInterface interface {
 	// DecideMatch Decide on a match in the Suggested or Exceptions tray
 	// (POST /v1/matching/matches/{matchId}/decision)
 	DecideMatch(w http.ResponseWriter, r *http.Request, matchId string, params DecideMatchParams)
+	// DecideMovement The client decides on a movement with no candidate (owner or approver)
+	// (POST /v1/matching/movements/{movementId}/decision)
+	DecideMovement(w http.ResponseWriter, r *http.Request, movementId openapi_types.UUID, params DecideMovementParams)
 	// ListPending Movements waiting for a person, from the latest run of each one
 	// (GET /v1/matching/pending)
 	ListPending(w http.ResponseWriter, r *http.Request, params ListPendingParams)
@@ -963,6 +1063,12 @@ func (_ Unimplemented) ListMatches(w http.ResponseWriter, r *http.Request, param
 // DecideMatch Decide on a match in the Suggested or Exceptions tray
 // (POST /v1/matching/matches/{matchId}/decision)
 func (_ Unimplemented) DecideMatch(w http.ResponseWriter, r *http.Request, matchId string, params DecideMatchParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DecideMovement The client decides on a movement with no candidate (owner or approver)
+// (POST /v1/matching/movements/{movementId}/decision)
+func (_ Unimplemented) DecideMovement(w http.ResponseWriter, r *http.Request, movementId openapi_types.UUID, params DecideMovementParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1447,6 +1553,60 @@ func (siw *ServerInterfaceWrapper) DecideMatch(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// DecideMovement operation middleware
+func (siw *ServerInterfaceWrapper) DecideMovement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "movementId" -------------
+	var movementId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "movementId", chi.URLParam(r, "movementId"), &movementId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "movementId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DecideMovementParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DecideMovement(w, r, movementId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPending operation middleware
 func (siw *ServerInterfaceWrapper) ListPending(w http.ResponseWriter, r *http.Request) {
 
@@ -1767,6 +1927,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/v1/matching/matches/{matchId}/decision", wrapper.DecideMatch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/matching/movements/{movementId}/decision", wrapper.DecideMovement)
 	})
 
 	return r
@@ -2573,6 +2736,102 @@ func (response DecideMatch409ApplicationProblemPlusJSONResponse) VisitDecideMatc
 	return err
 }
 
+type DecideMovementRequestObject struct {
+	MovementId openapi_types.UUID `json:"movementId"`
+	Params     DecideMovementParams
+	Body       *DecideMovementJSONRequestBody
+}
+
+type DecideMovementResponseObject interface {
+	VisitDecideMovementResponse(w http.ResponseWriter) error
+}
+
+type DecideMovement201JSONResponse MovementDecision
+
+func (response DecideMovement201JSONResponse) VisitDecideMovementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMovement400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DecideMovement400ApplicationProblemPlusJSONResponse) VisitDecideMovementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMovement401ApplicationProblemPlusJSONResponse Problem
+
+func (response DecideMovement401ApplicationProblemPlusJSONResponse) VisitDecideMovementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMovement403ApplicationProblemPlusJSONResponse Problem
+
+func (response DecideMovement403ApplicationProblemPlusJSONResponse) VisitDecideMovementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMovement404ApplicationProblemPlusJSONResponse Problem
+
+func (response DecideMovement404ApplicationProblemPlusJSONResponse) VisitDecideMovementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideMovement409ApplicationProblemPlusJSONResponse Problem
+
+func (response DecideMovement409ApplicationProblemPlusJSONResponse) VisitDecideMovementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListPendingRequestObject struct {
 	Params ListPendingParams
 }
@@ -2911,6 +3170,9 @@ type StrictServerInterface interface {
 	// DecideMatch Decide on a match in the Suggested or Exceptions tray
 	// (POST /v1/matching/matches/{matchId}/decision)
 	DecideMatch(ctx context.Context, request DecideMatchRequestObject) (DecideMatchResponseObject, error)
+	// DecideMovement The client decides on a movement with no candidate (owner or approver)
+	// (POST /v1/matching/movements/{movementId}/decision)
+	DecideMovement(ctx context.Context, request DecideMovementRequestObject) (DecideMovementResponseObject, error)
 	// ListPending Movements waiting for a person, from the latest run of each one
 	// (GET /v1/matching/pending)
 	ListPending(ctx context.Context, request ListPendingRequestObject) (ListPendingResponseObject, error)
@@ -3385,6 +3647,40 @@ func (sh *strictHandler) DecideMatch(w http.ResponseWriter, r *http.Request, mat
 	}
 }
 
+// DecideMovement operation middleware
+func (sh *strictHandler) DecideMovement(w http.ResponseWriter, r *http.Request, movementId openapi_types.UUID, params DecideMovementParams) {
+	var request DecideMovementRequestObject
+
+	request.MovementId = movementId
+	request.Params = params
+
+	var body DecideMovementJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DecideMovement(ctx, request.(DecideMovementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DecideMovement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DecideMovementResponseObject); ok {
+		if err := validResponse.VisitDecideMovementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListPending operation middleware
 func (sh *strictHandler) ListPending(w http.ResponseWriter, r *http.Request, params ListPendingParams) {
 	var request ListPendingRequestObject
@@ -3530,94 +3826,103 @@ func (sh *strictHandler) AddMember(w http.ResponseWriter, r *http.Request, param
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"AwA=",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
