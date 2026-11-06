@@ -228,12 +228,38 @@ may revert it. The views `matching.decision_state` and
 the decision in effect; everything that reads state uses them. Two
 decisions at once collide on the revision: the second is 409.
 
-Two rules for what does not exist yet:
+### The period close (fortnight)
 
-- **Closed periods are not reverted.** The weekly close is not built. The
-  check lives in one place, `PGStore.closed`, which today lets everything
-  through (`Closed` is nil) and is exercised by a test with a stubbed
-  close. When the close exists, it plugs in there.
+The close is backend's (`internal/closes`); matching gives it its numbers
+and keeps the closed period still. Default rules of 06/11, until Martín
+decides on reopening:
+
+- **What blocks a close** (`CloseNumbers.PendingSuggested`): the Suggested
+  tray of the period with no decision in effect, by the movement's date:
+  undecided suggested matches and the movements waiting in Suggested
+  (ambiguous, the client's "other" or reject). An escalated match waits in
+  Exceptions and does not block.
+- **What the close freezes** (`CloseNumbers.Summary`): the results panel
+  over the period, as the client sees it (no Suggested numbers), with its
+  lists filtered by `from` and `to`. Both run in the close's transaction.
+- **What stops after the close** (`PGStore.closed`, the one place that asks
+  `closes.ClosedOn` by the movements' dates, in the same transaction and
+  under the close's lock): every reversion, and every new operator
+  decision in Suggested (on a match or a movement), 409 `period_closed`.
+  The client still answers in Exceptions; a match the client links by
+  hand on a closed day carries `after_close` in its evidence and in the
+  matches export, so nobody reads it as part of the close.
+- **Runs** (`RunMonth`, `SaveRun`): movements of closed days are left out
+  of the engine's input, and the save, under the lock, stores no match and
+  no pending for them and carries over what the previous run of the month
+  left pending, so the trays of a closed period do not move.
+
+`TestPGCloseFreezesTheFortnight` runs all of it against the real closes
+service; six mutations (each rule switched off) fail it or
+`TestPGNoRevertAfterClose`.
+
+One rule for what does not exist yet:
+
 - **ERP writes need compensation.** Decisions are not written to the
   client's ERP yet. When they are, reverting one that was already written
   will need a compensating entry in the ERP, never a deletion.

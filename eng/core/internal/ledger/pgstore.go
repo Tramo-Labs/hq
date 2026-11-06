@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/closes"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
@@ -111,6 +112,18 @@ func (s *PGStore) SaveAccepted(ctx context.Context, u Upload, r Result, fresh []
 	st := r.Statement
 	return s.inTenant(ctx, u.TenantID, func(tx pgx.Tx) error {
 		q := store.New(tx)
+		// New movements in a closed period do not enter. Asked here, in the
+		// transaction that writes them and under the close's lock, so a
+		// close cannot count the period while they are on their way in.
+		dates := make([]time.Time, len(fresh))
+		for i, m := range fresh {
+			dates[i] = m.Date
+		}
+		if p, closed, err := closes.ClosedPeriodOf(ctx, tx, dates); err != nil {
+			return err
+		} else if closed {
+			return &PeriodClosedError{Period: ClosedPeriod{Start: p.Start, End: p.End}}
+		}
 		fileID, err := q.InsertAcceptedFile(ctx, store.InsertAcceptedFileParams{
 			AccountID: acc, Sha256: h, Filename: &u.Filename, Fingerprint: &r.Fingerprint, LayoutID: &r.LayoutID,
 		})
@@ -170,10 +183,15 @@ func (s *PGStore) SaveQuarantined(ctx context.Context, u Upload, r Result) error
 	if err != nil {
 		return err
 	}
+	var closedStart, closedEnd *time.Time
+	if r.ClosedPeriod != nil {
+		closedStart, closedEnd = &r.ClosedPeriod.Start, &r.ClosedPeriod.End
+	}
 	return s.inTenant(ctx, u.TenantID, func(tx pgx.Tx) error {
 		fileID, err := store.New(tx).InsertQuarantinedFile(ctx, store.InsertQuarantinedFileParams{
 			AccountID: acc, Sha256: h, Filename: &u.Filename, Reason: &r.Reason, Detail: &r.Detail,
 			Fingerprint: &r.Fingerprint, LayoutID: nullText(r.LayoutID),
+			ClosedStart: closedStart, ClosedEnd: closedEnd,
 		})
 		if err != nil {
 			return fmt.Errorf("ledger: insert quarantined file: %w", err)

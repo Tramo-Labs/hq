@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -35,6 +37,17 @@ func (s *PGStore) RunMonth(ctx context.Context, period string, cfg Config) (RunS
 	if err != nil {
 		return RunSummary{}, err
 	}
+	// Movements of closed days are not the engine's to pair any more, so
+	// they spend no item. SaveRun asks again under the close lock.
+	var closed []time.Time
+	if err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		var err error
+		closed, err = s.closedDays(ctx, tx, period)
+		return err
+	}); err != nil {
+		return RunSummary{}, err
+	}
+	in.Movements = withoutDays(in.Movements, closed)
 	r := Run(cfg, in)
 	runID, n, err := s.SaveRun(ctx, period, cfg, r)
 	if err != nil {
@@ -104,4 +117,22 @@ func EnqueueMonth(ctx context.Context, c *jobs.Client, period string) (bool, err
 		return false, err
 	}
 	return jobs.Insert(ctx, c, MonthArgs{Tenant: sc.TenantID, Period: period})
+}
+
+// withoutDays drops the movements dated on any of the days.
+func withoutDays(ms []Movement, days []time.Time) []Movement {
+	if len(days) == 0 {
+		return ms
+	}
+	closed := map[string]bool{}
+	for _, d := range days {
+		closed[d.Format(time.DateOnly)] = true
+	}
+	out := ms[:0:0]
+	for _, m := range ms {
+		if !closed[m.Date.Format(time.DateOnly)] {
+			out = append(out, m)
+		}
+	}
+	return out
 }

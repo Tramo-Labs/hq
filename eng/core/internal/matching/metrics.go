@@ -100,7 +100,12 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 	}
 	var out []Metric
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		out, err = panel(ctx, tx, sp, now)
+		// Metrics about the Suggested tray are the operator's only.
+		operator, err := seesSuggested(ctx, tx)
+		if err != nil {
+			return err
+		}
+		out, err = panel(ctx, tx, sp, now, operator)
 		return err
 	})
 	return out, err
@@ -109,7 +114,9 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 // panel computes the results panel over a span in the caller's tenant
 // transaction, without opening another: a close counts and freezes the
 // numbers in its own.
-func panel(ctx context.Context, tx pgx.Tx, sp span, now time.Time) ([]Metric, error) {
+// operator says whether the Suggested metrics are included: they are the
+// operator's only (spec section 1).
+func panel(ctx context.Context, tx pgx.Tx, sp span, now time.Time, operator bool) ([]Metric, error) {
 	from, to, period := sp.From, sp.Last, sp.Period
 	of, in, filter := sp.of(), sp.in(), sp.query()
 	exportList := "/v1/exports/matches?from=" + from.Format("2006-01-02") + "&to=" + to.Format("2006-01-02")
@@ -118,11 +125,6 @@ func panel(ctx context.Context, tx pgx.Tx, sp span, now time.Time) ([]Metric, er
 		var movements, autoMoves, approved, rejected, openMoves, openMatches, invoices, held int
 		var invoicesEver bool
 		var hasRun bool
-		// Metrics about the Suggested tray are the operator's only.
-		operator, err := seesSuggested(ctx, tx)
-		if err != nil {
-			return err
-		}
 		var oldest *time.Time
 		pending := map[PendingReason]int{}
 
@@ -278,7 +280,7 @@ func civilDay(t time.Time) time.Time {
 func (s *PGStore) MatchRows(ctx context.Context, from, to time.Time) ([][]string, error) {
 	out := [][]string{{"match_id", "rule", "rule_version", "tray", "movement_ids", "item_ids", "adjustments",
 		"reference", "date_diff_days", "cross_period", "low_confidence",
-		"decision_tray", "decision", "decided_by", "decided_role", "decided_at", "decision_revision"}}
+		"decision_tray", "decision", "decided_by", "decided_role", "decided_at", "decision_revision", "after_close"}}
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		// Anyone but an operator sees results, not the Suggested tray:
 		// automatic matches, links by hand, approved matches and what an
@@ -316,7 +318,7 @@ func (s *PGStore) MatchRows(ctx context.Context, from, to time.Time) ([][]string
 			out = append(out, []string{r.ID, r.RuleID, strconv.Itoa(int(r.RuleVersion)), r.Tray, strings.Join(r.MovementIds, " "),
 				strings.Join(r.ItemIds, " "), strings.Join(adj, " "), m.Reference, strconv.Itoa(m.DateDiffDays),
 				strconv.FormatBool(m.CrossPeriod), strconv.FormatBool(m.LowConfidence), r.DecisionTray, r.Decision,
-				r.DecidedBy, r.DecidedRole, atS, revS})
+				r.DecidedBy, r.DecidedRole, atS, revS, strconv.FormatBool(m.AfterClose)})
 		}
 		return nil
 	})
@@ -336,11 +338,13 @@ func unmarshalEvidence(adj, ev []byte, m *Match) error {
 		MovePeriods   []string `json:"movement_periods"`
 		ItemPeriods   []string `json:"item_periods"`
 		LowConfidence bool     `json:"low_confidence"`
+		AfterClose    bool     `json:"after_close"`
 	}
 	if err := json.Unmarshal(ev, &e); err != nil {
 		return err
 	}
 	m.Reference, m.DateDiffDays, m.CrossPeriod = e.Reference, e.DateDiffDays, e.CrossPeriod
 	m.MovePeriods, m.ItemPeriods, m.LowConfidence = e.MovePeriods, e.ItemPeriods, e.LowConfidence
+	m.AfterClose = e.AfterClose
 	return nil
 }
