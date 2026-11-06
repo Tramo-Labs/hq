@@ -18,3 +18,4 @@
 | D-14 | 2026-11-06 | Cifrado de sobre por tenant para certificados, tokens OAuth, claves de ERP y extractos; audit log append-only; backups cifrados probados por mes | Ley 25.326 y 11.683; la clave maestra nunca está en la base |
 | D-15 | 2026-11-06 | Infra: imágenes en GHCR por commit, compose en un VPS con Caddy, Terraform desde el día uno aunque sea una máquina | El mismo repo levanta un ambiente para un cliente que compre el software |
 | D-16 | 2026-11-06 | River (cola de jobs sobre Postgres, licencia MPL-2.0) se usa sin modificar sus archivos | MPL-2.0 es compatible con vender el software entero mientras no se toquen los archivos de la librería |
+| D-17 | 2026-11-06 | Límite de login por IP y por par IP y email, nunca bloqueo global por email; con muchos fallos desde distintas IPs se exige link mágico | Un atacante no puede dejar afuera al dueño; el dueño siempre tiene salida |
