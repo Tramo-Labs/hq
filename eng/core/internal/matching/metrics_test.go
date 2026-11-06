@@ -328,3 +328,69 @@ func TestPGTraysAndPanelAgree(t *testing.T) {
 		t.Errorf("empty trays: suggested %d, escalated %d, exceptions %d", sug, esc, exc)
 	}
 }
+
+func mustPanel(t *testing.T, e pgEnv, sp span) map[string]Metric {
+	t.Helper()
+	var ms []Metric
+	if err := e.d.InTenant(e.ctx, func(tx pgx.Tx) error {
+		var err error
+		ms, err = panel(e.ctx, tx, sp, metricsNow)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return byKey(t, ms)
+}
+
+// Two spans that cut a month count, between them, what the month counts:
+// the panel of a span filters by the movement's date, not by the month of
+// the run. A span other than a month names its dates in its lists.
+func TestPGPanelOfASpan(t *testing.T) {
+	e := newPGEnv(t)
+	e.run(t)
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "gasto bancario"); err != nil {
+		t.Fatal(err)
+	}
+	e.setMembership(t, e.a, identity.RoleOperator)
+	month := byKey(t, mustMetrics(t, e, "2026-10"))
+	early := mustPanel(t, e, span{From: day(1), Last: day(5)})
+	late := mustPanel(t, e, span{From: day(6), Last: day(31)})
+
+	counts := []string{"open_exception_movements", "open_exception_matches", "invoices_processed", "invoices_held"}
+	for _, r := range pendingReasons {
+		counts = append(counts, "pending_"+string(r))
+	}
+	for _, k := range counts {
+		if month[k].Value == nil {
+			continue
+		}
+		if a, b, m := value(t, early[k]), value(t, late[k]), value(t, month[k]); a+b != m {
+			t.Errorf("%s: %v + %v; the month counts %v", k, a, b, m)
+		}
+	}
+	// Supplier payment and VAT wait in Exceptions from the 1st to the 5th;
+	// the client's "other" moved the commission to Suggested.
+	if v := value(t, early["open_exception_movements"]); v != 2 {
+		t.Errorf("open_exception_movements of the 1st to the 5th %v; want 2", v)
+	}
+	if v := value(t, early["pending_client_other"]); v != 1 {
+		t.Errorf("pending_client_other of the 1st to the 5th %v; want 1", v)
+	}
+	if s := early["automation_rate"].Source; !strings.Contains(s, "(4)") || !strings.Contains(s, "del período") {
+		t.Errorf("source %q", s)
+	}
+	if l := early["open_exception_movements"].List; l != "/v1/matching/pending?tray=exception&from=2026-10-01&to=2026-10-05" {
+		t.Errorf("list %q", l)
+	}
+	if p := early["automation_rate"].Period; p != "" {
+		t.Errorf("a span that is not a month has period %q", p)
+	}
+
+	// The second fortnight has no movements: no data, worded for a period.
+	second := mustPanel(t, e, span{From: day(16), Last: day(31)})
+	noData(t, second["automation_rate"])
+	if s := second["automation_rate"].Source; s != "Sin movimientos cargados en el período" {
+		t.Errorf("source %q", s)
+	}
+}
