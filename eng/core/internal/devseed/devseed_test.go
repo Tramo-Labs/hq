@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -221,6 +222,34 @@ func handLink(t *testing.T, store *matching.PGStore, ctx context.Context, tn dev
 		Key: uuid.NewString(), MovementID: deposit.MovementID, Action: matching.MovementLink, ItemIDs: ids})
 	if err != nil || dec.MatchID == "" {
 		t.Fatalf("%s: link by hand: %+v %v", tn.Slug, dec, err)
+	}
+}
+
+// A seed that fails must stop make dev, not leave a half filled database
+// that looks fine. Two real failures: a statement the ingester refuses
+// (ledger) and a missing matching table (matching).
+func TestSeedErrorsAreFatal(t *testing.T) {
+	ctx := context.Background()
+	s, err := devseed.LoadSecrets(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	kr, _ := crypto.NewKeyring(s.MasterKey)
+
+	broken := t.TempDir()
+	if err := os.WriteFile(filepath.Join(broken, "bancor_ok.csv"), []byte("not a statement\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := devseed.Seed(ctx, dbtest.New(t), kr, s, broken); err == nil || !strings.Contains(err.Error(), "ledger") {
+		t.Errorf("a refused statement: %v, want a ledger error", err)
+	}
+
+	d := dbtest.New(t)
+	if _, err := d.Pool.Exec(ctx, `drop table matching.runs cascade`); err != nil {
+		t.Fatal(err)
+	}
+	if err := devseed.Seed(ctx, d, kr, s, fixtures); err == nil || !strings.Contains(err.Error(), "matching") {
+		t.Errorf("a failing matching run: %v, want a matching error", err)
 	}
 }
 

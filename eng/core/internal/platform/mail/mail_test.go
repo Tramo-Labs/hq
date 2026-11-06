@@ -5,8 +5,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
+
+// A new outbox is created 0600 in the same call that creates it, never
+// world readable for an instant and never relying on a later chmod. The
+// umask is opened wide so only the creation mode decides.
+func TestNewOutboxIsCreatedPrivate(t *testing.T) {
+	old := syscall.Umask(0)
+	defer syscall.Umask(old)
+	path := filepath.Join(t.TempDir(), "outbox")
+	if err := (&Outbox{Path: path}).Send(context.Background(), Message{To: "a@x.test", Subject: "hi", Body: "b"}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := os.Stat(path)
+	if err != nil || st.Mode().Perm() != 0o600 {
+		t.Fatalf("new outbox mode %v %v, want 0600", st.Mode().Perm(), err)
+	}
+}
 
 func TestOutboxIsPrivateAndAppends(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "outbox")

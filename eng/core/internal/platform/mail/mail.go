@@ -6,6 +6,7 @@ package mail
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -38,14 +39,21 @@ func (o *Outbox) Send(_ context.Context, m Message) error {
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	f, err := os.OpenFile(o.Path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	// A new file is created 0600 in that same call (O_EXCL: it is ours).
+	// Only a file that already existed, maybe left readable, is tightened.
+	f, err := os.OpenFile(o.Path, os.O_CREATE|os.O_EXCL|os.O_APPEND|os.O_WRONLY, 0o600)
+	if errors.Is(err, os.ErrExist) {
+		if f, err = os.OpenFile(o.Path, os.O_APPEND|os.O_WRONLY, 0); err == nil {
+			err = f.Chmod(0o600)
+		}
+	}
 	if err != nil {
+		if f != nil {
+			_ = f.Close()
+		}
 		return fmt.Errorf("mail: outbox: %w", err)
 	}
 	defer f.Close()
-	if err := f.Chmod(0o600); err != nil {
-		return fmt.Errorf("mail: outbox: %w", err)
-	}
 	_, err = fmt.Fprintf(f, "From tramo %s\nTo: %s\nSubject: %s\n\n%s\n\n",
 		time.Now().UTC().Format(time.RFC3339), m.To, m.Subject, m.Body)
 	return err
