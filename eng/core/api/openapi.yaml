@@ -99,11 +99,118 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/Tokens" }
         "400": { $ref: "#/components/responses/Problem" }
-        "401": { $ref: "#/components/responses/Problem" }
+        "401":
+          description: |
+            Wrong email or password (code unauthorized), or the email is under
+            a distributed password attack (code magic_link_required): 20
+            failures from 3 or more IPs in 15 minutes switch it to magic link
+            for an hour. In that mode the password is not checked, right or
+            wrong the answer is the same; log in with POST /v1/auth/magic-link.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "403":
+          description: |
+            The password is right but the user is not a member of the
+            requested tenant (code not_a_member).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "429":
           description: |
             Throttled (code rate_limited): too many logins from this IP, or
-            too many failures for this email. Checked before the password.
+            too many failures for this email from this IP. Checked before the
+            password. Never a lockout of the email for every IP. When it is
+            the email and IP pair, the problem carries `magicLink: true`: the
+            person can still get in with POST /v1/auth/magic-link.
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/auth/invite/accept:
+    post:
+      operationId: acceptInvite
+      tags: [identity]
+      summary: Set the password with an invitation and open a session
+      description: |
+        The token comes only in the invitation email. It is single use,
+        expires in 72 hours and works only while the person has no
+        password. Unknown, used and expired tokens all answer 401
+        invalid_invite. Rate limited per IP. Opens a session on the tenant
+        that invited the person.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AcceptInviteRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Tokens" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "429":
+          description: Throttled (code rate_limited).
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/auth/magic-link:
+    post:
+      operationId: requestMagicLink
+      tags: [identity]
+      summary: Email a one time login link
+      description: |
+        Always answers 202, whether or not the email has an account, so it
+        does not reveal which emails exist. If it does, a single use link
+        valid for 15 minutes goes to that email. Throttled per IP and per
+        email (sending, not logging in).
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MagicLinkRequest" }
+      responses:
+        "202": { description: accepted; a link was sent if the email has an account }
+        "400": { $ref: "#/components/responses/Problem" }
+        "429":
+          description: Throttled (code rate_limited).
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/auth/magic-link/accept:
+    post:
+      operationId: acceptMagicLink
+      tags: [identity]
+      summary: Open a session with a magic link
+      description: |
+        The token comes only in the email. Unknown, used and expired tokens
+        all answer 401 invalid_magic_link. Opens a session on the tenant
+        asked for when the link was requested, or the oldest membership.
+        Clears that email's failures from this IP. Rate limited per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MagicLinkAcceptRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Tokens" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403":
+          description: The tenant asked for is not one of the person's (code not_a_member).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "429":
+          description: Throttled (code rate_limited).
           headers:
             Retry-After: { schema: { type: integer }, description: seconds to wait }
           content:
@@ -117,7 +224,10 @@ paths:
       description: |
         Send the refresh token in the cookie or in the body. A refresh token
         that was already used revokes its whole family (theft detected) and
-        answers 401.
+        answers 401. When the refresh cookie is sent, the request must come
+        from an allowed browser origin (the CORS list, ADR 0007): a missing
+        or foreign Origin answers 403 origin_not_allowed and the token is
+        not touched. A token in the body (no cookie) needs no Origin.
       security: []
       parameters:
         - $ref: "#/components/parameters/RefreshCookie"
@@ -129,11 +239,43 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/Tokens" }
         "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /v1/auth/switch-tenant:
+    post:
+      operationId: switchTenant
+      tags: [identity]
+      summary: Move the session to another of the caller's tenants, no password
+      description: |
+        Authenticated by the refresh token (cookie or body), like refresh: a
+        stolen 10 minute access token can not open sessions elsewhere. The
+        token rotates within the same family, now bound to the new tenant,
+        and a new access token for it comes back. The role is read from the
+        membership. A tenant the caller does not belong to answers 403
+        not_a_member and leaves the token as it was. With the refresh
+        cookie, the request must come from an allowed origin (403
+        origin_not_allowed). Works for people who sign in by magic link and
+        have no password.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/RefreshCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SwitchTenantRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Tokens" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
   /v1/auth/logout:
     post:
       operationId: logout
       tags: [identity]
       summary: Revoke the refresh token family of this session
+      description: |
+        Same Origin rule as refresh: with the refresh cookie, a missing or
+        foreign Origin answers 403 origin_not_allowed and nothing is revoked.
       security: []
       parameters:
         - $ref: "#/components/parameters/RefreshCookie"
@@ -147,6 +289,7 @@ paths:
           description: logged out
           headers:
             Set-Cookie: { schema: { type: string }, description: clears the refresh cookie }
+        "403": { $ref: "#/components/responses/Problem" }
   /v1/me:
     get:
       operationId: getMe
@@ -158,6 +301,28 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
+        "401": { $ref: "#/components/responses/Problem" }
+    patch:
+      operationId: updateMe
+      tags: [identity]
+      summary: Set the caller's own name
+      description: |
+        Only the caller's own name, whatever the role. Leading and trailing
+        spaces are trimmed; empty after trimming, or with control
+        characters, answers 400 invalid_name. Audited without the value.
+        Changes nothing that could be replayed, so no Idempotency-Key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateMeRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
   /v1/tenant/members:
     get:
@@ -181,11 +346,14 @@ paths:
     post:
       operationId: addMember
       tags: [identity]
-      summary: Add a person to the active tenant (owner or operator)
+      summary: Add a person to the active tenant (owner, or operator for the first owner)
       description: |
-        Creates the user without a password when the email is new; they get
-        in with a magic link (not built yet). Only an operator can grant
-        `operator` or `accountant`.
+        An owner grants `owner`, `approver`, `viewer` or `accountant`. An
+        operator grants only `owner`, and only while the tenant has none.
+        Nobody grants `operator` here (the first one comes from the
+        `api create-operator` command). Anything else is 403. When the
+        person has no password yet, an invitation goes to the email (never
+        in this response) and they set one with POST /v1/auth/invite/accept.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -204,6 +372,27 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+  /v1/tenant/members/{userId}:
+    delete:
+      operationId: removeMember
+      tags: [identity]
+      summary: Remove a person from the active tenant (owner only)
+      description: |
+        Only an owner removes, any role including an operator. The last
+        owner can not be removed (409 last_owner). The person's refresh
+        tokens for this tenant are revoked at once; an access token already
+        issued keeps working until it expires, at most 10 minutes.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: removed }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
   /v1/ledger/accounts:
     get:
       operationId: listAccounts
@@ -767,6 +956,7 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/ExportInfo" }
         "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
   /v1/exports/{kind}:
     get:
       operationId: getExport
@@ -805,6 +995,7 @@ paths:
               schema: { type: string }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
         "501": { $ref: "#/components/responses/Problem" }
 security:
   - bearer: []
@@ -870,6 +1061,11 @@ components:
           example: idempotency_key_reused
         detail: { type: string }
         requestId: { type: string }
+        magicLink:
+          type: boolean
+          description: |
+            On a login 429 for the email and IP pair: a magic link
+            (POST /v1/auth/magic-link) still lets the person in.
     OnboardingStep:
       type: object
       required: [kind, status, detail]
@@ -994,6 +1190,18 @@ components:
         tenantName: { type: string, minLength: 2, maxLength: 120 }
         tenantSlug: { type: string, pattern: "^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$" }
         cuit: { $ref: "#/components/schemas/Cuit" }
+        name: { $ref: "#/components/schemas/PersonName" }
+    PersonName:
+      type: string
+      minLength: 1
+      maxLength: 120
+      description: The person's name as they want it shown. Personal data; no format check.
+    UpdateMeRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { $ref: "#/components/schemas/PersonName" }
     RegisterResponse:
       type: object
       required: [userId, tenantId]
@@ -1011,6 +1219,40 @@ components:
           type: string
           format: uuid
           description: Tenant to act on. Defaults to the oldest membership.
+        tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    AcceptInviteRequest:
+      type: object
+      required: [token, password]
+      additionalProperties: false
+      properties:
+        token: { type: string, minLength: 43, maxLength: 64 }
+        password: { $ref: "#/components/schemas/Password" }
+        name: { $ref: "#/components/schemas/PersonName" }
+        tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    MagicLinkRequest:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        tenantId:
+          type: string
+          format: uuid
+          description: Tenant to open the session on. Defaults to the oldest membership.
+    MagicLinkAcceptRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token: { type: string, minLength: 43, maxLength: 64 }
+        tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    SwitchTenantRequest:
+      type: object
+      required: [tenantId]
+      additionalProperties: false
+      properties:
+        tenantId: { type: string, format: uuid }
+        refreshToken: { type: string, maxLength: 128 }
         tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
     RefreshRequest:
       type: object
@@ -1039,10 +1281,14 @@ components:
         role: { $ref: "#/components/schemas/Role" }
     Me:
       type: object
-      required: [userId, email, activeTenantId, role, memberships]
+      required: [userId, email, name, activeTenantId, role, memberships]
       properties:
         userId: { type: string, format: uuid }
         email: { type: string }
+        name:
+          type: string
+          nullable: true
+          description: The person's name, null until they set one (show the email then).
         activeTenantId: { type: string, format: uuid }
         role: { $ref: "#/components/schemas/Role" }
         memberships:
@@ -1050,10 +1296,14 @@ components:
           items: { $ref: "#/components/schemas/Membership" }
     Member:
       type: object
-      required: [userId, email, role]
+      required: [userId, email, name, role]
       properties:
         userId: { type: string, format: uuid }
         email: { type: string }
+        name:
+          type: string
+          nullable: true
+          description: The person's name, null until they set one.
         role: { $ref: "#/components/schemas/Role" }
     AddMemberRequest:
       type: object

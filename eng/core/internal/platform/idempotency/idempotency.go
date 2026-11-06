@@ -10,7 +10,7 @@
 //   - same key while the first request is still running: 409;
 //   - a 5xx or a panic releases the key so the client can retry.
 //
-// The key is scoped to the tenant of the caller, or to anon:<path> before a
+// The key is scoped to the caller (tenant, user and role), or to anon:<path> before a
 // tenant exists (registration). Whether a route requires the header is
 // declared in api/openapi.yaml and enforced by the generated code; this
 // middleware only gives the header its meaning.
@@ -76,7 +76,11 @@ func Middleware(d *db.DB) func(http.Handler) http.Handler {
 
 			scope, tenant := "anon:"+r.URL.Path, (*uuid.UUID)(nil)
 			if s, ok := db.ScopeFrom(r.Context()); ok {
-				scope, tenant = s.TenantID.String(), &s.TenantID
+				// Bound to the caller, not only the tenant: a replay only ever
+				// returns a response this same user, with this same role, already
+				// got. Anyone else (or the same user after a role change) runs
+				// the handler, and its authorization, again.
+				scope, tenant = scopeKey(s), &s.TenantID
 			}
 			st := store{d}
 			claimed, err := st.claim(r.Context(), scope, key, tenant, hash)
@@ -116,6 +120,11 @@ func Middleware(d *db.DB) func(http.Handler) http.Handler {
 			rec.flush(w)
 		})
 	}
+}
+
+// scopeKey is tenant, user and role of the caller.
+func scopeKey(s db.Scope) string {
+	return s.TenantID.String() + "|" + s.UserID.String() + "|" + s.Role
 }
 
 // requestHash identifies "the same request": method, path and body. For

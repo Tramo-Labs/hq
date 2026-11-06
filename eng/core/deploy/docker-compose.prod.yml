@@ -1,5 +1,5 @@
 # Staging and production on one VPS (Terraform in deploy/terraform).
-#   IMAGE=ghcr.io/<owner>/tramo-core IMAGE_TAG=<sha> APP_DOMAIN=<host> \
+#   IMAGE=ghcr.io/<owner>/tramo-core IMAGE_TAG=<sha> API_DOMAIN=<api host> \
 #     docker compose -f docker-compose.prod.yml up -d
 # Secrets live in three files next to this one, never in the repo, mode 0600
 # (names in deploy/env-examples/):
@@ -41,7 +41,11 @@ services:
     env_file: core.env
     environment:
       ARCA_GATEWAY_ADDR: arca-gateway:9090
-      # Only Caddy's fixed address is believed for X-Forwarded-For.
+      # Only our Caddy is believed for X-Forwarded-For (D-18, ADR 0007): the
+      # browser calls api.X directly, so Caddy's peer is the browser. The
+      # web's Next server is not in the path in production and is never
+      # listed here; its /v1 proxy is for dev only.
+      # platform README, "Sensitive data".
       TRUSTED_PROXIES: 172.30.0.10
       MIGRATE_ON_START: "false"
     depends_on:
@@ -73,7 +77,7 @@ services:
   caddy:
     image: caddy:2.8-alpine
     environment:
-      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
     ports: ["80:80", "443:443"]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

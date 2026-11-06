@@ -282,7 +282,7 @@ func TestTenantJobSeesOnlyItsTenant(t *testing.T) {
 
 func TestPeriodicScheduleUsesTodaysKey(t *testing.T) {
 	setup, err := worker.New(nil)
-	if err != nil || len(setup.Periodic) != 1 {
+	if err != nil || len(setup.Periodic) != 2 {
 		t.Fatalf("setup: %v %d", err, len(setup.Periodic))
 	}
 	// 01:30 UTC is still the previous day in Argentina (GMT-3).

@@ -40,7 +40,9 @@ redone by a second enqueue.
 
 | Kind | Key | Schedule | Does |
 |------|-----|----------|------|
-| `platform.maintenance` | day (Argentina) | hourly attempt, runs once a day | deletes idempotency keys older than 24 h and refresh tokens expired more than 7 days ago |
+| `platform.maintenance` | day (Argentina) | hourly attempt, runs once a day | deletes idempotency keys older than 24 h, refresh tokens, invitations and magic links expired more than 7 days ago, and magic link requests older than a day (left by a failed enqueue) |
+| `platform.month_close` | month closed (`YYYY-MM`, the month before now in Argentina) | hourly attempt, runs once a month | lists every tenant through `tramo_system` (`identity.TenantIDs`, ids only) and enqueues `matching.run_month` for each with `jobs.Insert`. A durable mark in `platform.month_closes` (migration 00115, `tramo_system` only), written in the fan out's transaction and committed only if every tenant was enqueued, makes a closed month end the job at once: River forgets completed jobs after 24 hours, so its unique key alone would close the month again every day (`TestMonthCloseEnqueuesEveryTenantOnce` deletes the completed jobs as qa did and enqueues again; `TestMonthCloseMarksOnlyAWholeFanOut`; `TestMonthCloseClosesThePreviousArgentineMonth`; mutations checked: without the mark, the mark written apart before the fan out, not unique, UTC instead of Argentina, a tenant skipped, the current month, each fails) |
+| `identity.magic_link` | the pending request's id only (one job per request; email and IP stay in `magic_link_requests`, never in the arguments) | on request (`POST /v1/auth/magic-link`) | takes the request (deletes it), looks the email up and, if it has an account, stores a 15 minute link and mails it; otherwise nothing. Needs `MAIL_OUTBOX` and `APP_BASE_URL` in the worker (`TestMagicLinkJobSendsThroughTheQueue` reads `river.river_job` and finds no email or IP) |
 
 ## Tables
 

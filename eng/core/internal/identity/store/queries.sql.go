@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const countOwners = `-- name: CountOwners :one
+select count(*) from memberships where tenant_id = $1 and role = 'owner'
+`
+
+func (q *Queries) CountOwners(ctx context.Context, tenantID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countOwners, tenantID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createMembership = `-- name: CreateMembership :exec
 insert into memberships (user_id, tenant_id, role) values ($1, $2, $3)
 `
@@ -46,12 +57,13 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (uui
 
 const createUser = `-- name: CreateUser :one
 
-insert into users (email, password_hash) values ($1, $2) returning id
+insert into users (email, password_hash, display_name) values ($1, $2, $3) returning id
 `
 
 type CreateUserParams struct {
 	Email        string
 	PasswordHash *string
+	DisplayName  *string
 }
 
 // Queries of the identity module. `make gen` compiles them with sqlc into
@@ -59,10 +71,34 @@ type CreateUserParams struct {
 // system transactions (no tenant yet, or tables tramo_app cannot read);
 // member management runs in tenant transactions under RLS.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.PasswordHash)
+	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.PasswordHash, arg.DisplayName)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const deleteExpiredInvites = `-- name: DeleteExpiredInvites :execrows
+delete from invites where expires_at < now() - interval '7 days'
+`
+
+func (q *Queries) DeleteExpiredInvites(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredInvites)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredMagicLinks = `-- name: DeleteExpiredMagicLinks :execrows
+delete from magic_links where expires_at < now() - interval '7 days'
+`
+
+func (q *Queries) DeleteExpiredMagicLinks(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredMagicLinks)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :execrows
@@ -71,6 +107,34 @@ delete from refresh_tokens where expires_at < now() - interval '7 days'
 
 func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredRefreshTokens)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteMembership = `-- name: DeleteMembership :one
+delete from memberships where user_id = $1 and tenant_id = $2 returning role
+`
+
+type DeleteMembershipParams struct {
+	UserID   uuid.UUID
+	TenantID uuid.UUID
+}
+
+func (q *Queries) DeleteMembership(ctx context.Context, arg DeleteMembershipParams) (Role, error) {
+	row := q.db.QueryRow(ctx, deleteMembership, arg.UserID, arg.TenantID)
+	var role Role
+	err := row.Scan(&role)
+	return role, err
+}
+
+const deleteStaleMagicLinkRequests = `-- name: DeleteStaleMagicLinkRequests :execrows
+delete from magic_link_requests where created_at < now() - interval '1 day'
+`
+
+func (q *Queries) DeleteStaleMagicLinkRequests(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteStaleMagicLinkRequests)
 	if err != nil {
 		return 0, err
 	}
@@ -89,6 +153,62 @@ func (q *Queries) EnsureUser(ctx context.Context, email string) (uuid.UUID, erro
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const getInviteForUpdate = `-- name: GetInviteForUpdate :one
+select id, tenant_id, user_id, expires_at, used_at, revoked_at
+from invites where token_hash = $1
+for update
+`
+
+type GetInviteForUpdateRow struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+	RevokedAt *time.Time
+}
+
+func (q *Queries) GetInviteForUpdate(ctx context.Context, tokenHash []byte) (GetInviteForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getInviteForUpdate, tokenHash)
+	var i GetInviteForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.UsedAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const getMagicLinkForUpdate = `-- name: GetMagicLinkForUpdate :one
+select id, user_id, tenant_id, expires_at, used_at
+from magic_links where token_hash = $1
+for update
+`
+
+type GetMagicLinkForUpdateRow struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	TenantID  *uuid.UUID
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+}
+
+func (q *Queries) GetMagicLinkForUpdate(ctx context.Context, tokenHash []byte) (GetMagicLinkForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getMagicLinkForUpdate, tokenHash)
+	var i GetMagicLinkForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TenantID,
+		&i.ExpiresAt,
+		&i.UsedAt,
+	)
+	return i, err
 }
 
 const getMembershipRole = `-- name: GetMembershipRole :one
@@ -183,6 +303,103 @@ func (q *Queries) GetUserForLogin(ctx context.Context, email string) (GetUserFor
 	return i, err
 }
 
+const getUserPasswordSet = `-- name: GetUserPasswordSet :one
+select (password_hash is not null)::boolean as has_password from users where id = $1
+`
+
+func (q *Queries) GetUserPasswordSet(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, getUserPasswordSet, id)
+	var has_password bool
+	err := row.Scan(&has_password)
+	return has_password, err
+}
+
+const getUserProfile = `-- name: GetUserProfile :one
+select email, display_name from users where id = $1
+`
+
+type GetUserProfileRow struct {
+	Email       string
+	DisplayName *string
+}
+
+func (q *Queries) GetUserProfile(ctx context.Context, id uuid.UUID) (GetUserProfileRow, error) {
+	row := q.db.QueryRow(ctx, getUserProfile, id)
+	var i GetUserProfileRow
+	err := row.Scan(&i.Email, &i.DisplayName)
+	return i, err
+}
+
+const insertInvite = `-- name: InsertInvite :exec
+insert into invites (tenant_id, user_id, created_by, token_hash, expires_at)
+values ($1, $2, $3, $4, $5)
+`
+
+type InsertInviteParams struct {
+	TenantID  uuid.UUID
+	UserID    uuid.UUID
+	CreatedBy *uuid.UUID
+	TokenHash []byte
+	ExpiresAt time.Time
+}
+
+func (q *Queries) InsertInvite(ctx context.Context, arg InsertInviteParams) error {
+	_, err := q.db.Exec(ctx, insertInvite,
+		arg.TenantID,
+		arg.UserID,
+		arg.CreatedBy,
+		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const insertMagicLink = `-- name: InsertMagicLink :exec
+insert into magic_links (user_id, tenant_id, token_hash, expires_at)
+values ($1, $2, $3, $4)
+`
+
+type InsertMagicLinkParams struct {
+	UserID    uuid.UUID
+	TenantID  *uuid.UUID
+	TokenHash []byte
+	ExpiresAt time.Time
+}
+
+func (q *Queries) InsertMagicLink(ctx context.Context, arg InsertMagicLinkParams) error {
+	_, err := q.db.Exec(ctx, insertMagicLink,
+		arg.UserID,
+		arg.TenantID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const insertMagicLinkRequest = `-- name: InsertMagicLinkRequest :one
+insert into magic_link_requests (email, tenant_id, request_id, ip)
+values ($1, $2, $3, nullif($4::text, '')::inet) returning id
+`
+
+type InsertMagicLinkRequestParams struct {
+	Email     string
+	TenantID  *uuid.UUID
+	RequestID *string
+	Ip        string
+}
+
+func (q *Queries) InsertMagicLinkRequest(ctx context.Context, arg InsertMagicLinkRequestParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertMagicLinkRequest,
+		arg.Email,
+		arg.TenantID,
+		arg.RequestID,
+		arg.Ip,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertRefreshToken = `-- name: InsertRefreshToken :exec
 insert into refresh_tokens (user_id, tenant_id, family_id, token_hash, expires_at)
 values ($1, $2, $3, $4, $5)
@@ -208,16 +425,17 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 }
 
 const listMembers = `-- name: ListMembers :many
-select u.id, u.email, m.role
+select u.id, u.email, u.display_name, m.role
 from memberships m join users u on u.id = m.user_id
 where m.tenant_id = $1
 order by u.email
 `
 
 type ListMembersRow struct {
-	ID    uuid.UUID
-	Email string
-	Role  Role
+	ID          uuid.UUID
+	Email       string
+	DisplayName *string
+	Role        Role
 }
 
 func (q *Queries) ListMembers(ctx context.Context, tenantID uuid.UUID) ([]ListMembersRow, error) {
@@ -229,7 +447,12 @@ func (q *Queries) ListMembers(ctx context.Context, tenantID uuid.UUID) ([]ListMe
 	var items []ListMembersRow
 	for rows.Next() {
 		var i ListMembersRow
-		if err := rows.Scan(&i.ID, &i.Email, &i.Role); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.DisplayName,
+			&i.Role,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -273,6 +496,61 @@ func (q *Queries) ListMembershipsForUser(ctx context.Context, userID uuid.UUID) 
 	return items, nil
 }
 
+const listTenantIDs = `-- name: ListTenantIDs :many
+select id from tenants order by created_at, id
+`
+
+// Every tenant, for platform jobs that fan out per tenant (system only).
+func (q *Queries) ListTenantIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listTenantIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockTenant = `-- name: LockTenant :one
+select id from tenants where id = $1 for update
+`
+
+// Serializes membership changes that must keep at least one owner.
+func (q *Queries) LockTenant(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockTenant, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const markInviteUsed = `-- name: MarkInviteUsed :exec
+update invites set used_at = now() where id = $1
+`
+
+func (q *Queries) MarkInviteUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markInviteUsed, id)
+	return err
+}
+
+const markMagicLinkUsed = `-- name: MarkMagicLinkUsed :exec
+update magic_links set used_at = now() where id = $1
+`
+
+func (q *Queries) MarkMagicLinkUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markMagicLinkUsed, id)
+	return err
+}
+
 const markRefreshTokenUsed = `-- name: MarkRefreshTokenUsed :exec
 update refresh_tokens set used_at = now() where id = $1
 `
@@ -292,4 +570,106 @@ func (q *Queries) RevokeFamily(ctx context.Context, familyID uuid.UUID) (int64, 
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const revokeOpenInvites = `-- name: RevokeOpenInvites :execrows
+update invites set revoked_at = now()
+where user_id = $1 and used_at is null and revoked_at is null
+`
+
+func (q *Queries) RevokeOpenInvites(ctx context.Context, userID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeOpenInvites, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeUserTenantSessions = `-- name: RevokeUserTenantSessions :execrows
+update refresh_tokens set revoked_at = now()
+where user_id = $1 and tenant_id = $2 and revoked_at is null
+`
+
+type RevokeUserTenantSessionsParams struct {
+	UserID   uuid.UUID
+	TenantID *uuid.UUID
+}
+
+func (q *Queries) RevokeUserTenantSessions(ctx context.Context, arg RevokeUserTenantSessionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeUserTenantSessions, arg.UserID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setPasswordIfUnset = `-- name: SetPasswordIfUnset :execrows
+update users set password_hash = $2 where id = $1 and password_hash is null
+`
+
+type SetPasswordIfUnsetParams struct {
+	ID           uuid.UUID
+	PasswordHash *string
+}
+
+// Never overwrites a password the person already chose.
+func (q *Queries) SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnsetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setPasswordIfUnset, arg.ID, arg.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setUserName = `-- name: SetUserName :exec
+update users set display_name = $2 where id = $1
+`
+
+type SetUserNameParams struct {
+	ID          uuid.UUID
+	DisplayName *string
+}
+
+func (q *Queries) SetUserName(ctx context.Context, arg SetUserNameParams) error {
+	_, err := q.db.Exec(ctx, setUserName, arg.ID, arg.DisplayName)
+	return err
+}
+
+const setUserNameIfUnset = `-- name: SetUserNameIfUnset :exec
+update users set display_name = $2 where id = $1 and display_name is null
+`
+
+type SetUserNameIfUnsetParams struct {
+	ID          uuid.UUID
+	DisplayName *string
+}
+
+func (q *Queries) SetUserNameIfUnset(ctx context.Context, arg SetUserNameIfUnsetParams) error {
+	_, err := q.db.Exec(ctx, setUserNameIfUnset, arg.ID, arg.DisplayName)
+	return err
+}
+
+const takeMagicLinkRequest = `-- name: TakeMagicLinkRequest :one
+delete from magic_link_requests where id = $1
+returning email, tenant_id, coalesce(request_id, '')::text as request_id, coalesce(host(ip), '')::text as ip
+`
+
+type TakeMagicLinkRequestRow struct {
+	Email     string
+	TenantID  *uuid.UUID
+	RequestID string
+	Ip        string
+}
+
+// Deletes the request and returns it: a second run finds nothing.
+func (q *Queries) TakeMagicLinkRequest(ctx context.Context, id uuid.UUID) (TakeMagicLinkRequestRow, error) {
+	row := q.db.QueryRow(ctx, takeMagicLinkRequest, id)
+	var i TakeMagicLinkRequestRow
+	err := row.Scan(
+		&i.Email,
+		&i.TenantID,
+		&i.RequestID,
+		&i.Ip,
+	)
+	return i, err
 }

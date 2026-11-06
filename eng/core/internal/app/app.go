@@ -4,7 +4,7 @@
 //
 // Middleware order, outermost first:
 //
-//	RequestMeta -> Recover -> Authenticate -> spec validation (+ auth required?) -> Idempotency -> handler
+//	RequestMeta -> Recover -> CORS -> refresh Origin check -> Authenticate -> spec validation (+ auth required?) -> Idempotency -> handler
 //
 // Authenticate reads a bearer token when present and puts the principal and
 // the tenant scope in the context. Whether an operation needs one is
@@ -19,11 +19,12 @@ import (
 	"errors"
 	"net/http"
 	"net/netip"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	middleware "github.com/oapi-codegen/nethttp-middleware"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
@@ -31,6 +32,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
@@ -43,9 +45,17 @@ type Deps struct {
 	Identity *identity.Service
 	// TrustedProxies whose X-Forwarded-For is believed (config.TrustedProxies).
 	TrustedProxies []netip.Prefix
+	// CORSOrigins may call the api from a browser (config.CORSOrigins, D-18).
+	CORSOrigins httpx.Origins
 	// DocsDir serves the Swagger UI and the spec when set.
 	DocsDir string
+	// DenialWindow coalesces repeated 403s of one user on one operation
+	// into the first one's audit row (DefaultDenialWindow when zero).
+	DenialWindow time.Duration
 }
+
+// DefaultDenialWindow is how long repeats of a denial count on its row.
+const DefaultDenialWindow = time.Minute
 
 // Handlers implements the generated strict interface by embedding one
 // handler set per module.
@@ -93,7 +103,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 	spec.Servers = nil // validate paths regardless of the host serving them
 
 	r := chi.NewRouter()
-	r.Use(httpx.RequestMeta(d.TrustedProxies), httpx.Recover, identity.Authenticate(d.Identity.Signer))
+	r.Use(httpx.RequestMeta(d.TrustedProxies), httpx.Recover, httpx.CORS(d.CORSOrigins), identity.RequireAllowedOrigin(d.CORSOrigins), identity.Authenticate(d.Identity.Signer))
 	if d.DocsDir != "" {
 		r.Handle("/docs/*", http.StripPrefix("/docs/", http.FileServer(http.Dir(d.DocsDir))))
 	}
@@ -112,7 +122,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 			ErrorHandlerWithOpts: validationError,
 		}))
 		r.Use(idempotency.Middleware(d.DB))
-		strict := apigen.NewStrictHandlerWithOptions(h, nil, apigen.StrictHTTPServerOptions{
+		strict := apigen.NewStrictHandlerWithOptions(h, []apigen.StrictMiddlewareFunc{auditDenials(d.DB, d.DenialWindow)}, apigen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "malformed request body")
 			},
@@ -121,7 +131,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 		apigen.HandlerWithOptions(strict, apigen.ChiServerOptions{
 			BaseRouter: r,
 			ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, err.Error())
+				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, badRequestDetail(err))
 			},
 		})
 	})
@@ -147,19 +157,76 @@ func validationError(_ context.Context, err error, w http.ResponseWriter, r *htt
 		httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeIdempotencyRequired,
 			"this operation requires an Idempotency-Key header (UUID)")
 	default:
-		// The first line of a kin-openapi error names the parameter or
-		// field and the rule; it never echoes the submitted value.
-		httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, err.Error())
+		// kin-openapi's message prints the schema and the submitted value
+		// (passwords included): only the parameter or field goes out.
+		httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, badRequestDetail(err))
+	}
+}
+
+// auditDenials writes an `authz.denied` audit row for every operation that
+// answers 403 (spec §1: every action of the roles table is audited with
+// who, when and from where). The row is written in its own tenant
+// transaction, since the denied action's transaction rolled back, and
+// carries the caller (user_id), the resolved client IP and request id
+// (httpx.MetaFrom, through audit.Record), the operationId as subject and the
+// role, method and path as detail. Never the body or the query string. A
+// failure to write it is logged and the caller still gets the 403.
+func auditDenials(d *db.DB, window time.Duration) apigen.StrictMiddlewareFunc {
+	if window <= 0 {
+		window = DefaultDenialWindow
+	}
+	return func(next apigen.StrictHandlerFunc, operationID string) apigen.StrictHandlerFunc {
+		// The generator passes the Go name; the spec's operationId is the
+		// same with a lower case first letter.
+		if operationID != "" {
+			operationID = strings.ToLower(operationID[:1]) + operationID[1:]
+		}
+		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, req any) (any, error) {
+			resp, err := next(ctx, w, r, req)
+			var e *httpx.Error
+			if !errors.As(err, &e) || e.Status != http.StatusForbidden {
+				return resp, err
+			}
+			p, ok := identity.PrincipalFrom(ctx)
+			if !ok {
+				return resp, err
+			}
+			subject := "operation:" + operationID
+			if aerr := d.InTenant(ctx, func(tx pgx.Tx) error {
+				// Within the window, a repeat only bumps the counter of the
+				// first denial's row (audit_log is append only). Two first
+				// denials racing may both write a row; that is accepted.
+				var first int64
+				err := tx.QueryRow(ctx, `
+					select id from audit_log
+					where action = 'authz.denied' and tenant_id = app_current_tenant()
+					  and user_id = $1 and subject = $2 and at > now() - make_interval(secs => $3)
+					order by at desc limit 1`, p.UserID, subject, window.Seconds()).Scan(&first)
+				if err == nil {
+					_, err = tx.Exec(ctx, `
+						insert into audit_denial_repeats (audit_id, tenant_id, count, last_at)
+						values ($1, app_current_tenant(), 1, now())
+						on conflict (audit_id) do update
+						  set count = audit_denial_repeats.count + 1, last_at = excluded.last_at`, first)
+					return err
+				}
+				if !errors.Is(err, pgx.ErrNoRows) {
+					return err
+				}
+				return audit.Record(ctx, tx, audit.Entry{Action: "authz.denied", Subject: subject,
+					Detail: map[string]any{"role": p.Role, "method": r.Method, "path": r.URL.Path}})
+			}); aerr != nil {
+				httpx.Logger(ctx).Error("audit denial", "err", aerr, "operation", operationID)
+			}
+			return resp, err
+		}
 	}
 }
 
 func writeHandlerError(w http.ResponseWriter, r *http.Request, err error) {
 	var e *httpx.Error
 	if errors.As(err, &e) {
-		if e.RetryAfter > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(e.RetryAfter))
-		}
-		httpx.WriteProblem(w, r, e.Status, e.Code, e.Detail)
+		httpx.WriteError(w, r, e)
 		return
 	}
 	httpx.Logger(r.Context()).Error("handler", "err", err)

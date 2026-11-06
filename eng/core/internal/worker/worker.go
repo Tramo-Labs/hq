@@ -14,6 +14,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 )
 
 // MaintenanceArgs is the daily platform clean up. Its natural key is the
@@ -45,7 +46,7 @@ type MaintenanceWorker struct {
 	DB *db.DB
 }
 
-// Work runs the clean up. Both deletes are idempotent, so a retry is safe.
+// Work runs the clean up. Every delete is idempotent, so a retry is safe.
 func (w *MaintenanceWorker) Work(ctx context.Context, job *river.Job[MaintenanceArgs]) error {
 	keys, err := idempotency.Purge(ctx, w.DB)
 	if err != nil {
@@ -55,7 +56,20 @@ func (w *MaintenanceWorker) Work(ctx context.Context, job *river.Job[Maintenance
 	if err != nil {
 		return err
 	}
-	slog.Info("maintenance done", "day", job.Args.Day, "idempotency_keys", keys, "refresh_tokens", tokens)
+	invites, err := identity.PurgeExpiredInvites(ctx, w.DB)
+	if err != nil {
+		return err
+	}
+	links, err := identity.PurgeExpiredMagicLinks(ctx, w.DB)
+	if err != nil {
+		return err
+	}
+	requests, err := identity.PurgeStaleMagicLinkRequests(ctx, w.DB)
+	if err != nil {
+		return err
+	}
+	slog.Info("maintenance done", "day", job.Args.Day, "idempotency_keys", keys, "refresh_tokens", tokens,
+		"invites", invites, "magic_links", links, "magic_link_requests", requests)
 	return nil
 }
 
@@ -65,20 +79,44 @@ type Setup struct {
 	Periodic []*river.PeriodicJob
 }
 
+// Options are what some jobs need beyond the database.
+type Options struct {
+	// Mailer and AppBaseURL send the magic links (identity). A nil Mailer
+	// logs that a link was not delivered, like invitations.
+	Mailer     mail.Sender
+	AppBaseURL string
+}
+
 // New registers the workers and the schedule. Modules add their jobs here.
-func New(d *db.DB) (Setup, error) {
+func New(d *db.DB, opts ...Options) (Setup, error) {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	ws := river.NewWorkers()
 	if err := river.AddWorkerSafely(ws, &MaintenanceWorker{DB: d}); err != nil {
+		return Setup{}, err
+	}
+	// identity: magic links are sent here, never in the request (D-17).
+	if err := river.AddWorkerSafely(ws, &identity.MagicLinkWorker{DB: d, Mailer: o.Mailer, AppBaseURL: o.AppBaseURL}); err != nil {
 		return Setup{}, err
 	}
 	// datos: the monthly matching run of one tenant (internal/matching).
 	if err := river.AddWorkerSafely(ws, &matching.MonthWorker{Store: &matching.PGStore{DB: d}, Config: matching.DefaultConfig}); err != nil {
 		return Setup{}, err
 	}
+	// platform: the monthly fan out of matching.run_month to every tenant.
+	if err := river.AddWorkerSafely(ws, &MonthCloseWorker{DB: d}); err != nil {
+		return Setup{}, err
+	}
 	periodic := []*river.PeriodicJob{
 		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return MaintenanceFor(time.Now()), nil },
 			// Hourly attempts, one run per day: the unique key does the rest.
+			&river.PeriodicJobOpts{RunOnStart: true}),
+		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) { return MonthCloseFor(time.Now()), nil },
+			// Hourly attempts, one run per closed month: the month is the key.
 			&river.PeriodicJobOpts{RunOnStart: true}),
 	}
 	return Setup{Workers: ws, Periodic: periodic}, nil

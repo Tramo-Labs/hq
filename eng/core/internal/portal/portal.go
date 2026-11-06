@@ -156,8 +156,34 @@ var (
 	allTo   = time.Date(2100, 12, 31, 0, 0, 0, 0, time.UTC)
 )
 
+// errExportForbidden answers approvers and viewers: spec §1 gives
+// "Descargar todo" and "Ver el audit log" only to owner, accountant and
+// operator.
+var errExportForbidden = &httpx.Error{Status: http.StatusForbidden, Code: httpx.CodeForbidden,
+	Detail: "your role cannot download the tenant's data"}
+
+// CanExport reports whether role may download the tenant's data and read
+// its audit log (product/ESPECIFICACION.md §1).
+func CanExport(role string) bool {
+	switch role {
+	case identity.RoleOwner, identity.RoleAccountant, identity.RoleOperator:
+		return true
+	}
+	return false
+}
+
+func exportAllowed(ctx context.Context) error {
+	if p, ok := identity.PrincipalFrom(ctx); !ok || !CanExport(p.Role) {
+		return errExportForbidden
+	}
+	return nil
+}
+
 // ListExports reports what the client can download and how many rows.
 func (h *Handlers) ListExports(ctx context.Context, _ apigen.ListExportsRequestObject) (apigen.ListExportsResponseObject, error) {
+	if err := exportAllowed(ctx); err != nil {
+		return nil, err
+	}
 	movements, err := h.Ledger.MovementsBetween(ctx, allFrom, allTo)
 	if err != nil {
 		return nil, err
@@ -180,6 +206,9 @@ func (h *Handlers) ListExports(ctx context.Context, _ apigen.ListExportsRequestO
 
 // GetExport streams one export as CSV.
 func (h *Handlers) GetExport(ctx context.Context, req apigen.GetExportRequestObject) (apigen.GetExportResponseObject, error) {
+	if err := exportAllowed(ctx); err != nil {
+		return nil, err
+	}
 	from, to := allFrom, allTo
 	if req.Params.From != nil {
 		from = req.Params.From.Time
@@ -241,23 +270,33 @@ func (h *Handlers) auditCount(ctx context.Context) (int, error) {
 
 // auditRows lists the tenant's own trail (RLS keeps it to the tenant).
 func (h *Handlers) auditRows(ctx context.Context, from, to time.Time) ([][]string, error) {
-	rows := [][]string{{"at", "action", "subject", "user_id", "request_id", "ip"}}
+	// repeated and repeated_until: further identical 403s of the same user
+	// on the same operation, coalesced into this row (platform README).
+	rows := [][]string{{"at", "action", "subject", "user_id", "request_id", "ip", "repeated", "repeated_until"}}
 	err := h.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		rs, err := tx.Query(ctx, `
-			select at, action, subject, coalesce(user_id::text, ''), coalesce(request_id, ''), coalesce(host(ip), '')
-			from audit_log where at >= $1::timestamptz and at < $2::timestamptz + interval '1 day'
-			order by at, id`, from, to)
+			select a.at, a.action, a.subject, coalesce(a.user_id::text, ''), coalesce(a.request_id, ''), coalesce(host(a.ip), ''),
+			       coalesce(r.count, 0), r.last_at
+			from audit_log a left join audit_denial_repeats r on r.audit_id = a.id
+			where a.at >= $1::timestamptz and a.at < $2::timestamptz + interval '1 day'
+			order by a.at, a.id`, from, to)
 		if err != nil {
 			return err
 		}
 		defer rs.Close()
 		for rs.Next() {
 			var at time.Time
+			var last *time.Time
 			var action, subject, user, req, ip string
-			if err := rs.Scan(&at, &action, &subject, &user, &req, &ip); err != nil {
+			var repeated int
+			if err := rs.Scan(&at, &action, &subject, &user, &req, &ip, &repeated, &last); err != nil {
 				return err
 			}
-			rows = append(rows, []string{at.UTC().Format(time.RFC3339), action, subject, user, req, ip})
+			until := ""
+			if last != nil {
+				until = last.UTC().Format(time.RFC3339)
+			}
+			rows = append(rows, []string{at.UTC().Format(time.RFC3339), action, subject, user, req, ip, strconv.Itoa(repeated), until})
 		}
 		return rs.Err()
 	})

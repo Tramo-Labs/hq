@@ -127,3 +127,43 @@ func TestErrorResponsesUseProblem(t *testing.T) {
 		}
 	}
 }
+
+// D-18: the wired router answers the portal's preflight and gives a foreign
+// origin no CORS headers.
+func TestCORSOnTheRouter(t *testing.T) {
+	deps := newDeps(t)
+	origins, err := httpx.ParseOrigins("https://app.tramo.test", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deps.CORSOrigins = origins
+	srv := serve(t, deps)
+	do := func(method, origin string) *http.Response {
+		req, _ := http.NewRequest(method, srv.URL+"/v1/auth/login", nil)
+		req.Header.Set("Origin", origin)
+		if method == http.MethodOptions {
+			req.Header.Set("Access-Control-Request-Method", "POST")
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		return res
+	}
+	res := do(http.MethodOptions, "https://app.tramo.test")
+	if res.StatusCode != 204 || res.Header.Get("Access-Control-Allow-Origin") != "https://app.tramo.test" ||
+		res.Header.Get("Access-Control-Allow-Credentials") != "true" || res.Header.Get("X-Request-Id") == "" {
+		t.Errorf("portal preflight: %d %v", res.StatusCode, res.Header)
+	}
+	res = do(http.MethodPost, "https://app.tramo.test")
+	if res.Header.Get("Access-Control-Expose-Headers") != "Retry-After, X-Request-Id" {
+		t.Errorf("portal request: %v", res.Header)
+	}
+	for _, m := range []string{http.MethodOptions, http.MethodPost} {
+		res = do(m, "https://evil.test")
+		if v := res.Header.Get("Access-Control-Allow-Origin"); v != "" {
+			t.Errorf("%s from a foreign origin: allow origin %q", m, v)
+		}
+	}
+}

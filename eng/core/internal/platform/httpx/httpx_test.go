@@ -46,7 +46,9 @@ func TestRequestMeta(t *testing.T) {
 // (which would let it dodge per IP throttles), even when proxies are
 // configured.
 func TestForwardedForOnlyFromTrustedProxies(t *testing.T) {
-	proxies := []netip.Prefix{netip.MustParsePrefix("172.30.0.10/32"), netip.MustParsePrefix("fd00:30::/64")}
+	// Caddy, the web's Next server (its same origin proxy) and an IPv6 range.
+	proxies := []netip.Prefix{netip.MustParsePrefix("172.30.0.10/32"), netip.MustParsePrefix("172.30.0.20/32"),
+		netip.MustParsePrefix("fd00:30::/64")}
 	var got httpx.Meta
 	h := httpx.RequestMeta(proxies)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		got, _ = httpx.MetaFrom(r.Context())
@@ -61,6 +63,13 @@ func TestForwardedForOnlyFromTrustedProxies(t *testing.T) {
 		"neighbour of the proxy":       {"172.30.0.11:40000", "198.51.100.1", "172.30.0.11"},
 		"trusted proxy, junk header":   {"172.30.0.10:40000", "not an ip", "172.30.0.10"},
 		"trusted proxy, no header":     {"172.30.0.10:40000", "", "172.30.0.10"},
+		// Browser -> Caddy -> Next -> api: Next appends Caddy's address.
+		// Trusted hops are skipped from the right; the first one that is
+		// not ours is the client, and anything left of it is ignored.
+		"two proxies in a row":         {"172.30.0.20:40000", "6.6.6.6, 198.51.100.1, 172.30.0.10", "198.51.100.1"},
+		"two proxies, client spoofing": {"172.30.0.20:40000", "172.30.0.10, 198.51.100.1, 172.30.0.10", "198.51.100.1"},
+		"two proxies, junk in between": {"172.30.0.20:40000", "198.51.100.1, junk, 172.30.0.10", "172.30.0.10"},
+		"only proxies in the header":   {"172.30.0.20:40000", "172.30.0.10", "172.30.0.10"},
 	} {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r.RemoteAddr = tc.peer

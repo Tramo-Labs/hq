@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/app"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
 
 // client is a tiny JSON client for the end to end tests.
@@ -220,23 +221,75 @@ func TestRefreshRotationAndReuseRevokesFamily(t *testing.T) {
 	}
 }
 
+const portalOrigin = "https://app.tramo.test"
+
+// serveWithPortal is a server whose CORS list (and F22 Origin check) holds
+// the portal's origin.
+func serveWithPortal(t *testing.T) client {
+	t.Helper()
+	deps := newDeps(t)
+	origins, err := httpx.ParseOrigins(portalOrigin, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deps.CORSOrigins = origins
+	return client{t, serve(t, deps)}
+}
+
 func TestRefreshByCookieAndLogout(t *testing.T) {
-	c := client{t, server(t)}
+	c := serveWithPortal(t)
 	a := c.registerAndLogin("alfa", "ana@alfa.test")
 	l := c.do("POST", "/v1/auth/login", "", map[string]any{"email": a.email, "password": a.password})
 	cookie := strings.SplitN(l.header.Get("Set-Cookie"), ";", 2)[0]
 
-	r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", cookie)
+	r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", cookie, "Origin", portalOrigin)
 	if r.status != 200 || !strings.HasPrefix(r.header.Get("Set-Cookie"), "tramo_refresh=") {
 		t.Fatalf("cookie refresh: %d %s", r.status, r.raw)
 	}
 	next := strings.SplitN(r.header.Get("Set-Cookie"), ";", 2)[0]
-	out := c.do("POST", "/v1/auth/logout", "", nil, "Cookie", next)
+	out := c.do("POST", "/v1/auth/logout", "", nil, "Cookie", next, "Origin", portalOrigin)
 	if out.status != 204 || !strings.Contains(out.header.Get("Set-Cookie"), "Max-Age=0") {
 		t.Fatalf("logout: %d %v", out.status, out.header)
 	}
-	if r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", next); r.status != 401 {
+	if r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", next, "Origin", portalOrigin); r.status != 401 {
 		t.Fatalf("refresh after logout: %d", r.status)
+	}
+}
+
+// F22: the refresh cookie alone authorizes refresh and logout, so with the
+// cookie the request must come from an allowed origin. A foreign or missing
+// Origin is 403 and the token is left as it was: it still rotates from the
+// portal afterwards (a refused refresh did not consume it, a refused logout
+// did not revoke it). A token in the body, with no cookie, needs no Origin.
+func TestRefreshAndLogoutByCookieNeedAnAllowedOrigin(t *testing.T) {
+	c := serveWithPortal(t)
+	a := c.registerAndLogin("beta", "bea@beta.test")
+	l := c.do("POST", "/v1/auth/login", "", map[string]any{"email": a.email, "password": a.password})
+	cookie := strings.SplitN(l.header.Get("Set-Cookie"), ";", 2)[0]
+
+	for _, path := range []string{"/v1/auth/refresh", "/v1/auth/logout"} {
+		for _, origin := range []string{"", "https://evil.test", "https://app.tramo.test.evil.test", "null", "http://app.tramo.test"} {
+			h := []string{"Cookie", cookie}
+			if origin != "" {
+				h = append(h, "Origin", origin)
+			}
+			r := c.do("POST", path, "", nil, h...)
+			if r.status != 403 || r.str("code") != "origin_not_allowed" {
+				t.Errorf("%s from %q: %d %s", path, origin, r.status, r.raw)
+			}
+			if sc := r.header.Get("Set-Cookie"); sc != "" {
+				t.Errorf("%s from %q set a cookie: %s", path, origin, sc)
+			}
+		}
+	}
+	r := c.do("POST", "/v1/auth/refresh", "", nil, "Cookie", cookie, "Origin", portalOrigin)
+	if r.status != 200 {
+		t.Fatalf("the refused calls touched the token: %d %s", r.status, r.raw)
+	}
+
+	// A refresh token in the body is not ambient: no Origin needed.
+	if b := c.do("POST", "/v1/auth/refresh", "", map[string]any{"refreshToken": a.refresh, "tokenDelivery": "body"}); b.status != 200 {
+		t.Fatalf("body refresh without origin: %d %s", b.status, b.raw)
 	}
 }
 
@@ -268,7 +321,7 @@ func TestTenantsAreIsolatedAndRolesEnforced(t *testing.T) {
 	if r := add(a.access, "apro@alfa.test", "viewer"); r.status != 409 {
 		t.Fatalf("duplicate member: %d", r.status)
 	}
-	// Only an operator can grant operator or accountant.
+	// Nobody grants operator over HTTP (F7; full matrix in authz_test.go).
 	if r := add(a.access, "x@tramo.test", "operator"); r.status != 403 {
 		t.Fatalf("owner granted operator: %d", r.status)
 	}
@@ -381,12 +434,13 @@ func TestLoginAndRegisterAreThrottled(t *testing.T) {
 		t.Fatalf("owner from another IP: %d %s", r.status, r.raw)
 	}
 
-	// Distributed guessing: twenty failures from twenty IPs throttle the email.
+	// Distributed guessing never locks the email out (D-17): twenty failures
+	// from twenty IPs switch it to magic link, an answer, not a 429.
 	for i := 0; i < 20; i++ {
 		login("192.0.2."+strconv.Itoa(i+1), "beto@alfa.test", "guess")
 	}
-	if r := login("192.0.2.200", "beto@alfa.test", "guess"); r.status != 429 {
-		t.Fatalf("distributed guessing not throttled: %d", r.status)
+	if r := login("192.0.2.200", "beto@alfa.test", "guess"); r.status != 401 || r.str("code") != "magic_link_required" {
+		t.Fatalf("distributed guessing: %d %s", r.status, r.raw)
 	}
 
 	// One IP cannot spray more than 30 logins a minute, whatever the emails.
@@ -434,6 +488,35 @@ func TestSpoofedForwardedForDoesNotDodgeThrottles(t *testing.T) {
 	}
 	if refused != 10 {
 		t.Fatalf("rotating X-Forwarded-For from a direct client: %d of 40 refused, want 10 (30 per minute per real IP)", refused)
+	}
+}
+
+// In dev the web's Next server proxies /v1 same origin, so every login reaches
+// the core from its address. With the web in TRUSTED_PROXIES and the
+// browser's address in X-Forwarded-For, two people behind it are throttled
+// separately: one guessing a password does not lock out the other.
+func TestClientsBehindTheWebProxyCountSeparately(t *testing.T) {
+	login := func(c client, ip, password string) int {
+		return c.do("POST", "/v1/auth/login", "", map[string]any{"email": "owner@proxy.test", "password": password},
+			"X-Forwarded-For", ip).status
+	}
+	run := func(proxies []netip.Prefix) (attacker, owner int) {
+		deps := newDeps(t)
+		deps.TrustedProxies = proxies
+		c := client{t, serve(t, deps)}
+		c.registerAndLogin("molino-proxy", "owner@proxy.test")
+		for i := 0; i < 5; i++ {
+			login(c, "203.0.113.66", "wrong password")
+		}
+		return login(c, "203.0.113.66", "wrong password"), login(c, "198.51.100.7", "a long enough password")
+	}
+	// The test client is the web server (127.0.0.1), trusted.
+	if attacker, owner := run([]netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}); attacker != 429 || owner != 200 {
+		t.Fatalf("web trusted: attacker %d (want 429), owner %d (want 200)", attacker, owner)
+	}
+	// Not trusted: everyone is the web's address and the owner pays for it.
+	if _, owner := run(nil); owner != 429 {
+		t.Fatalf("web not trusted: owner %d, want 429 (shared bucket)", owner)
 	}
 }
 

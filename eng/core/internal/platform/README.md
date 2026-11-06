@@ -12,6 +12,7 @@ on it; it depends on no business module.
 | `idempotency` | `Idempotency-Key` middleware (eng/ARQUITECTURA.md section 7). |
 | `crypto` | Envelope encryption: AES-256-GCM data key per tenant, wrapped by the master key. |
 | `audit` | Append only audit log, written in the same transaction as the action. |
+| `mail` | Outbox file transport (0600) for invitation emails. No SMTP: nothing is sent. |
 
 ## How a module uses it
 
@@ -44,7 +45,7 @@ the request. Inside `InTenant` the role is also `current_setting('app.role',
 true)` for policies. The token lives 10 minutes: an action that must see a
 demotion right away re-reads the membership in its transaction.
 
-New tables (migrations 00100 to 00199 for datos) must have `tenant_id uuid not null
+New tables (numbering: one sequence, `migrations/README.md`) must have `tenant_id uuid not null
 references tenants(id)` and:
 
 ```sql
@@ -83,10 +84,12 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
 | Table | RLS for tramo_app | Notes |
 |-------|-------------------|-------|
 | `tenants` | own row only | |
-| `users` | self or members of the current tenant; only `id`, `email`, `created_at` readable | `password_hash` and `totp_secret` are not readable by `tramo_app` |
+| `users` | self or members of the current tenant; only `id`, `email`, `display_name` (00113), `created_at` readable | `password_hash` and `totp_secret` are not readable by `tramo_app` |
 | `memberships` | current tenant, or the caller's own memberships | |
 | `refresh_tokens` | no access | identity only, through `System` (`tramo_system`) |
+| `invites` | no access | identity only, through `System`; token hashes only |
 | `audit_log` | read and insert for the current tenant | UPDATE and DELETE rejected by trigger, for every role |
+| `audit_denial_repeats` (00112) | read, insert and update for the current tenant | counter of repeated 403s on a denial's audit row |
 | `idempotency_requests` | current tenant | middleware uses `System` with explicit scope |
 | `tenant_keys` | read own key | wrapped data keys |
 
@@ -103,13 +106,52 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   and purpose, so a blob copied to another row or tenant does not decrypt.
 - Idempotent responses are stored in clear in `idempotency_requests`:
   handlers behind an `Idempotency-Key` must never return tokens or keys.
+- CORS (`httpx.CORS`, ADR 0007): only the exact origins in
+  `CORS_ALLOWED_ORIGINS` get CORS headers, echoed with credentials, never
+  `*`; wildcards, paths and `null` are refused at startup, and http outside
+  dev. A foreign origin gets no CORS header and its preflight is a 403
+  before the router (`TestCORSGivesForeignOriginsNothing`,
+  `TestCORSOnTheRouter`; mutations checked: allowing any origin, letting a
+  foreign preflight through and unwiring the middleware each fail a test).
 - Problem details never carry submitted values, personal data or amounts.
   `readyz` logs the cause and answers without it.
 - The audit log stores IP and request id, never bodies. `Detail` must not
   carry secrets, third party CUIT or amounts.
+- Every 403 is audited (`authz.denied`, spec §1): a strict middleware in
+  `internal/app` writes it in its own tenant transaction with the caller,
+  resolved IP, request id, the operationId as subject (`operation:<id>`)
+  and role, method and path as detail; never the body or query string. If
+  that write fails the caller still gets the 403 and the failure is logged.
+  (`TestEveryDenialIsAudited`; mutations checked: without the middleware
+  the test fails, auditing only the module 403s misses identity and portal
+  ones.) **Repeats are coalesced**: the first 403 of a user on an
+  operation is the audit row; further ones within a minute
+  (`Deps.DenialWindow`) only bump a counter on that row in
+  `audit_denial_repeats` (migration 00112, forced RLS per tenant), since
+  `audit_log` is append only. Nothing is dropped: the count and the last
+  time are durable, and the audit export shows them (`repeated`,
+  `repeated_until`). A member hammering a forbidden operation writes at
+  most two rows a minute. Two first denials racing may both write a row;
+  accepted (`TestRepeatedDenialsAreCoalesced`; mutations checked: a row per
+  denial, the counter not bumped, the window ignored, not keyed by user,
+  the export without the count, each fails).
 - `X-Forwarded-For` is believed only when the TCP peer is in
-  `TRUSTED_PROXIES` (our Caddy's address), and then only its last hop, the
-  one Caddy appended. A client reaching the api directly cannot choose its
+  `TRUSTED_PROXIES` (our own proxies). Then its hops are read from the
+  right, skipping those that are also our proxies; the first hop that is not
+  ours is the client, and everything to its left (written by the client) is
+  ignored. A hop that does not parse stops the walk at the last proxy.
+  **In production `TRUSTED_PROXIES` is only our Caddy** (D-18, ADR 0007):
+  the browser calls api.X directly, so Caddy's peer is the browser and
+  Caddy replaces any client sent `X-Forwarded-For` with it. The web's Next
+  server is not on the production path and is never listed. Its same origin
+  `/v1` proxy exists in dev only; there, listing it (and having it append
+  the browser's address) is what keeps two people behind it on separate
+  throttles, which is why the walk skips every trusted hop and not just
+  one (`TestClientsBehindTheWebProxyCountSeparately`: trusted, an attacker
+  behind the web is throttled and the owner behind it still logs in; not
+  trusted, the owner is throttled too. Mutation checked: ignoring the
+  header from a trusted proxy fails it. `TestForwardedForOnlyFromTrustedProxies`
+  covers two proxies in a row, and a client spoofing hops behind both). A client reaching the api directly cannot choose its
   IP, so it cannot dodge per IP throttles or forge the IP in the audit log
   (`TestForwardedForOnlyFromTrustedProxies`,
   `TestSpoofedForwardedForDoesNotDodgeThrottles`). The old
@@ -125,6 +167,15 @@ Every error is RFC 9457 with a stable `code`: `bad_request`, `unauthorized`,
 `forbidden`, `not_found`, `conflict`, `idempotency_key_required`,
 `idempotency_key_reused` (422), `idempotency_key_in_flight` (409),
 `payload_too_large`, `rate_limited`, `internal`.
+
+A 400 from spec validation or parameter binding has one short, stable
+`detail`: `invalid parameter "<name>"`, `invalid request body: /<field>`,
+`invalid request body: unknown property` or `invalid request body`
+(`internal/app/errors.go`). The library's own message is never sent: it
+printed the whole schema and the submitted value, a password included.
+Tested by `TestBadRequestDetailIsShortAndStable` (query, path, enum, body
+pattern, unknown and missing field; mutations checked: restoring the
+library message on either the validator or the router path fails it).
 
 ## How it is tested
 

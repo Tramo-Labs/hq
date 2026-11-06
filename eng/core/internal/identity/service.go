@@ -10,17 +10,20 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/riverqueue/river"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/cuit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
+	mailer "github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/ratelimit"
 )
 
@@ -45,6 +48,13 @@ var (
 	ErrInvalidCuit        = errors.New("invalid cuit check digit")
 	ErrForbidden          = errors.New("forbidden")
 	ErrAlreadyMember      = errors.New("already a member")
+	// ErrNotAMember answers a login with the right password on a tenant
+	// the user does not belong to (F18). Only reachable with the password.
+	ErrNotAMember = errors.New("not a member of that tenant")
+	// ErrMemberNotFound: the user is not a member of the caller's tenant.
+	ErrMemberNotFound = errors.New("member not found")
+	// ErrLastOwner: removing this member would leave the tenant without owner.
+	ErrLastOwner = errors.New("the tenant needs at least one owner")
 )
 
 // Service implements the identity use cases.
@@ -55,8 +65,21 @@ type Service struct {
 	Argon   Argon2Params
 	Limiter *ratelimit.Limiter
 	Limits  Limits
+	// Mailer delivers invitations; nil logs that none was sent.
+	Mailer mailer.Sender
+	// AppBaseURL is the web app's origin, for invitation links.
+	AppBaseURL string
+	// Enqueue puts a job on the queue (River, jobs.Insert in the api).
+	// Magic links are sent from a job so a request never looks the email
+	// up (D-17); without it RequestMagicLink fails with ErrNoQueue.
+	Enqueue func(ctx context.Context, args river.JobArgs) error
 	now     func() time.Time
 	dummy   string // hash compared when the email is unknown (constant time login)
+
+	// watch follows failures per email across IPs (D-17). Built on first
+	// use from Limits, so a caller may adjust Limits after NewService.
+	watchOnce sync.Once
+	watch     *attackWatch
 }
 
 // NewService builds the service.
@@ -72,7 +95,8 @@ func NewService(d *db.DB, s *Signer, k *crypto.Keyring, p Argon2Params) (*Servic
 // RegisterInput is a new account with its first tenant.
 type RegisterInput struct {
 	Email, Password, TenantName, TenantSlug string
-	Cuit                                    string // optional, 11 digits
+	Cuit                                    string  // optional, 11 digits
+	Name                                    *string // optional, the person's name
 }
 
 // Register creates the user, the tenant, the owner membership and the
@@ -93,13 +117,17 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (user, tenant 
 		}
 		cuitNum = &n
 	}
+	name, err := optionalName(in.Name)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, err
+	}
 	hash, err := HashPassword(s.Argon, in.Password)
 	if err != nil {
 		return uuid.Nil, uuid.Nil, err
 	}
 	err = s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
-		if user, err = q.CreateUser(ctx, store.CreateUserParams{Email: email, PasswordHash: &hash}); err != nil {
+		if user, err = q.CreateUser(ctx, store.CreateUserParams{Email: email, PasswordHash: &hash, DisplayName: name}); err != nil {
 			return mapUnique(err)
 		}
 		if tenant, err = q.CreateTenant(ctx, store.CreateTenantParams{Slug: in.TenantSlug, Name: in.TenantName, Cuit: cuitNum}); err != nil {
@@ -134,7 +162,7 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 		return Session{}, err
 	}
 	var out Session
-	var failed bool
+	var failed, notMember bool
 	err := s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
 		u, err := q.GetUserForLogin(ctx, email)
@@ -154,10 +182,13 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 			return audit.Record(ctx, tx, audit.Entry{Action: "identity.login_failed", Subject: subject, UserID: u.ID})
 		}
 		p, err := s.pickTenant(ctx, q, u.ID, tenant)
-		if err != nil {
-			failed = true
+		if errors.Is(err, ErrNotAMember) {
+			notMember = true
 			return audit.Record(ctx, tx, audit.Entry{Action: "identity.login_failed", Subject: "users:" + u.ID.String(), UserID: u.ID,
 				Detail: map[string]any{"reason": "no membership"}})
+		}
+		if err != nil {
+			return err
 		}
 		out, err = s.openSession(ctx, q, p, uuid.New())
 		if err != nil {
@@ -169,8 +200,14 @@ func (s *Service) Login(ctx context.Context, email, password string, tenant *uui
 		return Session{}, err
 	}
 	if failed {
-		s.loginFailed(ctx, email)
+		if s.loginFailed(ctx, email) {
+			s.auditMagicLinkMode(ctx, email)
+		}
 		return Session{}, ErrInvalidCredentials
+	}
+	if notMember {
+		// The password was right: not a guess, so no failure is counted.
+		return Session{}, ErrNotAMember
 	}
 	s.loginSucceeded(ctx, email)
 	return out, nil
@@ -186,7 +223,7 @@ func (s *Service) pickTenant(ctx context.Context, q *store.Queries, user uuid.UU
 			return Principal{UserID: user, TenantID: m.TenantID, Role: string(m.Role)}, nil
 		}
 	}
-	return Principal{}, ErrInvalidCredentials
+	return Principal{}, ErrNotAMember
 }
 
 func (s *Service) openSession(ctx context.Context, q *store.Queries, p Principal, family uuid.UUID) (Session, error) {
@@ -211,6 +248,20 @@ func (s *Service) openSession(ctx context.Context, q *store.Queries, p Principal
 // rotated revokes every token of its family and fails: whoever holds the
 // newest one (the legitimate client or the thief) has to log in again.
 func (s *Service) Refresh(ctx context.Context, token string) (Session, error) {
+	return s.rotate(ctx, token, nil)
+}
+
+// SwitchTenant moves a session to another of the caller's tenants without
+// a password: the refresh token rotates within the same family, now bound
+// to tenant, with the role of that membership. A tenant the caller does not
+// belong to answers ErrNotAMember and leaves the token as it was. Reuse of
+// an old token revokes the family, as on Refresh.
+func (s *Service) SwitchTenant(ctx context.Context, token string, tenant uuid.UUID) (Session, error) {
+	return s.rotate(ctx, token, &tenant)
+}
+
+// rotate is Refresh, or SwitchTenant when target is set.
+func (s *Service) rotate(ctx context.Context, token string, target *uuid.UUID) (Session, error) {
 	if token == "" {
 		return Session{}, ErrInvalidRefresh
 	}
@@ -246,7 +297,16 @@ func (s *Service) Refresh(ctx context.Context, token string) (Session, error) {
 			outcome = ErrInvalidRefresh
 			return nil
 		}
+		from := tenant
+		if target != nil {
+			tenant = *target
+		}
 		role, err := q.GetMembershipRole(ctx, store.GetMembershipRoleParams{UserID: rt.UserID, TenantID: tenant})
+		if errors.Is(err, pgx.ErrNoRows) && target != nil {
+			// Not one of the caller's tenants: refused, token untouched.
+			outcome = ErrNotAMember
+			return nil
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Membership removed since login: the session ends.
 			outcome = ErrInvalidRefresh
@@ -260,7 +320,11 @@ func (s *Service) Refresh(ctx context.Context, token string) (Session, error) {
 			return err
 		}
 		out, err = s.openSession(ctx, q, Principal{UserID: rt.UserID, TenantID: tenant, Role: string(role)}, rt.FamilyID)
-		return err
+		if err != nil || target == nil {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Entry{Action: "identity.tenant_switched", Subject: subject, TenantID: tenant,
+			UserID: rt.UserID, Detail: map[string]any{"from": from.String(), "to": tenant.String(), "role": string(role)}})
 	})
 	if err != nil {
 		return Session{}, err
@@ -300,6 +364,7 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 type MeView struct {
 	Principal   Principal
 	Email       string
+	Name        *string // nil until the person sets one
 	Memberships []store.ListMembershipsForUserRow
 }
 
@@ -310,13 +375,33 @@ func (s *Service) Me(ctx context.Context, p Principal) (MeView, error) {
 	err := s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
 		var err error
-		if v.Email, err = q.GetUserEmail(ctx, p.UserID); err != nil {
+		prof, err := q.GetUserProfile(ctx, p.UserID)
+		if err != nil {
 			return err
 		}
+		v.Email, v.Name = prof.Email, prof.DisplayName
 		v.Memberships, err = q.ListMembershipsForUser(ctx, p.UserID)
 		return err
 	})
 	return v, err
+}
+
+// TenantIDs lists every tenant, in a system transaction: the one cross
+// tenant read, for platform jobs that do per tenant work (the monthly
+// fan out). Ids only; each tenant's work then runs under its own scope.
+func TenantIDs(ctx context.Context, d *db.DB) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := d.System(ctx, func(tx pgx.Tx) error {
+		var err error
+		ids, err = TenantIDsTx(ctx, tx)
+		return err
+	})
+	return ids, err
+}
+
+// TenantIDsTx is TenantIDs inside a system transaction the caller holds.
+func TenantIDsTx(ctx context.Context, tx pgx.Tx) ([]uuid.UUID, error) {
+	return store.New(tx).ListTenantIDs(ctx)
 }
 
 // ListMembers returns the members of the caller's tenant (under RLS).
@@ -334,14 +419,24 @@ func (s *Service) ListMembers(ctx context.Context) ([]store.ListMembersRow, erro
 	return rows, err
 }
 
-// AddMember gives email the role in the caller's tenant. Owners and
-// operators may add members; only an operator grants operator or accountant.
+// AddMember gives email the role in the caller's tenant, under the grant
+// rules of spec §1 and §2 (CanGrant). An operator granting the first owner
+// is checked again inside the insert's transaction with the tenant row
+// locked, so two operators can not both create one.
 func (s *Service) AddMember(ctx context.Context, p Principal, email, role string) (store.ListMembersRow, error) {
-	if !CanManageMembers(p.Role) || ((role == RoleOperator || role == RoleAccountant) && p.Role != RoleOperator) {
-		return store.ListMembersRow{}, ErrForbidden
-	}
 	if !validRole(role) {
 		return store.ListMembersRow{}, fmt.Errorf("unknown role %q", role)
+	}
+	if !CanGrant(p.Role, role) {
+		return store.ListMembersRow{}, ErrForbidden
+	}
+	firstOwner := p.Role == RoleOperator
+	if firstOwner {
+		// Early refusal, before any user row is created; the locked
+		// check below is the one that counts.
+		if err := s.DB.InTenant(ctx, func(tx pgx.Tx) error { return noOwnerYet(ctx, store.New(tx), p.TenantID, false) }); err != nil {
+			return store.ListMembersRow{}, err
+		}
 	}
 	email, err := normalizeEmail(email)
 	if err != nil {
@@ -359,6 +454,11 @@ func (s *Service) AddMember(ctx context.Context, p Principal, email, role string
 		return store.ListMembersRow{}, err
 	}
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		if firstOwner {
+			if err := noOwnerYet(ctx, store.New(tx), p.TenantID, true); err != nil {
+				return err
+			}
+		}
 		if err := store.New(tx).CreateMembership(ctx, store.CreateMembershipParams{UserID: user, TenantID: p.TenantID, Role: store.Role(role)}); err != nil {
 			return mapUnique(err)
 		}
@@ -367,7 +467,58 @@ func (s *Service) AddMember(ctx context.Context, p Principal, email, role string
 	if err != nil {
 		return store.ListMembersRow{}, err
 	}
+	if err := s.inviteIfNoPassword(ctx, p, user, email, role); err != nil {
+		return store.ListMembersRow{}, err
+	}
 	return store.ListMembersRow{ID: user, Email: email, Role: store.Role(role)}, nil
+}
+
+// CanRemoveMembers reports whether role may remove people from a tenant.
+// Spec §1: only the owner; the operator only creates the first owner.
+func CanRemoveMembers(role string) bool { return role == RoleOwner }
+
+// RemoveMember takes user out of the caller's tenant. The last owner can
+// not be removed (the tenant row is locked so two owners removing each
+// other can not both succeed). The user's refresh tokens for this tenant
+// are revoked at once; an access token already issued keeps working until
+// it expires, at most AccessTTL (10 minutes).
+func (s *Service) RemoveMember(ctx context.Context, p Principal, user uuid.UUID) error {
+	if !CanRemoveMembers(p.Role) {
+		return ErrForbidden
+	}
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		q := store.New(tx)
+		if _, err := q.LockTenant(ctx, p.TenantID); err != nil {
+			return err
+		}
+		role, err := q.DeleteMembership(ctx, store.DeleteMembershipParams{UserID: user, TenantID: p.TenantID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrMemberNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if role == store.RoleOwner {
+			n, err := q.CountOwners(ctx, p.TenantID)
+			if err != nil {
+				return err
+			}
+			if n == 0 {
+				return ErrLastOwner // rolls the delete back
+			}
+		}
+		return audit.Record(ctx, tx, audit.Entry{Action: "identity.member_removed", Subject: "users:" + user.String(),
+			Detail: map[string]any{"role": string(role)}})
+	})
+	if err != nil {
+		return err
+	}
+	// refresh_tokens is not visible to tramo_app. If this fails the session
+	// still ends at the next refresh, which checks the membership.
+	return s.DB.System(ctx, func(tx pgx.Tx) error {
+		_, err := store.New(tx).RevokeUserTenantSessions(ctx, store.RevokeUserTenantSessionsParams{UserID: user, TenantID: &p.TenantID})
+		return err
+	})
 }
 
 // TenantInfo is the active tenant as stored.
@@ -422,8 +573,39 @@ func PurgeExpiredRefreshTokens(ctx context.Context, d *db.DB) (int64, error) {
 	return n, err
 }
 
-// CanManageMembers reports whether role may add people to a tenant.
-func CanManageMembers(role string) bool { return role == RoleOwner || role == RoleOperator }
+// CanGrant reports whether a member with role granter may give role to
+// someone over HTTP (spec §1 and §2). The owner grants owner, approver,
+// viewer and accountant. The operator grants only owner, and AddMember
+// further requires that the tenant has no owner yet. Nobody grants
+// operator: the first one comes from `api create-operator`.
+func CanGrant(granter, role string) bool {
+	switch granter {
+	case RoleOwner:
+		return role == RoleOwner || role == RoleApprover || role == RoleViewer || role == RoleAccountant
+	case RoleOperator:
+		return role == RoleOwner
+	}
+	return false
+}
+
+// noOwnerYet answers ErrForbidden when the tenant already has an owner.
+// With lock it first takes the tenant row, serializing it with removals and
+// other grants.
+func noOwnerYet(ctx context.Context, q *store.Queries, tenant uuid.UUID, lock bool) error {
+	if lock {
+		if _, err := q.LockTenant(ctx, tenant); err != nil {
+			return err
+		}
+	}
+	n, err := q.CountOwners(ctx, tenant)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return ErrForbidden
+	}
+	return nil
+}
 
 func validRole(r string) bool {
 	switch r {

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -45,7 +46,20 @@ type Config struct {
 	// X-Forwarded-For is believed. TRUSTED_PROXIES: comma separated IPs or
 	// CIDRs. Empty: the TCP peer is always the client.
 	TrustedProxies []netip.Prefix
-	DocsDir        string // directory with openapi.yaml and the Swagger UI page
+	// CORSOrigins are the browser origins allowed to call the api directly
+	// (D-18: the portal and the console, app.X and api.X on one registrable
+	// domain). CORS_ALLOWED_ORIGINS: comma separated exact origins, never
+	// "*", https only outside dev. In dev it defaults to APP_BASE_URL's
+	// origin; elsewhere it has no default and empty means no browser.
+	CORSOrigins httpx.Origins
+	DocsDir     string // directory with openapi.yaml and the Swagger UI page
+	// AppBaseURL is the web app's origin, used in invitation links
+	// (APP_BASE_URL, default http://localhost:3000).
+	AppBaseURL string
+	// MailOutbox is a file that receives every email instead of sending it
+	// (MAIL_OUTBOX). There is no SMTP transport: empty means invitations
+	// are created but not delivered, and that is logged.
+	MailOutbox string
 
 	MasterKey []byte // wraps the per tenant data keys
 	JWTSeed   []byte // ed25519 seed for access tokens
@@ -65,6 +79,8 @@ func Load() (Config, error) {
 		LogLevel:    get("LOG_LEVEL", "info"),
 		JWTKeyID:    get("JWT_KEY_ID", "k1"),
 		DocsDir:     get("DOCS_DIR", "api"),
+		AppBaseURL:  get("APP_BASE_URL", "http://localhost:3000"),
+		MailOutbox:  get("MAIL_OUTBOX", ""),
 	}
 	switch c.Env {
 	case "dev", "staging", "prod":
@@ -82,6 +98,15 @@ func Load() (Config, error) {
 	var err error
 	if c.TrustedProxies, err = httpx.ParseTrustedProxies(os.Getenv("TRUSTED_PROXIES")); err != nil {
 		return c, fmt.Errorf("TRUSTED_PROXIES: %w", err)
+	}
+	origins := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if origins == "" && c.Env == "dev" {
+		if u, err := url.Parse(c.AppBaseURL); err == nil && u.Host != "" {
+			origins = u.Scheme + "://" + u.Host
+		}
+	}
+	if c.CORSOrigins, err = httpx.ParseOrigins(origins, c.Env == "dev"); err != nil {
+		return c, fmt.Errorf("CORS_ALLOWED_ORIGINS: %w", err)
 	}
 	c.MigrateDatabaseURL = get("MIGRATE_DATABASE_URL", c.DatabaseURL)
 	defaultMigrate := "false"
@@ -138,6 +163,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("migrate_on_start", c.MigrateOnStart),
 		slog.String("arca_env", c.ArcaEnv),
 		slog.Any("trusted_proxies", c.TrustedProxies),
+		slog.Any("cors_origins", c.CORSOrigins.List()),
 		slog.Any("ephemeral_secrets", c.Ephemeral),
 	)
 }

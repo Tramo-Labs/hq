@@ -150,15 +150,17 @@ func newAEAD(key []byte) (cipher.AEAD, error) {
 // seal writes header | nonce | ciphertext. The header is authenticated too,
 // so the key version cannot be swapped.
 func seal(aead cipher.AEAD, version uint32, plaintext, aad []byte) ([]byte, error) {
-	ns := aead.NonceSize()
-	out := make([]byte, headerSize+ns, headerSize+ns+len(plaintext)+aead.Overhead())
-	out[0] = formatV1
-	binary.BigEndian.PutUint32(out[1:headerSize], version)
-	nonce := out[headerSize:]
+	// The nonce is drawn into its own slice, not into the header buffer, so
+	// it never shares backing memory with the fixed header bytes.
+	nonce := make([]byte, aead.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
-	full := append(append([]byte{}, out[:headerSize]...), aad...)
+	out := make([]byte, headerSize, headerSize+len(nonce)+len(plaintext)+aead.Overhead())
+	out[0] = formatV1
+	binary.BigEndian.PutUint32(out[1:headerSize], version)
+	full := append(append([]byte{}, out...), aad...)
+	out = append(out, nonce...)
 	return aead.Seal(out, nonce, plaintext, full), nil
 }
 

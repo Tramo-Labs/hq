@@ -19,6 +19,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/config"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/jobs"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 	"github.com/Tramo-Labs/hq/eng/core/internal/worker"
 )
 
@@ -49,7 +50,13 @@ func run() error {
 	}
 	defer pool.Close()
 
-	setup, err := worker.New(d)
+	// Magic links are sent by the worker (D-17): it gets the outbox and the
+	// app's address, the api only enqueues.
+	opts := worker.Options{AppBaseURL: cfg.AppBaseURL}
+	if cfg.MailOutbox != "" {
+		opts.Mailer = &mail.Outbox{Path: cfg.MailOutbox}
+	}
+	setup, err := worker.New(d, opts)
 	if err != nil {
 		return err
 	}

@@ -124,6 +124,41 @@ func TestTrustedProxies(t *testing.T) {
 	}
 }
 
+// D-18: the browser origins allowed to call the api.
+func TestCORSAllowedOrigins(t *testing.T) {
+	t.Setenv("APP_ENV", "dev")
+	t.Setenv("APP_BASE_URL", "")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	c, err := config.Load()
+	if err != nil || !c.CORSOrigins.Allowed("http://localhost:3000") || len(c.CORSOrigins.List()) != 1 {
+		t.Fatalf("dev default is the app base url: %v %v", c.CORSOrigins.List(), err)
+	}
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.tramo.test,https://console.tramo.test")
+	if c, err = config.Load(); err != nil || !c.CORSOrigins.Allowed("https://console.tramo.test") || c.CORSOrigins.Allowed("http://localhost:3000") {
+		t.Fatalf("explicit list: %v %v", c.CORSOrigins.List(), err)
+	}
+	for _, bad := range []string{"*", "https://*.tramo.test", "https://app.tramo.test/"} {
+		t.Setenv("CORS_ALLOWED_ORIGINS", bad)
+		if _, err := config.Load(); err == nil {
+			t.Errorf("CORS_ALLOWED_ORIGINS=%q accepted", bad)
+		}
+	}
+
+	t.Setenv("APP_ENV", "staging")
+	t.Setenv("DATABASE_URL", "postgres://x")
+	t.Setenv("MASTER_KEY", key32)
+	t.Setenv("JWT_SIGNING_KEY", key32)
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	t.Setenv("APP_BASE_URL", "https://app.tramo.test")
+	if c, err = config.Load(); err != nil || len(c.CORSOrigins.List()) != 0 {
+		t.Fatalf("outside dev nothing is allowed unless listed: %v %v", c.CORSOrigins.List(), err)
+	}
+	t.Setenv("CORS_ALLOWED_ORIGINS", "http://app.tramo.test")
+	if _, err := config.Load(); err == nil {
+		t.Error("http origin accepted outside dev")
+	}
+}
+
 func TestSecretsNeverPrinted(t *testing.T) {
 	t.Setenv("APP_ENV", "dev")
 	t.Setenv("MASTER_KEY", key32)
