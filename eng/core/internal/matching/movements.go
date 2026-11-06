@@ -200,6 +200,9 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 			}
 		}
 		d.Revision = cur.revision + 1
+		if s.beforeInsert != nil {
+			s.beforeInsert()
+		}
 
 		err = tx.QueryRow(ctx,
 			`insert into matching.movement_decisions (tenant_id, key, movement_id, revision, action, match_id, note, user_id, role, reverts)

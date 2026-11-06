@@ -250,6 +250,47 @@ func TestPGEveryTableForcesRLS(t *testing.T) {
 	}
 }
 
+// Every view of the datos schemas runs with the caller's privileges
+// (security_invoker), so row level security of the tables under it applies.
+// A view without it runs as its owner and shows every tenant's rows.
+func TestPGEveryViewIsSecurityInvoker(t *testing.T) {
+	d := dbtest.New(t)
+	ctx := context.Background()
+	err := d.System(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			select n.nspname || '.' || c.relname,
+			       coalesce('security_invoker=true' = any(c.reloptions) or 'security_invoker=on' = any(c.reloptions), false)
+			  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+			 where n.nspname in ('ledger', 'documents', 'matching') and c.relkind in ('v', 'm')
+			 order by 1`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		seen := 0
+		for rows.Next() {
+			var name string
+			var invoker bool
+			if err := rows.Scan(&name, &invoker); err != nil {
+				return err
+			}
+			seen++
+			if !invoker {
+				t.Errorf("%s: view without security_invoker leaks rows across tenants", name)
+			}
+		}
+		// decision_state and movement_decision_state (00103). A new view
+		// makes this fail on purpose: check it, then count it.
+		if seen != 2 {
+			t.Errorf("%d views in the datos schemas; want 2", seen)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPGScopeMismatch(t *testing.T) {
 	e := newPGEnv(t)
 	if _, err := e.store.FileSeen(e.ctx, e.scopeB.TenantID.String(), "00"); !errors.Is(err, ErrScopeMismatch) {

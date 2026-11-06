@@ -25,6 +25,11 @@ type PGStore struct {
 	// Closed answers whether a period is closed. Nil means no period is
 	// closed (the weekly close does not exist yet). See closed.
 	Closed ClosedFunc
+
+	// beforeInsert runs after every check of a decision and right before
+	// its insert. Nil in production; tests use it to line two concurrent
+	// decisions up so both pass the checks and collide on the insert.
+	beforeInsert func()
 }
 
 // ItemIn is an item as a source delivers it (ERP open item, invoice).
@@ -478,6 +483,9 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			}
 		}
 		d.Revision = target.revision + 1
+		if s.beforeInsert != nil {
+			s.beforeInsert()
+		}
 
 		err = tx.QueryRow(ctx,
 			`insert into matching.decisions (tenant_id, key, match_id, tray, revision, action, user_id, role, note, snapshot, reverts)

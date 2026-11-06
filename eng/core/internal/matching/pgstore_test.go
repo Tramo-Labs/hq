@@ -471,7 +471,21 @@ func TestPGItemLoadsAreAudited(t *testing.T) {
 func TestPGTenantIsolation(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
-	for _, table := range []string{"matching.items", "matching.runs", "matching.matches", "matching.pending", "ledger.movements"} {
+	// Decisions of A on a match and on a movement, so the decision tables
+	// and the state views have rows that could leak.
+	if _, err := e.decideAs(t, identity.RoleOperator, suggested(r), Approve, ""); err != nil {
+		t.Fatal(err)
+	}
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "gasto"); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"matching.items", "matching.runs", "matching.matches", "matching.pending",
+		"matching.decisions", "matching.movement_decisions", "matching.decision_state",
+		"matching.movement_decision_state", "ledger.movements"} {
+		if n := e.count(t, e.ctx, "select count(*) from "+table); n == 0 {
+			t.Errorf("tenant a sees no rows of %s: nothing to leak, the check proves nothing", table)
+		}
 		if n := e.count(t, e.ctxB, "select count(*) from "+table); n != 0 {
 			t.Errorf("tenant b sees %d rows of %s", n, table)
 		}
