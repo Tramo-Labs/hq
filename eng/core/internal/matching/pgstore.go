@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
@@ -71,6 +72,24 @@ func (s *PGStore) UpsertItems(ctx context.Context, source string, items []ItemIn
 			Detail: map[string]any{"source": source, "items": len(items)}})
 	})
 	return ids, err
+}
+
+// InvoiceItemTx stores the open item of an invoice inside the invoice's own
+// transaction (documents.PGStore.OnSaved). Source "document", source id the
+// invoice id, tied to it by invoice_id: the item follows the invoice, and
+// the database refuses to change an item a match in effect settles.
+func (s *PGStore) InvoiceItemTx(ctx context.Context, tx pgx.Tx, invoiceID uuid.UUID, d documents.ItemDraft) error {
+	refs := d.Refs
+	if refs == nil {
+		refs = []string{}
+	}
+	_, err := tx.Exec(ctx,
+		`insert into matching.items (tenant_id, source, source_id, invoice_id, kind, date, amount, refs, confidence, party)
+		 values (app_current_tenant(), 'document', $1, $2, $3, $4, $5, $6, $7, $8)
+		 on conflict (tenant_id, source, source_id) do update set kind = excluded.kind, date = excluded.date,
+		   amount = excluded.amount, refs = excluded.refs, confidence = excluded.confidence, party = excluded.party`,
+		invoiceID.String(), invoiceID, d.Kind, d.Date, int64(d.Amount), refs, d.Confidence, d.Party)
+	return err
 }
 
 // LoadInput builds the engine input for movements dated in [from, to]:

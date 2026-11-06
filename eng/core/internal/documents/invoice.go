@@ -78,6 +78,9 @@ type Invoice struct {
 	Fields map[Name]Field
 	// Trail records each stage that ran and what it found, for the audit log.
 	Trail []string
+	// ItemReason says why the stored invoice generated no open item ("" when
+	// it did, or before it is stored). See DraftItem.
+	ItemReason string `json:"-"`
 }
 
 func newInvoice() *Invoice { return &Invoice{Fields: map[Name]Field{}} }

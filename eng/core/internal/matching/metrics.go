@@ -143,7 +143,7 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 			select exists (select 1 from documents.invoices),
 			       count(*) filter (where to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1),
 			       count(*) filter (where to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1
-			                          and not auto_eligible)
+			                          and (not auto_eligible or item_reason is not null))
 			  from documents.invoices`, period).Scan(&invoicesEver, &invoices, &held); err != nil {
 			return err
 		}
@@ -204,11 +204,11 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 		invList := "/v1/documents/invoices?period=" + period
 		if !invoicesEver {
 			m("invoices_processed", "Facturas procesadas", "count", invList, nil, "Todavía no se cargó ninguna factura")
-			m("invoices_held", "Facturas para revisar", "count", invList+"&autoEligible=false", nil, "Todavía no se cargó ninguna factura")
+			m("invoices_held", "Facturas para revisar", "count", invList+"&review=true", nil, "Todavía no se cargó ninguna factura")
 		} else {
 			m("invoices_processed", "Facturas procesadas", "count", invList, measured(float64(invoices)), "Facturas cargadas en el mes")
-			m("invoices_held", "Facturas para revisar", "count", invList+"&autoEligible=false", measured(float64(held)),
-				"Facturas del mes con algún dato obligatorio faltante, dudoso o en conflicto")
+			m("invoices_held", "Facturas para revisar", "count", invList+"&review=true", measured(float64(held)),
+				"Facturas del mes con algún dato obligatorio faltante, dudoso o en conflicto, o que no generaron partida")
 		}
 		return nil
 	})

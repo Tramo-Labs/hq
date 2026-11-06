@@ -59,6 +59,31 @@ local OCR (running on our own machine) is a separate decision too.
   (indexed): the text and link paths still apply.
 - Line items and VAT breakdown.
 
+## Open items from invoices (F2)
+
+Every stored invoice generates the open item matching crosses against, in
+the same transaction (`DraftItem`, stored by matching through
+`PGStore.OnSaved`): a receivable when the tenant issued it (positive), a
+payable when the tenant received it (negative); credit notes reverse the
+sign. Amount is the total, date the issue date, refs the point of sale and
+number ("0002-00001234" and "00001234"), party the other side's CUIT.
+
+- **Direction is certain only from the QR**: the QR issuer is the tenant,
+  or the QR receiver is the tenant. The text rules leave the tenant's own
+  CUIT out of the issuer candidates, so an invoice the tenant issued and
+  that has no QR looks received. An uncertain direction caps the item's
+  confidence at 0.6: it can only be suggested, never automatic (tested).
+- The item's confidence is the invoice's `MinConfidence`: only an invoice
+  that is `auto_eligible` with a certain direction reaches automatic.
+- No item, with the reason in `item_reason` (and the invoice listed to
+  review, `review=true`): no tenant CUIT on file, no trusted total or issue
+  date, a currency other than pesos (no conversion is guessed), no issuer.
+- The item follows its invoice (deleted with it). An item a match in effect
+  settles cannot change or be deleted, also through its invoice: the
+  database refuses it until the match is reverted (migration 00104).
+
+Not done: open items from the ERP or from a CSV of expected payments.
+
 ## Endpoints, tables, jobs, events
 
 Table (migration 00101): `documents.invoices`, RLS enabled and forced.

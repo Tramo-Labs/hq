@@ -316,6 +316,11 @@ paths:
           in: query
           required: false
           schema: { type: boolean }
+        - name: review
+          in: query
+          required: false
+          description: Only invoices to review, those not eligible for automatic or that generated no open item (see itemReason).
+          schema: { type: boolean }
       responses:
         "200":
           description: ok
@@ -822,6 +827,7 @@ components:
         missing:
           type: array
           items: { type: string }
+        itemReason: { $ref: "#/components/schemas/ItemReason" }
         createdAt: { type: string, format: date-time }
     ExportInfo:
       type: object
@@ -994,6 +1000,15 @@ components:
         conflictValue: { type: string, description: Another source read a different value. }
         conflictSource: { type: string }
         note: { type: string }
+    ItemReason:
+      type: string
+      description: |
+        Why the invoice generated no open item for matching (absent when it
+        did): no_tenant_cuit (the tenant has no CUIT on file),
+        missing_total_or_date (no trusted total or issue date),
+        foreign_currency (not pesos; no conversion is guessed),
+        unknown_direction (no issuer to tell the tenant's side).
+      enum: [no_tenant_cuit, missing_total_or_date, foreign_currency, unknown_direction]
     Invoice:
       type: object
       required: [id, fields, autoEligible, minConfidence, missing, trail]
@@ -1005,6 +1020,7 @@ components:
           additionalProperties: { $ref: "#/components/schemas/InvoiceField" }
         autoEligible: { type: boolean }
         minConfidence: { type: number, format: double }
+        itemReason: { $ref: "#/components/schemas/ItemReason" }
         missing:
           type: array
           items: { type: string }

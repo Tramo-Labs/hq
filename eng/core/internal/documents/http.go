@@ -78,17 +78,21 @@ func (h *Handlers) GetInvoice(ctx context.Context, req apigen.GetInvoiceRequestO
 // ListInvoices lists the tenant's invoices (the rows behind the invoice
 // metrics).
 func (h *Handlers) ListInvoices(ctx context.Context, req apigen.ListInvoicesRequestObject) (apigen.ListInvoicesResponseObject, error) {
-	period := ""
+	f := ListFilter{AutoEligible: req.Params.AutoEligible}
 	if req.Params.Period != nil {
-		period = *req.Params.Period
+		f.Period = *req.Params.Period
 	}
-	list, err := h.store.List(ctx, period, req.Params.AutoEligible, 500)
+	if req.Params.Review != nil {
+		f.Review = *req.Params.Review
+	}
+	list, err := h.store.List(ctx, f, 500)
 	if err != nil {
 		return nil, err
 	}
 	out := apigen.ListInvoices200JSONResponse{Items: []apigen.InvoiceSummary{}}
 	for _, s := range list {
 		item := apigen.InvoiceSummary{Id: s.ID, IssuerCuit: s.IssuerCUIT, Number: s.Number, AutoEligible: s.AutoEligible,
+			ItemReason:    itemReason(s.ItemReason),
 			MinConfidence: s.MinConfidence, Missing: []string{}, CreatedAt: s.CreatedAt, Total: s.Total}
 		if s.DocType != nil {
 			v := int(*s.DocType)
@@ -112,7 +116,7 @@ func (h *Handlers) ListInvoices(ctx context.Context, req apigen.ListInvoicesRequ
 // ToAPI renders an invoice for the API.
 func ToAPI(id uuid.UUID, inv *Invoice) apigen.Invoice {
 	out := apigen.Invoice{Id: id, Fields: map[string]apigen.InvoiceField{}, AutoEligible: inv.AutoEligible(),
-		MinConfidence: inv.MinConfidence(), Missing: []string{}, Trail: inv.Trail}
+		MinConfidence: inv.MinConfidence(), Missing: []string{}, Trail: inv.Trail, ItemReason: itemReason(inv.ItemReason)}
 	if out.Trail == nil {
 		out.Trail = []string{}
 	}
@@ -166,4 +170,13 @@ func readFile(req apigen.UploadInvoiceRequestObject) ([]byte, error) {
 		}
 		return data, nil
 	}
+}
+
+// itemReason renders why no open item was generated (nil when one was).
+func itemReason(r string) *apigen.ItemReason {
+	if r == "" {
+		return nil
+	}
+	v := apigen.ItemReason(r)
+	return &v
 }
