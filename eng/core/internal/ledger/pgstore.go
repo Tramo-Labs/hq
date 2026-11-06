@@ -110,8 +110,8 @@ func (s *PGStore) SaveAccepted(ctx context.Context, u Upload, r Result, fresh []
 	return s.inTenant(ctx, u.TenantID, func(tx pgx.Tx) error {
 		var fileID uuid.UUID
 		err := tx.QueryRow(ctx,
-			`insert into ledger.files (tenant_id, account_id, sha256, filename, status, fingerprint, layout_id)
-			 values (app_current_tenant(), $1, $2, $3, 'accepted', $4, $5) returning id`,
+			`insert into ledger.files (tenant_id, account_id, sha256, filename, status, fingerprint, layout_id, uploaded_by)
+			 values (app_current_tenant(), $1, $2, $3, 'accepted', $4, $5, app_current_user()) returning id`,
 			u.AccountID, h, u.Filename, r.Fingerprint, r.LayoutID).Scan(&fileID)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "files_accepted_once" {
@@ -170,8 +170,8 @@ func (s *PGStore) SaveQuarantined(ctx context.Context, u Upload, r Result) error
 	return s.inTenant(ctx, u.TenantID, func(tx pgx.Tx) error {
 		var fileID uuid.UUID
 		err := tx.QueryRow(ctx,
-			`insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id)
-			 values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7) returning id`,
+			`insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id, uploaded_by)
+			 values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7, app_current_user()) returning id`,
 			u.AccountID, h, u.Filename, r.Reason, r.Detail, r.Fingerprint, nullText(r.LayoutID)).Scan(&fileID)
 		if err != nil {
 			return fmt.Errorf("ledger: insert quarantined file: %w", err)

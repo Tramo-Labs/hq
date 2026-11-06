@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
@@ -113,6 +115,70 @@ func (h *Handlers) ListQuarantine(ctx context.Context, _ apigen.ListQuarantineRe
 	for _, f := range files {
 		out.Items = append(out.Items, apigen.QuarantinedFile{Id: f.ID, AccountId: f.AccountID, Filename: optStr(f.Filename),
 			Reason: f.Reason, Detail: optStr(f.Detail), Fingerprint: optStr(f.Fingerprint), ReceivedAt: f.ReceivedAt})
+	}
+	return out, nil
+}
+
+const (
+	fileListLimit     = 500
+	movementListLimit = 5000
+)
+
+// ListFiles is the "Archivos" list (F12): every role of the tenant sees it.
+func (h *Handlers) ListFiles(ctx context.Context, req apigen.ListFilesRequestObject) (apigen.ListFilesResponseObject, error) {
+	var f FileFilter
+	if req.Params.Period != nil {
+		f.Period = *req.Params.Period
+	}
+	if req.Params.Status != nil {
+		f.Status = Status(*req.Params.Status)
+	}
+	rows, more, err := h.store.Files(ctx, f, fileListLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.ListFiles200JSONResponse{Items: []apigen.UploadedFile{}, Truncated: more}
+	for _, r := range rows {
+		item := apigen.UploadedFile{Id: r.ID, AccountId: r.AccountID, AccountName: r.AccountName, Bank: apigen.Bank(r.Bank),
+			Filename: optStr(r.Filename), Status: apigen.UploadedFileStatus(r.Status), Reason: optStr(r.Reason),
+			Detail: optStr(r.Detail), LayoutId: optStr(r.LayoutID), ReceivedAt: r.ReceivedAt,
+			UploadedBy: r.UploadedBy, UploadedByEmail: optStr(r.UploadedByEmail)}
+		if r.From != nil {
+			item.From = &openapi_types.Date{Time: *r.From}
+		}
+		if r.To != nil {
+			item.To = &openapi_types.Date{Time: *r.To}
+		}
+		if r.Status == Accepted {
+			n := r.Movements
+			item.Movements = &n
+		}
+		out.Items = append(out.Items, item)
+	}
+	return out, nil
+}
+
+// ListMovements lists one month's movements (F12): every role sees them.
+func (h *Handlers) ListMovements(ctx context.Context, req apigen.ListMovementsRequestObject) (apigen.ListMovementsResponseObject, error) {
+	from, err := time.Parse("2006-01", req.Params.Period)
+	if err != nil {
+		return nil, &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: "period must be YYYY-MM"}
+	}
+	to := from.AddDate(0, 1, -1)
+	rows, more, err := h.store.Movements(ctx, from, to, req.Params.AccountId, movementListLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.ListMovements200JSONResponse{Items: []apigen.LedgerMovement{}, Truncated: more}
+	for _, r := range rows {
+		item := apigen.LedgerMovement{Id: r.ID, AccountId: r.AccountID, AccountName: r.AccountName, Bank: apigen.Bank(r.Bank),
+			FileId: r.FileID, Line: r.Line, Date: openapi_types.Date{Time: r.Date}, Amount: int64(r.Amount),
+			Description: r.Description, Reference: optStr(r.Reference), ExternalRef: optStr(r.ExternalRef)}
+		if r.Balance != nil {
+			b := int64(*r.Balance)
+			item.Balance = &b
+		}
+		out.Items = append(out.Items, item)
 	}
 	return out, nil
 }

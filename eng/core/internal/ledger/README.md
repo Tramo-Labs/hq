@@ -87,7 +87,8 @@ the movement so matching can explain the difference without inventing it.
 ## Endpoints, tables, jobs, events
 
 Tables (migration 00100, schema `ledger`): `accounts`, `files` (accepted
-or quarantined, with reason and detail), `statements`, `movements`. Every
+or quarantined, with reason and detail, and since 00108 `uploaded_by`, the
+user who uploaded it; null before that), `statements`, `movements`. Every
 table has RLS enabled and forced with the platform tenant policy, and
 references its parents by `(tenant_id, id)` so no row can point at another
 tenant's. Unique: accepted file per tenant and hash; movement per account
@@ -107,6 +108,8 @@ Endpoints (`api/openapi.yaml`, tag `ledger`):
 | `POST /v1/ledger/accounts` | owner, operator | 201 account |
 | `POST /v1/ledger/accounts/{accountId}/statements` | owner, approver, operator, accountant | 201 accepted or quarantined, 200 duplicate; multipart `file`, up to 20 MiB |
 | `GET /v1/ledger/quarantine` | any member | quarantined files, newest first |
+| `GET /v1/ledger/files?period=&status=` | any member | uploaded files, accepted or quarantined, newest first (F12): when, who uploaded it (`uploadedBy`, and the email while that person is still a member), account, statement days, movements it stored, reason when quarantined. `period` is the month it was received (Argentina time). Up to 500, `truncated` says there were more |
+| `GET /v1/ledger/movements?period=&accountId=` | any member | the stored movements dated in the month (`period` required), with the file and line each came from. Up to 5000, `truncated` says there were more |
 
 Every POST requires `Idempotency-Key`. A retry with the same key replays the
 first answer only when the body bytes are the same: a client that rebuilds
