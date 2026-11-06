@@ -91,7 +91,6 @@ type Invoice struct {
 // is not certain.
 const TrailDirectionUncertain = "direction: not read from the ARCA QR; receivable or payable is not certain, so it can only be suggested"
 
-
 func newInvoice() *Invoice { return &Invoice{Fields: map[Name]Field{}} }
 
 // Get returns a field and whether it is set.
