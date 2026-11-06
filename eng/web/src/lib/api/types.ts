@@ -148,7 +148,8 @@ export type Match = {
 export type Candidate = { rule: string; itemIds: string[] };
 
 export type PendingReason =
-  | "ambiguous" | "shared_candidate" | "combination_ambiguous" | "reference_amount_differs" | "no_candidate" | "client_other" | "operator_returned";
+  | "ambiguous" | "shared_candidate" | "combination_ambiguous" | "reference_amount_differs" | "no_candidate"
+  | "client_other" | "client_rejected" | "operator_returned";
 
 export type PendingMovement = {
   movementId: string;
@@ -163,8 +164,10 @@ export type PendingMovement = {
   bank: Bank;
   tray: "suggested" | "exception";
   reason: PendingReason;
-  /** The client's note, for client_other. */
+  /** The client's note for client_other and client_rejected, the operator's for operator_returned. */
   note?: string;
+  /** The match the client rejected, for client_rejected. */
+  matchId?: string;
   candidates: Candidate[];
 };
 

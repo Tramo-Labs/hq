@@ -99,6 +99,8 @@ export const app = {
       period_closed: "Ese mes ya está cerrado y no se puede deshacer.",
       not_in_exceptions: "Esto ya no está en tu bandeja. Recargá para ver cómo quedó.",
       not_with_operator: "Este movimiento ya no está con vos: el cliente lo cambió o ya se respondió. Recargá para ver cómo quedó.",
+      operator_answered: "El operador ya respondió tu rechazo; ya no se puede deshacer desde acá.",
+      revert_on_match: "Este rechazo se deshace desde la conciliación, no desde el movimiento.",
     } as Record<string, string>,
   },
   files: {
@@ -183,6 +185,7 @@ export const app = {
     reference_amount_differs: "la referencia coincide, el monto no",
     no_candidate: "sin candidato",
     client_other: "el cliente dice que es otra cosa",
+    client_rejected: "el cliente rechazó la conciliación propuesta",
     operator_returned: "el operador lo devolvió con una nota",
   } satisfies Record<PendingReason, string>,
   results: {
