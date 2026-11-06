@@ -53,8 +53,19 @@ type Secrets struct {
 // LoadSecrets reads dir/dev-secrets.json, creating it (mode 0600) the first
 // time.
 func LoadSecrets(dir string) (Secrets, error) {
-	path := filepath.Join(dir, "dev-secrets.json")
-	if b, err := os.ReadFile(path); err == nil {
+	const name = "dev-secrets.json"
+	path := filepath.Join(dir, name)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return Secrets{}, err
+	}
+	// Files are read and written through a root scoped to dir, so a name
+	// can never escape it.
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return Secrets{}, err
+	}
+	defer root.Close()
+	if b, err := root.ReadFile(name); err == nil {
 		var s Secrets
 		if err := json.Unmarshal(b, &s); err != nil {
 			return Secrets{}, fmt.Errorf("devseed: %s is corrupt: %w", path, err)
@@ -71,10 +82,7 @@ func LoadSecrets(dir string) (Secrets, error) {
 	if err != nil {
 		return Secrets{}, err
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return Secrets{}, err
-	}
-	return s, os.WriteFile(path, b, 0o600)
+	return s, root.WriteFile(name, b, 0o600)
 }
 
 func random(n int) []byte {
@@ -124,7 +132,12 @@ func Seed(ctx context.Context, d *db.DB, kr *crypto.Keyring, s Secrets, fixtures
 	if err := seedIdentity(ctx, d, kr, s); err != nil {
 		return err
 	}
-	data, err := os.ReadFile(filepath.Join(fixtures, "bancor_ok.csv"))
+	root, err := os.OpenRoot(fixtures)
+	if err != nil {
+		return fmt.Errorf("devseed: fixtures: %w", err)
+	}
+	defer root.Close()
+	data, err := root.ReadFile("bancor_ok.csv")
 	if err != nil {
 		return fmt.Errorf("devseed: fixture: %w", err)
 	}

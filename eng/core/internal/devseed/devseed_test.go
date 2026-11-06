@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/devseed"
@@ -133,17 +134,32 @@ func TestSeedIsIdempotentAndFillsEveryTray(t *testing.T) {
 		}
 	}
 
-	// Every tray has something to show, in each tenant.
+	// Every tray has something to show, in each tenant. Suggested is the
+	// operator's only (F20), so the trays are read as the seeded operator,
+	// who is a member of both tenants; any error fails the test.
+	var operator uuid.UUID
+	if err := d.Pool.QueryRow(ctx, `select id from users where email = 'operator@tramo.test'`).Scan(&operator); err != nil {
+		t.Fatal(err)
+	}
 	store := &matching.PGStore{DB: d}
 	for _, tn := range devseed.Tenants {
-		tctx := jobs.TenantContext(ctx, tn.ID)
+		tctx := db.WithScope(ctx, db.Scope{TenantID: tn.ID, UserID: operator, Role: identity.RoleOperator})
 		auto, err := store.Undecided(tctx, matching.Auto, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
-		sugM, _ := store.Undecided(tctx, matching.Suggested, 100)
-		sugP, _ := store.LatestPending(tctx, matching.Suggested, 100)
-		exc, _ := store.LatestPending(tctx, matching.Exception, 100)
+		sugM, err := store.Undecided(tctx, matching.Suggested, 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sugP, err := store.LatestPending(tctx, matching.Suggested, 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		exc, err := store.LatestPending(tctx, matching.Exception, 100)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if len(auto) == 0 || len(sugM)+len(sugP) == 0 || len(exc) == 0 {
 			t.Errorf("%s trays: auto %d, suggested %d+%d, exception %d", tn.Slug, len(auto), len(sugM), len(sugP), len(exc))
 		}
