@@ -2,7 +2,28 @@
 // invitation still pending. The message must be true in both cases.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { tokenInFragment, tokenProblem, watchTokenFragment } from "./token-rules";
+import { explainToken, noTokenMessage, tokenInFragment, tokenProblem, watchTokenFragment } from "./token-rules";
+
+// F42: an invitation link that no longer works. 401 is used, expired or replaced by a newer
+// invitation (the core does not say which, on purpose); 403 is a cancelled one.
+test("a dead invitation link says it no longer works and to ask for a new one, for 401 and 403 alike", () => {
+  const want = "Este enlace de invitación ya no sirve. Pedile a quien te invitó uno nuevo. Si ya tenés cuenta, también podés entrar con tu email.";
+  for (const e of [new ApiError(401, "invalid_invite"), new ApiError(403, "not_a_member")]) assert.equal(explainToken(e, "invite"), want, String(e));
+  // True in every case: it names no cause and sends nobody back to the mail they just used.
+  assert.doesNotMatch(want, /se usó|venció|se canceló|aceptá la invitación|desde el mail/i);
+});
+
+test("the emailed sign in link keeps its own messages (F36)", () => {
+  assert.equal(explainToken(new ApiError(401, "invalid_magic_link"), "magic"), app.session.magic.invalid);
+  assert.equal(explainToken(new ApiError(403, "not_a_member"), "magic"), app.session.magic.notMember);
+});
+
+test("a reload says the link is read once, never that the mail came broken", () => {
+  assert.equal(noTokenMessage("invite"), "Por seguridad, el enlace se lee una sola vez y no queda en la dirección. Para seguir, abrilo de nuevo desde el mail.");
+  // A sign in link was already spent when the page read it: opening it again would not work.
+  assert.equal(noTokenMessage("magic"), "Por seguridad, el enlace se lee una sola vez y no queda en la dirección. Si no llegaste a entrar, pedí uno nuevo.");
+  for (const page of ["invite", "magic"] as const) assert.doesNotMatch(noTokenMessage(page), /incomplet/i, page);
+});
 
 test("the token is read from the fragment, and only from a token parameter", () => {
   assert.equal(tokenInFragment("#token=abc"), "abc");

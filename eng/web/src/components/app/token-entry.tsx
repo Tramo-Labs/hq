@@ -6,7 +6,7 @@ import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from "re
 import { app } from "@/content/app";
 import { acceptInvite, acceptMagicLink, ApiError, homeFor, logout, previewInvite, whoIsIn, type Session } from "@/lib/api";
 import { acceptStep, inviteStep, needsPreview, offersAccept, passwordProblem, previewFailed, type InviteStage, type PreviewState } from "@/components/app/invite-rules";
-import { tokenInFragment, tokenProblem, watchTokenFragment } from "@/components/app/token-rules";
+import { explainToken, noTokenMessage, tokenInFragment, watchTokenFragment } from "@/components/app/token-rules";
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
 
 const field = "min-h-11 w-full rounded-lg border border-white/20 bg-white/[0.04] px-3 text-[16px] text-white placeholder:text-white/50 focus:border-white/50 focus:outline-none";
@@ -31,18 +31,6 @@ export function FreshPerLink({ children }: { children: ReactNode }) {
   const [link, setLink] = useState(0);
   useEffect(() => watchTokenFragment(window, () => window.location.hash, () => setLink((n) => n + 1)), []);
   return <Fragment key={link}>{children}</Fragment>;
-}
-
-/** Errors shared by the pages that take an emailed token. */
-export function explainToken(e: unknown, invalid: string) {
-  const s = app.session;
-  switch (tokenProblem(e)) {
-    case "invalid": return invalid;
-    case "not_member": return s.magic.notMember;
-    case "rate_limited": return e instanceof ApiError && e.retryAfter ? s.rateLimited(e.retryAfter) : s.rateLimitedNoWait;
-    case "offline": return s.offline;
-    default: return s.failed;
-  }
 }
 
 /**
@@ -89,7 +77,7 @@ export function InviteEntry() {
     previewing.current = true;
     Promise.resolve()
       .then(() => { setPreview({ status: "loading" }); return previewInvite(t); })
-      .then((p) => setPreview({ status: "ready", tenantName: p.tenantName, role: p.role }), (e) => { setPreviewError(explainToken(e, v.invalid)); setPreview(previewFailed(e)); })
+      .then((p) => setPreview({ status: "ready", tenantName: p.tenantName, role: p.role }), (e) => { setPreviewError(explainToken(e, "invite")); setPreview(previewFailed(e)); })
       .finally(() => { previewing.current = false; });
   }, [who, stage, preview, v.invalid]);
 
@@ -142,7 +130,7 @@ export function InviteEntry() {
       // A 400 is either the name (invalid_name) or the request's validation, which here can only
       // be the password's length; each gets its own message.
       setError(err instanceof ApiError && err.code === "invalid_name" ? app.session.name.invalid
-        : err instanceof ApiError && err.status === 400 ? v.rejected : explainToken(err, v.invalid));
+        : err instanceof ApiError && err.status === 400 ? v.rejected : explainToken(err, "invite"));
     } finally {
       setBusy(false);
     }
@@ -152,7 +140,7 @@ export function InviteEntry() {
     return (
       <>
         <p className="font-mono text-[12px] tracking-wide text-white/60">{v.eyebrow}</p>
-        <p role="alert" className="mt-4 text-[16px] leading-relaxed text-accent">{app.session.magic.noToken}</p>
+        <p role="alert" className="mt-4 text-[16px] leading-relaxed text-accent">{noTokenMessage("invite")}</p>
         <Link href="/entrar" className={`${ghostBtn} mt-6`}>{app.session.magic.again}</Link>
       </>
     );
@@ -253,8 +241,8 @@ export function MagicLinkEntry() {
     let live = true;
     started.current ??= (() => {
       const token = readFragmentToken();
-      if (!token) return Promise.resolve(m.noToken);
-      return acceptMagicLink(token).then((s) => { router.replace(homeFor(s.role)); return null; }, (e) => explainToken(e, m.invalid));
+      if (!token) return Promise.resolve(noTokenMessage("magic"));
+      return acceptMagicLink(token).then((s) => { router.replace(homeFor(s.role)); return null; }, (e) => explainToken(e, "magic"));
     })();
     started.current.then((msg) => { if (live && msg) setError(msg); });
     return () => { live = false; };

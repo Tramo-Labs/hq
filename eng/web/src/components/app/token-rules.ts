@@ -1,6 +1,7 @@
 // What an emailed link's refusal means (/ingresar and /invitacion), kept apart from the component
 // so node --test can check it without rendering React.
 import { ApiError } from "../../lib/api/errors";
+import { app } from "../../content/app";
 
 /** The token of an emailed link, from the URL fragment ("#token=…"), or null. */
 export function tokenInFragment(hash: string): string | null {
@@ -22,6 +23,26 @@ export function watchTokenFragment(
   target.addEventListener("hashchange", changed);
   return () => target.removeEventListener("hashchange", changed);
 }
+
+/**
+ * The message for an emailed link's refusal, per page. On /invitacion a 401 (used, expired or
+ * replaced) and a 403 (cancelled) get the same message, true in every case (F42); on /ingresar
+ * a 403 is the F36 one, for a person without access to that company today.
+ */
+export function explainToken(e: unknown, page: "invite" | "magic"): string {
+  const s = app.session;
+  const own = page === "invite" ? s.invite : s.magic;
+  switch (tokenProblem(e)) {
+    case "invalid": return own.invalid;
+    case "not_member": return page === "invite" ? s.invite.invalid : s.magic.notMember;
+    case "rate_limited": return e instanceof ApiError && e.retryAfter ? s.rateLimited(e.retryAfter) : s.rateLimitedNoWait;
+    case "offline": return s.offline;
+    default: return s.failed;
+  }
+}
+
+/** What the page says when it opens with no token: a reload, since the token is wiped on read. */
+export const noTokenMessage = (page: "invite" | "magic") => (page === "invite" ? app.session.invite.noToken : app.session.magic.noToken);
 
 export type TokenProblem = "invalid" | "not_member" | "rate_limited" | "offline" | "failed";
 

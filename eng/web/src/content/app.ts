@@ -321,7 +321,7 @@ export const app = {
       sent: "Si ese email tiene cuenta en Tramo, te mandamos un enlace. Vale 15 minutos y sirve una sola vez.",
       eyebrow: "Entrar con enlace",
       opening: "Abriendo tu sesión…",
-      noToken: "Este enlace está incompleto. Abrilo de nuevo desde el mail o pedí otro.",
+      noToken: "Por seguridad, el enlace se lee una sola vez y no queda en la dirección. Si no llegaste a entrar, pedí uno nuevo.",
       invalid: "El enlace ya se usó o venció. Pedí otro desde la pantalla de entrada.",
       notMember: "Con este enlace no podés entrar: hoy no tenés acceso a esa empresa. Si te invitaron, aceptá la invitación desde el mail que te llegó; si no, pedile al titular que te sume.",
       again: "Ir a entrar",
@@ -355,7 +355,10 @@ export const app = {
       tooShort: "La contraseña tiene que tener al menos 12 caracteres.",
       submit: "Entrar",
       submitting: "Entrando…",
-      invalid: "La invitación ya se usó o venció. Pedile a quien te invitó una nueva, o entrá con tu email.",
+      // One message for 401 (used, expired, or replaced by a new invitation; the core does not say
+      // which, on purpose) and 403 (cancelled): all true at once (F42).
+      invalid: "Este enlace de invitación ya no sirve. Pedile a quien te invitó uno nuevo. Si ya tenés cuenta, también podés entrar con tu email.",
+      noToken: "Por seguridad, el enlace se lee una sola vez y no queda en la dirección. Para seguir, abrilo de nuevo desde el mail.",
       rejected: "Revisá los datos: la contraseña tiene que tener entre 12 y 128 caracteres.",
       checking: "Revisando si ya hay una sesión abierta en este navegador…",
       signedInTitle: "Ya hay una sesión abierta.",
