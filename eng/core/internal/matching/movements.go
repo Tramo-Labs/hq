@@ -42,6 +42,11 @@ const (
 	// MovementReturn: the operator sends it back to the client with what
 	// the operator needs (note required). It shows again in Exceptions.
 	MovementReturn MovementAction = "return"
+	// MovementRejected is written by a client's reject of a match in
+	// Exceptions, one row per movement of the match, never by this
+	// endpoint: the movement is with the operator like after "other", and
+	// the client reverts it on the match.
+	MovementRejected MovementAction = "rejected"
 )
 
 var (
@@ -55,8 +60,12 @@ var (
 	// ErrItemTaken: an item is already settled by a match in effect.
 	ErrItemTaken = errors.New("matching: an item is already settled by another match")
 	// ErrNotWithOperator: the operator acts only on a movement the client
-	// marked other and nobody answered yet.
+	// marked other, or whose match the client rejected, and nobody
+	// answered yet.
 	ErrNotWithOperator = errors.New("matching: the movement is not waiting for the operator")
+	// ErrRevertOnMatch: a client's reject is reverted on the match it
+	// rejected, not on each movement.
+	ErrRevertOnMatch = errors.New("matching: revert the reject on the match")
 )
 
 // MovementDecisionInput is what the client may say. Who decides and with
@@ -195,13 +204,19 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 			}
 			reverts = &cur.id
 		default:
-			var waiting bool
-			if err := tx.QueryRow(ctx, `
+			// The first decision on a movement needs it waiting in the
+			// client's Exceptions without a candidate. After that the turn
+			// is the decision in effect (movementTurn): a rejected match's
+			// movement, or one the operator returned, need not be pending.
+			waiting := cur.action != ""
+			if !waiting {
+				if err := tx.QueryRow(ctx, `
 				with latest as (select distinct on (period) id from matching.runs order by period, started_at desc, id)
 				select exists (select 1 from matching.pending
 				                where run_id in (select id from latest) and movement_id = $1
 				                  and tray = 'exception' and reason = 'no_candidate')`, mid).Scan(&waiting); err != nil {
-				return err
+					return err
+				}
 			}
 			if !waiting {
 				return ErrNotInExceptions
@@ -263,6 +278,8 @@ func movementTurn(a MovementAction, client bool, cur MovementAction, curRole str
 			return ErrNothingToRevert
 		case client != curByClient:
 			return ErrForbidden
+		case cur == MovementRejected:
+			return ErrRevertOnMatch
 		}
 		return nil
 	}
@@ -282,7 +299,7 @@ func movementTurn(a MovementAction, client bool, cur MovementAction, curRole str
 	default:
 		return ErrForbidden
 	}
-	if cur != MovementOther {
+	if cur != MovementOther && cur != MovementRejected {
 		return ErrNotWithOperator
 	}
 	return nil

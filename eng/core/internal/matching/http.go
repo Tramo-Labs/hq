@@ -82,6 +82,10 @@ func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingReques
 			note := r.Note
 			pm.Note = &note
 		}
+		if r.MatchID != "" {
+			m := r.MatchID
+			pm.MatchId = &m
+		}
 		for _, c := range r.Candidates {
 			ids, err := uuids(c.ItemIDs)
 			if err != nil {
@@ -210,6 +214,10 @@ func decisionProblem(err error) error {
 		return conflict("period_closed", ErrClosed.Error())
 	case errors.Is(err, ErrNotInExceptions):
 		return conflict("not_in_exceptions", ErrNotInExceptions.Error())
+	case errors.Is(err, ErrOperatorAnswered):
+		return conflict("operator_answered", ErrOperatorAnswered.Error())
+	case errors.Is(err, ErrRevertOnMatch):
+		return conflict("revert_on_match", ErrRevertOnMatch.Error())
 	case errors.Is(err, ErrNotWithOperator):
 		return conflict("not_with_operator", ErrNotWithOperator.Error())
 	case errors.Is(err, ErrItemTaken):

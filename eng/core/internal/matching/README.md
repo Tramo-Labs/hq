@@ -165,12 +165,27 @@ After the client's `other` the movement is the operator's (F4, migration
   client's Exceptions with reason `operator_returned` and the operator's
   note, and the client decides again (`other` or `link`).
 
+A client's `reject` of a match in Exceptions does the same through the
+movements of the match (migration 00109): each gets a `rejected` row with
+the client's reason and the match, lists in Suggested as `client_rejected`
+(note and `matchId`), and the operator answers it with the same three
+actions. The client takes its reject back on the match (`revert` there),
+which reverts those rows too, and only while the operator has not answered
+any of them (409 `operator_answered`); on the movement it is 409
+`revert_on_match`.
+
 The operator acts only on a movement whose decision in effect is the
-client's `other` (409 `not_with_operator`). Each side reverts only its own
+client's `other` or `rejected` (409 `not_with_operator`). Each side reverts only its own
 row (403 otherwise). The decision in effect is the latest row that is not a
 reversion and that nobody reverted, so reverting the operator's answer puts
 the client's `other` back in effect instead of erasing it.
 `open_exception_movements` counts returned movements as open.
+
+What each tray lists is one SQL definition (`pendingRowsSQL`) used by the
+lists and by the metrics: the latest run's pending rows of movements with
+no decision in effect, plus the movements a decision hands to a side
+(`other` and `rejected` to the operator, `return` to the client) whatever
+the runs say, unless a match in effect settles them now.
 
 `matching.movement_decisions` is append only (trigger), RLS forced, one
 row per revision.
@@ -218,7 +233,7 @@ shown as zero.
 | `open_exception_movements` | count | movements left in Exceptions without candidate by the latest run, with no client decision in effect | month not run | pending `tray=exception&period` |
 | `open_exception_matches` | count | escalated matches of the month the client has not decided | month not run | matches `tray=exception&period` |
 | `oldest_open_exception_days` | days | days since the oldest open exception movement | month not run, or none open | pending `tray=exception&period` |
-| `pending_<reason>` | count | movements in Suggested by reason (ambiguous, shared_candidate, combination_ambiguous, reference_amount_differs, client_other) | month not run | pending `tray=suggested&period` |
+| `pending_<reason>` | count | movements in Suggested by reason (ambiguous, shared_candidate, combination_ambiguous, reference_amount_differs, client_other, client_rejected) | month not run | pending `tray=suggested&period` |
 | `invoices_processed` | count | invoices stored in the month (Argentina time) | no invoice ever stored | invoices `period` |
 | `invoices_held` | count | of those, the ones not eligible for automatic | no invoice ever stored | invoices `period&autoEligible=false` |
 

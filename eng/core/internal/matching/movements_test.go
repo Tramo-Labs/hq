@@ -619,6 +619,121 @@ func (e pgEnv) operatorQueue(t *testing.T) map[string]PendingRow {
 	return e.pendingIDs(t, Suggested)
 }
 
+// A client's reject of an escalated match goes back to the operator: each
+// movement of the match lists in Suggested as client_rejected, with the
+// client's reason and the match. The operator answers it like
+// client_other; the client reverts its reject on the match, only while the
+// operator has not answered. The panel counts what the lists show.
+func TestPGClientRejectGoesBackToTheOperator(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	m := e.escalated(t, r)
+	mv := m.MovementIDs[0]
+	if len(m.MovementIDs) != 1 {
+		t.Fatalf("fixture: the suggested match has %d movements", len(m.MovementIDs))
+	}
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Reject, ""); !errors.Is(err, ErrNoteRequired) {
+		t.Errorf("reject without a reason: %v", err)
+	}
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Reject, "no es de este proveedor"); err != nil {
+		t.Fatal(err)
+	}
+	row, ok := e.operatorQueue(t)[mv]
+	if !ok || row.Reason != ReasonClientRejected || row.Note != "no es de este proveedor" || row.MatchID != m.ID {
+		t.Fatalf("not back with the operator: %+v", row)
+	}
+	if _, ok := e.pendingIDs(t, Exception)[mv]; ok {
+		t.Error("a rejected movement is in the client's tray")
+	}
+	if v := value(t, byKey(t, mustMetrics(t, e, "2026-10"))["pending_client_rejected"]); v != 1 {
+		t.Errorf("pending_client_rejected %v; want 1", v)
+	}
+	// The client reverts on the match, not on the movement.
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, mv, MovementRevert, ""); !errors.Is(err, ErrRevertOnMatch) {
+		t.Errorf("client revert on the movement: %v", err)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, mv, MovementRevert, ""); !errors.Is(err, ErrForbidden) {
+		t.Errorf("operator reverted the client's reject: %v", err)
+	}
+
+	// The operator returns it; the client cannot take its reject back now.
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, mv, MovementReturn, "¿de qué proveedor es?"); err != nil {
+		t.Fatal(err)
+	}
+	e.setMembership(t, e.a, identity.RoleApprover)
+	if row := e.pendingIDs(t, Exception)[mv]; row.Reason != ReasonOperatorReturned || row.Note != "¿de qué proveedor es?" {
+		t.Errorf("not back with the client: %+v", row)
+	}
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Revert, ""); !errors.Is(err, ErrOperatorAnswered) {
+		t.Errorf("client reverted a reject the operator answered: %v", err)
+	}
+	// The operator takes its return back: the client's reject is in effect.
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, mv, MovementRevert, ""); err != nil {
+		t.Fatal(err)
+	}
+	if row := e.operatorQueue(t)[mv]; row.Reason != ReasonClientRejected {
+		t.Errorf("the client's reject is not back in effect: %+v", row)
+	}
+	// Now the client may revert its reject: the match waits for it again.
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Revert, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := e.operatorQueue(t)[mv]; ok {
+		t.Error("a reverted reject is still with the operator")
+	}
+	e.setMembership(t, e.a, identity.RoleApprover)
+	waiting, err := e.store.UndecidedIn(e.ctx, Exception, "", 10)
+	if err != nil || len(waiting) != 1 || waiting[0].ID != m.ID {
+		t.Errorf("the match does not wait for the client again: %v %+v", err, waiting)
+	}
+
+	// Rejected again and resolved by the operator: in neither tray, also
+	// after the next run, which does not propose the rejected match again.
+	if _, err := e.decideAs(t, identity.RoleApprover, m, Reject, "tampoco"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleOperator, mv, MovementResolve, "pago a cuenta, asiento manual"); err != nil {
+		t.Fatal(err)
+	}
+	r2, _ := e.run(t)
+	for _, x := range r2.Matches {
+		if x.ID == m.ID {
+			t.Error("the rejected match was proposed again")
+		}
+	}
+	if _, ok := e.operatorQueue(t)[mv]; ok {
+		t.Error("resolved movement still with the operator")
+	}
+	if _, ok := e.pendingIDs(t, Exception)[mv]; ok {
+		t.Error("resolved movement with the client")
+	}
+	if v := value(t, byKey(t, mustMetrics(t, e, "2026-10"))["pending_client_rejected"]); v != 0 {
+		t.Errorf("pending_client_rejected %v after resolve; want 0", v)
+	}
+}
+
+// A movement with the operator stops waiting when a later run settles it
+// with a match in effect: the list never shows something already settled.
+func TestPGSettledMovementLeavesTheOperator(t *testing.T) {
+	e := newPGEnv(t)
+	e.run(t)
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "comisión, falta la nota de débito"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := e.operatorQueue(t)[fee]; !ok {
+		t.Fatal("not with the operator")
+	}
+	if _, err := e.store.UpsertItems(e.ctx, "erp", []ItemIn{
+		{SourceID: "ND-1", Kind: "payable", Date: day(2), Amount: -850000, Confidence: 1}}); err != nil {
+		t.Fatal(err)
+	}
+	e.run(t) // the debit note settles the fee automatically
+	if _, ok := e.operatorQueue(t)[fee]; ok {
+		t.Error("a settled movement is still with the operator")
+	}
+}
+
 // openSources lists the source ids of the open items for the filters, in
 // the order the list gives them (date, then source id).
 func (e pgEnv) openSources(t *testing.T, ctx context.Context, period, direction string) []string {
