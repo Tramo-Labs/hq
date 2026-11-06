@@ -34,6 +34,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
+	"github.com/Tramo-Labs/hq/eng/core/internal/portal"
 )
 
 // Deps are the shared dependencies of the API.
@@ -54,6 +55,7 @@ type Handlers struct {
 	*ledgerAPI
 	*documentsAPI
 	*matchingAPI
+	*portalAPI
 }
 
 // Aliases give each embedded module handler set its own field name.
@@ -61,6 +63,7 @@ type (
 	ledgerAPI    = ledger.Handlers
 	documentsAPI = documents.Handlers
 	matchingAPI  = matching.Handlers
+	portalAPI    = portal.Handlers
 )
 
 // NewHandlers builds the module handlers.
@@ -72,6 +75,9 @@ func NewHandlers(d Deps) *Handlers {
 		ledgerAPI:    ledger.NewHandlers(&ledger.PGStore{DB: d.DB}),
 		documentsAPI: documents.NewHandlers(&documents.PGStore{DB: d.DB}),
 		matchingAPI:  matching.NewHandlers(&matching.PGStore{DB: d.DB}),
+		// Read views over the modules above, under the caller's scope.
+		portalAPI: &portal.Handlers{DB: d.DB, Identity: d.Identity,
+			Ledger: &ledger.PGStore{DB: d.DB}, Matching: &matching.PGStore{DB: d.DB}},
 	}
 }
 

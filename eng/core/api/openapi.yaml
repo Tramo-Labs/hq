@@ -23,6 +23,11 @@ tags:
     description: Supplier invoices with the source and confidence of every field.
   - name: matching
     description: Runs of the matching engine, the three trays and human decisions.
+  - name: portal
+    description: |
+      Read views for the client portal and the operator console, built from
+      the other modules. The tenant always comes from the access token: no
+      operation takes a tenant id from the request.
 paths:
   /healthz:
     get:
@@ -67,6 +72,13 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
         "422": { $ref: "#/components/responses/Problem" }
+        "429":
+          description: too many registrations from this IP (code rate_limited)
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
   /v1/auth/login:
     post:
       operationId: login
@@ -88,6 +100,15 @@ paths:
         "200": { $ref: "#/components/responses/Tokens" }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+        "429":
+          description: |
+            Throttled (code rate_limited): too many logins from this IP, or
+            too many failures for this email. Checked before the password.
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
   /v1/auth/refresh:
     post:
       operationId: refresh
@@ -488,6 +509,136 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
+
+  /v1/me/tenant:
+    get:
+      operationId: getMyTenant
+      tags: [portal]
+      summary: Onboarding status of the active tenant (portal home)
+      description: |
+        Three steps, each verified on its own:
+        - `arca`: always `pending` for now. A CUIT on file is not a
+          verification, and a constancia lookup proves the CUIT exists, not
+          that the client delegated anything to Tramo.
+        - `bank`: `verified` once any account has an accepted statement.
+        - `erp`: `pending` (no ERP connector yet).
+        `openExceptions` counts what waits for the client in Exceptions.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantStatus" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/tenants:
+    get:
+      operationId: listTenants
+      tags: [portal]
+      summary: Tenants where the caller is operator or accountant (operator console)
+      description: |
+        Built from the caller's own memberships; each tenant is read under
+        its own tenant scope. 403 when the caller is operator or accountant
+        nowhere.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/TenantStatus" }
+                  nextCursor: { type: string, nullable: true }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /v1/metrics:
+    get:
+      operationId: listMetrics
+      tags: [portal]
+      summary: Results panel of the active tenant for a month
+      description: |
+        Not implemented yet (501 `not_implemented`): the automation rates
+        come from matching and have to be measured there first. Declared so
+        clients can build against the shape. Every metric carries `source`,
+        where the number comes from.
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema: { type: string, pattern: "^20[0-9]{2}-(0[1-9]|1[0-2])$", example: "2026-11" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Metric" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "501": { $ref: "#/components/responses/Problem" }
+  /v1/exports:
+    get:
+      operationId: listExports
+      tags: [portal]
+      summary: What the client can download, with row counts
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ExportInfo" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/exports/{kind}:
+    get:
+      operationId: getExport
+      tags: [portal]
+      summary: Download one export as CSV
+      description: |
+        `movements` and `audit` are available; `matches` answers 501 for
+        now. Optional `from` and `to` (dates, inclusive) bound the rows.
+        Cells that a spreadsheet would read as a formula are prefixed with
+        a quote.
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [movements, matches, audit]
+            x-enum-varnames: [KindMovements, KindMatches, KindAudit]
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: CSV, UTF-8, comma separated, header row first
+          headers:
+            Content-Disposition: { schema: { type: string } }
+          content:
+            text/csv:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "501": { $ref: "#/components/responses/Problem" }
 security:
   - bearer: []
 components:
@@ -546,6 +697,70 @@ components:
           example: idempotency_key_reused
         detail: { type: string }
         requestId: { type: string }
+    OnboardingStep:
+      type: object
+      required: [kind, status, detail]
+      properties:
+        kind:
+          type: string
+          enum: [arca, bank, erp]
+          x-enum-varnames: [StepArca, StepBank, StepErp]
+        status:
+          type: string
+          enum: [verified, pending, failed]
+          x-enum-varnames: [StepVerified, StepPending, StepFailed]
+        detail:
+          type: string
+          description: Why the step has this status, in English, for the UI to translate.
+        verifiedAt: { type: string, format: date-time, nullable: true }
+    TenantStatus:
+      type: object
+      required: [id, name, role, steps, openExceptions, openExceptionsCapped]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        cuit:
+          allOf: [{ $ref: "#/components/schemas/Cuit" }]
+          nullable: true
+        role:
+          allOf: [{ $ref: "#/components/schemas/Role" }]
+          description: The caller's role in this tenant.
+        steps:
+          type: array
+          items: { $ref: "#/components/schemas/OnboardingStep" }
+        openExceptions:
+          type: integer
+          description: Matches and movements waiting for the client in Exceptions.
+        openExceptionsCapped:
+          type: boolean
+          description: True when the count stopped at its cap (1000 of each kind).
+    Metric:
+      type: object
+      required: [key, label, value, unit, period, source]
+      properties:
+        key: { type: string, example: automation_rate }
+        label: { type: string }
+        value: { type: number }
+        unit:
+          type: string
+          enum: [percent, count, cents, days, hours]
+          x-enum-varnames: [UnitPercent, UnitCount, UnitCents, UnitDays, UnitHours]
+        period: { type: string, example: "2026-11" }
+        source:
+          type: string
+          description: Where the number comes from, shown next to it.
+    ExportInfo:
+      type: object
+      required: [kind, format, available]
+      properties:
+        kind:
+          type: string
+          enum: [movements, matches, audit]
+          x-enum-varnames: [ExportMovements, ExportMatches, ExportAudit]
+        format: { type: string, enum: [csv], x-enum-varnames: [ExportCSV] }
+        available: { type: boolean }
+        rows: { type: integer, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
     Role:
       type: string
       enum: [owner, approver, viewer, operator, accountant]
@@ -553,7 +768,7 @@ components:
       type: string
       pattern: "^[0-9]{11}$"
       description: CUIT, 11 digits without dashes. The check digit is verified.
-      example: "30712345674"
+      example: "30000000015"
     Password:
       type: string
       minLength: 12
