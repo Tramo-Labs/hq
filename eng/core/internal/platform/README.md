@@ -1,0 +1,119 @@
+# platform
+
+Shared plumbing every module uses. Owned by backend. Business modules depend
+on it; it depends on no business module.
+
+| Package | What it gives you |
+|---------|-------------------|
+| `config` | One `Config` from environment variables, validated at startup. Secrets never printed. |
+| `db` | Postgres pool, embedded goose migrations, `InTenant` and `System` transactions. |
+| `db/dbtest` | Real migrated Postgres 17 for tests, without Docker. |
+| `httpx` | Request id and client IP, `application/problem+json` errors, panic recovery, health, graceful shutdown. |
+| `idempotency` | `Idempotency-Key` middleware (eng/ARQUITECTURA.md section 7). |
+| `crypto` | Envelope encryption: AES-256-GCM data key per tenant, wrapped by the master key. |
+| `audit` | Append only audit log, written in the same transaction as the action. |
+
+## How a module uses it
+
+```go
+// Every query of a business module runs in a tenant transaction. RLS
+// filters by tenant even if the WHERE clause forgets to.
+err := deps.DB.InTenant(ctx, func(tx pgx.Tx) error {
+    q := store.New(tx)                       // sqlc
+    if err := q.InsertThing(ctx, ...); err != nil { return err }
+    return audit.Record(ctx, tx, audit.Entry{Action: "things.create", Subject: "things:" + id})
+})
+```
+
+Tests of a module that touches the database:
+
+```go
+func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
+
+func TestSomething(t *testing.T) {
+    d := dbtest.New(t) // fresh database, every migration applied
+    ...
+}
+```
+
+New tables (migrations 00100 to 00199 for datos) must have `tenant_id uuid not null
+references tenants(id)` and:
+
+```sql
+alter table things enable row level security;
+create policy things_tenant on things to tramo_app
+  using (tenant_id = app_current_tenant())
+  with check (tenant_id = app_current_tenant());
+```
+
+`tramo_app` gets select, insert, update and delete on new tables automatically
+(default privileges in 00002). Without the policy it sees no rows at all.
+
+`System` bypasses RLS. Only platform and identity use it (registration, login,
+refresh tokens, idempotency, creating a tenant key).
+
+## Endpoints
+
+`GET /healthz` (204) and `GET /readyz` (204, or 503 problem when the database
+does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/docs/`.
+
+## Tables (migrations 00001 and 00002)
+
+| Table | RLS for tramo_app | Notes |
+|-------|-------------------|-------|
+| `tenants` | own row only | |
+| `users` | self or members of the current tenant; only `id`, `email`, `created_at` readable | `password_hash` and `totp_secret` are not readable by `tramo_app` |
+| `memberships` | current tenant, or the caller's own memberships | |
+| `refresh_tokens` | no access | identity only, through `System` |
+| `audit_log` | read and insert for the current tenant | UPDATE and DELETE rejected by trigger, for every role |
+| `idempotency_requests` | current tenant | middleware uses `System` with explicit scope |
+| `tenant_keys` | read own key | wrapped data keys |
+
+## Jobs
+
+`idempotency.Purge` deletes keys older than 24 hours. The worker schedules it.
+
+## Sensitive data
+
+- `MASTER_KEY` and `JWT_SIGNING_KEY` come only from the environment, base64 of
+  32 bytes (`openssl rand -base64 32`). Required outside dev; in dev a missing
+  one is generated per run and logged as ephemeral (name only).
+- Tenant data keys are stored only wrapped. Ciphertexts are bound to tenant
+  and purpose, so a blob copied to another row or tenant does not decrypt.
+- Idempotent responses are stored in clear in `idempotency_requests`:
+  handlers behind an `Idempotency-Key` must never return tokens or keys.
+- Problem details never carry submitted values, personal data or amounts.
+  `readyz` logs the cause and answers without it.
+- The audit log stores IP and request id, never bodies. `Detail` must not
+  carry secrets, third party CUIT or amounts.
+- `X-Forwarded-For` is ignored unless `TRUST_PROXY_HEADERS=true`, and then
+  only the last hop (our Caddy) counts.
+
+## Errors
+
+Every error is RFC 9457 with a stable `code`: `bad_request`, `unauthorized`,
+`forbidden`, `not_found`, `conflict`, `idempotency_key_required`,
+`idempotency_key_reused` (422), `idempotency_key_in_flight` (409),
+`payload_too_large`, `rate_limited`, `internal`.
+
+## How it is tested
+
+`make test` runs everything with `-race` on an embedded Postgres (first run
+downloads the Postgres 17 binaries to `~/.embedded-postgres-go`). `make
+test-short` skips the database tests.
+
+- `db`: a tenant cannot read or write another tenant's rows with no WHERE
+  clause; `tramo_app` cannot read password hashes or refresh tokens; a tenant
+  transaction without scope fails; the audit log rejects UPDATE and DELETE.
+  Removing `SET ROLE` from `InTenant` makes three of these fail (checked).
+- `idempotency`: replay, 422 on another body, 409 while in flight, 5xx frees
+  the key, 4xx is stored, keys are per tenant, expiry after 24 hours.
+- `crypto`: round trip, tamper, wrong key, wrong purpose, wrong tenant, wrong
+  master key.
+- `audit`: who, request id and IP are filled; tenants cannot write or read
+  another tenant's trail.
+- `config`, `httpx`: secrets never printed, bad values rejected, proxy
+  headers not trusted by default, panics answered without detail.
+- `internal/app`: the assembled router, and two rules on the spec: every POST
+  that returns 201 requires `Idempotency-Key`, and every error response uses
+  `Problem`.

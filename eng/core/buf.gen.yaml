@@ -1,0 +1,11 @@
+# `make gen` (buf generate) writes the Go code for proto/ into gen/.
+# Local plugins: go install google.golang.org/protobuf/cmd/protoc-gen-go and
+# google.golang.org/grpc/cmd/protoc-gen-go-grpc (versions pinned in go.mod).
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: gen
+    opt: paths=source_relative
+  - local: protoc-gen-go-grpc
+    out: gen
+    opt: paths=source_relative

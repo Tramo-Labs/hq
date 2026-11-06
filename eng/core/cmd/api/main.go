@@ -1,28 +1,49 @@
 // Command api serves the core REST API described in api/openapi.yaml.
+// It applies pending migrations at startup, then serves until SIGTERM.
 package main
 
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"os"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/app"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/config"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	if err := run(); err != nil {
+		slog.Error("api", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("config", "err", err)
-		os.Exit(1)
+		return err
 	}
-	mux := http.NewServeMux()
-	httpx.Health(mux, func(context.Context) error { return nil })
-	mux.Handle("GET /docs/", http.StripPrefix("/docs/", http.FileServer(http.Dir("api"))))
-	if err := httpx.Run(cfg.HTTPAddr, httpx.RequestID(mux)); err != nil {
-		slog.Error("server", "err", err)
-		os.Exit(1)
+	slog.Info("config", "cfg", cfg)
+	if len(cfg.Ephemeral) > 0 {
+		slog.Warn("dev: secrets generated for this run only; tokens and encrypted data will not survive a restart",
+			"secrets", cfg.Ephemeral)
 	}
+	ctx := context.Background()
+	d, err := db.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	if err := d.Migrate(ctx); err != nil {
+		return err
+	}
+	deps := app.Deps{DB: d, TrustProxy: cfg.TrustProxyHeaders, DocsDir: cfg.DocsDir}
+	h, err := app.New(deps, app.NewHandlers(deps))
+	if err != nil {
+		return err
+	}
+	return httpx.Run(cfg.HTTPAddr, h)
 }

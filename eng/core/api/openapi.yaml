@@ -1,25 +1,41 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Tramo Core API
   version: 0.1.0
   description: |
     REST contract of the core. Spec first: handlers are generated from this
-    file with oapi-codegen. Every POST that creates a resource requires an
-    Idempotency-Key header (see eng/ARQUITECTURA.md section 7).
+    file with oapi-codegen (`make gen`) and nobody edits the generated code.
+
+    Conventions every module follows:
+    - Every POST that creates a resource declares the `IdempotencyKey`
+      parameter (eng/ARQUITECTURA.md section 7). A test fails otherwise.
+    - Errors are `application/problem+json` (RFC 9457) with a stable `code`.
+    - Amounts are integers in cents; dates and times are ISO 8601.
+    - Lists are wrapped: `{items: [...], nextCursor}`.
 servers:
   - url: http://localhost:8080
+tags:
+  - name: platform
 paths:
   /healthz:
     get:
+      operationId: healthz
+      tags: [platform]
       summary: Liveness
+      security: []
       responses:
         "204": { description: alive }
   /readyz:
     get:
-      summary: Readiness (database and gateway reachable)
+      operationId: readyz
+      tags: [platform]
+      summary: Readiness (database reachable)
+      security: []
       responses:
         "204": { description: ready }
-        "503": { description: not ready }
+        "503": { $ref: "#/components/responses/Problem" }
+security:
+  - bearer: []
 components:
   securitySchemes:
     bearer:
@@ -31,4 +47,28 @@ components:
       name: Idempotency-Key
       in: header
       required: true
+      description: |
+        Client generated UUID. Same key and same body replays the first
+        response for 24 hours; same key with another body is 422; a key
+        whose first request is still running is 409.
       schema: { type: string, format: uuid }
+  responses:
+    Problem:
+      description: Error
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string, example: about:blank }
+        title: { type: string, example: Unprocessable Entity }
+        status: { type: integer, example: 422 }
+        code:
+          type: string
+          description: Stable machine readable error code.
+          example: idempotency_key_reused
+        detail: { type: string }
+        requestId: { type: string }

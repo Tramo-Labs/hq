@@ -11,7 +11,9 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api \
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=build /out/ /app/
-COPY --from=build /src/api /app/api
-COPY --from=build /src/migrations /app/migrations
+# The spec and Swagger UI live next to the binaries, not on top of /app/api.
+# Migrations are embedded in the binaries; api applies them at startup.
+COPY --from=build /src/api/openapi.yaml /src/api/index.html /app/docs/
+ENV DOCS_DIR=/app/docs
 USER nonroot
 ENTRYPOINT ["/app/api"]

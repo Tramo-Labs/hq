@@ -9,8 +9,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -25,27 +27,79 @@ func Health(mux *http.ServeMux, ready func(context.Context) error) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 		if err := ready(ctx); err != nil {
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			Logger(r.Context()).Warn("not ready", "err", err)
+			WriteProblem(w, r, http.StatusServiceUnavailable, "not_ready", "")
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 }
 
-// RequestID gives every request an id, echoed in the response header and
-// attached to the logger in the context.
-func RequestID(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := r.Header.Get("X-Request-Id")
-		if id == "" {
-			var b [12]byte
-			_, _ = rand.Read(b[:])
-			id = hex.EncodeToString(b[:])
+// RequestID is RequestMeta without trusting proxy headers.
+func RequestID(next http.Handler) http.Handler { return RequestMeta(false)(next) }
+
+// Meta is what every request carries for logs and the audit log.
+type Meta struct {
+	RequestID string
+	IP        netip.Addr
+}
+
+type metaKey struct{}
+
+// MetaFrom returns the request metadata stored by RequestMeta.
+func MetaFrom(ctx context.Context) (Meta, bool) {
+	m, ok := ctx.Value(metaKey{}).(Meta)
+	return m, ok
+}
+
+// RequestMeta gives every request an id (a well formed incoming
+// X-Request-Id is kept), echoes it, and stores it with the client IP in the
+// context. With trustProxy the IP is the last X-Forwarded-For hop, which is
+// the one our own reverse proxy (Caddy) appended; otherwise RemoteAddr.
+func RequestMeta(trustProxy bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			id := r.Header.Get("X-Request-Id")
+			if !validRequestID(id) {
+				var b [12]byte
+				_, _ = rand.Read(b[:])
+				id = hex.EncodeToString(b[:])
+			}
+			w.Header().Set("X-Request-Id", id)
+			m := Meta{RequestID: id, IP: clientIP(r, trustProxy)}
+			ctx := context.WithValue(r.Context(), metaKey{}, m)
+			log := slog.Default().With("request_id", id)
+			next.ServeHTTP(w, r.WithContext(WithLogger(ctx, log)))
+		})
+	}
+}
+
+func validRequestID(s string) bool {
+	if s == "" || len(s) > 64 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+			return false
 		}
-		w.Header().Set("X-Request-Id", id)
-		log := slog.Default().With("request_id", id)
-		next.ServeHTTP(w, r.WithContext(WithLogger(r.Context(), log)))
-	})
+	}
+	return true
+}
+
+func clientIP(r *http.Request, trustProxy bool) netip.Addr {
+	if trustProxy {
+		if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
+			hops := strings.Split(xff[len(xff)-1], ",")
+			if a, err := netip.ParseAddr(strings.TrimSpace(hops[len(hops)-1])); err == nil {
+				return a
+			}
+		}
+	}
+	if ap, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
+		return ap.Addr()
+	}
+	a, _ := netip.ParseAddr(r.RemoteAddr)
+	return a
 }
 
 type loggerKey struct{}

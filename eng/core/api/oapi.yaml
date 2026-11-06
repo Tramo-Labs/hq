@@ -1,0 +1,12 @@
+# oapi-codegen configuration: `make gen` writes gen/api from openapi.yaml.
+# chi router, strict (typed) handlers, models and the embedded spec used to
+# validate requests. Never edit the output by hand.
+package: apigen
+output: gen/api/api.gen.go
+generate:
+  chi-server: true
+  strict-server: true
+  models: true
+  embedded-spec: true
+output-options:
+  skip-prune: true

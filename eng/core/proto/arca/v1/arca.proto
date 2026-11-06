@@ -4,10 +4,10 @@ package arca.v1;
 
 option go_package = "github.com/Tramo-Labs/hq/eng/core/gen/arca/v1;arcav1";
 
-// Arca is the only door from core to ARCA. The gateway owns the certificate,
-// caches one access ticket per service and CUIT, and every call is
-// idempotent: CAE requests check the last authorized voucher first.
-service Arca {
+// ArcaService is the only door from core to ARCA. The gateway owns the
+// certificate, caches one access ticket per service and CUIT, and every call
+// is idempotent: CAE requests check the last authorized voucher first.
+service ArcaService {
   rpc GetPersona(GetPersonaRequest) returns (GetPersonaResponse);
   rpc ConstatarComprobante(ConstatarComprobanteRequest) returns (ConstatarComprobanteResponse);
   rpc UltimoAutorizado(UltimoAutorizadoRequest) returns (UltimoAutorizadoResponse);
