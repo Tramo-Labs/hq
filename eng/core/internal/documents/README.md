@@ -69,7 +69,12 @@ file is `ErrDuplicateInvoice`, the same file is `ErrSameDocument`, and an
 uncertain reading is never called a duplicate. `PGStore` uses
 `db.InTenant` only; audit action `documents.invoice_stored`.
 
-Endpoints: not yet (after backend's identity changes to the spec).
+Endpoints (tag `documents`): `POST /v1/documents/invoices` (multipart
+`file`, PDF or image up to 15 MiB; every role but viewer; 201 with every
+field, its source, confidence and whether it is trusted; 409 for the same
+file or the same invoice; 400 for bytes that are neither a PDF nor an
+image) and `GET /v1/documents/invoices/{invoiceId}`. The tenant's own CUIT
+is read from the tenant and excluded from the issuer candidates.
 
 ## Sensitive data
 

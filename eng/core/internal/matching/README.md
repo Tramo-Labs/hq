@@ -83,12 +83,23 @@ UPDATE and DELETE for every role, unique per idempotency key and per match.
 
 `PGStore`, on `db.InTenant` only: `UpsertItems`, `LoadInput` (movements of
 the period read from `ledger.movements`, items, settled and rejected
-matches), `SaveRun` (returns how many matches are new), and `Record` (the
-decider is the scope's user, never a value from the request). Audit
-actions: `matching.run`, `matching.approve`, `matching.reject`.
+matches), `SaveRun` (returns how many matches are new), and `Record`. In
+`Record` nothing about the decider is input: the user is the scope's, and
+the role is read from `memberships` in the same transaction (a token can be
+ten minutes old; a lowered role stops decisions at once). Only an operator
+decides on matches (product spec section 1). Audit actions:
+`matching.items_loaded`, `matching.run`, `matching.approve`,
+`matching.reject`.
 
-Still to do: the job per tenant and period, and the approval endpoint behind
-`Idempotency-Key` (after backend's identity changes to the spec).
+Endpoints (tag `matching`): `POST /v1/matching/runs` (owner or operator, a
+month), `GET /v1/matching/matches?tray=auto|suggested` (undecided),
+`GET /v1/matching/pending?tray=suggested|exception` (latest run of each
+month), `POST /v1/matching/matches/{matchId}/decision` (operator; 409 when
+already decided). Every POST requires `Idempotency-Key`.
+
+Still to do: the scheduled job per tenant and month, and the actions of the
+Exceptions tray (owner or approver: "es otra cosa", link by hand), which
+have no match to approve.
 
 ## Sensitive data
 

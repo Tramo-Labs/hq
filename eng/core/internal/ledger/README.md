@@ -79,8 +79,19 @@ one transaction (file, statement, movements, audit entry). Audit actions:
 `ledger.file_quarantined` (the quarantine notice the operator console
 reads). `MemStore` stays as the reference behavior for the domain tests.
 
-Endpoints: not yet. Upload, list and quarantine paths go into
-`api/openapi.yaml` after backend's identity changes to the spec.
+Endpoints (`api/openapi.yaml`, tag `ledger`):
+
+| Method and path | Who | Answer |
+|---|---|---|
+| `GET /v1/ledger/accounts` | any member | accounts of the tenant |
+| `POST /v1/ledger/accounts` | owner, operator | 201 account |
+| `POST /v1/ledger/accounts/{accountId}/statements` | owner, approver, operator, accountant | 201 accepted or quarantined, 200 duplicate; multipart `file`, up to 20 MiB |
+| `GET /v1/ledger/quarantine` | any member | quarantined files, newest first |
+
+Every POST requires `Idempotency-Key`. A retry with the same key replays the
+first answer only when the body bytes are the same: a client that rebuilds
+the multipart body (new boundary) gets 422 and should send a new key, which
+then answers `duplicate`.
 
 ## Sensitive data
 
