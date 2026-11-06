@@ -111,6 +111,11 @@ func TestDataPathsEndToEnd(t *testing.T) {
 	items, _ := exc.body["items"].([]any)
 	firstExc, _ := items[0].(map[string]any)
 	mv, _ := firstExc["movementId"].(string)
+	// Each exception says which movement it is.
+	if firstExc["description"] == "" || firstExc["bank"] != "bancor" || firstExc["date"] == nil || firstExc["amount"] == nil ||
+		firstExc["accountName"] != "Cuenta corriente" {
+		t.Errorf("exception without its movement: %v", firstExc)
+	}
 	mpath := "/v1/matching/movements/" + mv + "/decision"
 	if r := c.do("POST", mpath, own.access, map[string]any{"action": "other"}, idem()...); r.status != 400 {
 		t.Errorf("other without a note: %d %s", r.status, r.raw)

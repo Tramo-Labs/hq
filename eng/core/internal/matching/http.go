@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
@@ -54,6 +55,9 @@ func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesReques
 		if err != nil {
 			return nil, err
 		}
+		if req.Params.Tray == "exception" {
+			am.Tray = apigen.MatchTray("exception") // escalated: it waits in Exceptions now
+		}
 		out.Items = append(out.Items, am)
 	}
 	return out, nil
@@ -71,7 +75,9 @@ func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingReques
 			return nil, err
 		}
 		pm := apigen.PendingMovement{MovementId: mid, RunId: r.RunID, Tray: apigen.PendingMovementTray(r.Tray),
-			Reason: apigen.PendingMovementReason(r.Reason), Candidates: []apigen.Candidate{}}
+			Reason: apigen.PendingMovementReason(r.Reason), Candidates: []apigen.Candidate{},
+			Date: openapi_types.Date{Time: r.Date}, Amount: int64(r.Amount), Description: r.Description,
+			AccountId: r.AccountID, AccountName: r.AccountName, Bank: apigen.Bank(r.Bank)}
 		if r.Note != "" {
 			note := r.Note
 			pm.Note = &note
