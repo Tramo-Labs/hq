@@ -21,7 +21,7 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 | `DELETE /v1/tenant/members/{userId}` | bearer, owner | | Removes a person (204). 404 if not a member, 409 `last_owner` for the last owner. |
 
 Errors (problem `code`): `unauthorized`, `refresh_token_reused`, `origin_not_allowed`,
-`magic_link_required`, `invalid_magic_link`, `invalid_name`, `email_taken`,
+`magic_link_required`, `invalid_magic_link`, `invalid_name`, `invalid_tenant_name` (the company name, same rule as a person's name, F27), `email_taken`,
 `slug_taken`, `cuit_taken`, `already_member`, `invalid_email`, `invalid_cuit`,
 `forbidden`, `not_a_member`, plus the platform codes.
 

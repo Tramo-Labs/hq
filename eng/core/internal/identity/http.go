@@ -283,6 +283,7 @@ func problem(err error) error {
 		ErrLastOwner:          {http.StatusConflict, "last_owner"},
 		ErrInvalidInvite:      {http.StatusUnauthorized, "invalid_invite"},
 		ErrInvalidName:        {http.StatusBadRequest, "invalid_name"},
+		ErrInvalidTenantName:  {http.StatusBadRequest, "invalid_tenant_name"},
 		ErrMagicLinkRequired:  {http.StatusUnauthorized, "magic_link_required"},
 		ErrInvalidMagicLink:   {http.StatusUnauthorized, "invalid_magic_link"},
 	}

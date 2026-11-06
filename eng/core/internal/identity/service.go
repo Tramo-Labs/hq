@@ -46,6 +46,7 @@ var (
 	ErrCuitTaken          = errors.New("cuit already registered")
 	ErrInvalidEmail       = errors.New("invalid email")
 	ErrInvalidCuit        = errors.New("invalid cuit check digit")
+	ErrInvalidTenantName  = errors.New("invalid company name")
 	ErrForbidden          = errors.New("forbidden")
 	ErrAlreadyMember      = errors.New("already a member")
 	// ErrNotAMember answers a login with the right password on a tenant
@@ -121,6 +122,12 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (user, tenant 
 	if err != nil {
 		return uuid.Nil, uuid.Nil, err
 	}
+	// The company name follows the person's name rule (F27): it is shown in
+	// the portal, the switcher and the invitation email.
+	tenantName, err := normalizeName(in.TenantName)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, ErrInvalidTenantName
+	}
 	hash, err := HashPassword(s.Argon, in.Password)
 	if err != nil {
 		return uuid.Nil, uuid.Nil, err
@@ -130,7 +137,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (user, tenant 
 		if user, err = q.CreateUser(ctx, store.CreateUserParams{Email: email, PasswordHash: &hash, DisplayName: name}); err != nil {
 			return mapUnique(err)
 		}
-		if tenant, err = q.CreateTenant(ctx, store.CreateTenantParams{Slug: in.TenantSlug, Name: in.TenantName, Cuit: cuitNum}); err != nil {
+		if tenant, err = q.CreateTenant(ctx, store.CreateTenantParams{Slug: in.TenantSlug, Name: tenantName, Cuit: cuitNum}); err != nil {
 			return mapUnique(err)
 		}
 		if err := q.CreateMembership(ctx, store.CreateMembershipParams{UserID: user, TenantID: tenant, Role: store.RoleOwner}); err != nil {
