@@ -10,15 +10,16 @@ import { MatchCard, MovementCard } from "@/components/app/items";
 import { useData, useSession } from "@/components/app/session";
 import { Loaded } from "./loaded";
 
-const trayOrder: MatchTray[] = ["suggested", "exception", "auto"];
-
 /**
- * The three trays of the active tenant. Suggested is decided by an operator; Exceptions
- * waits for the client; Automático is decided by nobody and is listed for review.
+ * The trays of the active tenant. Suggested is the operator's alone (the core answers 403 to
+ * anyone else, accountant included), so an accountant sees Exceptions and Automático and
+ * opens on Exceptions. Exceptions waits for the client; Automático is decided by nobody.
  */
-export function Trays({ tray }: { tray: MatchTray }) {
+export function Trays({ asked }: { asked?: MatchTray }) {
   const tr = app.trays;
   const session = useSession();
+  const trayOrder: MatchTray[] = session.role === "operator" ? ["suggested", "exception", "auto"] : ["exception", "auto"];
+  const tray = asked && trayOrder.includes(asked) ? asked : trayOrder[0];
   const counts = useData(
     () => Promise.all(trayOrder.map(async (t) => {
       const [m, p] = await Promise.all([listMatches(t), t === "auto" ? null : listPending(t)]);

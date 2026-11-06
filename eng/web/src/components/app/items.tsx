@@ -5,6 +5,8 @@ import { Field, formatDate, formatMoney } from "@/components/app/ui";
 
 const a = app.approvals;
 const rule = (id: string) => app.rules[id] ?? id;
+/** The account's name, with its bank only when the name does not already say it. */
+const accountLabel = (name: string, bank: string) => (name.toLowerCase().includes(bank.toLowerCase()) ? name : `${name} (${bank})`);
 
 function Shell({ meta, title, children, actions }: { meta?: ReactNode; title: string; children: ReactNode; actions?: ReactNode }) {
   return (
@@ -51,7 +53,7 @@ export function MovementCard({ p, meta, title, children }: { p: PendingMovement;
         <Field label={a.movement}>
           <span className="block tabular-nums text-white">{formatMoney(p.amount)}</span>
           <span className="block break-words font-mono text-[13px] text-white/70">{p.description}</span>
-          <span className="block text-white/70">{formatDate(p.date)} · {p.accountName} ({app.onboarding.banks[p.bank]})</span>
+          <span className="block text-white/70">{formatDate(p.date)} · {accountLabel(p.accountName, app.onboarding.banks[p.bank])}</span>
         </Field>
         <Field label={a.why}>{app.reasons[p.reason]}</Field>
         <Field label={a.evidence}>

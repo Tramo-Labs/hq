@@ -30,6 +30,20 @@ CORE_API_URL=http://localhost:8080 npm run build && CORE_API_URL=http://localhos
   logs in again with `tenantId` (the core has no switch endpoint).
 - Every decision POST carries an `Idempotency-Key` created per user action and reused on retry.
 
+## Client IP (live mode)
+
+The `/v1` rewrite passes `X-Forwarded-For` through exactly as it arrives and adds nothing:
+measured on Next 16.4.1 against a header echo, a request without the header reaches the core
+without it, and one with `X-Forwarded-For: 203.0.113.9` reaches it with that value. The web
+cannot see the browser's address itself, so the real IP has to come from the proxy in front.
+
+- Production: Caddy in front of the web sets the header to the client's address, and the
+  core lists the web's address in `TRUSTED_PROXIES`. That only holds if the web is reachable
+  through Caddy alone; reachable directly, any client could write its own header.
+- Local (`make dev` with the web on its own port): leave the web out of `TRUSTED_PROXIES`.
+  The core then sees every user with the web's address, so login throttling by IP counts
+  all of them together. Fine for testing, not for a deployment.
+
 ## Layout
 
 `src/lib/api/`: `types.ts` (hand-written mirror of `eng/core/api/openapi.yaml`), `index.ts` (the

@@ -9,5 +9,5 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const asked = one((await searchParams).bandeja);
-  return <Trays tray={trays.find((t) => t === asked) ?? "suggested"} />;
+  return <Trays asked={trays.find((t) => t === asked)} />;
 }

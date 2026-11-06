@@ -86,8 +86,8 @@ export async function listQuarantine() {
   return page(fx.quarantine[session().tenantId] ?? []);
 }
 
-/** The client (owner, approver, viewer) does not see Suggested: that tray is the operator's. */
-const seesSuggested = (role: Role) => role === "operator" || role === "accountant";
+/** Suggested is the operator's alone, like the core: everyone else gets 403, accountant included. */
+const seesSuggested = (role: Role) => role === "operator";
 
 export async function listMatches(tray: MatchTray, period?: string) {
   const s = session();
