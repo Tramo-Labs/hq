@@ -179,15 +179,17 @@ counter is the tight one on purpose: one attacker cannot lock the owner out
 from her own IP. Twenty or more IPs failing on the same email do throttle it
 for everyone for up to an hour; that trade off is deliberate.
 
-Behind the web app's same origin proxy, the web server must be in
-`TRUSTED_PROXIES` and forward the browser's address, or every person shares
-the web server's per IP counters (platform README).
+In production the browser calls api.X directly (D-18) and the client IP is
+what our Caddy sees; `TRUSTED_PROXIES` is only Caddy. The web app's same
+origin `/v1` proxy is for dev only; if it is used, it must be listed and
+forward the browser's address, or every person shares its per IP counters
+(platform README).
 
 Limits: counters are in memory, per api process (with several replicas the
-limits multiply; restart clears them). The client IP is the TCP peer, or the
-last `X-Forwarded-For` hop only when the peer is a configured trusted proxy
-(`TRUSTED_PROXIES`, our Caddy). A direct client rotating `X-Forwarded-For`
-still counts as its real IP.
+limits multiply; restart clears them). The client IP is the TCP peer, or,
+when the peer is a configured trusted proxy (`TRUSTED_PROXIES`), the first
+`X-Forwarded-For` hop from the right that is not one of ours. A direct
+client rotating `X-Forwarded-For` still counts as its real IP.
 The 429 response is declared in `api/openapi.yaml` for login and register,
 with `Retry-After`.
 

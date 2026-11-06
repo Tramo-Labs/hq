@@ -101,7 +101,7 @@ func clientIP(r *http.Request, trustedProxies []netip.Prefix) netip.Addr {
 		return peer
 	}
 	// Walk the hops from the right, the ones our proxies appended. Each
-	// trusted hop is one of our own proxies (Caddy, the web's Next server)
+	// trusted hop is one of our own proxies (Caddy; in dev also the web's Next server)
 	// and is skipped; the first hop that is not ours is the client.
 	// Anything to its left was written by the client and never read. A hop
 	// that does not parse stops the walk at the last proxy seen.

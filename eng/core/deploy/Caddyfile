@@ -1,11 +1,9 @@
-# Production edge: TLS automatic, api behind /api, web served by Vercel for now.
-{$APP_DOMAIN} {
+# Production edge for the api host (D-18, ADR 0007): the browser calls
+# api.X directly; the web (app.X) is served by Vercel. TLS is automatic.
+# Caddy trusts no upstream proxy, so it replaces any X-Forwarded-For the
+# client sent with the client's own address: that is the IP the api uses
+# for throttles and the audit log (TRUSTED_PROXIES is only this container).
+{$API_DOMAIN} {
   encode zstd gzip
-  handle /api/* {
-    uri strip_prefix /api
-    reverse_proxy api:8080
-  }
-  handle /docs/* {
-    reverse_proxy api:8080
-  }
+  reverse_proxy api:8080
 }

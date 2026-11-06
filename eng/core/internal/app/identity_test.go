@@ -437,7 +437,7 @@ func TestSpoofedForwardedForDoesNotDodgeThrottles(t *testing.T) {
 	}
 }
 
-// The web's Next server proxies /v1 same origin, so every login reaches
+// In dev the web's Next server proxies /v1 same origin, so every login reaches
 // the core from its address. With the web in TRUSTED_PROXIES and the
 // browser's address in X-Forwarded-For, two people behind it are throttled
 // separately: one guessing a password does not lock out the other.

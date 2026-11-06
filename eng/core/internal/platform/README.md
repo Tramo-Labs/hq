@@ -130,16 +130,18 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   right, skipping those that are also our proxies; the first hop that is not
   ours is the client, and everything to its left (written by the client) is
   ignored. A hop that does not parse stops the walk at the last proxy.
-  **The web's Next server is a proxy too**: it forwards `/v1` same origin,
-  so every browser reaches the api from its address. It must be in
-  `TRUSTED_PROXIES` and must append the browser's address to
-  `X-Forwarded-For`; otherwise every user shares one per IP throttle and a
-  single attacker can lock everyone out of login
-  (`TestClientsBehindTheWebProxyCountSeparately`: trusted, an attacker
+  **In production `TRUSTED_PROXIES` is only our Caddy** (D-18, ADR 0007):
+  the browser calls api.X directly, so Caddy's peer is the browser and
+  Caddy replaces any client sent `X-Forwarded-For` with it. The web's Next
+  server is not on the production path and is never listed. Its same origin
+  `/v1` proxy exists in dev only; there, listing it (and having it append
+  the browser's address) is what keeps two people behind it on separate
+  throttles, which is why the walk skips every trusted hop and not just
+  one (`TestClientsBehindTheWebProxyCountSeparately`: trusted, an attacker
   behind the web is throttled and the owner behind it still logs in; not
   trusted, the owner is throttled too. Mutation checked: ignoring the
   header from a trusted proxy fails it. `TestForwardedForOnlyFromTrustedProxies`
-  covers Caddy then Next in a row, and a client spoofing hops behind both). A client reaching the api directly cannot choose its
+  covers two proxies in a row, and a client spoofing hops behind both). A client reaching the api directly cannot choose its
   IP, so it cannot dodge per IP throttles or forge the IP in the audit log
   (`TestForwardedForOnlyFromTrustedProxies`,
   `TestSpoofedForwardedForDoesNotDodgeThrottles`). The old
