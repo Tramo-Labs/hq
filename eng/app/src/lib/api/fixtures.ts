@@ -82,19 +82,22 @@ export const accounts: Record<string, Account[]> = {
   ],
 };
 
+/** Newest first, as GET /v1/ledger/files answers. The unrouted one came by mail and has no account. */
 export const quarantine: Record<string, QuarantinedFile[]> = {
   [T.agro]: [
-    { id: id(201), accountId: id(102), filename: "macro-usd-octubre.xls", reason: "balance_mismatch",
-      detail: "closing balance of line 41 does not follow from the opening balance", receivedAt: "2026-11-03T14:02:00Z" },
-    { id: id(203), accountId: id(101), filename: "galicia-octubre.docx", reason: "unsupported_format",
-      detail: "docx is not a statement file kind", receivedAt: "2026-11-04T10:15:00Z" },
-    { id: id(204), accountId: id(101), filename: "galicia-septiembre.csv", reason: "period_closed",
-      detail: "new movements dated in the closed period 2026-09-16..2026-09-30", receivedAt: "2026-11-05T16:40:00Z" },
-    { id: id(205), accountId: id(102), filename: "macro-usd-noviembre.csv", reason: "movement_conflict",
+    { id: id(206), bank: "santander", filename: "extracto-octubre.csv", reason: "unrouted",
+      detail: "no account of the tenant matches bank santander and number 0000000000009911", receivedAt: "2026-11-06T13:05:00Z" },
+    { id: id(205), accountId: id(102), accountName: "Macro CA USD", bank: "macro", filename: "macro-usd-noviembre.csv", reason: "movement_conflict",
       detail: "line 12 has the identity of a stored movement with another description", receivedAt: "2026-11-06T11:20:00Z" },
+    { id: id(204), accountId: id(101), accountName: "Galicia CC", bank: "galicia", filename: "galicia-septiembre.csv", reason: "period_closed",
+      closedPeriod: { from: "2026-09-16", to: "2026-09-30" }, receivedAt: "2026-11-05T16:40:00Z" },
+    { id: id(203), accountId: id(101), accountName: "Galicia CC", bank: "galicia", filename: "galicia-octubre.docx", reason: "unsupported_format",
+      detail: "docx is not a statement file kind", receivedAt: "2026-11-04T10:15:00Z" },
+    { id: id(201), accountId: id(102), accountName: "Macro CA USD", bank: "macro", filename: "macro-usd-octubre.xls", reason: "balance_mismatch",
+      detail: "closing balance of line 41 does not follow from the opening balance", receivedAt: "2026-11-03T14:02:00Z" },
   ],
   [T.ferr]: [
-    { id: id(202), accountId: id(103), filename: "bancor-octubre.pdf", reason: "unknown_layout",
+    { id: id(202), accountId: id(103), accountName: "Bancor CC", bank: "bancor", filename: "bancor-octubre.pdf", reason: "unknown_layout",
       detail: "header fingerprint 3f9a is not a known layout", receivedAt: "2026-11-05T09:30:00Z" },
   ],
 };

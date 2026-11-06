@@ -191,6 +191,13 @@ export const app = {
       unrouted: "Llegó por mail y no pudimos saber de cuál de tus cuentas es: el banco y el número no coinciden con una sola.",
       period_closed: "Trae movimientos de un período ya cerrado, así que no entró ninguno.",
     } satisfies Record<QuarantineReason, string> as Record<string, string>,
+    // Draft for producto: period_closed with the range the core sends, and the line of a file with no account.
+    periodClosed: (range: string) => `Trae movimientos ${range}, un período ya cerrado, así que no entró ninguno.`,
+    months: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+    day: (d: number, month: string, year?: number) => `${d} de ${month}${year ? ` de ${year}` : ""}`,
+    range: (from: string, to: string) => `del ${from} al ${to}`,
+    noAccount: "Sin cuenta asignada",
+    quarantineTruncated: "Hay más archivos que no entraron de los que entran en esta lista: se muestran los más recientes.",
     otherReason: "No entró.",
   },
   clients: {
