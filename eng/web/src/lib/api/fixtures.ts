@@ -1,4 +1,4 @@
-import type { Match, Metric, Session, Tenant, UploadedFile } from "./types";
+import type { Match, Session, Tenant, UploadedFile } from "./types";
 
 /**
  * Synthetic data for the portal and the console until the core serves these paths.
@@ -16,7 +16,7 @@ export const tenants: Tenant[] = [
     id: "t-agro", name: "Agroinsumos del Sur SA", cuit: "30-00000001-0", openExceptions: 3, waitingSince: "2026-11-03",
     arca: { status: "ready", confirmedAt: "2026-11-02" },
     bank: {
-      status: "ready", mailbox: "extractos+agro@tramo.example",
+      status: "ready",
       accounts: [
         { bank: "Galicia", kind: "Cuenta corriente", currency: "ARS", last4: "4021", status: "ready", lastStatementAt: "2026-11-03" },
         { bank: "Macro", kind: "Caja de ahorro", currency: "USD", last4: "7730", status: "problem", problem: "El saldo no cierra: faltan movimientos entre el 3 y el 7 de octubre. ¿Podés exportar ese rango?" },
@@ -27,23 +27,23 @@ export const tenants: Tenant[] = [
   {
     id: "t-frio", name: "Frigorífico La Pampa SRL", cuit: "30-00000002-9", openExceptions: 0, waitingSince: "2026-10-27",
     arca: { status: "pending" },
-    bank: { status: "pending", mailbox: "extractos+frio@tramo.example", accounts: [] },
+    bank: { status: "pending", accounts: [] },
     erp: { status: "pending" },
   },
   {
     id: "t-ferr", name: "Ferretería Industrial Norte", cuit: "30-00000003-7", openExceptions: 1, waitingSince: "2026-10-31",
     arca: { status: "ready", confirmedAt: "2026-10-28" },
     bank: {
-      status: "checking", mailbox: "extractos+ferr@tramo.example",
+      status: "checking",
       accounts: [{ bank: "Bancor", kind: "Cuenta corriente", currency: "ARS", last4: "1188", status: "checking", lastStatementAt: "2026-11-05" }],
     },
-    erp: { status: "ready", system: "Odoo", mode: "api", credentialTail: "…k9Qe" },
+    erp: { status: "ready", system: "Odoo", mode: "api", credentialTail: "…XXXX" },
   },
   {
     id: "t-trans", name: "Transportes Río Cuarto SA", cuit: "30-00000004-5", openExceptions: 0,
     arca: { status: "ready", confirmedAt: "2026-10-20" },
     bank: {
-      status: "ready", mailbox: "extractos+trans@tramo.example",
+      status: "ready",
       accounts: [
         { bank: "Santander", kind: "Cuenta corriente", currency: "ARS", last4: "5502", status: "ready", lastStatementAt: "2026-11-04" },
         { bank: "Mercado Pago", kind: "Cuenta", currency: "ARS", last4: "0091", status: "ready", lastStatementAt: "2026-11-06" },
@@ -72,6 +72,13 @@ export const matches: Match[] = [
     movement: { date: "2026-11-04", account: "Santander CC", description: "DEB AUTOM SEGURO 4471", amountCents: -32_180_00 },
     document: { kind: "Factura B", number: "0012-00088410", counterparty: "Aseguradora Central", amountCents: 32_180_00 },
     rule: rule("r-recurring", "Débito recurrente confirmado", 2),
+  },
+  {
+    id: "m-103", tenantId: "t-trans", tray: "auto", motive: "unique_reference", openedAt: "2026-11-05",
+    summary: "Cobro de $ 58.300 por Mercado Pago", explanation: "El id de la operación de Mercado Pago figura en la factura.",
+    movement: { date: "2026-11-05", account: "Mercado Pago", description: "COBRO MP 81234567890", amountCents: 58_300_00 },
+    document: { kind: "Factura B", number: "0005-00002231", counterparty: "Consumidor final", amountCents: 58_300_00 },
+    rule: rule("r-ref", "Referencia única"),
   },
   {
     id: "m-201", tenantId: "t-agro", tray: "suggested", motive: "tolerance", openedAt: "2026-11-02",
@@ -119,18 +126,9 @@ export const matches: Match[] = [
   },
 ];
 
-export const metrics: Metric[] = [
-  { key: "auto_rate", value: 62, unit: "percent", period: "Octubre · Galicia CC", source: "matches en Automático ÷ movimientos del período", href: "/operador/bandejas?bandeja=auto" },
-  { key: "open_exceptions", value: 4, unit: "count", period: "Hoy", source: "matches en Excepciones sin decisión", href: "/operador/bandejas?bandeja=exception" },
-  { key: "oldest_exception", value: 7, unit: "days", period: "Hoy", source: "días desde la apertura de la excepción abierta más vieja", href: "/operador/bandejas?bandeja=exception" },
-  { key: "duplicates", value: 0, unit: "count", period: "Octubre", source: "excepciones por posible duplicado rechazadas por el cliente", href: "/operador/bandejas?bandeja=exception" },
-  { key: "bank_vs_books", value: null, unit: "ars", period: "Hoy", source: "saldo del extracto menos saldo contable, por cuenta; requiere el sistema contable conectado" },
-  { key: "invoices", value: null, unit: "count", period: "Octubre", source: "documentos leídos, retenidos y duplicados; requiere el módulo de documentos" },
-];
-
 export const files: UploadedFile[] = [
   { name: "galicia-octubre.csv", kind: "statement", uploadedAt: "2026-11-03", by: "Lucía Ferreyra", status: "ready" },
   { name: "macro-usd-octubre.xls", kind: "statement", uploadedAt: "2026-11-03", by: "Lucía Ferreyra", status: "problem" },
-  { name: "galicia-octubre.csv", kind: "statement", uploadedAt: "2026-11-04", by: "Mail de extractos", status: "duplicate" },
+  { name: "galicia-octubre.csv", kind: "statement", uploadedAt: "2026-11-04", by: "Lucía Ferreyra", status: "duplicate" },
   { name: "FA-0004-00000902.pdf", kind: "document", uploadedAt: "2026-11-02", by: "Martina Gil", status: "ready" },
 ];
