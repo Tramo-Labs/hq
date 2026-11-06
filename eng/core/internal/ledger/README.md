@@ -107,7 +107,7 @@ Endpoints (`api/openapi.yaml`, tag `ledger`):
 | Method and path | Who | Answer |
 |---|---|---|
 | `GET /v1/ledger/accounts` | any member | accounts of the tenant |
-| `POST /v1/ledger/accounts` | owner, operator | 201 account |
+| `POST /v1/ledger/accounts` | owner, operator | 201 account; 400 `invalid_name` when the name has no visible letter or number or carries zero width or bidi characters (`text.Name`, the rule of a person's name, F27); stored trimmed |
 | `POST /v1/ledger/accounts/{accountId}/statements` | owner, approver, operator, accountant | 201 accepted or quarantined, 200 duplicate; multipart `file`, up to 20 MiB |
 | `GET /v1/ledger/quarantine` | any member | quarantined files, newest first |
 | `GET /v1/ledger/files?period=&status=` | any member | uploaded files, accepted or quarantined, newest first (F12): when, who uploaded it (`uploadedBy`, and the email while that person is still a member), account, statement days, movements it stored, reason when quarantined. `period` is the month it was received (Argentina time). Up to 500, `truncated` says there were more |

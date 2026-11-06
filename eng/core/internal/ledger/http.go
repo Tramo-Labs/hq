@@ -13,6 +13,7 @@ import (
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
+	"github.com/Tramo-Labs/hq/eng/core/internal/text"
 )
 
 // MaxUpload is the largest statement file accepted (the idempotency
@@ -62,6 +63,12 @@ func (h *Handlers) CreateAccount(ctx context.Context, req apigen.CreateAccountRe
 		number = *req.Body.Number
 	}
 	id, err := h.store.CreateAccount(ctx, Bank(req.Body.Bank), number, req.Body.Name)
+	if errors.Is(err, text.ErrInvalidName) {
+		// Same code as a person's name: something visible, no zero width
+		// or bidi characters (F27).
+		return nil, &httpx.Error{Status: http.StatusBadRequest, Code: "invalid_name",
+			Detail: "the account name needs a visible letter or number and no invisible or text direction characters"}
+	}
 	if err != nil {
 		return nil, err
 	}
