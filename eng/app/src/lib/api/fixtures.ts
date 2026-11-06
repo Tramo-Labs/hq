@@ -90,6 +90,8 @@ export const quarantine: Record<string, QuarantinedFile[]> = {
       detail: "docx is not a statement file kind", receivedAt: "2026-11-04T10:15:00Z" },
     { id: id(204), accountId: id(101), filename: "galicia-septiembre.csv", reason: "period_closed",
       detail: "new movements dated in the closed period 2026-09-16..2026-09-30", receivedAt: "2026-11-05T16:40:00Z" },
+    { id: id(205), accountId: id(102), filename: "macro-usd-noviembre.csv", reason: "movement_conflict",
+      detail: "line 12 has the identity of a stored movement with another description", receivedAt: "2026-11-06T11:20:00Z" },
   ],
   [T.ferr]: [
     { id: id(202), accountId: id(103), filename: "bancor-octubre.pdf", reason: "unknown_layout",
