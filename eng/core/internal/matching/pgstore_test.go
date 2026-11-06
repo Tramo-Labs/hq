@@ -347,6 +347,33 @@ func TestPGExceptionsAreTheClients(t *testing.T) {
 	}
 }
 
+// The caller's copy of the match says nothing about its tray: Record
+// decides by the stored tray (plus any escalation) whatever Tray it is sent.
+func TestPGTrayIsTheStoredOne(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	forged := func(m Match, tray Tray) Match { m.Tray = tray; return m }
+
+	// Automatic sent as Suggested: still nobody's.
+	if _, err := e.decideAs(t, identity.RoleOperator, forged(auto(r), Suggested), Approve, ""); !errors.Is(err, ErrForbidden) {
+		t.Errorf("automatic match sent as suggested: %v", err)
+	}
+	// Suggested sent as Exception: the approver still cannot, the operator can.
+	if _, err := e.decideAs(t, identity.RoleApprover, forged(suggested(r), Exception), Approve, ""); !errors.Is(err, ErrForbidden) {
+		t.Errorf("suggested match sent as exception, approver: %v", err)
+	}
+	if _, err := e.decideAs(t, identity.RoleOperator, forged(suggested(r), Exception), Escalate, "check"); err != nil {
+		t.Fatalf("operator escalates the stored suggested match: %v", err)
+	}
+	// Escalated, sent as Suggested: it is the client's now.
+	if _, err := e.decideAs(t, identity.RoleOperator, forged(suggested(r), Suggested), Approve, ""); !errors.Is(err, ErrForbidden) {
+		t.Errorf("escalated match sent as suggested, operator: %v", err)
+	}
+	if d, err := e.decideAs(t, identity.RoleApprover, forged(suggested(r), Suggested), Approve, ""); err != nil || d.Tray != Exception {
+		t.Errorf("escalated match sent as suggested, approver: %v %+v", err, d)
+	}
+}
+
 // Nobody decides on an automatic match.
 func TestPGAutomaticIsNotDecided(t *testing.T) {
 	e := newPGEnv(t)
