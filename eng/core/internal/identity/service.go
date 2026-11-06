@@ -702,9 +702,15 @@ func validRole(r string) bool {
 
 // normalizeEmail trims and lowercases an email, so one person is one
 // account whatever the case typed (F25), and refuses an email with an
-// invisible or bidi character, which would make a second account look
-// identical to the real one (F30). Every input that takes an email goes
-// through here.
+// invisible, bidi or space character, which would make a second account
+// look identical to the real one (F30). Every input that stores an email
+// goes through here: registration, adding a member and the operator
+// command.
+//
+// Login and asking for a magic link do not: they are lookups that create
+// nothing, so they only trim and lowercase. An email with such a character
+// finds no account and gets the same answer as any unknown email (401, or
+// 202 with nothing sent), which tells nothing.
 func normalizeEmail(s string) (string, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	for _, r := range s {

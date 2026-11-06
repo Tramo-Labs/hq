@@ -9,6 +9,7 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 | `POST /v1/auth/register` | none | required | Creates user, tenant, owner membership and the tenant data key. Returns ids only. |
 | `POST /v1/auth/login` | none | no (returns tokens, stores nothing replayable) | Email and password to a 10 minute access token plus a 30 day refresh token. |
 | `POST /v1/auth/invite/accept` | invitation token | no (creates nothing; like login) | Accepts an invitation: the pending membership becomes active and a session opens on that tenant. A person without a password sets one here. |
+| `POST /v1/auth/invite/preview` | invitation token | no (creates nothing) | The company and the role of an invitation, nothing else, without using it (F38). Same refusals, audit and per IP cap as accept. |
 | `POST /v1/auth/magic-link` | none | required | Emails a one time login link (15 minutes) if the email has an account. Always 202, so it does not reveal which emails exist. |
 | `POST /v1/auth/magic-link/accept` | link token | no (creates nothing; like login) | Opens a session with the link, on the tenant asked for or the oldest membership. |
 | `POST /v1/auth/refresh` | refresh token | no | Rotates the refresh token. Reuse of an old one revokes the whole family. |
@@ -115,6 +116,19 @@ invitation; adding an active member is 409 `already_member`.
   counted. Every other outcome counts
   (`TestRealInviteRejectionsCountAndAreAudited`), and only a usable
   invitation reaches the step (`TestOnlyAUsableInvitationReachesThePasswordStep`).
+- **Preview (F38).** `POST /v1/auth/invite/preview` answers the company
+  name and the role, so the web shows them before the person accepts;
+  never the email or whether the person has an account. It uses nothing
+  (the same token accepts afterwards), refuses exactly like accept (401
+  `invalid_invite`, 403 `not_a_member`), audits each refusal as
+  `identity.invite_rejected` with `via: preview`, and takes from accept's
+  per IP cap: every preview counts, so a preview and an accept spend two
+  units. The token goes in the body, never in the URL
+  (`TestPreviewShowsCompanyAndRoleWithoutUsingTheInvitation`,
+  `TestPreviewRejectsLikeAccept`, `TestPreviewSharesTheAcceptCap`;
+  mutations checked: a preview that uses the invitation, and one outside
+  the cap, each fail one of them). Accept and preview share one check of
+  the token (`usableInvite`), so they can not drift apart.
 - Audit: `identity.invite_created` (by the inviter, with the role),
   `identity.invite_accepted`, `identity.invite_rejected` (with the reason:
   unknown, used, revoked, expired, no membership, password already set). Adding is `identity.member_invited`; removing a

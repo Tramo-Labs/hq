@@ -173,53 +173,17 @@ func (s *Service) acceptInvite(ctx context.Context, token, password string, name
 	var outcome error
 	err = s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
-		reject := func(subject string, tenant uuid.UUID, reason string, answer error) error {
-			outcome = answer
-			return audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_rejected", Subject: subject, TenantID: tenant,
-				Detail: map[string]any{"reason": reason}})
-		}
-		inv, err := q.GetInviteForUpdate(ctx, hashRefresh(token))
-		if errors.Is(err, pgx.ErrNoRows) {
-			return reject("invites:unknown", uuid.Nil, "unknown", ErrInvalidInvite)
-		}
-		if err != nil {
-			return err
-		}
-		subject := "invites:" + inv.ID.String()
-		switch {
-		case inv.UsedAt != nil:
-			return reject(subject, inv.TenantID, "used", ErrInvalidInvite)
-		case inv.RevokedAt != nil:
-			return reject(subject, inv.TenantID, "revoked", ErrInvalidInvite)
-		case !s.now().Before(inv.ExpiresAt):
-			return reject(subject, inv.TenantID, "expired", ErrInvalidInvite)
-		}
 		// Everything is checked before anything is written: a refusal
 		// leaves no password and no membership behind (F29).
-		role, err := q.GetPendingMembershipForUpdate(ctx, store.GetPendingMembershipForUpdateParams{TenantID: inv.TenantID, UserID: inv.UserID})
-		pending := err == nil
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		u, err := s.usableInvite(ctx, tx, token, "")
+		if err != nil || u.refusal != nil {
+			outcome = u.refusal
 			return err
 		}
-		if !pending {
-			// An invitation mailed before D-19 came with the membership
-			// already active; any other is for a removed person.
-			if _, err := q.GetMembershipRole(ctx, store.GetMembershipRoleParams{UserID: inv.UserID, TenantID: inv.TenantID}); errors.Is(err, pgx.ErrNoRows) {
-				return reject(subject, inv.TenantID, "no membership", ErrNotAMember)
-			} else if err != nil {
-				return err
-			}
-		}
-		hasPassword, err := q.GetUserPasswordSet(ctx, inv.UserID)
-		if err != nil {
-			return err
-		}
+		inv, role, pending, hasPassword := u.inv, u.role, u.pending, u.hasPassword
 		if !hasPassword && password == "" {
 			outcome = ErrPasswordRequired // a step, not a rejection
 			return nil
-		}
-		if !pending && hasPassword {
-			return reject(subject, inv.TenantID, "password already set", ErrInvalidInvite)
 		}
 		if err := q.MarkInviteUsed(ctx, inv.ID); err != nil {
 			return err
@@ -247,7 +211,7 @@ func (s *Service) acceptInvite(ctx context.Context, token, password string, name
 				return err
 			}
 		}
-		if err := audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_accepted", Subject: subject,
+		if err := audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_accepted", Subject: "invites:" + inv.ID.String(),
 			TenantID: inv.TenantID, UserID: inv.UserID}); err != nil {
 			return err
 		}
@@ -263,6 +227,111 @@ func (s *Service) acceptInvite(ctx context.Context, token, password string, name
 	}
 	if outcome != nil {
 		return Session{}, outcome
+	}
+	return out, nil
+}
+
+// usable is an invitation that can still be used, or why not.
+type usable struct {
+	inv         store.GetInviteForUpdateRow
+	role        store.Role
+	pending     bool // false: mailed before D-19, membership already active
+	hasPassword bool
+	refusal     error // ErrInvalidInvite or ErrNotAMember; nil if usable
+}
+
+// usableInvite locks the invitation for token and checks, without writing
+// anything but the audit, that it can still be used: known, not used,
+// revoked or expired, and with its pending membership (or, for one mailed
+// before D-19, an active membership and still no password). A refusal is
+// audited as identity.invite_rejected with its reason (and via, when
+// given) and returned in refusal; err is for failures.
+func (s *Service) usableInvite(ctx context.Context, tx pgx.Tx, token, via string) (usable, error) {
+	q := store.New(tx)
+	var u usable
+	reject := func(subject string, tenant uuid.UUID, reason string, answer error) (usable, error) {
+		u.refusal = answer
+		detail := map[string]any{"reason": reason}
+		if via != "" {
+			detail["via"] = via
+		}
+		return u, audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_rejected", Subject: subject, TenantID: tenant, Detail: detail})
+	}
+	inv, err := q.GetInviteForUpdate(ctx, hashRefresh(token))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return reject("invites:unknown", uuid.Nil, "unknown", ErrInvalidInvite)
+	}
+	if err != nil {
+		return u, err
+	}
+	u.inv = inv
+	subject := "invites:" + inv.ID.String()
+	switch {
+	case inv.UsedAt != nil:
+		return reject(subject, inv.TenantID, "used", ErrInvalidInvite)
+	case inv.RevokedAt != nil:
+		return reject(subject, inv.TenantID, "revoked", ErrInvalidInvite)
+	case !s.now().Before(inv.ExpiresAt):
+		return reject(subject, inv.TenantID, "expired", ErrInvalidInvite)
+	}
+	u.role, err = q.GetPendingMembershipForUpdate(ctx, store.GetPendingMembershipForUpdateParams{TenantID: inv.TenantID, UserID: inv.UserID})
+	u.pending = err == nil
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return u, err
+	}
+	if !u.pending {
+		// An invitation mailed before D-19 came with the membership
+		// already active; any other is for a removed person.
+		u.role, err = q.GetMembershipRole(ctx, store.GetMembershipRoleParams{UserID: inv.UserID, TenantID: inv.TenantID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return reject(subject, inv.TenantID, "no membership", ErrNotAMember)
+		} else if err != nil {
+			return u, err
+		}
+	}
+	if u.hasPassword, err = q.GetUserPasswordSet(ctx, inv.UserID); err != nil {
+		return u, err
+	}
+	if !u.pending && u.hasPassword {
+		return reject(subject, inv.TenantID, "password already set", ErrInvalidInvite)
+	}
+	return u, nil
+}
+
+// InvitePreview is what an invitation is for, shown before accepting it.
+type InvitePreview struct {
+	TenantName string
+	Role       string
+}
+
+// PreviewInvite answers the company and the role of an invitation without
+// using it (F38): the token stays valid and the membership pending. It
+// refuses exactly like AcceptInvite (each refusal audited with via
+// preview) and takes from the same per IP cap; every preview counts.
+func (s *Service) PreviewInvite(ctx context.Context, token string) (InvitePreview, error) {
+	if _, err := s.checkInvite(ctx); err != nil {
+		return InvitePreview{}, err
+	}
+	var out InvitePreview
+	var outcome error
+	err := s.DB.System(ctx, func(tx pgx.Tx) error {
+		u, err := s.usableInvite(ctx, tx, token, "preview")
+		if err != nil || u.refusal != nil {
+			outcome = u.refusal
+			return err
+		}
+		t, err := store.New(tx).GetTenant(ctx, u.inv.TenantID)
+		if err != nil {
+			return err
+		}
+		out = InvitePreview{TenantName: t.Name, Role: string(u.role)}
+		return nil
+	})
+	if err != nil {
+		return InvitePreview{}, err
+	}
+	if outcome != nil {
+		return InvitePreview{}, outcome
 	}
 	return out, nil
 }

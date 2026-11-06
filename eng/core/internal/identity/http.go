@@ -94,6 +94,16 @@ func (h *Handlers) Login(ctx context.Context, req apigen.LoginRequestObject) (ap
 	return apigen.Login200JSONResponse{TokensJSONResponse: tokens(sess, b.TokenDelivery)}, nil
 }
 
+// PreviewInvite shows the company and the role of an invitation, without
+// using it.
+func (h *Handlers) PreviewInvite(ctx context.Context, req apigen.PreviewInviteRequestObject) (apigen.PreviewInviteResponseObject, error) {
+	p, err := h.s.PreviewInvite(ctx, req.Body.Token)
+	if err != nil {
+		return nil, problem(err)
+	}
+	return apigen.PreviewInvite200JSONResponse{TenantName: p.TenantName, Role: apigen.Role(p.Role)}, nil
+}
+
 // AcceptInvite accepts an invitation and opens a session.
 func (h *Handlers) AcceptInvite(ctx context.Context, req apigen.AcceptInviteRequestObject) (apigen.AcceptInviteResponseObject, error) {
 	password := ""

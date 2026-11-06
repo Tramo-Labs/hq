@@ -164,6 +164,47 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
+  /v1/auth/invite/preview:
+    post:
+      operationId: previewInvite
+      tags: [identity]
+      summary: See an invitation before accepting it, without using it
+      description: |
+        Answers the company and the role an invitation is for, so the web
+        can show them before the person accepts (F38). Nothing else: not
+        the email, not whether the person has an account. Uses nothing:
+        the token stays valid and the membership stays pending. The token
+        goes in the body, never in the URL, so it does not reach a log.
+        Same answers as POST /v1/auth/invite/accept: unknown, used, revoked
+        and expired tokens all answer 401 invalid_invite; an invitation
+        whose pending membership was removed answers 403 not_a_member.
+        It shares accept's per IP cap: every preview counts.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PreviewInviteRequest" }
+      responses:
+        "200":
+          description: the invitation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvitePreview" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403":
+          description: The pending membership was removed (code not_a_member).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "429":
+          description: Throttled (code rate_limited).
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
   /v1/auth/magic-link:
     post:
       operationId: requestMagicLink
@@ -1233,6 +1274,19 @@ components:
           format: uuid
           description: Tenant to act on. Defaults to the oldest membership.
         tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    PreviewInviteRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token: { type: string, minLength: 43, maxLength: 64 }
+    InvitePreview:
+      type: object
+      required: [tenantName, role]
+      additionalProperties: false
+      properties:
+        tenantName: { type: string, description: The inviting company's name. }
+        role: { $ref: "#/components/schemas/Role" }
     AcceptInviteRequest:
       type: object
       required: [token]
