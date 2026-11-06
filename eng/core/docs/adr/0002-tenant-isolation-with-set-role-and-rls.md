@@ -30,3 +30,32 @@ Consequences: a query that forgets `WHERE tenant_id` still sees one tenant
 table needs `enable row level security` plus a policy, or `tramo_app` sees no
 rows: the failure mode is empty, not leaky. One extra round trip per
 transaction for the role and settings.
+
+## Revision, 2026-11-06 (migration 00003)
+
+QA pointed out that `db.System` ran as the owner and therefore saw every
+tenant, so "a code bug cannot cross tenants" held only for code that chose
+`InTenant`. Decided:
+
+- `db.System` now does `SET LOCAL ROLE tramo_system`. That role reaches only
+  the seven platform and identity tables granted in 00003, each with a
+  written reason (registration, login, refresh tokens, idempotency, tenant
+  keys, audit). It gets nothing on tables added later: a cross tenant job
+  needs its own grants and policy in a migration that says why.
+- Which packages may call `System` is an allowlist (`internal/platform/db`,
+  `internal/platform/idempotency`, `internal/identity`), enforced by
+  `TestSystemCallersAreAllowlisted`, which parses the source tree. Adding an
+  entry means adding a line here.
+- Every table has `FORCE ROW LEVEL SECURITY`; `TestEveryTableHasForcedRLS`
+  fails for any table, including future module tables, that lacks it. With
+  a non superuser owner (prod, managed Postgres), a stray query on the raw
+  pool sees no rows. A superuser owner still bypasses RLS, so production
+  must connect as a non superuser owner; the raw pool is used only to
+  migrate.
+- Both application roles are altered to `NOSUPERUSER NOBYPASSRLS NOLOGIN`
+  on every migration run, also when they pre-existed;
+  `TestApplicationRolesCannotBypassRLS` checks the attributes.
+
+Checked by mutation: a `System` call added to the router fails the
+allowlist test, and `System` without the role switch fails
+`TestSystemRoleCannotReachBusinessTables`.

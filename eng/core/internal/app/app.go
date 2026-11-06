@@ -4,15 +4,19 @@
 //
 // Middleware order, outermost first:
 //
-//	RequestMeta -> Recover -> Authenticate -> spec validation -> Idempotency -> handler
+//	RequestMeta -> Recover -> Authenticate -> spec validation (+ auth required?) -> Idempotency -> handler
 //
-// Validation runs before idempotency so a malformed request never claims a
-// key. Authentication runs before idempotency so keys are scoped to the
-// caller's tenant.
+// Authenticate reads a bearer token when present and puts the principal and
+// the tenant scope in the context. Whether an operation needs one is
+// declared in the spec: everything requires the bearer scheme unless the
+// operation says `security: []`. Validation runs before idempotency so a
+// malformed or anonymous request never claims a key, and keys are scoped to
+// the caller's tenant.
 package app
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -21,6 +25,7 @@ import (
 	middleware "github.com/oapi-codegen/nethttp-middleware"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
+	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
@@ -29,11 +34,8 @@ import (
 // Deps are the shared dependencies of the API.
 type Deps struct {
 	DB         *db.DB
+	Identity   *identity.Service
 	TrustProxy bool
-	// Authenticate puts the caller's scope in the context when a valid
-	// bearer token is present. Nil means no authentication (tests of the
-	// platform only).
-	Authenticate func(http.Handler) http.Handler
 	// DocsDir serves the Swagger UI and the spec when set.
 	DocsDir string
 }
@@ -42,7 +44,18 @@ type Deps struct {
 // handler set per module.
 type Handlers struct {
 	platformHandlers
+	*identity.Handlers
 }
+
+// NewHandlers builds the module handlers.
+func NewHandlers(d Deps) *Handlers {
+	return &Handlers{
+		platformHandlers: platformHandlers{ready: d.DB.Ping},
+		Handlers:         identity.NewHandlers(d.Identity),
+	}
+}
+
+var errAuthRequired = errors.New("authentication required")
 
 // New returns the full HTTP handler.
 func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
@@ -53,19 +66,21 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 	spec.Servers = nil // validate paths regardless of the host serving them
 
 	r := chi.NewRouter()
-	r.Use(httpx.RequestMeta(d.TrustProxy), httpx.Recover)
-	if d.Authenticate != nil {
-		r.Use(d.Authenticate)
-	}
+	r.Use(httpx.RequestMeta(d.TrustProxy), httpx.Recover, identity.Authenticate(d.Identity.Signer))
 	if d.DocsDir != "" {
 		r.Handle("/docs/*", http.StripPrefix("/docs/", http.FileServer(http.Dir(d.DocsDir))))
 	}
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{
 			Options: openapi3filter.Options{
-				// Bearer tokens are checked by Authenticate; the
-				// validator only checks shapes.
-				AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+				// Called only for operations that declare the bearer
+				// scheme; the token itself was verified by Authenticate.
+				AuthenticationFunc: func(ctx context.Context, in *openapi3filter.AuthenticationInput) error {
+					if _, ok := identity.PrincipalFrom(in.RequestValidationInput.Request.Context()); !ok {
+						return errAuthRequired
+					}
+					return nil
+				},
 			},
 			ErrorHandlerWithOpts: validationError,
 		}))
@@ -74,9 +89,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 			RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 				httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeBadRequest, "malformed request body")
 			},
-			ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-				writeHandlerError(w, r, err)
-			},
+			ResponseErrorHandlerFunc: writeHandlerError,
 		})
 		apigen.HandlerWithOptions(strict, apigen.ChiServerOptions{
 			BaseRouter: r,
@@ -100,6 +113,9 @@ func validationError(_ context.Context, err error, w http.ResponseWriter, r *htt
 		httpx.WriteProblem(w, r, http.StatusNotFound, httpx.CodeNotFound, "")
 	case opts.StatusCode == http.StatusMethodNotAllowed:
 		httpx.WriteProblem(w, r, http.StatusMethodNotAllowed, httpx.CodeBadRequest, "")
+	case opts.StatusCode == http.StatusUnauthorized:
+		w.Header().Set("WWW-Authenticate", `Bearer realm="tramo"`)
+		httpx.WriteProblem(w, r, http.StatusUnauthorized, httpx.CodeUnauthorized, "a valid bearer token is required")
 	case strings.Contains(err.Error(), idempotency.Header) && r.Header.Get(idempotency.Header) == "":
 		httpx.WriteProblem(w, r, http.StatusBadRequest, httpx.CodeIdempotencyRequired,
 			"this operation requires an Idempotency-Key header (UUID)")
@@ -110,17 +126,9 @@ func validationError(_ context.Context, err error, w http.ResponseWriter, r *htt
 	}
 }
 
-// Error lets handlers return a problem from the strict interface.
-type Error struct {
-	Status int
-	Code   string
-	Detail string
-}
-
-func (e *Error) Error() string { return e.Code + ": " + e.Detail }
-
 func writeHandlerError(w http.ResponseWriter, r *http.Request, err error) {
-	if e, ok := err.(*Error); ok {
+	var e *httpx.Error
+	if errors.As(err, &e) {
 		httpx.WriteProblem(w, r, e.Status, e.Code, e.Detail)
 		return
 	}
@@ -147,9 +155,4 @@ func (p platformHandlers) Readyz(ctx context.Context, _ apigen.ReadyzRequestObje
 		}
 	}
 	return apigen.Readyz204Response{}, nil
-}
-
-// NewHandlers builds the module handlers.
-func NewHandlers(d Deps) *Handlers {
-	return &Handlers{platformHandlers: platformHandlers{ready: d.DB.Ping}}
 }

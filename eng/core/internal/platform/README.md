@@ -49,22 +49,28 @@ create policy things_tenant on things to tramo_app
 `tramo_app` gets select, insert, update and delete on new tables automatically
 (default privileges in 00002). Without the policy it sees no rows at all.
 
-`System` bypasses RLS. Only platform and identity use it (registration, login,
-refresh tokens, idempotency, creating a tenant key).
+Also `alter table things force row level security;`: a test fails for any
+table without it (`TestEveryTableHasForcedRLS`).
+
+`System` runs as `tramo_system`, which reaches only the seven platform and
+identity tables granted in migration 00003 and nothing a module adds later.
+Only `internal/platform/db`, `internal/platform/idempotency` and
+`internal/identity` may call it; `TestSystemCallersAreAllowlisted` fails
+otherwise. Tests may use it to seed. See ADR 0002.
 
 ## Endpoints
 
 `GET /healthz` (204) and `GET /readyz` (204, or 503 problem when the database
 does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/docs/`.
 
-## Tables (migrations 00001 and 00002)
+## Tables (migrations 00001 to 00003)
 
 | Table | RLS for tramo_app | Notes |
 |-------|-------------------|-------|
 | `tenants` | own row only | |
 | `users` | self or members of the current tenant; only `id`, `email`, `created_at` readable | `password_hash` and `totp_secret` are not readable by `tramo_app` |
 | `memberships` | current tenant, or the caller's own memberships | |
-| `refresh_tokens` | no access | identity only, through `System` |
+| `refresh_tokens` | no access | identity only, through `System` (`tramo_system`) |
 | `audit_log` | read and insert for the current tenant | UPDATE and DELETE rejected by trigger, for every role |
 | `idempotency_requests` | current tenant | middleware uses `System` with explicit scope |
 | `tenant_keys` | read own key | wrapped data keys |

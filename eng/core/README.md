@@ -27,3 +27,4 @@ and the sensitive data it touches. No README, no merge.
 | Module | README |
 |--------|--------|
 | platform | `internal/platform/README.md` |
+| identity | `internal/identity/README.md` |

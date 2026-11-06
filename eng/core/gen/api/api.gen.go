@@ -9,7 +9,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -17,8 +19,116 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for Role.
+const (
+	Accountant Role = "accountant"
+	Approver   Role = "approver"
+	Operator   Role = "operator"
+	Owner      Role = "owner"
+	Viewer     Role = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the Role enum.
+func (e Role) Valid() bool {
+	switch e {
+	case Accountant:
+		return true
+	case Approver:
+		return true
+	case Operator:
+		return true
+	case Owner:
+		return true
+	case Viewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TokenDelivery.
+const (
+	Body   TokenDelivery = "body"
+	Cookie TokenDelivery = "cookie"
+)
+
+// Valid indicates whether the value is a known member of the TokenDelivery enum.
+func (e TokenDelivery) Valid() bool {
+	switch e {
+	case Body:
+		return true
+	case Cookie:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TokensTokenType.
+const (
+	Bearer TokensTokenType = "Bearer"
+)
+
+// Valid indicates whether the value is a known member of the TokensTokenType enum.
+func (e TokensTokenType) Valid() bool {
+	switch e {
+	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// AddMemberRequest defines model for AddMemberRequest.
+type AddMemberRequest struct {
+	Email openapi_types.Email `json:"email"`
+	Role  Role                `json:"role"`
+}
+
+// Cuit CUIT, 11 digits without dashes. The check digit is verified.
+//
+// Example: 30712345674
+type Cuit = string
+
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Email    openapi_types.Email `json:"email"`
+	Password string              `json:"password"`
+
+	// TenantId Tenant to act on. Defaults to the oldest membership.
+	TenantId      *openapi_types.UUID `json:"tenantId,omitempty"`
+	TokenDelivery *TokenDelivery      `json:"tokenDelivery,omitempty"`
+}
+
+// Me defines model for Me.
+type Me struct {
+	ActiveTenantId openapi_types.UUID `json:"activeTenantId"`
+	Email          string             `json:"email"`
+	Memberships    []Membership       `json:"memberships"`
+	Role           Role               `json:"role"`
+	UserId         openapi_types.UUID `json:"userId"`
+}
+
+// Member defines model for Member.
+type Member struct {
+	Email  string             `json:"email"`
+	Role   Role               `json:"role"`
+	UserId openapi_types.UUID `json:"userId"`
+}
+
+// Membership defines model for Membership.
+type Membership struct {
+	Role       Role               `json:"role"`
+	TenantId   openapi_types.UUID `json:"tenantId"`
+	TenantName string             `json:"tenantName"`
+}
+
+// Password defines model for Password.
+type Password = string
 
 // Problem defines model for Problem.
 type Problem struct {
@@ -39,8 +149,103 @@ type Problem struct {
 	Type string `json:"type"`
 }
 
+// RefreshRequest defines model for RefreshRequest.
+type RefreshRequest struct {
+	RefreshToken  *string        `json:"refreshToken,omitempty"`
+	TokenDelivery *TokenDelivery `json:"tokenDelivery,omitempty"`
+}
+
+// RegisterRequest defines model for RegisterRequest.
+type RegisterRequest struct {
+	// Cuit CUIT, 11 digits without dashes. The check digit is verified.
+	//
+	// Example: 30712345674
+	Cuit       *Cuit               `json:"cuit,omitempty"`
+	Email      openapi_types.Email `json:"email"`
+	Password   Password            `json:"password"`
+	TenantName string              `json:"tenantName"`
+	TenantSlug string              `json:"tenantSlug"`
+}
+
+// RegisterResponse defines model for RegisterResponse.
+type RegisterResponse struct {
+	TenantId openapi_types.UUID `json:"tenantId"`
+	UserId   openapi_types.UUID `json:"userId"`
+}
+
+// Role defines model for Role.
+type Role string
+
+// TokenDelivery defines model for TokenDelivery.
+type TokenDelivery string
+
+// Tokens defines model for Tokens.
+type Tokens struct {
+	AccessToken string `json:"accessToken"`
+
+	// ExpiresIn seconds
+	//
+	// Example: 600
+	ExpiresIn int `json:"expiresIn"`
+
+	// RefreshToken Only with tokenDelivery body.
+	RefreshToken *string            `json:"refreshToken,omitempty"`
+	Role         Role               `json:"role"`
+	TenantId     openapi_types.UUID `json:"tenantId"`
+	TokenType    TokensTokenType    `json:"tokenType"`
+}
+
+// TokensTokenType defines model for Tokens.TokenType.
+type TokensTokenType string
+
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
+
+// RefreshCookie defines model for RefreshCookie.
+type RefreshCookie = string
+
+// LogoutParams defines parameters for Logout.
+type LogoutParams struct {
+	// TramoRefresh Refresh token for browsers (HttpOnly, Secure, SameSite=Strict, Path=/v1/auth).
+	TramoRefresh *RefreshCookie `form:"tramo_refresh,omitempty" json:"tramo_refresh,omitempty"`
+}
+
+// RefreshParams defines parameters for Refresh.
+type RefreshParams struct {
+	// TramoRefresh Refresh token for browsers (HttpOnly, Secure, SameSite=Strict, Path=/v1/auth).
+	TramoRefresh *RefreshCookie `form:"tramo_refresh,omitempty" json:"tramo_refresh,omitempty"`
+}
+
+// RegisterParams defines parameters for Register.
+type RegisterParams struct {
+	// IdempotencyKey Client generated UUID. Same key and same body replays the first
+	// response for 24 hours; same key with another body is 422; a key
+	// whose first request is still running is 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// AddMemberParams defines parameters for AddMember.
+type AddMemberParams struct {
+	// IdempotencyKey Client generated UUID. Same key and same body replays the first
+	// response for 24 hours; same key with another body is 422; a key
+	// whose first request is still running is 409.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// LogoutJSONRequestBody defines body for Logout for application/json ContentType.
+type LogoutJSONRequestBody = RefreshRequest
+
+// RefreshJSONRequestBody defines body for Refresh for application/json ContentType.
+type RefreshJSONRequestBody = RefreshRequest
+
+// RegisterJSONRequestBody defines body for Register for application/json ContentType.
+type RegisterJSONRequestBody = RegisterRequest
+
+// AddMemberJSONRequestBody defines body for AddMember for application/json ContentType.
+type AddMemberJSONRequestBody = AddMemberRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -50,6 +255,27 @@ type ServerInterface interface {
 	// Readyz Readiness (database reachable)
 	// (GET /readyz)
 	Readyz(w http.ResponseWriter, r *http.Request)
+	// Login Exchange email and password for an access token and a refresh token
+	// (POST /v1/auth/login)
+	Login(w http.ResponseWriter, r *http.Request)
+	// Logout Revoke the refresh token family of this session
+	// (POST /v1/auth/logout)
+	Logout(w http.ResponseWriter, r *http.Request, params LogoutParams)
+	// Refresh Rotate the refresh token and get a new access token
+	// (POST /v1/auth/refresh)
+	Refresh(w http.ResponseWriter, r *http.Request, params RefreshParams)
+	// Register Create an account, its first tenant and the owner membership
+	// (POST /v1/auth/register)
+	Register(w http.ResponseWriter, r *http.Request, params RegisterParams)
+	// GetMe The caller, the active tenant and every membership
+	// (GET /v1/me)
+	GetMe(w http.ResponseWriter, r *http.Request)
+	// ListMembers Members of the active tenant
+	// (GET /v1/tenant/members)
+	ListMembers(w http.ResponseWriter, r *http.Request)
+	// AddMember Add a person to the active tenant (owner or operator)
+	// (POST /v1/tenant/members)
+	AddMember(w http.ResponseWriter, r *http.Request, params AddMemberParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -65,6 +291,48 @@ func (_ Unimplemented) Healthz(w http.ResponseWriter, r *http.Request) {
 // Readyz Readiness (database reachable)
 // (GET /readyz)
 func (_ Unimplemented) Readyz(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Login Exchange email and password for an access token and a refresh token
+// (POST /v1/auth/login)
+func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Logout Revoke the refresh token family of this session
+// (POST /v1/auth/logout)
+func (_ Unimplemented) Logout(w http.ResponseWriter, r *http.Request, params LogoutParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Refresh Rotate the refresh token and get a new access token
+// (POST /v1/auth/refresh)
+func (_ Unimplemented) Refresh(w http.ResponseWriter, r *http.Request, params RefreshParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Register Create an account, its first tenant and the owner membership
+// (POST /v1/auth/register)
+func (_ Unimplemented) Register(w http.ResponseWriter, r *http.Request, params RegisterParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetMe The caller, the active tenant and every membership
+// (GET /v1/me)
+func (_ Unimplemented) GetMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMembers Members of the active tenant
+// (GET /v1/tenant/members)
+func (_ Unimplemented) ListMembers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// AddMember Add a person to the active tenant (owner or operator)
+// (POST /v1/tenant/members)
+func (_ Unimplemented) AddMember(w http.ResponseWriter, r *http.Request, params AddMemberParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -96,6 +364,208 @@ func (siw *ServerInterfaceWrapper) Readyz(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Readyz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Login(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LogoutParams
+
+	{
+		var cookie *http.Cookie
+
+		if cookie, err = r.Cookie("tramo_refresh"); err == nil {
+			var value RefreshCookie
+			err = runtime.BindStyledParameterWithOptions("simple", "tramo_refresh", cookie.Value, &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationCookie, Explode: true, Required: false, Type: "string", Format: ""})
+			if err != nil {
+				siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tramo_refresh", Err: err})
+				return
+			}
+			params.TramoRefresh = &value
+
+		}
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Logout(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Refresh operation middleware
+func (siw *ServerInterfaceWrapper) Refresh(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RefreshParams
+
+	{
+		var cookie *http.Cookie
+
+		if cookie, err = r.Cookie("tramo_refresh"); err == nil {
+			var value RefreshCookie
+			err = runtime.BindStyledParameterWithOptions("simple", "tramo_refresh", cookie.Value, &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationCookie, Explode: true, Required: false, Type: "string", Format: ""})
+			if err != nil {
+				siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tramo_refresh", Err: err})
+				return
+			}
+			params.TramoRefresh = &value
+
+		}
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Refresh(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Register operation middleware
+func (siw *ServerInterfaceWrapper) Register(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegisterParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Register(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMe operation middleware
+func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMembers operation middleware
+func (siw *ServerInterfaceWrapper) ListMembers(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMembers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddMember operation middleware
+func (siw *ServerInterfaceWrapper) AddMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AddMemberParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Idempotency-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Idempotency-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddMember(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -224,11 +694,41 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/readyz", wrapper.Readyz)
 	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/register", wrapper.Register)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/login", wrapper.Login)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/refresh", wrapper.Refresh)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/logout", wrapper.Logout)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/me", wrapper.GetMe)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/tenant/members", wrapper.ListMembers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/tenant/members", wrapper.AddMember)
+	})
 
 	return r
 }
 
 type ProblemApplicationProblemPlusJSONResponse Problem
+
+type TokensResponseHeaders struct {
+	SetCookie *string
+}
+type TokensJSONResponse struct {
+	Body Tokens
+
+	Headers TokensResponseHeaders
+}
 
 type HealthzRequestObject struct {
 }
@@ -276,6 +776,367 @@ func (response Readyz503ApplicationProblemPlusJSONResponse) VisitReadyzResponse(
 	return err
 }
 
+type LoginRequestObject struct {
+	Body *LoginJSONRequestBody
+}
+
+type LoginResponseObject interface {
+	VisitLoginResponse(w http.ResponseWriter) error
+}
+
+type Login200JSONResponse struct{ TokensJSONResponse }
+
+func (response Login200JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response Login400ApplicationProblemPlusJSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login401ApplicationProblemPlusJSONResponse Problem
+
+func (response Login401ApplicationProblemPlusJSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutRequestObject struct {
+	Params LogoutParams
+	Body   *LogoutJSONRequestBody
+}
+
+type LogoutResponseObject interface {
+	VisitLogoutResponse(w http.ResponseWriter) error
+}
+
+type Logout204ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Logout204Response struct {
+	Headers Logout204ResponseHeaders
+}
+
+func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) error {
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(204)
+	return nil
+}
+
+type RefreshRequestObject struct {
+	Params RefreshParams
+	Body   *RefreshJSONRequestBody
+}
+
+type RefreshResponseObject interface {
+	VisitRefreshResponse(w http.ResponseWriter) error
+}
+
+type Refresh200JSONResponse struct{ TokensJSONResponse }
+
+func (response Refresh200JSONResponse) VisitRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Refresh401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response Refresh401ApplicationProblemPlusJSONResponse) VisitRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RegisterRequestObject struct {
+	Params RegisterParams
+	Body   *RegisterJSONRequestBody
+}
+
+type RegisterResponseObject interface {
+	VisitRegisterResponse(w http.ResponseWriter) error
+}
+
+type Register201JSONResponse RegisterResponse
+
+func (response Register201JSONResponse) VisitRegisterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Register400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response Register400ApplicationProblemPlusJSONResponse) VisitRegisterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Register409ApplicationProblemPlusJSONResponse Problem
+
+func (response Register409ApplicationProblemPlusJSONResponse) VisitRegisterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Register422ApplicationProblemPlusJSONResponse Problem
+
+func (response Register422ApplicationProblemPlusJSONResponse) VisitRegisterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMeRequestObject struct {
+}
+
+type GetMeResponseObject interface {
+	VisitGetMeResponse(w http.ResponseWriter) error
+}
+
+type GetMe200JSONResponse Me
+
+func (response GetMe200JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMe401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetMe401ApplicationProblemPlusJSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembersRequestObject struct {
+}
+
+type ListMembersResponseObject interface {
+	VisitListMembersResponse(w http.ResponseWriter) error
+}
+
+type ListMembers200JSONResponse struct {
+	Items      []Member `json:"items"`
+	NextCursor *string  `json:"nextCursor,omitempty"`
+}
+
+func (response ListMembers200JSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembers401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListMembers401ApplicationProblemPlusJSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddMemberRequestObject struct {
+	Params AddMemberParams
+	Body   *AddMemberJSONRequestBody
+}
+
+type AddMemberResponseObject interface {
+	VisitAddMemberResponse(w http.ResponseWriter) error
+}
+
+type AddMember201JSONResponse Member
+
+func (response AddMember201JSONResponse) VisitAddMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddMember400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response AddMember400ApplicationProblemPlusJSONResponse) VisitAddMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddMember401ApplicationProblemPlusJSONResponse Problem
+
+func (response AddMember401ApplicationProblemPlusJSONResponse) VisitAddMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddMember403ApplicationProblemPlusJSONResponse Problem
+
+func (response AddMember403ApplicationProblemPlusJSONResponse) VisitAddMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddMember409ApplicationProblemPlusJSONResponse Problem
+
+func (response AddMember409ApplicationProblemPlusJSONResponse) VisitAddMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddMember422ApplicationProblemPlusJSONResponse Problem
+
+func (response AddMember422ApplicationProblemPlusJSONResponse) VisitAddMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Healthz Liveness
@@ -284,6 +1145,27 @@ type StrictServerInterface interface {
 	// Readyz Readiness (database reachable)
 	// (GET /readyz)
 	Readyz(ctx context.Context, request ReadyzRequestObject) (ReadyzResponseObject, error)
+	// Login Exchange email and password for an access token and a refresh token
+	// (POST /v1/auth/login)
+	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
+	// Logout Revoke the refresh token family of this session
+	// (POST /v1/auth/logout)
+	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// Refresh Rotate the refresh token and get a new access token
+	// (POST /v1/auth/refresh)
+	Refresh(ctx context.Context, request RefreshRequestObject) (RefreshResponseObject, error)
+	// Register Create an account, its first tenant and the owner membership
+	// (POST /v1/auth/register)
+	Register(ctx context.Context, request RegisterRequestObject) (RegisterResponseObject, error)
+	// GetMe The caller, the active tenant and every membership
+	// (GET /v1/me)
+	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// ListMembers Members of the active tenant
+	// (GET /v1/tenant/members)
+	ListMembers(ctx context.Context, request ListMembersRequestObject) (ListMembersResponseObject, error)
+	// AddMember Add a person to the active tenant (owner or operator)
+	// (POST /v1/tenant/members)
+	AddMember(ctx context.Context, request AddMemberRequestObject) (AddMemberResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -373,28 +1255,270 @@ func (sh *strictHandler) Readyz(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Login operation middleware
+func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var request LoginRequestObject
+
+	var body LoginJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Login(ctx, request.(LoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Login")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LoginResponseObject); ok {
+		if err := validResponse.VisitLoginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Logout operation middleware
+func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request, params LogoutParams) {
+	var request LogoutRequestObject
+
+	request.Params = params
+
+	var body LogoutJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Logout(ctx, request.(LogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Logout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LogoutResponseObject); ok {
+		if err := validResponse.VisitLogoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Refresh operation middleware
+func (sh *strictHandler) Refresh(w http.ResponseWriter, r *http.Request, params RefreshParams) {
+	var request RefreshRequestObject
+
+	request.Params = params
+
+	var body RefreshJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Refresh(ctx, request.(RefreshRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Refresh")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RefreshResponseObject); ok {
+		if err := validResponse.VisitRefreshResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Register operation middleware
+func (sh *strictHandler) Register(w http.ResponseWriter, r *http.Request, params RegisterParams) {
+	var request RegisterRequestObject
+
+	request.Params = params
+
+	var body RegisterJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Register(ctx, request.(RegisterRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Register")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RegisterResponseObject); ok {
+		if err := validResponse.VisitRegisterResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMe operation middleware
+func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	var request GetMeRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMe(ctx, request.(GetMeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMe")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMeResponseObject); ok {
+		if err := validResponse.VisitGetMeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMembers operation middleware
+func (sh *strictHandler) ListMembers(w http.ResponseWriter, r *http.Request) {
+	var request ListMembersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMembers(ctx, request.(ListMembersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMembers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMembersResponseObject); ok {
+		if err := validResponse.VisitListMembersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddMember operation middleware
+func (sh *strictHandler) AddMember(w http.ResponseWriter, r *http.Request, params AddMemberParams) {
+	var request AddMemberRequestObject
+
+	request.Params = params
+
+	var body AddMemberJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddMember(ctx, request.(AddMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddMemberResponseObject); ok {
+		if err := validResponse.VisitAddMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"jFXfb9s2EP5XDtweEkyRXTddW+Up8FLMW4FmsYM9xEZ9ls4WG4rUjienmuH/fSBlO06TAHujeLzvfn6f",
-	"Nip3Ve0sWfEq26gaGSsS4vg1KqiqnZDN2z+pDTcF+Zx1LdpZlamh0WQFVmSJUaiA29vRbymMsSK4pxbQ",
-	"FuDDx8IVLTDVBlsPUhIsNXuZWiZfO+sJlo5hcA6la9hfgN8DPGgpAa2TkrgD0R7OB4MLwGCf2ofS+R0a",
-	"MP3TkJfwxIs2BrixVttV9Ol/TKdWJUqHvEvCglglymJFKjuu8ywUmqiApZkKlQk3lCifl1Rh6MDScYWi",
-	"MtU0ulCJkrYOEF5Y25XabreJ2lcVe3jNbmGoCsfcWSEr4Yh1bXSOoY+9unvxyzcfmro5ivUz01Jl6qfe",
-	"45B6ndX39rgx4tOxXDE7VuF+9/iHPGp2NbHoLsHcFfR8tGPBhSGoMC+1JWDCIl5QwIbgk6pE0XesakMq",
-	"U/qxhV/vqf3K1Hh6oT8hV0FtQsRnpt0ER8WLVi8oTUz5EPZ8MDhE0FZoRRxeihZDTx6qW1uzy8n7WMWV",
-	"FS3tS9l1F8eeuHCNZAuD9v6FcR+vyl1n3cc/ZJx0PZ4dvN3iG+XSTYjyhrW04zCpbiALQiZ+PH3ab9wf",
-	"f0/UbqYBZffugFqK1N06aLt0z0d6czWeQNhBxlzALSMRc8eUwrimvGNRBiXawhB7QKYjai/ZVSCl9lO7",
-	"1IY6ajqs9VkobkUWTuYV3keX+WmkvnWRslRo6Vj/iBYXaGqndujsmmzI0AOtiVuoXNGYoAjGuAefTe0Z",
-	"XEXD9ZfxBKREgZwJhTwgMHnXcE5QUG6QqYszfypc86kFOCgbnJBd9S5v/rodTa6Gk9uby7QqwFMekoD3",
-	"pylcgpAXWKI2HqL2PGgf0j2DSK2uNfPXODyHk5tPQ/h4/u796U7BwHd0moe65xHpsnKNlQ5qt7oetIU8",
-	"sPwCiq5AW4Doirpno/EX+PBr/030/6z9zvuBsa6pyGC+0UKVz+AuTdNZApa+y7Bh73g779RvRww1Yawc",
-	"DB0TXF6PVKLWxL7bkn76Ju0HJriaLNZaZept2k/fqkTVKGXc0F5JaKT8N5xXFAUtKEpsRSCv+n1n/0EL",
-	"B/3z52uJRq/pCRdUdjdLlG+qCrlVmfqs12TJByIJrnwgWm1QghKrWXDsBXlqX0/npjP/n2wiUij/Xf/t",
-	"axJ8QDkS4dezD8F1SB9OChRcoI9ympdhI05fqekp3qMm3M22AZx4HX/RdxvVsNlxP+v1jMvRlM5L9qH/",
-	"oa+2swP6Zv+vO0TZzrb/DQA=",
+	"1Fpdd9s20v4rc/D2wj4vrQ/baRLl9MJ13K27ydZrKacXlreCiZGImgS4AGhF9dF/3zMASZMW5Y/E7Xav",
+	"IhPAADPz4JkP5JbFOsu1QuUsG92ynBueoUPj/zoVmOXaoYpXf8cVfRFoYyNzJ7ViI3acSlQOFqjQcIcC",
+	"Pn06fd+DMc8QrnEFXAmw9MeVFiswmKd8ZcElCHNprJsqgzbXyiLMtYH9Q0h0Yew7sJWApXQJcKVdgiYI",
+	"kRYO9/ffAafxqVom2pbSwOC/C7SOplgn0xRMoZRUC79m8LY3VSxiks6dIBdoWMQUz5CNmnrukaIRI1nS",
+	"oGAjZwqMmI0TzDhZYK5Nxh0bsaKQgkXMrXISYZ2RasHW64id49ygTY61vpa4abRyGJy+RuUVvzJ6adFY",
+	"2PnRufxnla4iGGNcGIy8LcfS4XdjZ2TsIjjjLvmufzPs88Ilu71KpTjsVqvkDM/0rybsxZoK3D/wOmKV",
+	"G7zTz4y+SjGjn7FWDpWjnzzPUxlz0qGfhxn//5slhW4bsr8xOGcj9n/9O1T1w6jtV3L9jm2TnBijDVtH",
+	"bEI2sQ9s/bwtS3EdO3rjW5DWFkheDIjwO4/R7W3znWn5Ltgclgmq8OU9pvIGjUdp7ZAHLL9eV8N+5yMh",
+	"PmJ2heY8INkrL4SkzXl6ZnSOxkny0pynFiOWNz7dMsy4TFsQDV8ilvHPH1AtXMJG+68ONzAbMaNTfMyY",
+	"5zRnvW7ejYt6By/gspasr37D2JHk40K6DuL4dDqJYDgEIRfSWX/PdeFAcJug7cEkQYgTjK/DBLLnDRo5",
+	"lygI8fiZZzmdmB0MXg/3Dw5fffv6kEUs586hoQ3+dTHYe3t5Oxyuv2Ed+n7QC6n+dCvn3NqlNqK1uv7Y",
+	"EjDcfxOxTKr67w5xDhVX7lRsmnfiR8Bp4LEDrXrwHue8SJ2lb8S/OhVoHWQebjaROZn1EWqLWAvkT7p8",
+	"9eRtwKnV7wLPRw/Ktv157OQNThq6P3rs2mUbI3f6e9nSYWYf0+tjvcabJIjkxvDV825SxAqL5kkq3LNd",
+	"uS6qjXjPJuUp2up125fGN2283WD/FfW2kkvDFRs6POek7jloCpP/4cPs7SOquDuXNJY9oNHZV1DEfsdh",
+	"G8G8bZ5Yi474Nnb8KkXIeJxIhWCQC/8BjdEGaE2bfuVd4vTrNa5+NVhY7LSaQLcVU4GHT0XnqHXcFQGV",
+	"1baH+3eqSuVwgT55cNKl2JrIPqnc6Bit9VqcKCfdqtOnq/zeSn6lCze6Srm6fhSwfrTavz5xFGzc5eUy",
+	"BfyyAFTmIJ5e6e/7kHhp1u44/UJa96VZSlwmBA8dwicNTeL+ulj7YFZazdu42S27DlpXbX8rLYzTYhHq",
+	"qLtMhO/9TslI+e/e5e0wOnizrj5/8yi8NkLlPTJp7Hz5oLtCkr/JBc+iv69m9Xq3zsOWrI2qyGiVXipf",
+	"qPE8N/rG/7yRuPQ/SAXutB+OY10ox5VjlxsHiVgb1J71fDrUrJuqHesPVG5ul2a7MhNimvpebqzDz7k0",
+	"aE/VJu9ajLUStsmt3w4GXSR3//a35VDtGIrmdj1CuvRY9HXx/HlRkvafVLRa2vZ75AZNh1HvYaVpyaao",
+	"pg2jZnDdEk8pfFAdLd1qTMoEP12FU9S/fqh0+emXSVWvkZRyXi01cS4PtaRUc91R2J+MJ0B1q/FZ99wn",
+	"2rE22INxjnHoUowg4UqkaCxwg43WydzoDFwi7VTNZYrBi5rnco/CyAIV7Mwyfu2XzHZ9a0Vp3xJBQSWU",
+	"S5rSfKieqqk61uoGFZ3QAnosZFoUKXVc0lQv7Wiq9uDED5z9PJ6AS7iD2CB3aIGDQasLEyMIjFNuMOwz",
+	"azeGZlMFUHeOYAfVon90/s9Pp5OT48mn86NeJsBiTIeA17s9OAKH1sGcy9SC7+0spaXj7oHvBATTzLa1",
+	"HGawc/7DMbw9fPV6t+wQgQ2Jy4z0nnlJRxkxQhBV3h8LUkFM2H4HIiioBDiZYZh2Ov4Z3nw7GPr1H6Qt",
+	"Vy8Nz3MUI5jd+gJhBBe9Xu8yAoWf3XFhrDbrWegulSkImxieaTjWBuHo7JRIC40NKBn0hr0B3RCdo+K5",
+	"pCK2N+gdhPI18QjtJ8hTl/xOvxfow2UgO6kV3T/2Yzl+r3WzPzjchCUnDmjdBTa6uIyYLbKMEx2yD/IG",
+	"FVpLCvCFpRuYp9zRHWeXtLBPieBq+3HOw/BTTuMlkfqvBgfbiKeW0ugZbT89bS7p+LAjuONX3PrENU4I",
+	"EbvbdSpbaP2UegGezbXtaFVQKyLwUdn1kXQvhgPIpCocwol4Pz6Cn36Z+FaeVgiBl0ITo6TrqQpryRUW",
+	"DgYg+Cqgz2jnkahVeT0Liz34RbpkqmYtEh+VLaUZ7FQNw12QDpzhN0gXibhfKuAKqjbiVIUlYGOdo6Di",
+	"v1L7Xbg5M2KQGewcnZ1C7Lu5Qai0YNAVRqGYKqn8rfdBxMO87X3fTGF1Hv89xc2X6uC1GjXr9fp+Z3a9",
+	"gbnB46iq2oIROxwMngFCmj98GdCefI4TrhYIPrnzSKjSO48jrtqgowkcWu3HBrKlwFDabCBbF64J7Q3H",
+	"0XjU6vpfdKt3N6Xf7m+vL/8Yz9+rkdabjepOfkn1YoECgl5P7OrGKXITIltl4Sd3b7eS0o2+xpbIst/P",
+	"M5muQnYgLVi0Pi486stSynaeGqMSHfuVd7fkAW2geZnhqD17qnz4X3ILPPVMTXQkwHhtLPhWbaJTrNTY",
+	"cQnOHQh0GDsUPi2ZKq7sEg09ugy7+OK8fpT4X8XdMznmhTjj3IeKDh8TOSzQAQeFyxZvPAVXoTrcDqxz",
+	"HwcsSFHGmJ1wgnD08NqmDQbeajSEIrCaQomiuDZVMTdGYnkuu9uDD3rhw9XcoVlyI2w3VsrjPRcs954u",
+	"/zi0tHshTwpRwz9g+7BB11NXSObFl4W7t8+bv7//MlA/9mcuoyDl8ZHnnvDOG/KrkLsnCL5F0HjJeBDz",
+	"GW5NYv+G7iOy7rv+Is762Okeff1lJFHbyr+V8TRFE3l7hMeAppXKuu9pFgrr+uXsrdai8qhsv3+tzdpd",
+	"lPoN5hmPMV0PMXfFGclQRZpSPVC95z/cfwhbd/QTXt57pQ2rdkHLed1+irbw9HFZtJOYwqKpH1X5XWoZ",
+	"nqqTKu2UliLGO/qyogjiU/2yos74QsaQSnUNO0o7uCpk6mCFbrcHvs3EFVQdOIi5goXhyk3VrPo4o2xj",
+	"dteZm3Xxe/3k/Vcl+I03+T+Z4SuAb0KPC/GlrD585vyDv1jUqG/PkaCyKEdjtaqettv8txPCgzY1WHe3",
+	"0F87HN21CS8uCVsWzU2FzMKkZTtw1O+nOuZpoq0bvRm8GXgcltJvq/+LUzce1lH9rd55fbn+zwA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

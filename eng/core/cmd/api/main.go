@@ -8,7 +8,9 @@ import (
 	"os"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/app"
+	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/config"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
@@ -40,7 +42,19 @@ func run() error {
 	if err := d.Migrate(ctx); err != nil {
 		return err
 	}
-	deps := app.Deps{DB: d, TrustProxy: cfg.TrustProxyHeaders, DocsDir: cfg.DocsDir}
+	signer, err := identity.NewSigner(cfg.JWTSeed, cfg.JWTKeyID)
+	if err != nil {
+		return err
+	}
+	keyring, err := crypto.NewKeyring(cfg.MasterKey)
+	if err != nil {
+		return err
+	}
+	ids, err := identity.NewService(d, signer, keyring, identity.DefaultArgon2)
+	if err != nil {
+		return err
+	}
+	deps := app.Deps{DB: d, Identity: ids, TrustProxy: cfg.TrustProxyHeaders, DocsDir: cfg.DocsDir}
 	h, err := app.New(deps, app.NewHandlers(deps))
 	if err != nil {
 		return err
