@@ -508,6 +508,41 @@ paths:
                   nextCursor: { type: string, nullable: true }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+  /v1/matching/items:
+    get:
+      operationId: listOpenItems
+      tags: [matching]
+      summary: Open items nothing settles yet, to link a movement by hand
+      description: |
+        The items (invoices, ERP open items) that no match in effect
+        settles: no automatic match, no approved one, no manual link in
+        effect. What "vincular a mano" offers. `period` keeps the items
+        dated in that month (without it, every open item: an invoice of
+        one month is often paid in the next). `direction=in` keeps the
+        money that comes in (receivables, positive), `out` the money that
+        goes out (payables, negative). Every member of the tenant sees
+        them. Oldest first, up to 500; `truncated` says there were more.
+      parameters:
+        - $ref: "#/components/parameters/PeriodFilter"
+        - name: direction
+          in: query
+          required: false
+          schema: { type: string, enum: [in, out] }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, truncated]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/OpenItem" }
+                  truncated: { type: boolean }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
   /v1/matching/pending:
     get:
       operationId: listPending
@@ -1191,6 +1226,21 @@ components:
         dateDiffDays: { type: integer }
         crossPeriod: { type: boolean }
         lowConfidence: { type: boolean }
+    OpenItem:
+      type: object
+      required: [id, source, sourceId, kind, date, amount, refs, confidence]
+      properties:
+        id: { type: string, format: uuid }
+        source: { type: string, description: "erp, document or manual." }
+        sourceId: { type: string, description: The id in its source (for a document, the invoice it came from). }
+        kind: { type: string, example: receivable }
+        date: { type: string, format: date }
+        due: { type: string, format: date }
+        amount: { type: integer, format: int64, description: Cents, with the sign it will have in the bank. }
+        refs: { type: array, items: { type: string } }
+        party: { type: string, description: The CUIT on the other side, when known. }
+        confidence: { type: number, description: Below the automatic threshold it can only be suggested. }
+        invoiceId: { type: string, format: uuid, description: The invoice that generated it, when it came from one. }
     Candidate:
       type: object
       required: [rule, itemIds]

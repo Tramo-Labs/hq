@@ -94,6 +94,11 @@ func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingReques
 	return out, nil
 }
 
+// ListOpenItems is wired in the next commit; until then it answers 501.
+func (h *Handlers) ListOpenItems(ctx context.Context, req apigen.ListOpenItemsRequestObject) (apigen.ListOpenItemsResponseObject, error) {
+	return nil, &httpx.Error{Status: http.StatusNotImplemented, Code: "not_implemented", Detail: "not implemented yet"}
+}
+
 func (h *Handlers) DecideMatch(ctx context.Context, req apigen.DecideMatchRequestObject) (apigen.DecideMatchResponseObject, error) {
 	m, err := h.store.GetMatch(ctx, req.MatchId)
 	if errors.Is(err, ErrNotFound) {
