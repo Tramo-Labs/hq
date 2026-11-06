@@ -75,10 +75,20 @@ the expected result from the post; cases 4 and 6 run through the ledger.
 
 ## Endpoints, tables, jobs, events
 
-Not wired yet; separate change on top of backend's platform. Planned:
-`matching.items`, `matching.matches` (unique by match ID), `matching.pending`,
-`matching.decisions` (append only by trigger), one job per tenant and period
-unique by its key, and the approval endpoint behind `Idempotency-Key`.
+Tables (migration 00102, schema `matching`, RLS enabled and forced on all):
+`items` (unique per source and source id, reloads update), `runs`,
+`matches` (primary key tenant and match ID: a rerun stores nothing twice),
+`pending`, and `decisions`: insert only for `tramo_app`, a trigger rejects
+UPDATE and DELETE for every role, unique per idempotency key and per match.
+
+`PGStore`, on `db.InTenant` only: `UpsertItems`, `LoadInput` (movements of
+the period read from `ledger.movements`, items, settled and rejected
+matches), `SaveRun` (returns how many matches are new), and `Record` (the
+decider is the scope's user, never a value from the request). Audit
+actions: `matching.run`, `matching.approve`, `matching.reject`.
+
+Still to do: the job per tenant and period, and the approval endpoint behind
+`Idempotency-Key` (after backend's identity changes to the spec).
 
 ## Sensitive data
 

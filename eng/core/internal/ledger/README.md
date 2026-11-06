@@ -66,12 +66,21 @@ the movement so matching can explain the difference without inventing it.
 
 ## Endpoints, tables, jobs, events
 
-Not wired yet. The HTTP paths (upload, list, quarantine) and the Postgres
-store go in a separate change on top of backend's platform (migrations
-00100 to 00199, RLS policy per table, `db.InTenant`, `audit.Record`). Until
-then `Store` is an interface and `MemStore` is its reference behavior.
-Planned: upload job unique by file hash; events `ledger.statement_accepted`
-and `ledger.file_quarantined` (the quarantine notice to the operator).
+Tables (migration 00100, schema `ledger`): `accounts`, `files` (accepted
+or quarantined, with reason and detail), `statements`, `movements`. Every
+table has RLS enabled and forced with the platform tenant policy, and
+references its parents by `(tenant_id, id)` so no row can point at another
+tenant's. Unique: accepted file per tenant and hash; movement per account
+and key.
+
+`PGStore` implements `Store` on `db.InTenant` only. Each accepted file is
+one transaction (file, statement, movements, audit entry). Audit actions:
+`ledger.account_created`, `ledger.statement_accepted`,
+`ledger.file_quarantined` (the quarantine notice the operator console
+reads). `MemStore` stays as the reference behavior for the domain tests.
+
+Endpoints: not yet. Upload, list and quarantine paths go into
+`api/openapi.yaml` after backend's identity changes to the spec.
 
 ## Sensitive data
 
