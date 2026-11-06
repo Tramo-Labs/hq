@@ -53,7 +53,9 @@ Cómo se verifica: el gateway consulta la constancia de inscripción. Si respond
 
 Ojo: la constancia, la constatación de facturas y la consulta de apócrifos se hacen con el CUIT de Tramo y **no necesitan delegación del cliente** (`eng/arca/README.md`). Que la constancia responda prueba que el CUIT existe, no que el cliente delegó algo.
 
-La delegación solo hace falta si el cliente contrata emisión de facturas. Ahí, dentro del mismo paso 1, aparece **"Delegar facturación electrónica"**:
+**Provisorio (06/11, lead):** en esta etapa el paso 1 se muestra como **"CUIT confirmado"** y nada más. El sub-paso de delegación de abajo no se construye hasta que Martín decida (decisión abierta 1).
+
+La delegación solo hace falta si el cliente contrata emisión de facturas. La propuesta es que ahí, dentro del mismo paso 1, aparezca **"Delegar facturación electrónica"**:
 - El cliente crea el punto de venta "RECE para aplicativo y web services" y delega el servicio al CUIT de Tramo, siguiendo capturas del portal (checklist de delegación en `eng/arca/README.md`).
 - El operador acepta la designación en ARCA.
 - Se verifica pidiendo el último comprobante autorizado con el CUIT del cliente. Si ARCA contesta 600 o 601, el estado es "con problema: falta completar la delegación en ARCA", con el paso que falta.

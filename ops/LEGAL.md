@@ -59,6 +59,51 @@ Cláusulas del contrato [I]: objeto limitado a proponer y preparar, nunca declar
 9. Flujo de cuentas a pagar con verificación de proveedor y cola de aprobación antes de escribir en el ERP.
 10. Broker por seguro de responsabilidad profesional y ciber; acuerdo con el contador de cada cliente sobre quién valida Portal IVA y retenciones cada mes.
 
+## Checklist del contrato con el cliente (06/11/2026)
+
+Lo que el contrato tiene que decir, punto por punto. Es la lista para el abogado, no el texto. Todo es [I] salvo lo marcado.
+
+1. **Partes y representación**: razón social y CUIT de las dos partes; quién firma por el cliente y con qué poder.
+2. **Objeto**: proponer, preparar y registrar en los sistemas del cliente. Nunca declarar, presentar ni firmar ante ARCA o rentas, ni mover plata. [H+I: Ley 20.488 para lo reservado al contador]
+3. **Anexo de alcance por proceso**: qué corre solo, qué pasa por Sugerido y Excepciones, umbrales iniciales y quién del cliente aprueba. Sin anexo firmado no se arranca.
+4. **Aprobación humana**: nada tiene efecto en ARCA, banco, pago o ERP sin la aprobación que fije el anexo. Las decisiones quedan en el audit log y ese log es la prueba de quién aprobó qué.
+5. **Obligaciones del cliente**: delegar en ARCA lo que contrate, mandar los extractos a tiempo, decidir sus excepciones, mantener vigentes las credenciales de su ERP y validar en Portal IVA antes de cada vencimiento con su contador.
+6. **Responsabilidad fiscal**: el cliente sigue siendo el contribuyente y el responsable de sus datos; su contador conserva sus incumbencias. [H: Ley 11.683]
+7. **Política de credenciales**: solo delegaciones, tokens a nombre del cliente, claves de API revocables y exportes. Nunca la clave fiscal ni el usuario y la clave del home banking. Si el cliente las manda igual, se borran sin usarse y se le avisa. [H: RG 5048/2021 y los términos de los bancos]
+8. **Servicio y soporte**: respuesta en 4 horas hábiles y arreglos menores en 2 días hábiles. Excluidas las caídas de ARCA, del banco o del ERP del cliente.
+9. **Precio**: build por proceso más fee mensual; moneda, ajuste y qué pasa si se paga tarde. Las herramientas de terceros van a costo o en cuentas del cliente.
+10. **Plazo y salida**: mensual, cancelable con 30 días de aviso. Al irse: exporte completo, revocación de delegaciones y tokens, borrado de lo nuestro en un plazo fijo, salvo lo que la ley obliga a conservar.
+11. **Propiedad**: los datos y la configuración son del cliente; el software se licencia. Pendiente de decisión (ver `product/ESPECIFICACION.md`, sección 9).
+12. **Uso de los datos**: solo para prestar el servicio. No se usan para entrenar modelos, ni de Tramo ni de terceros.
+13. **Confidencialidad**: alcanza a las dos partes y sobrevive al contrato.
+14. **Límite de responsabilidad**: por ejemplo, los honorarios de 12 meses. Exclusiones: dolo y culpa grave.
+15. **Anexo de encargado de tratamiento** (checklist de abajo), firmado junto con el contrato.
+16. **Jurisdicción, ley aplicable y firma**: definir los tribunales y si alcanza con firma electrónica.
+
+## Checklist del anexo de encargado (DPA)
+
+El cliente es el responsable y Tramo, el encargado. [H: Ley 25.326, art. 25] Lo marcado [I] se confirma con el abogado.
+
+1. **Finalidad**: tratar los datos solo para el servicio del contrato y solo por instrucción documentada del cliente. [H: art. 25]
+2. **Datos y titulares**: CUIT, razón social y domicilio de clientes y proveedores; movimientos bancarios y de Mercado Pago; CBU; comprobantes; mails y nombres de los usuarios del portal. Los titulares incluyen personas humanas: monotributistas, proveedores unipersonales y empleados si aparecen en extractos.
+3. **Lo que no se trata**: claves fiscales, claves de home banking, datos sensibles del art. 2. Ningún campo del modelo de datos puede guardarlos.
+4. **Confidencialidad del personal**: compromiso escrito de cada persona de Tramo con acceso. [H: art. 10]
+5. **Medidas de seguridad**, cada una con lo que hacemos (`eng/ARQUITECTURA.md` §5 y §6) y mapeadas a la Res. 47/2018 [H]:
+   - Accesos: roles por tenant, segundo factor y RLS.
+   - Cambios: CI y audit log append-only.
+   - Respaldo: backups diarios cifrados, con una restauración probada por mes.
+   - Vulnerabilidades: gosec y govulncheck en CI.
+   - Cifrado: claves por tenant.
+   - Destrucción: el procedimiento del punto 11.
+   - Incidentes: el punto 8.
+6. **Subencargados nombrados**: el proveedor del VPS, el bucket de backups, el proveedor de mail y los modelos de lenguaje (Anthropic, OpenAI si se usa). Aviso al cliente con 30 días antes de sumar uno, con derecho a oponerse. [I]
+7. **Transferencia internacional**: región de la base, decidida y escrita. Para Estados Unidos (modelos de lenguaje) van cláusulas modelo y el DPA del proveedor firmado y archivado. A los modelos se manda lo mínimo: sin nombres de personas, CUIL ni sueldos si la tarea no los necesita. [H: Disp. 60-E/2016 y Res. 198/2023; minimización: I]
+8. **Incidentes**: aviso al cliente sin demora y con un plazo fijo, por ejemplo 48 horas desde que se detecta. Qué pasó, qué datos, qué se hizo. La ley no fija el plazo. [I]
+9. **Derechos de los titulares**: Tramo le pasa al cliente cualquier pedido que le llegue y lo ayuda a contestar a tiempo. Acceso: 10 días corridos. Rectificación y supresión: 5 días hábiles. [H: arts. 14 y 16, verificar]
+10. **Auditoría**: el cliente puede pedir evidencia de las medidas una vez por año, o después de un incidente.
+11. **Fin del contrato**: devolver todo en el formato de "Descargar todo" del portal y destruir lo nuestro en un plazo fijo, con constancia escrita. Excepción: lo que la ley obliga a conservar (comprobantes 10 años, soportes 2 años), y en ese caso se dice quién lo conserva. [H: Ley 11.683 para los plazos]
+12. **Registro**: las bases de Tramo inscriptas en el RNBD antes del primer cliente. [H]
+
 ## Fuentes principales
 ARCA catálogo de WS: arca.gob.ar/ws/documentacion/catalogo.asp · Guía de delegación: afip.gob.ar/guias/paso-a-paso · RG 5048/2021 · RG 5616/2024 (iprofesional.com/impuestos/464104) · RG 5705 y 5707/2025 (blogdelcontador.com.ar) · Decreto 353/2025 y nota del BCRA de octubre 2026 (elliberal.com.ar/nota/94159) · BBVA API Market (bbvaapimarket.com) · TyC Banco Provincia (bancoprovincia.com.ar/CDN/Get/TYC_BIP) · Ley 25.326 (infoleg) · Res. 126/2024 y 47/2018 AAIP · Disp. 60-E/2016 y Res. 198/2023 (marval.com) · DPA de Anthropic (anthropic.com/legal/data-processing-addendum) · Ley 11.683 (infoleg) · Ley 27.799.
 
