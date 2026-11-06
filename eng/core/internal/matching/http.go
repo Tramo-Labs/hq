@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -172,7 +171,7 @@ func (h *Handlers) DecideMovement(ctx context.Context, req apigen.DecideMovement
 	}
 	got, _, err := h.store.DecideMovement(ctx, in)
 	if err != nil {
-		if errors.Is(err, ErrInvalid) && strings.Contains(err.Error(), "unknown movement") {
+		if errors.Is(err, ErrUnknownMovement) {
 			return nil, &httpx.Error{Status: http.StatusNotFound, Code: httpx.CodeNotFound, Detail: "movement not found"}
 		}
 		return nil, decisionProblem(err)
@@ -198,10 +197,15 @@ func (h *Handlers) DecideMovement(ctx context.Context, req apigen.DecideMovement
 	return out, nil
 }
 
-// decisionProblem maps the store's decision errors to problems.
+// decisionProblem maps the store's decision errors to problems. Every
+// detail is a fixed sentence: never the error's text, which can carry ids,
+// input or internals. Anything not listed stays an error (500, logged).
 func decisionProblem(err error) error {
 	conflict := func(code, detail string) error {
 		return &httpx.Error{Status: http.StatusConflict, Code: code, Detail: detail}
+	}
+	bad := func(code, detail string) error {
+		return &httpx.Error{Status: http.StatusBadRequest, Code: code, Detail: detail}
 	}
 	switch {
 	case errors.Is(err, ErrForbidden), errors.Is(err, ErrNoUser):
@@ -209,23 +213,29 @@ func decisionProblem(err error) error {
 	case errors.Is(err, ErrAlreadyDecided):
 		return conflict(httpx.CodeConflict, "there is already a decision in effect")
 	case errors.Is(err, ErrNothingToRevert):
-		return conflict("nothing_to_revert", ErrNothingToRevert.Error())
+		return conflict("nothing_to_revert", "there is no decision in effect to revert")
 	case errors.Is(err, ErrClosed):
-		return conflict("period_closed", ErrClosed.Error())
+		return conflict("period_closed", "the period is closed")
 	case errors.Is(err, ErrNotInExceptions):
-		return conflict("not_in_exceptions", ErrNotInExceptions.Error())
+		return conflict("not_in_exceptions", "the movement is not in the Exceptions tray without a candidate")
 	case errors.Is(err, ErrOperatorAnswered):
-		return conflict("operator_answered", ErrOperatorAnswered.Error())
+		return conflict("operator_answered", "the operator already answered this reject")
 	case errors.Is(err, ErrRevertOnMatch):
-		return conflict("revert_on_match", ErrRevertOnMatch.Error())
+		return conflict("revert_on_match", "revert the reject on the match")
 	case errors.Is(err, ErrNotWithOperator):
-		return conflict("not_with_operator", ErrNotWithOperator.Error())
+		return conflict("not_with_operator", "the movement is not waiting for the operator")
 	case errors.Is(err, ErrItemTaken):
-		return conflict("item_taken", ErrItemTaken.Error())
+		return conflict("item_taken", "an item is already settled by another match")
 	case errors.Is(err, ErrNoteRequired):
-		return &httpx.Error{Status: http.StatusBadRequest, Code: "note_required", Detail: "note required: say why"}
-	case errors.Is(err, ErrActionNotInTray), errors.Is(err, ErrLinkDoesNotAdd), errors.Is(err, ErrInvalid):
-		return &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: err.Error()}
+		return bad("note_required", "note required: say why")
+	case errors.Is(err, ErrActionNotInTray):
+		return bad(httpx.CodeBadRequest, "this action is not available in the item's tray")
+	case errors.Is(err, ErrLinkDoesNotAdd):
+		return bad(httpx.CodeBadRequest, "the items do not add up exactly to the movement")
+	case errors.Is(err, ErrUnknownItem):
+		return bad(httpx.CodeBadRequest, "an item to link does not exist")
+	case errors.Is(err, ErrInvalid):
+		return bad(httpx.CodeBadRequest, "invalid decision")
 	case errors.Is(err, ErrKeyReused):
 		return &httpx.Error{Status: http.StatusUnprocessableEntity, Code: httpx.CodeIdempotencyMismatch, Detail: "key used for another decision"}
 	}

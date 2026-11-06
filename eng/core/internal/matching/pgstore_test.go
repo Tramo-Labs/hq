@@ -3,6 +3,7 @@ package matching
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db/dbtest"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
 
 func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
@@ -544,6 +546,25 @@ func TestPGRejectRequiresANote(t *testing.T) {
 		return tx.QueryRow(e2.ctx, `select note from matching.decisions where match_id = $1 and action = 'reject'`, m.ID).Scan(&stored)
 	}); err != nil || stored != "no es de este proveedor" {
 		t.Errorf("stored reason %q (%v)", stored, err)
+	}
+}
+
+// Every decision problem has a fixed detail: whatever text the error
+// carries (ids, input, internals) never reaches the client.
+func TestDecisionProblemDetailsAreFixed(t *testing.T) {
+	const leak = "SECRET 7c8911c0 select * from"
+	for _, base := range []error{ErrForbidden, ErrNoUser, ErrAlreadyDecided, ErrNothingToRevert, ErrClosed,
+		ErrNotInExceptions, ErrOperatorAnswered, ErrRevertOnMatch, ErrNotWithOperator, ErrItemTaken, ErrNoteRequired,
+		ErrActionNotInTray, ErrLinkDoesNotAdd, ErrUnknownItem, ErrUnknownMovement, ErrInvalid, ErrKeyReused} {
+		got := decisionProblem(fmt.Errorf("%w: %s", base, leak))
+		var pe *httpx.Error
+		if !errors.As(got, &pe) {
+			t.Errorf("%v: not a problem: %v", base, got)
+			continue
+		}
+		if pe.Detail == "" || strings.Contains(pe.Detail, "SECRET") || strings.Contains(pe.Detail, "matching:") {
+			t.Errorf("%v: detail %q", base, pe.Detail)
+		}
 	}
 }
 

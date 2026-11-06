@@ -63,6 +63,10 @@ var (
 	// marked other, or whose match the client rejected, and nobody
 	// answered yet.
 	ErrNotWithOperator = errors.New("matching: the movement is not waiting for the operator")
+	// ErrUnknownMovement: no movement with that id for the tenant.
+	ErrUnknownMovement = fmt.Errorf("%w: unknown movement", ErrInvalid)
+	// ErrUnknownItem: an item to link does not exist for the tenant.
+	ErrUnknownItem = fmt.Errorf("%w: unknown item", ErrInvalid)
 	// ErrRevertOnMatch: a client's reject is reverted on the match it
 	// rejected, not on each movement.
 	ErrRevertOnMatch = errors.New("matching: revert the reject on the match")
@@ -169,7 +173,7 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		var date time.Time
 		err = tx.QueryRow(ctx, `select amount, date from ledger.movements where id = $1`, mid).Scan(&amount, &date)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("%w: unknown movement", ErrInvalid)
+			return ErrUnknownMovement
 		}
 		if err != nil {
 			return err
@@ -382,7 +386,7 @@ func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amou
 		return "", err
 	}
 	if found != len(items) {
-		return "", fmt.Errorf("%w: unknown item", ErrInvalid)
+		return "", ErrUnknownItem
 	}
 	if money.Amount(sum) != amount {
 		return "", ErrLinkDoesNotAdd
