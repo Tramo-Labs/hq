@@ -131,3 +131,38 @@ Se leyeron home, chatbots, servicios, n8n, casos y el blog. "Desde USD 1.500" y 
 3. Diferenciarse de Asentia con lo que no muestra: clientes con nombre (el molino, la carnicería), una persona que resuelve las excepciones y Bancor. Asentia nombra parsers de cinco bancos, sin Bancor, y ningún caso (fuente: Asentia, 06/11).
 4. Empezar un blog corto en castellano con el molde de Duotach ("qué contratar") pero de agroindustria de Córdoba: conciliar cheques y e-cheqs, retenciones, cartas de porte. Duotach publicó 15 posts en tres semanas y ninguno cubre eso por título (fuente: duotach.com/blog, 06/11).
 5. La queja que más se lee es que el soporte no resuelve; no prometer un tiempo de respuesta en el sitio hasta medirlo con clientes reales. Próxima pasada: posts de precios de Duotach, página de conciliación de Alegra y reseñas en Google de los cuatro ERP.
+
+---
+
+# Pasada del 06/11/2026, tercera (17:00)
+
+Foco pedido por lead-3: cómo entran los extractos (casilla de mail, Mercado Pago, Interbanking) y cómo cierran el período. Solo páginas públicas y resultados de búsqueda. **Marca de fuente**: "leído" = abrí la página; "buscador" = lo dice el resumen de un resultado de búsqueda y no abrí la página (hay que reconfirmar antes de citarlo afuera). "1 fuente" = un solo origen. Desde la segunda pasada de la mañana (0a58310) no detecté cambios publicados en Xubio, Colppy, Contabilium, Asentia ni VELION, pero no los volví a leer hoy: "sin cambios" aquí significa "no se re-relevó".
+
+## Cómo entran los extractos
+
+| Quién | Entrada | Fuente y fecha |
+|---|---|---|
+| Xubio | Excel, PDF leído con IA con vista previa antes de confirmar, o Interbanking | leído 06/11 (su página de conciliación); la nota de ecosistemastartup sobre el PDF es contenido patrocinado por Xubio |
+| Colppy | Dos caminos: archivo con plantilla propia, o conexión automática con el banco que trae los movimientos del día anterior y crea un "Extracto Online"; si cambia la clave del home banking hay que reconectar (o sea, usa esa clave). Mercado Pago: integración por webhooks/IPN para facturar cobros, planes Full y Enterprise; "si no configuramos esto no vamos a ver los movimientos" | buscador, ayuda de Colppy (intercom.help/Colppy), 06/11 |
+| Contabilium | Importa movimientos en todos los planes; casilla de correo propia para comprobantes de compra, desde Pro | leído 06/11 (primera pasada) |
+| The Eye (enterprise, demo, sin precio) | Interbanking, archivo o PDF de extracto "sin necesidad de que el banco exporte en formato estructurado"; tarjetas Visa/Mastercard/Amex; pasarelas Mercado Pago, Stripe, PayPal; ERP SAP, Oracle, Dynamics, Odoo, Tango; Excel, CSV, Drive, **email**. Go-live "2 semanas en proyectos simples, hasta 2 meses". La IA normaliza y propone reglas, "aprobás las reglas una vez". Opera en AR, CL, CO, ES, EE.UU., MX. Casos: Banco Comafi, KAVAK, La Segunda, Quilmes | leído 06/11 (theeye.io/reconciliations); autodeclarado |
+| Asentia | Solo archivos, sin credenciales ni conexión al banco; Mercado Pago no aparece | leído 06/11 mañana |
+| Rindegastos Concil-IA | Cartola subida o conexión bancaria directa por API; la IA cruza movimientos con boletas de rendición de gastos (no contra el mayor contable). Sin precio, solo demo. Bancos: "principales de Chile y LATAM"; ningún banco argentino nombrado en lo que leí (la versión /es-ar/ no la abrí) | leído 06/11, versión Chile |
+| Alegra Argentina | La conciliación no tiene página propia (la URL probable da 404). La lista de planes dice "Conciliaciones Bancarias" en el bloque que, por el orden, es el plan Pyme (inferencia). No figura cómo carga extractos ni IA | leído 06/11 |
+
+Lectura: cargar el extracto como PDF o archivo, sin credenciales, es la norma barata (Xubio, Asentia). La conexión con el banco o Interbanking aparece en Colppy, Xubio y The Eye, y en Colppy implica la clave de home banking. **Ninguno de los relevados muestra la casilla de correo como vía de entrada de extractos**: Contabilium la usa para facturas de proveedores y The Eye menciona "email" entre sus orígenes de datos. Mercado Pago: nadie lo trata como fuente de conciliación completa; Colppy lo usa para facturar cobros. Dato de Mercado Pago (su propio blog, buscador): sus reportes traen monto bruto y neto con comisiones, y eso explica diferencias entre lo cobrado y lo depositado.
+
+## Cierre del período
+Poca evidencia pública. Solo Colppy tiene la ayuda a la vista (buscador): el cierre contable se hace en tres asientos (ajuste por inflación, refundición, cierre y apertura); si no se tilda generar el asiento de cierre, solo se cierra la fecha para cargar comprobantes; los asientos se pueden eliminar para rehacer. De Xubio y Contabilium no encontré documentación de cierre de mes. Ninguno publica un "cierre de mes" como flujo con lista de pendientes (extractos sin conciliar, comprobantes sin imputar). Es una ausencia en lo que encontré, no prueba de que no exista.
+
+## Radar nuevo (no leído, a confirmar)
+- **ConciliaBot de Contatech** (contatech.org/conciliabot), orientado a estudios contables. La página muestra una pantalla anti-bot; no la leí ni la sorteé. Sin datos de precio ni bancos. Entra al radar como posible competidor directo en estudios.
+- **MDZ, 24/10/2026**: nota "La inteligencia artificial permite conciliar cuentas bancarias sin usar Excel". Da 403, no pude leerla; no sé qué producto cuenta.
+- **Inmatic** (módulo de conciliación con IA, blog propio, sin leer). Fintoc y Shinkansen (Chile) venden conexión por API a bancos para pagos y conciliación y abrieron en México (buscador, notas sin fecha clara).
+- **Duotach**: ninguna cifra nueva de proyecto; Clutch lo lista con 2 a 5 personas y 2 reseñas (1 fuente). Los posts de precios siguen sin leer.
+- Reseñas: sin datos nuevos. La búsqueda no devuelve Google ni grupos de contadores; es un límite de la herramienta.
+
+## Propuestas para Tramo
+1. Hacer de la casilla de correo la entrada de extractos y comprobantes ("reenviá el PDF del banco y la factura del proveedor"): ninguno de los relevados la vende para extractos, y evita la clave del home banking que usa Colppy (fuente: Colppy y Contabilium, 06/11).
+2. Mostrar en la web el contraste de entrada: Colppy pide reconectar con la clave de home banking, Asentia y Tramo no (fuente: ayuda de Colppy, buscador, 06/11; reconfirmar antes de publicar un comparativo).
+3. Armar el "cierre de mes" como producto visible: lista de pendientes (movimientos sin conciliar, comprobantes sin imputar, bruto contra neto de Mercado Pago) que el contador firma. Ningún relevado lo muestra así; Colppy solo expone los asientos de cierre contable (fuente: Colppy, buscador, 06/11).

@@ -43,4 +43,5 @@ Recorridas en el navegador: Looking for Trouble, DANKA, nexus.inc, Asentia, Zent
 - **Promo con cuenta regresiva en el banner** (Xubio, noviembre): crea urgencia; nosotros no tenemos promo y no la necesitamos, pero conviene saber que el cliente la ve.
 - **"Asistente virtual" que abre WhatsApp** (Xubio): no es un chat con IA, es un botón. Dentro del género el chat con IA propio lo tiene AutonomIA ("impulsado por Gemini").
 - **Dos caminos desde el menú** (Xubio: empresas, estudios, emprendedores, con planes y precios distintos): confirma la idea de separar empresa y estudio.
-- No pude leer Asentia ni VELION hoy (conexión rechazada); las notas del 05/11 sobre sus landings siguen sin reverificar.
+- Asentia y VELION sí abren con "www" (el dominio sin www rechaza la conexión). Sus datos de producto se releyeron el 06/11 en `growth/competencia.md`; las notas del 05/11 sobre sus landings visuales siguen sin reverificar.
+- The Eye (theeye.io, enterprise): vende con "Solicitar demo", sin precio, y promete "go-live en 2 semanas" como línea de confianza (leído 06/11, autodeclarado).
