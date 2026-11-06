@@ -64,6 +64,16 @@ export async function acceptMagicLink(token: string) {
   return open(await tokens(res));
 }
 
+/** Sets the password with the token from the invitation email (/invitacion#token=…) and opens a session. */
+export async function acceptInvite(token: string, password: string, name?: string) {
+  const res = await call("/v1/auth/invite/accept", {
+    method: "POST",
+    headers: json,
+    body: JSON.stringify({ token, password, name, tokenDelivery: "cookie" }),
+  });
+  return open(await tokens(res));
+}
+
 let refreshing: Promise<Session> | null = null;
 
 /**

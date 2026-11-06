@@ -51,6 +51,11 @@ export async function acceptMagicLink(token: string) {
   return isLive() ? live.acceptMagicLink(token) : (await sample()).acceptMagicLink();
 }
 
+/** POST /v1/auth/invite/accept: the invited person sets a password (and a name) and is in. */
+export async function acceptInvite(token: string, password: string, name?: string) {
+  return isLive() ? live.acceptInvite(token, password, name) : (await sample()).acceptInvite();
+}
+
 /** After a reload: a new access token from the refresh cookie (live) or the default person (sample). */
 export async function restore(area: "portal" | "console") {
   const s = getSession();

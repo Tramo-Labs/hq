@@ -285,5 +285,22 @@ export const app = {
       notMember: "Ese enlace era para una empresa en la que ya no tenés acceso.",
       again: "Ir a entrar",
     },
+    // Draft for producto (frontend, 06/11): accepting an invitation.
+    invite: {
+      eyebrow: "Invitación",
+      title: "Sumate a Tramo.",
+      body: "Elegí cómo querés que te veamos y una contraseña para entrar.",
+      name: "Tu nombre",
+      namePlaceholder: "Ej.: Ana Pérez",
+      password: "Contraseña",
+      passwordHint: "Al menos 12 caracteres.",
+      confirm: "Repetí la contraseña",
+      mismatch: "Las dos contraseñas no coinciden.",
+      tooShort: "La contraseña tiene que tener al menos 12 caracteres.",
+      submit: "Entrar",
+      submitting: "Entrando…",
+      invalid: "La invitación ya se usó o venció, o tu cuenta ya tiene contraseña. Pedile a quien te invitó una nueva, o entrá con tu email.",
+      rejected: "Revisá los datos: la contraseña tiene que tener entre 12 y 128 caracteres.",
+    },
   },
 };

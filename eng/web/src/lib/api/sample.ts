@@ -54,6 +54,11 @@ export async function acceptMagicLink(): Promise<Session> {
   throw new ApiError(401, "invalid_magic_link");
 }
 
+/** Sample mode sends no invitations either: any token is unknown (401 invalid_invite). */
+export async function acceptInvite(): Promise<Session> {
+  throw new ApiError(401, "invalid_invite");
+}
+
 /** Sample mode has no cookie: before any login, the area's default person is in. */
 export async function restore(area: "portal" | "console") {
   return getSession() ?? open(fx.defaultUser[area]);
