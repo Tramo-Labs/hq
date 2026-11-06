@@ -286,7 +286,10 @@ paths:
       operationId: listQuarantine
       tags: [ledger]
       summary: Files that did not enter, with the reason
-      description: Newest first. The detail names lines, columns and fingerprints, never cell contents.
+      description: |
+        Newest first. The detail names lines, columns and fingerprints; for a balance that does
+        not close it also names the amounts that disagree, so the tenant can fix its own file.
+        The detail is shown to the tenant and never logged nor written to the audit log.
       responses:
         "200":
           description: ok
