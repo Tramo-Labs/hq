@@ -35,6 +35,10 @@ export PORTAL_ENABLED=1 CORE_API_URL=http://localhost:8080
 npm run build && npm run start                                            # portal on the core
 ```
 
+Sample mode keeps its session and decisions in memory. Moving through the app's own links keeps
+them; a full page reload (or typing a URL) drops them and comes back as the area's default
+sample person in their first company. Fine for demos and testing, not something to publish.
+
 ## Sessions (live mode)
 
 - `POST /v1/auth/login` with `tokenDelivery: cookie`. The access token (10 minutes) lives only
