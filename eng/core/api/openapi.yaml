@@ -514,7 +514,7 @@ paths:
     post:
       operationId: decideMovement
       tags: [matching]
-      summary: The client decides on a movement with no candidate (owner or approver)
+      summary: Decide on a movement with no candidate (the client, then the operator)
       description: |
         For a movement in the Exceptions tray without any candidate ("Sin
         propuesta: contanos qué es"). `other`: note required, the movement
@@ -523,8 +523,17 @@ paths:
         adjustment and stays with the operator); creates a match with rule
         `manual_link`. `revert`: undo the decision in effect, as a new
         recorded row. Role read from the current membership.
+        The client (owner or approver) may `other`, `link` and `revert`
+        its own decision. Once the client said `other`, the movement is
+        with the operator, who may `resolve` it (note required: what was
+        done with it), `link` it, or `return` it to the client (note
+        required: what the operator needs); `revert` undoes the operator's
+        row and puts the client's `other` back in effect. A returned
+        movement is back in the client's Exceptions with reason
+        `operator_returned`.
         409 codes: `conflict` (already decided), `not_in_exceptions`,
-        `item_taken`, `nothing_to_revert`, `period_closed`.
+        `not_with_operator`, `item_taken`, `nothing_to_revert`,
+        `period_closed`.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
         - name: movementId
@@ -1099,9 +1108,11 @@ components:
         tray: { type: string, enum: [suggested, exception] }
         reason:
           type: string
-          description: client_other is a movement the client said is something else, back with the operator.
-          enum: [ambiguous, combination_ambiguous, reference_amount_differs, no_candidate, client_other]
-        note: { type: string, description: The client's note, for client_other. }
+          description: |
+            client_other is a movement the client said is something else, back with the operator.
+            operator_returned is one the operator sent back to the client, with the operator's note.
+          enum: [ambiguous, combination_ambiguous, reference_amount_differs, no_candidate, client_other, operator_returned]
+        note: { type: string, description: "The client's note for client_other, the operator's for operator_returned." }
         candidates:
           type: array
           items: { $ref: "#/components/schemas/Candidate" }
@@ -1129,7 +1140,7 @@ components:
       required: [action]
       additionalProperties: false
       properties:
-        action: { type: string, enum: [other, link, revert] }
+        action: { type: string, enum: [other, link, resolve, return, revert] }
         note: { type: string, maxLength: 500 }
         itemIds:
           type: array
@@ -1141,7 +1152,7 @@ components:
       required: [movementId, action, userId, role, at, revision]
       properties:
         movementId: { type: string, format: uuid }
-        action: { type: string, enum: [other, link, revert] }
+        action: { type: string, enum: [other, link, resolve, return, revert] }
         matchId: { type: string, description: The manual match of a link (or of the link a revert undid). }
         note: { type: string }
         userId: { type: string, format: uuid }
