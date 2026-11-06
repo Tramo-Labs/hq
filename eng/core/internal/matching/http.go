@@ -1,0 +1,155 @@
+package matching
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+
+	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
+	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
+)
+
+// Handlers implements the matching operations of the generated strict
+// server.
+type Handlers struct {
+	store *PGStore
+	cfg   Config
+}
+
+// NewHandlers wires the handlers to the store with the default limits.
+func NewHandlers(s *PGStore) *Handlers { return &Handlers{store: s, cfg: DefaultConfig} }
+
+var errForbidden = &httpx.Error{Status: http.StatusForbidden, Code: httpx.CodeForbidden, Detail: "your role cannot do this"}
+
+const listLimit = 500
+
+func (h *Handlers) RunMatching(ctx context.Context, req apigen.RunMatchingRequestObject) (apigen.RunMatchingResponseObject, error) {
+	p, _ := identity.PrincipalFrom(ctx)
+	if p.Role != identity.RoleOwner && p.Role != identity.RoleOperator {
+		return nil, errForbidden
+	}
+	from, err := time.Parse("2006-01", req.Body.Period)
+	if err != nil {
+		return nil, &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: "period must be YYYY-MM"}
+	}
+	to := from.AddDate(0, 1, -1)
+	in, err := h.store.LoadInput(ctx, from, to, h.cfg)
+	if err != nil {
+		return nil, err
+	}
+	r := Run(h.cfg, in)
+	runID, n, err := h.store.SaveRun(ctx, req.Body.Period, h.cfg, r)
+	if err != nil {
+		return nil, err
+	}
+	return apigen.RunMatching201JSONResponse{RunId: runID, Period: req.Body.Period, Matches: len(r.Matches), New: n,
+		Pending: len(r.Pending), Exceptions: len(r.Exceptions)}, nil
+}
+
+func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesRequestObject) (apigen.ListMatchesResponseObject, error) {
+	ms, err := h.store.Undecided(ctx, Tray(req.Params.Tray), listLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.ListMatches200JSONResponse{Items: []apigen.Match{}}
+	for _, m := range ms {
+		am, err := toAPIMatch(m)
+		if err != nil {
+			return nil, err
+		}
+		out.Items = append(out.Items, am)
+	}
+	return out, nil
+}
+
+func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingRequestObject) (apigen.ListPendingResponseObject, error) {
+	rows, err := h.store.LatestPending(ctx, Tray(req.Params.Tray), listLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.ListPending200JSONResponse{Items: []apigen.PendingMovement{}}
+	for _, r := range rows {
+		mid, err := uuid.Parse(r.MovementID)
+		if err != nil {
+			return nil, err
+		}
+		pm := apigen.PendingMovement{MovementId: mid, RunId: r.RunID, Tray: apigen.PendingMovementTray(r.Tray),
+			Reason: apigen.PendingMovementReason(r.Reason), Candidates: []apigen.Candidate{}}
+		for _, c := range r.Candidates {
+			ids, err := uuids(c.ItemIDs)
+			if err != nil {
+				return nil, err
+			}
+			pm.Candidates = append(pm.Candidates, apigen.Candidate{Rule: c.Rule.ID, ItemIds: ids})
+		}
+		out.Items = append(out.Items, pm)
+	}
+	return out, nil
+}
+
+func (h *Handlers) DecideMatch(ctx context.Context, req apigen.DecideMatchRequestObject) (apigen.DecideMatchResponseObject, error) {
+	m, err := h.store.GetMatch(ctx, req.MatchId)
+	if errors.Is(err, ErrNotFound) {
+		return nil, &httpx.Error{Status: http.StatusNotFound, Code: httpx.CodeNotFound, Detail: "match not found"}
+	}
+	if err != nil {
+		return nil, err
+	}
+	in := DecisionInput{Key: req.Params.IdempotencyKey.String(), Match: m, Action: Action(req.Body.Action)}
+	if req.Body.Note != nil {
+		in.Note = *req.Body.Note
+	}
+	got, _, err := h.store.Record(ctx, in)
+	switch {
+	case errors.Is(err, ErrForbidden), errors.Is(err, ErrNoUser):
+		return nil, errForbidden
+	case errors.Is(err, ErrAlreadyDecided):
+		return nil, &httpx.Error{Status: http.StatusConflict, Code: httpx.CodeConflict, Detail: "this match already has a decision"}
+	case errors.Is(err, ErrKeyReused):
+		return nil, &httpx.Error{Status: http.StatusUnprocessableEntity, Code: httpx.CodeIdempotencyMismatch, Detail: "key used for another decision"}
+	case err != nil:
+		return nil, err
+	}
+	uid, err := uuid.Parse(got.By)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.DecideMatch201JSONResponse{MatchId: got.MatchID, Action: apigen.DecisionAction(got.Action),
+		UserId: uid, Role: apigen.Role(got.Role), At: got.At}
+	if got.Note != "" {
+		note := got.Note
+		out.Note = &note
+	}
+	return out, nil
+}
+
+func toAPIMatch(m Match) (apigen.Match, error) {
+	mv, err := uuids(m.MovementIDs)
+	if err != nil {
+		return apigen.Match{}, err
+	}
+	it, err := uuids(m.ItemIDs)
+	if err != nil {
+		return apigen.Match{}, err
+	}
+	out := apigen.Match{Id: m.ID, Rule: m.Rule.ID, RuleVersion: m.Rule.Version, Tray: apigen.MatchTray(m.Tray),
+		MovementIds: mv, ItemIds: it, Adjustments: []apigen.Adjustment{}, CrossPeriod: m.CrossPeriod,
+		LowConfidence: m.LowConfidence}
+	for _, a := range m.Adjustments {
+		out.Adjustments = append(out.Adjustments, apigen.Adjustment{Kind: a.Kind, Amount: int64(a.Amount),
+			Source: apigen.AdjustmentSource(a.Source)})
+	}
+	if m.Reference != "" {
+		ref := m.Reference
+		out.Reference = &ref
+	}
+	if m.DateDiffDays != 0 {
+		d := m.DateDiffDays
+		out.DateDiffDays = &d
+	}
+	return out, nil
+}

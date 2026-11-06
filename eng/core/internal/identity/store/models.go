@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Role string
@@ -70,6 +71,25 @@ type AuditLog struct {
 	At        time.Time
 }
 
+type DocumentsInvoice struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	Sha256        []byte
+	Fields        []byte
+	Trail         []byte
+	AutoEligible  bool
+	MinConfidence float32
+	IssuerCuit    *string
+	DocType       *int32
+	PointOfSale   *int32
+	Number        *int64
+	IssueDate     pgtype.Date
+	Total         *int64
+	Constatacion  string
+	StorageKey    *string
+	CreatedAt     time.Time
+}
+
 type IdempotencyRequest struct {
 	Scope       string
 	Key         uuid.UUID
@@ -79,6 +99,124 @@ type IdempotencyRequest struct {
 	ContentType *string
 	Response    []byte
 	CreatedAt   time.Time
+}
+
+type LedgerAccount struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Bank      string
+	Number    *string
+	Currency  string
+	Name      string
+	CreatedAt time.Time
+}
+
+type LedgerFile struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	AccountID   uuid.UUID
+	Sha256      []byte
+	Filename    *string
+	Status      string
+	Reason      *string
+	Detail      *string
+	Fingerprint *string
+	LayoutID    *string
+	StorageKey  *string
+	ReceivedAt  time.Time
+}
+
+type LedgerMovement struct {
+	ID          uuid.UUID
+	TenantID    uuid.UUID
+	AccountID   uuid.UUID
+	StatementID uuid.UUID
+	Key         string
+	Line        int32
+	Date        pgtype.Date
+	Amount      int64
+	Balance     *int64
+	Description string
+	Reference   string
+	ExternalRef string
+	Gross       *int64
+	Fees        []byte
+	CreatedAt   time.Time
+}
+
+type LedgerStatement struct {
+	ID            uuid.UUID
+	TenantID      uuid.UUID
+	AccountID     uuid.UUID
+	FileID        uuid.UUID
+	LayoutID      string
+	PeriodFrom    pgtype.Date
+	PeriodTo      pgtype.Date
+	Opening       int64
+	Closing       int64
+	OpeningStated bool
+	ClosingStated bool
+	Running       bool
+	CreatedAt     time.Time
+}
+
+type MatchingDecision struct {
+	ID       int64
+	TenantID uuid.UUID
+	Key      uuid.UUID
+	MatchID  string
+	Action   string
+	UserID   uuid.UUID
+	Role     string
+	At       time.Time
+	Note     string
+	Snapshot []byte
+}
+
+type MatchingItem struct {
+	ID         uuid.UUID
+	TenantID   uuid.UUID
+	Source     string
+	SourceID   string
+	Kind       string
+	Date       pgtype.Date
+	Due        pgtype.Date
+	Amount     int64
+	Refs       []string
+	Confidence float32
+	Party      string
+	CreatedAt  time.Time
+}
+
+type MatchingMatch struct {
+	TenantID    uuid.UUID
+	ID          string
+	RunID       uuid.UUID
+	RuleID      string
+	RuleVersion int32
+	Tray        string
+	MovementIds []uuid.UUID
+	ItemIds     []uuid.UUID
+	Adjustments []byte
+	Evidence    []byte
+	CreatedAt   time.Time
+}
+
+type MatchingPending struct {
+	TenantID   uuid.UUID
+	RunID      uuid.UUID
+	MovementID uuid.UUID
+	Tray       string
+	Reason     string
+	Candidates []byte
+}
+
+type MatchingRun struct {
+	ID        uuid.UUID
+	TenantID  uuid.UUID
+	Period    string
+	Config    []byte
+	StartedAt time.Time
 }
 
 type Membership struct {
