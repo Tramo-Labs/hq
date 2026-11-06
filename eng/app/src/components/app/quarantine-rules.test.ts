@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { app } from "../../content/app";
-import { accountText, rangeText, reasonText } from "./quarantine-rules";
+import { accountText, rangeText, reasonText, truncatedNotice } from "./quarantine-rules";
 
 test("a closed period reads as days of the month, the month once", () => {
   assert.equal(rangeText({ from: "2026-10-01", to: "2026-10-15" }), "del 1 al 15 de octubre");
@@ -29,6 +29,12 @@ test("other reasons keep their text, and an unknown or missing one the generic",
   assert.equal(reasonText({ reason: "unrouted", closedPeriod: { from: "2026-10-01", to: "2026-10-15" } }), app.files.reasons.unrouted);
   assert.equal(reasonText({ reason: "something_new" }), app.files.otherReason);
   assert.equal(reasonText({}), app.files.otherReason);
+});
+
+test("a list cut at the core's limit says so, a whole one says nothing", () => {
+  assert.equal(truncatedNotice({ truncated: true }), app.files.quarantineTruncated);
+  assert.ok(app.files.quarantineTruncated.trim() !== "");
+  assert.equal(truncatedNotice({ truncated: false }), null);
 });
 
 test("a file without an account says so instead of an empty name", () => {
