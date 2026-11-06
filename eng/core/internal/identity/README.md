@@ -8,7 +8,7 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 |-----------------|------|-----------------|--------------|
 | `POST /v1/auth/register` | none | required | Creates user, tenant, owner membership and the tenant data key. Returns ids only. |
 | `POST /v1/auth/login` | none | no (returns tokens, stores nothing replayable) | Email and password to a 10 minute access token plus a 30 day refresh token. |
-| `POST /v1/auth/invite/accept` | invitation token | no (creates nothing; like login) | Accepts an invitation: the pending membership becomes active and a session opens on that tenant. A person without a password sets one here. |
+| `POST /v1/auth/invite/accept` | invitation token, optional bearer | no (creates nothing; like login) | Accepts an invitation: the pending membership becomes active and a session opens on that tenant. A person without a password sets one here. With the bearer of the same account: 204, no new session (F41); of another account: 409. |
 | `POST /v1/auth/invite/preview` | invitation token | no (creates nothing) | The company and the role of an invitation, nothing else, without using it (F38). Same refusals, audit and per IP cap as accept. |
 | `POST /v1/auth/magic-link` | none | required | Emails a one time login link (15 minutes) if the email has an account. Always 202, so it does not reveal which emails exist. |
 | `POST /v1/auth/magic-link/accept` | link token | no (creates nothing; like login) | Opens a session with the link, on the tenant asked for or the oldest membership. |
@@ -121,6 +121,24 @@ invitation; adding an active member is 409 `already_member`.
   instant may get 429; none stays counted unless refused
   (`TestRealInviteRejectionsCountAndAreAudited`), and only a usable
   invitation reaches the step (`TestOnlyAUsableInvitationReachesThePasswordStep`).
+- **Signed in (F41).** An accountant with a session accepts a second
+  invitation without closing it: with the access token of the account the
+  invitation is for, accept answers 204, the membership becomes active and
+  no session is opened (the signed in one keeps its tenant and family;
+  `/v1/me` lists the new company and switch-tenant moves there). No
+  password is asked for or set, so an account that came in by magic link
+  accepts too. With the access token of another account it is refused with
+  409 `invite_for_another_account`: nothing used, no tokens, audited as
+  `identity.invite_rejected` with reason `another account`, counted on the
+  per IP cap; the person it is for accepts it later. It only tells someone
+  holding the token and a session that the invitation is not theirs. An
+  invalid or expired bearer is 401 `unauthorized` before the invitation is
+  looked at, and spends nothing
+  (`TestAcceptingWithTheSameAccountKeepsTheSession`,
+  `TestAcceptingWithAnotherAccountIsRefused`,
+  `TestAcceptingWithASessionNeedsNoPassword`,
+  `TestAnInvalidBearerOnAcceptSpendsNothing`; mutations checked: no 204,
+  no 409, and a session still asked for a password, each fail one).
 - **Preview (F38).** `POST /v1/auth/invite/preview` answers the company
   name and the role, so the web shows them before the person accepts;
   never the email or whether the person has an account. It uses nothing

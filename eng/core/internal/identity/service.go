@@ -53,6 +53,9 @@ var (
 	// ErrPasswordRequired: accepting an invitation without a password, by
 	// a person who has none yet.
 	ErrPasswordRequired = errors.New("a password is required to accept")
+	// ErrInviteForAnotherAccount: accepting an invitation with the session
+	// of an account it is not for (F41).
+	ErrInviteForAnotherAccount = errors.New("the invitation is for another account")
 	// ErrNotAMember answers a login with the right password on a tenant
 	// the user does not belong to (F18). Only reachable with the password.
 	ErrNotAMember = errors.New("not a member of that tenant")

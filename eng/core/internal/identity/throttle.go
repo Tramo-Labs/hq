@@ -150,7 +150,7 @@ func (s *Service) loginSucceeded(ctx context.Context, email string) {
 // inviteFailure reports whether err is a refused invitation, the only
 // outcome the per IP cap keeps counted (D-20).
 func inviteFailure(err error) bool {
-	return errors.Is(err, ErrInvalidInvite) || errors.Is(err, ErrNotAMember)
+	return errors.Is(err, ErrInvalidInvite) || errors.Is(err, ErrNotAMember) || errors.Is(err, ErrInviteForAnotherAccount)
 }
 
 func (s *Service) checkInvite(ctx context.Context) (giveBack func(), err error) {

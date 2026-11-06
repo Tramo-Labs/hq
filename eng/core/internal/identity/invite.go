@@ -149,27 +149,35 @@ func roleLabel(role string) string {
 // rejection nor counted toward the per IP cap; it is only reachable with a
 // valid token, so it tells nothing to someone guessing. Every other
 // outcome, success included, counts.
-func (s *Service) AcceptInvite(ctx context.Context, token, password string, name *string) (Session, error) {
+//
+// signedIn is the user of a verified access token sent along, if any
+// (F41). The invitation of that same account is accepted without opening a
+// session (kept: the signed in one stays as it is) and without asking for
+// or setting a password. One of another account is refused with
+// ErrInviteForAnotherAccount, nothing used, so a browser with a session
+// never receives someone else's tokens.
+func (s *Service) AcceptInvite(ctx context.Context, token, password string, name *string, signedIn *uuid.UUID) (sess Session, kept bool, err error) {
 	giveBack, err := s.checkInvite(ctx)
 	if err != nil {
-		return Session{}, err
+		return Session{}, false, err
 	}
-	sess, err := s.acceptInvite(ctx, token, password, name)
+	sess, kept, err = s.acceptInvite(ctx, token, password, name, signedIn)
 	if !inviteFailure(err) {
 		giveBack() // D-20: only refused invitations stay counted
 	}
-	return sess, err
+	return sess, kept, err
 }
 
-func (s *Service) acceptInvite(ctx context.Context, token, password string, name *string) (Session, error) {
+func (s *Service) acceptInvite(ctx context.Context, token, password string, name *string, signedIn *uuid.UUID) (Session, bool, error) {
 	if n := len(password); n > 0 && (n < MinPassword || n > MaxPassword) {
-		return Session{}, ErrInvalidInvite
+		return Session{}, false, ErrInvalidInvite
 	}
 	displayName, err := optionalName(name)
 	if err != nil {
-		return Session{}, err
+		return Session{}, false, err
 	}
 	var out Session
+	var kept bool
 	var outcome error
 	err = s.DB.System(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
@@ -181,14 +189,22 @@ func (s *Service) acceptInvite(ctx context.Context, token, password string, name
 			return err
 		}
 		inv, role, pending, hasPassword := u.inv, u.role, u.pending, u.hasPassword
-		if !hasPassword && password == "" {
+		if signedIn != nil {
+			if *signedIn != inv.UserID {
+				outcome = ErrInviteForAnotherAccount
+				return audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_rejected", Subject: "invites:" + inv.ID.String(),
+					TenantID: inv.TenantID, Detail: map[string]any{"reason": "another account"}})
+			}
+			kept = true
+		}
+		if !kept && !hasPassword && password == "" {
 			outcome = ErrPasswordRequired // a step, not a rejection
 			return nil
 		}
 		if err := q.MarkInviteUsed(ctx, inv.ID); err != nil {
 			return err
 		}
-		if !hasPassword {
+		if !kept && !hasPassword {
 			hash, err := HashPassword(s.Argon, password)
 			if err != nil {
 				return err
@@ -211,9 +227,16 @@ func (s *Service) acceptInvite(ctx context.Context, token, password string, name
 				return err
 			}
 		}
+		var detail map[string]any
+		if kept {
+			detail = map[string]any{"session": "kept"}
+		}
 		if err := audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_accepted", Subject: "invites:" + inv.ID.String(),
-			TenantID: inv.TenantID, UserID: inv.UserID}); err != nil {
+			TenantID: inv.TenantID, UserID: inv.UserID, Detail: detail}); err != nil {
 			return err
+		}
+		if kept {
+			return nil // the signed in session stays; none is opened
 		}
 		p, err := s.pickTenant(ctx, q, inv.UserID, &inv.TenantID)
 		if err != nil {
@@ -223,12 +246,12 @@ func (s *Service) acceptInvite(ctx context.Context, token, password string, name
 		return err
 	})
 	if err != nil {
-		return Session{}, err
+		return Session{}, false, err
 	}
 	if outcome != nil {
-		return Session{}, outcome
+		return Session{}, false, outcome
 	}
-	return out, nil
+	return out, kept, nil
 }
 
 // usable is an invitation that can still be used, or why not.

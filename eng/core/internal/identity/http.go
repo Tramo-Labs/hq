@@ -110,9 +110,16 @@ func (h *Handlers) AcceptInvite(ctx context.Context, req apigen.AcceptInviteRequ
 	if req.Body.Password != nil {
 		password = string(*req.Body.Password)
 	}
-	sess, err := h.s.AcceptInvite(ctx, req.Body.Token, password, req.Body.Name)
+	var signedIn *uuid.UUID
+	if p, ok := PrincipalFrom(ctx); ok {
+		signedIn = &p.UserID
+	}
+	sess, kept, err := h.s.AcceptInvite(ctx, req.Body.Token, password, req.Body.Name, signedIn)
 	if err != nil {
 		return nil, problem(err)
+	}
+	if kept {
+		return apigen.AcceptInvite204Response{}, nil
 	}
 	return apigen.AcceptInvite200JSONResponse{TokensJSONResponse: tokens(sess, req.Body.TokenDelivery)}, nil
 }
@@ -290,25 +297,26 @@ func problem(err error) error {
 		code   string
 	}
 	table := map[error]m{
-		ErrInvalidCredentials: {http.StatusUnauthorized, httpx.CodeUnauthorized},
-		ErrInvalidRefresh:     {http.StatusUnauthorized, httpx.CodeUnauthorized},
-		ErrRefreshReused:      {http.StatusUnauthorized, "refresh_token_reused"},
-		ErrEmailTaken:         {http.StatusConflict, "email_taken"},
-		ErrSlugTaken:          {http.StatusConflict, "slug_taken"},
-		ErrCuitTaken:          {http.StatusConflict, "cuit_taken"},
-		ErrAlreadyMember:      {http.StatusConflict, "already_member"},
-		ErrInvalidEmail:       {http.StatusBadRequest, "invalid_email"},
-		ErrInvalidCuit:        {http.StatusBadRequest, "invalid_cuit"},
-		ErrForbidden:          {http.StatusForbidden, httpx.CodeForbidden},
-		ErrNotAMember:         {http.StatusForbidden, "not_a_member"},
-		ErrMemberNotFound:     {http.StatusNotFound, httpx.CodeNotFound},
-		ErrLastOwner:          {http.StatusConflict, "last_owner"},
-		ErrInvalidInvite:      {http.StatusUnauthorized, "invalid_invite"},
-		ErrPasswordRequired:   {http.StatusBadRequest, "password_required"},
-		ErrInvalidName:        {http.StatusBadRequest, "invalid_name"},
-		ErrInvalidTenantName:  {http.StatusBadRequest, "invalid_tenant_name"},
-		ErrMagicLinkRequired:  {http.StatusUnauthorized, "magic_link_required"},
-		ErrInvalidMagicLink:   {http.StatusUnauthorized, "invalid_magic_link"},
+		ErrInvalidCredentials:      {http.StatusUnauthorized, httpx.CodeUnauthorized},
+		ErrInvalidRefresh:          {http.StatusUnauthorized, httpx.CodeUnauthorized},
+		ErrRefreshReused:           {http.StatusUnauthorized, "refresh_token_reused"},
+		ErrEmailTaken:              {http.StatusConflict, "email_taken"},
+		ErrSlugTaken:               {http.StatusConflict, "slug_taken"},
+		ErrCuitTaken:               {http.StatusConflict, "cuit_taken"},
+		ErrAlreadyMember:           {http.StatusConflict, "already_member"},
+		ErrInvalidEmail:            {http.StatusBadRequest, "invalid_email"},
+		ErrInvalidCuit:             {http.StatusBadRequest, "invalid_cuit"},
+		ErrForbidden:               {http.StatusForbidden, httpx.CodeForbidden},
+		ErrNotAMember:              {http.StatusForbidden, "not_a_member"},
+		ErrMemberNotFound:          {http.StatusNotFound, httpx.CodeNotFound},
+		ErrLastOwner:               {http.StatusConflict, "last_owner"},
+		ErrInvalidInvite:           {http.StatusUnauthorized, "invalid_invite"},
+		ErrPasswordRequired:        {http.StatusBadRequest, "password_required"},
+		ErrInviteForAnotherAccount: {http.StatusConflict, "invite_for_another_account"},
+		ErrInvalidName:             {http.StatusBadRequest, "invalid_name"},
+		ErrInvalidTenantName:       {http.StatusBadRequest, "invalid_tenant_name"},
+		ErrMagicLinkRequired:       {http.StatusUnauthorized, "magic_link_required"},
+		ErrInvalidMagicLink:        {http.StatusUnauthorized, "invalid_magic_link"},
 	}
 	for target, p := range table {
 		if errors.Is(err, target) {

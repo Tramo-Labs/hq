@@ -142,7 +142,16 @@ paths:
         Unknown, used, revoked and expired tokens all answer 401
         invalid_invite; an invitation whose pending membership was removed
         answers 403 not_a_member. Rate limited per IP.
-      security: []
+
+        A bearer is optional (F41). With the access token of the account
+        the invitation is for, it is accepted without opening a session:
+        204, the signed in session keeps its tenant, no tokens or cookies;
+        no password is asked for or set. With one of another account it is
+        not accepted: 409 invite_for_another_account, nothing used. An
+        invalid or expired bearer is 401 unauthorized, as anywhere.
+      security:
+        - {}
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -150,10 +159,16 @@ paths:
             schema: { $ref: "#/components/schemas/AcceptInviteRequest" }
       responses:
         "200": { $ref: "#/components/responses/Tokens" }
+        "204": { description: accepted with the signed in session of the same account; nothing issued }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
         "403":
           description: The pending membership was removed (code not_a_member).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "409":
+          description: The signed in session is of another account (code invite_for_another_account).
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
