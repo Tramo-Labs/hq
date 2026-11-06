@@ -18,10 +18,11 @@ function message(e: unknown) {
  * if the same action is retried, so a double tap or a retry is applied once. After "Deshacer"
  * the keys are new: a fresh decision is a new action, not a retry of the first one.
  *
- * - client, Exceptions match (the match is the proposal): Aprobar, Rechazar (optional reason),
- *   Es otra cosa (required note).
- * - client, Exceptions movement with no candidate: Es otra cosa (required note).
- * - operator, Suggested match: Aprobar, Rechazar, Mandar a excepciones.
+ * Buttons map 1:1 to the API's actions (qa F14); a reason is required to reject (qa F19).
+ * - client, Exceptions match (the match is the proposal): approve, reject (reason), other (note).
+ * - client, Exceptions movement with no candidate: other (note), link (shown disabled: no
+ *   endpoint lists the open items to link yet), revert after deciding.
+ * - operator, Suggested match: approve, reject (reason), escalate.
  */
 export function Decision({ target, variant }: { target: { match: string } | { movement: string }; variant: "client" | "operator" }) {
   const a = app.approvals;
@@ -77,18 +78,15 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
   }
 
   if (noteFor) {
-    const required = noteFor === "other";
+    const other = noteFor === "other";
     const id = `note-${isMovement ? target.movement : target.match}`;
     return (
-      <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); if (!required || note.trim()) send(noteFor); }}>
-        <label htmlFor={id} className="text-[14px] text-white/85">
-          {required ? a.noteLabel : a.rejectLabel}
-          {!required && <span className="ml-2 font-mono text-[12px] text-white/60">{a.optional}</span>}
-        </label>
-        <textarea id={id} required={required} maxLength={500} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={required ? a.notePlaceholder : a.rejectPlaceholder}
+      <form className="grid gap-2" onSubmit={(e) => { e.preventDefault(); if (note.trim()) send(noteFor); }}>
+        <label htmlFor={id} className="text-[14px] text-white/85">{other ? a.noteLabel : a.rejectLabel}</label>
+        <textarea id={id} required maxLength={500} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={other ? a.notePlaceholder : a.rejectPlaceholder}
           className="rounded-lg border border-white/20 bg-white/[0.04] px-3 py-2.5 text-[15px] placeholder:text-white/50 focus:border-white/50 focus:outline-none" />
         <div className="flex flex-wrap gap-2">
-          <button type="submit" disabled={saving} aria-busy={saving} className={primaryBtn}>{required ? a.send : a.actions.reject}</button>
+          <button type="submit" disabled={saving} aria-busy={saving} className={primaryBtn}>{other ? a.send : labels.reject}</button>
           <button type="button" disabled={saving} className={ghostBtn} onClick={() => { setNoteFor(null); setNote(""); setError(null); }}>{a.cancel}</button>
         </div>
         {err}
@@ -100,7 +98,11 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
     <div className="grid gap-2">
       <div className="flex flex-wrap gap-2">
         {isMovement ? (
-          <button type="button" className={ghostBtn} onClick={() => setNoteFor("other")}>{a.actions.other}</button>
+          <>
+            <button type="button" className={ghostBtn} onClick={() => setNoteFor("other")}>{a.actions.other}</button>
+            <button type="button" disabled className={ghostBtn} aria-describedby={`link-${target.movement}`}>{a.actions.link}</button>
+            <span id={`link-${target.movement}`} className="self-center text-[13px] text-white/60">{a.linkSoon}</span>
+          </>
         ) : variant === "client" ? (
           <>
             <button type="button" disabled={saving} aria-busy={saving} className={primaryBtn} onClick={() => send("approve")}>{a.actions.approve}</button>
@@ -110,7 +112,7 @@ export function Decision({ target, variant }: { target: { match: string } | { mo
         ) : (
           <>
             <button type="button" disabled={saving} aria-busy={saving} className={primaryBtn} onClick={() => send("approve")}>{app.trays.actions.approve}</button>
-            <button type="button" disabled={saving} className={ghostBtn} onClick={() => send("reject")}>{app.trays.actions.reject}</button>
+            <button type="button" disabled={saving} className={ghostBtn} onClick={() => setNoteFor("reject")}>{app.trays.actions.reject}</button>
             <button type="button" disabled={saving} className={ghostBtn} onClick={() => send("escalate")}>{app.trays.actions.escalate}</button>
           </>
         )}

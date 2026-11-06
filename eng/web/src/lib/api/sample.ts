@@ -124,7 +124,7 @@ export async function decideMatch(matchId: string, body: DecisionRequest, idempo
     const tray = x.listed;
     if (!deciders[tray].includes(s.role)) throw new ApiError(403, "forbidden");
     if (!offered[tray].includes(body.action)) throw new ApiError(400, "bad_request");
-    if (body.action === "other" && !body.note?.trim()) throw new ApiError(400, "bad_request", "note required");
+    if ((body.action === "other" || body.action === "reject") && !body.note?.trim()) throw new ApiError(400, "bad_request", "note required");
     const prior = decided.get(matchId) as Decision | undefined;
     if (body.action === "revert") {
       if (!prior) throw new ApiError(409, "nothing_to_revert");
