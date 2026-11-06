@@ -69,7 +69,10 @@ export function InviteEntry() {
       setConfirm("");
       router.replace(homeFor(s.role));
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 400 ? v.rejected : explainToken(err, v.invalid));
+      // A 400 is either the name (invalid_name) or the request's validation, which here can only
+      // be the password's length; each gets its own message.
+      setError(err instanceof ApiError && err.code === "invalid_name" ? app.session.name.invalid
+        : err instanceof ApiError && err.status === 400 ? v.rejected : explainToken(err, v.invalid));
     } finally {
       setBusy(false);
     }
