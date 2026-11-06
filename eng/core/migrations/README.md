@@ -20,7 +20,10 @@ not in main; once in main a migration is never edited or renamed.
 
 `TestMigrationsAboveMain` (`order_test.go`) enforces it: every migration
 not in `origin/main` (or `MIGRATIONS_BASE`) must be above main's highest,
-and no two share a version. Locally without `origin/main` it skips; in CI it
+and no two share a version. Go migrations (the `Go` list in `river.go`)
+count too: main's are read from its Go sources (`riverMigration(N, ...)`
+or `goose.NewGoMigration(N, ...)` with a literal N; write new ones that
+way). Mutation checked: adding `riverMigration(50, 8)` fails both tests. Locally without `origin/main` it skips; in CI it
 fails, and the core workflow checks out with `fetch-depth: 0` so the ref is
 there. `TestDatabaseFromMainUpgrades` (`internal/platform/db`) runs the
 upgrade itself: an empty database migrated with main's migrations only,
@@ -40,6 +43,11 @@ back its old number 00010 fails both, the second with goose's own "missing
 
 A `make dev` data directory created from a branch that still had 00008,
 00009 and 00010 (now 00110, 00111 and 00112) has those versions recorded
-and will not migrate. It holds synthetic data only: delete it and run
-`make dev` again (`rm -rf ~/.local/share/tramo-dev`, or your
-`DEV_DATA_DIR`).
+and will not migrate. `make dev` stops with:
+
+```
+partial migration error (type:sql,version:110): relation "invites" already exists
+```
+
+It holds synthetic data only: delete it and run `make dev` again
+(`rm -rf ~/.local/share/tramo-dev`, or your `DEV_DATA_DIR`).
