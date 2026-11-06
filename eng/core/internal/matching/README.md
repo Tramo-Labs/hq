@@ -56,7 +56,12 @@ movements of an invented pyme, labeled by construction.
 
 | Auto | Suggested (matched) | Pending | Exception | Agree with label | False matches |
 |-----:|-----:|-----:|-----:|-----:|-----:|
-| 125 | 38 | 20 | 17 | 200 / 200 | 0 |
+| 121 | 38 | 24 | 17 | 200 / 200 | 0 |
+
+Four of the pending movements (category K in the generator) have two exact
+candidates and a combination of the same customer's invoices that also
+closes: they check that a weaker pass never settles what a stronger pass
+found ambiguous. Removing that freeze turns them into 4 false matches.
 
 **This is not an automation rate.** The movements and their labels were
 written by the same author as the engine, so the suite checks that the

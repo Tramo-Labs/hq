@@ -46,8 +46,8 @@ def label(mid, outcome, tray="", rule="", its=()):
     labels[mid] = {"outcome": outcome, "tray": tray, "rule": rule, "items": sorted(its)}
 
 
-# A. 70 customer transfers that name the invoice in the description.
-for k in range(70):
+# A. 66 customer transfers that name the invoice in the description.
+for k in range(66):
     a, d = amount(), rnd.randint(0, 27)
     inv = f"0003-{1000 + k:08d}"
     item(f"inv-a{k}", max(0, d - rnd.randint(5, 25)), a, [inv], party=f"CLIENTE {k}")
@@ -130,6 +130,20 @@ for k in range(10):
     item(f"inv-j{k}", d - rnd.randint(1, 20), a, [inv])
     move(f"mv-j{k}", d, a // 2 + 7, f"TRANSF RECIBIDA PAGO A CUENTA FC {inv}")
     label(f"mv-j{k}", "pending", "suggested")
+
+# K. 4 transfers naming a customer who has two invoices of exactly that
+# amount AND two other invoices that add up to it. Which ones were paid is
+# unknowable: the exact pass finds two candidates, and the combination pass
+# (which would find one subset in that customer's invoices) must not settle
+# it. Pending.
+for k in range(4):
+    d = rnd.randint(3, 25)
+    c1, c2 = amount(), amount()
+    a = c1 + c2
+    for suffix, dd, amt in (("a", d - 1, a), ("b", d, a), ("c", d - 2, c1), ("d", d - 2, c2)):
+        item(f"inv-k{k}-{suffix}", dd, amt, party=f"CLIENTE K{k}")
+    move(f"mv-k{k}", d, a, f"TRANSF RECIBIDA CLIENTE K{k}")
+    label(f"mv-k{k}", "pending", "suggested")
 
 # Open invoices nobody paid this month (distractors).
 for k in range(15):

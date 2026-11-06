@@ -53,6 +53,59 @@ func TestAmbiguityIsNotResolvedByTolerance(t *testing.T) {
 	}
 }
 
+// Same rule, no tolerance involved: two exact candidates, and two other
+// items that add up to the movement. The combination pass must not settle
+// what the exact pass found ambiguous.
+func TestAmbiguityIsNotResolvedByCombination(t *testing.T) {
+	r := Run(DefaultConfig, Input{
+		Movements: []Movement{{ID: "m", Date: day(5), Amount: 1000000}},
+		Items:     []Item{inv("a", 5, 1000000), inv("b", 4, 1000000), inv("c", 5, 600000), inv("d", 5, 400000)},
+	})
+	if len(r.Matches) != 0 {
+		t.Fatalf("an ambiguous movement got matched: %+v", r.Matches)
+	}
+	if len(r.Pending) != 1 || r.Pending[0].Reason != ReasonAmbiguous || len(r.Pending[0].Candidates) != 2 {
+		t.Fatalf("pending %+v", r.Pending)
+	}
+}
+
+// Ambiguity on the item side: one invoice, two exact movements. Neither
+// movement may take it through a weaker pass, nor another item through a
+// combination.
+func TestItemSideAmbiguityFreezesBothMovements(t *testing.T) {
+	r := Run(DefaultConfig, Input{
+		Movements: []Movement{
+			{ID: "m1", Date: day(5), Amount: 1000000},
+			{ID: "m2", Date: day(6), Amount: 1000000},
+		},
+		Items: []Item{inv("a", 5, 1000000), inv("c", 5, 600000), inv("d", 5, 400000)},
+	})
+	if len(r.Matches) != 0 || len(r.Pending) != 2 {
+		t.Fatalf("matches %+v pending %+v", r.Matches, r.Pending)
+	}
+}
+
+// The ambiguous item itself is frozen: a third movement a few cents off must
+// not take it through the tolerance pass, nor two small movements through a
+// combination, while two exact movements are still waiting on it.
+func TestAmbiguousItemNotTakenByWeakerPass(t *testing.T) {
+	for name, extra := range map[string][]Movement{
+		"tolerance":   {{ID: "m3", Date: day(5), Amount: 1000005}},
+		"combination": {{ID: "m3", Date: day(5), Amount: 600000}, {ID: "m4", Date: day(5), Amount: 400000}},
+	} {
+		r := Run(DefaultConfig, Input{
+			Movements: append([]Movement{
+				{ID: "m1", Date: day(5), Amount: 1000000},
+				{ID: "m2", Date: day(6), Amount: 1000000},
+			}, extra...),
+			Items: []Item{inv("a", 5, 1000000)},
+		})
+		if len(r.Matches) != 0 {
+			t.Errorf("%s: the ambiguous item was taken: %+v", name, r.Matches)
+		}
+	}
+}
+
 func TestToleranceLimits(t *testing.T) {
 	cases := []struct {
 		move, item int64

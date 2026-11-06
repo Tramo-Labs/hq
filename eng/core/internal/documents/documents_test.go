@@ -264,6 +264,70 @@ func TestLLMLastAndNeverTrusted(t *testing.T) {
 	}
 }
 
+// trustedInvoice has every required field from the QR.
+func trustedInvoice() *Invoice {
+	inv := newInvoice()
+	for _, n := range Required {
+		inv.Fields[n] = Field{Value: "1", Source: SourceQR, Confidence: qrConfidence}
+	}
+	return inv
+}
+
+// Defense 1: the source. A model value is never trusted, whatever
+// confidence it carries. This test does not rely on the cap.
+func TestLLMSourceNeverTrustedAtAnyConfidence(t *testing.T) {
+	f := Field{Value: "1", Source: SourceLLM, Confidence: 0.99}
+	if f.Trusted() {
+		t.Fatal("a model value with confidence 0.99 is trusted")
+	}
+	inv := trustedInvoice()
+	if !inv.AutoEligible() || inv.MinConfidence() < AutoThreshold {
+		t.Fatal("baseline invoice should be eligible")
+	}
+	inv.Fields[AuthCode] = f
+	if inv.AutoEligible() {
+		t.Error("an invoice with a 0.99 model field is eligible for automatic")
+	}
+	if inv.MinConfidence() >= AutoThreshold {
+		t.Errorf("min confidence %.2f lets a model field feed an automatic match", inv.MinConfidence())
+	}
+}
+
+// Defense 2: the cap. Whatever the model returns is stored at LLMCap, and
+// LLMCap is below the automatic threshold, so MinConfidence (what matching
+// reads) stays below it too. This test does not rely on the source check.
+func TestLLMCapBelowThreshold(t *testing.T) {
+	if LLMCap >= AutoThreshold {
+		t.Fatalf("LLMCap %.2f is not below AutoThreshold %.2f", LLMCap, AutoThreshold)
+	}
+	llm := &fakeLLM{vals: map[Name]string{AuthCode: "76451234567890"}}
+	lines := invoiceLines[:10] // everything but the CAE lines
+	inv := extract(t, &Extractor{OwnCUIT: receiver, LLM: llm}, Input{PDF: buildPDF(t, pdfSpec{Lines: lines})})
+	f, ok := inv.Get(AuthCode)
+	if !ok || f.Source != SourceLLM {
+		t.Fatalf("auth code %+v", f)
+	}
+	if f.Confidence >= AutoThreshold || f.Confidence > LLMCap {
+		t.Errorf("model value stored at %.2f", f.Confidence)
+	}
+	if inv.MinConfidence() >= AutoThreshold {
+		t.Errorf("min confidence %.2f with a model field", inv.MinConfidence())
+	}
+}
+
+// A field in conflict caps the invoice below the threshold even when both
+// readings had high confidence.
+func TestConflictCapsMinConfidence(t *testing.T) {
+	inv := trustedInvoice()
+	c := Field{Value: "2", Source: SourcePDFText, Confidence: 0.9}
+	f := inv.Fields[Total]
+	f.Conflict = &c
+	inv.Fields[Total] = f
+	if inv.AutoEligible() || inv.MinConfidence() >= AutoThreshold {
+		t.Errorf("conflict: eligible %v, min %.2f", inv.AutoEligible(), inv.MinConfidence())
+	}
+}
+
 func TestLLMInvalidValuesDropped(t *testing.T) {
 	llm := &fakeLLM{vals: map[Name]string{IssuerCUIT: "30-00000001-6", AuthCode: "123", Total: "mucho", IssueDate: "ayer"}}
 	inv := extract(t, &Extractor{LLM: llm}, Input{PDF: buildPDF(t, pdfSpec{Lines: []string{"hola"}})})
