@@ -115,6 +115,10 @@ invitation; adding an active member is 409 `already_member`.
   email leaves the machine. `make dev` writes to `DEV_DATA_DIR/outbox`.
   Without `MAIL_OUTBOX` the invitation is created but not delivered, and
   that is logged. A real transport is a separate item.
+- **Recipient.** Invitations and magic links go to the address stored for
+  the account, never to the casing typed in the request (F35,
+  `TestMailGoesToTheStoredAddress`, with an account stored before emails
+  were lowercased).
 - **Copy.** Invitation and magic link emails are in Spanish with voseo
   (F31, `TestEmailsAreInSpanish`), roles named as the portal names them
   (titular, aprobador, lectura, contador, operador). Backend wrote the

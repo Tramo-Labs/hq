@@ -44,6 +44,10 @@ func (s *Service) invite(ctx context.Context, p Principal, user uuid.UUID, email
 		if hasPassword, err = q.GetUserPasswordSet(ctx, user); err != nil {
 			return err
 		}
+		// To the stored address, not the casing typed (F35).
+		if email, err = q.GetUserEmail(ctx, user); err != nil {
+			return err
+		}
 		t, err := q.GetTenant(ctx, p.TenantID)
 		if err != nil {
 			return err

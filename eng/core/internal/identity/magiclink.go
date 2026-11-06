@@ -120,6 +120,10 @@ func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs
 		if err != nil {
 			return err
 		}
+		// To the stored address, not the casing typed (F35).
+		if email, err = q.GetUserEmail(actx, u.ID); err != nil {
+			return err
+		}
 		if err := q.InsertMagicLink(actx, store.InsertMagicLinkParams{UserID: u.ID, TenantID: req.TenantID,
 			TokenHash: hash, ExpiresAt: time.Now().Add(MagicLinkTTL)}); err != nil {
 			return err
