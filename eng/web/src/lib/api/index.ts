@@ -56,6 +56,11 @@ export async function acceptInvite(token: string, password: string, name?: strin
   return isLive() ? live.acceptInvite(token, password, name) : (await sample()).acceptInvite();
 }
 
+/** PATCH /v1/me: sets the person's own name and returns it as stored (trimmed). */
+export async function updateName(name: string) {
+  return isLive() ? live.updateName(name) : (await sample()).updateName(name);
+}
+
 /** POST /v1/auth/switch-tenant: another of the person's companies, without the password. */
 export async function switchTenant(tenantId: string) {
   return isLive() ? live.switchTenant(tenantId) : (await sample()).switchTenant(tenantId);

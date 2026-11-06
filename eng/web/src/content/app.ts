@@ -286,6 +286,15 @@ export const app = {
       notMember: "Ese enlace era para una empresa en la que ya no tenés acceso.",
       again: "Ir a entrar",
     },
+    // Draft for producto (frontend, 06/11): the person's own name in the header.
+    name: {
+      open: "Tu nombre",
+      label: "Cómo querés que te veamos",
+      placeholder: "Ej.: Ana Pérez",
+      save: "Guardar",
+      invalid: "Revisá el nombre: no puede quedar vacío ni pasar de 120 caracteres.",
+      failed: "No se pudo guardar. Probá de nuevo.",
+    },
     // Draft for producto (frontend, 06/11): accepting an invitation.
     invite: {
       eyebrow: "Invitación",

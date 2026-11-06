@@ -12,6 +12,8 @@ export type Session = {
   tenantName: string;
   role: Role;
   email: string;
+  /** From /v1/me; null until the person sets one (the header shows the email then). */
+  name: string | null;
   memberships: Me["memberships"];
 };
 

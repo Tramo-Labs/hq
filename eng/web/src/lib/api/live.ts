@@ -32,6 +32,7 @@ async function open(t: Tokens): Promise<Session> {
     tenantId: t.tenantId,
     role: t.role,
     email: me.email,
+    name: me.name,
     memberships: me.memberships,
     tenantName: me.memberships.find((m) => m.tenantId === t.tenantId)?.tenantName ?? "",
   };
@@ -142,6 +143,15 @@ export async function request(path: string, init: RequestInit = {}): Promise<Res
   }
   if (!res.ok) throw await ApiError.from(res);
   return res;
+}
+
+/** PATCH /v1/me: the person's own name; the session in memory takes it at once. */
+export async function updateName(name: string) {
+  const res = await request("/v1/me", { method: "PATCH", headers: json, body: JSON.stringify({ name }) });
+  const me = (await res.json()) as Me;
+  const s = getSession();
+  if (s) setSession({ ...s, name: me.name });
+  return me.name;
 }
 
 export async function getJson<T>(path: string): Promise<T> {
