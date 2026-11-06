@@ -150,7 +150,7 @@ Dos candidatos igual de buenos nunca se resuelven solos: van a Sugerido. Nada en
 - **Clientes**: cada tenant con los pasos de onboarding que faltan, hace cuánto, y el último extracto por cuenta. Lo más trabado arriba.
 - **Bandejas**: Sugerido de todos sus clientes en una cola, filtrable por cliente y por motivo. Excepciones en solo lectura, con antigüedad, para perseguir al cliente.
 - **Cuarentena**: formatos de extracto no reconocidos y archivos con saldo que no cierra.
-- **Cierre semanal**: por cliente, congela la semana y arma el resumen del lunes. No se cierra con Sugerido pendiente.
+- **Cierre quincenal**: por cliente, congela la quincena y arma el resumen que le llega al cliente al cerrar. No se cierra con Sugerido pendiente.
 - **Panel**: el mismo del cliente, más las reglas que más disparan y las que nunca disparan.
 
 Aceptación: un operator con dos tenants ve esos dos y ninguno más; un cierre con Sugerido pendiente se rechaza con el motivo.
