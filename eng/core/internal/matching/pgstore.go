@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/closes"
 	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/listrange"
@@ -27,8 +28,8 @@ import (
 // tenant transaction, read only.
 type PGStore struct {
 	DB *db.DB
-	// Closed answers whether a period is closed. Nil means no period is
-	// closed (the weekly close does not exist yet). See closed.
+	// Closed answers whether any of some dates is in a closed period. Nil
+	// asks the closes table (closes.ClosedOn); tests set a stub. See closed.
 	Closed ClosedFunc
 
 	// beforeInsert runs after every check of a decision and right before
@@ -166,9 +167,36 @@ func (s *PGStore) SaveRun(ctx context.Context, period string, cfg Config, r Resu
 	}
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		q := store.New(tx)
-		var err error
+		// A run never changes what a close froze: for the movements of the
+		// closed days it stores no match and no pending, and carries over
+		// what the run before it left pending. Asked here, under the close
+		// lock, so a close cannot slip in between.
+		closedDays, err := s.closedDays(ctx, tx, period)
+		if err != nil {
+			return err
+		}
+		var prevRun *uuid.UUID
+		frozen := map[string]bool{} // movement ids on closed days
+		if len(closedDays) > 0 {
+			prev, err := q.LatestRunOf(ctx, period)
+			if err == nil {
+				prevRun = &prev
+			} else if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+			if frozen, err = movementsOn(ctx, q, r, closedDays); err != nil {
+				return err
+			}
+		}
+		r = withoutMovements(r, frozen)
 		if runID, err = q.InsertRun(ctx, store.InsertRunParams{Period: period, Config: cfgJSON}); err != nil {
 			return err
+		}
+		carried := int64(0)
+		if prevRun != nil {
+			if carried, err = q.CarryPending(ctx, store.CarryPendingParams{ToRun: runID, FromRun: *prevRun, Days: closedDays}); err != nil {
+				return err
+			}
 		}
 		for _, m := range r.Matches {
 			mv, err := uuids(m.MovementIDs)
@@ -216,9 +244,107 @@ func (s *PGStore) SaveRun(ctx context.Context, period string, cfg Config, r Resu
 		}
 		return audit.Record(ctx, tx, audit.Entry{Action: "matching.run", Subject: "matching.runs:" + runID.String(),
 			Detail: map[string]any{"period": period, "matches": len(r.Matches), "new": inserted,
-				"pending": len(r.Pending), "exceptions": len(r.Exceptions)}})
+				"pending": len(r.Pending), "exceptions": len(r.Exceptions),
+				"closed_days": len(closedDays), "carried_pending": carried}})
 	})
 	return runID, inserted, err
+}
+
+// closedDays returns the days of a month (YYYY-MM) with movements that
+// fall in a closed period, asked in tx.
+func (s *PGStore) closedDays(ctx context.Context, tx pgx.Tx, period string) ([]time.Time, error) {
+	from, last, err := monthRange(period)
+	if err != nil {
+		return nil, err
+	}
+	days, err := store.New(tx).MovementDays(ctx, store.MovementDaysParams{DateFrom: from, DateTo: last})
+	if err != nil {
+		return nil, err
+	}
+	var out []time.Time
+	for _, d := range days {
+		c, err := s.closed(ctx, tx, []time.Time{d})
+		if err != nil {
+			return nil, err
+		}
+		if c {
+			out = append(out, d)
+		}
+	}
+	return out, nil
+}
+
+// movementsOn returns which movements of a run's result are dated on one
+// of the days.
+func movementsOn(ctx context.Context, q *store.Queries, r Result, days []time.Time) (map[string]bool, error) {
+	var ids []uuid.UUID
+	add := func(s string) error {
+		id, err := uuid.Parse(s)
+		if err == nil {
+			ids = append(ids, id)
+		}
+		return err
+	}
+	for _, m := range r.Matches {
+		for _, s := range m.MovementIDs {
+			if err := add(s); err != nil {
+				return nil, err
+			}
+		}
+	}
+	for _, p := range append(append([]Pending{}, r.Pending...), r.Exceptions...) {
+		if err := add(p.MovementID); err != nil {
+			return nil, err
+		}
+	}
+	rows, err := q.MovementDatesOf(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	closed := map[string]bool{}
+	for _, d := range days {
+		closed[d.Format(time.DateOnly)] = true
+	}
+	out := map[string]bool{}
+	for _, row := range rows {
+		if closed[row.Date.Format(time.DateOnly)] {
+			out[row.ID.String()] = true
+		}
+	}
+	return out, nil
+}
+
+// withoutMovements drops from a result the matches that touch any of the
+// movements and the pending rows of those movements.
+func withoutMovements(r Result, drop map[string]bool) Result {
+	if len(drop) == 0 {
+		return r
+	}
+	touches := func(ids []string) bool {
+		for _, id := range ids {
+			if drop[id] {
+				return true
+			}
+		}
+		return false
+	}
+	out := Result{OpenItems: r.OpenItems}
+	for _, m := range r.Matches {
+		if !touches(m.MovementIDs) {
+			out.Matches = append(out.Matches, m)
+		}
+	}
+	for _, p := range r.Pending {
+		if !drop[p.MovementID] {
+			out.Pending = append(out.Pending, p)
+		}
+	}
+	for _, p := range r.Exceptions {
+		if !drop[p.MovementID] {
+			out.Exceptions = append(out.Exceptions, p)
+		}
+	}
+	return out
 }
 
 // ErrNoUser means a decision was attempted without a person in the scope.
@@ -279,23 +405,29 @@ type DecisionInput struct {
 var (
 	// ErrNothingToRevert: the item has no decision in effect.
 	ErrNothingToRevert = errors.New("matching: there is no decision in effect to revert")
-	// ErrClosed: the period of the item is closed; what closed is not reverted.
+	// ErrClosed: a movement of the item is in a closed period: nothing is
+	// reverted there, and the operator decides nothing new in Suggested.
 	ErrClosed = errors.New("matching: the period is closed")
 )
 
-// ClosedFunc tells whether any of the periods (YYYY-MM) is closed for the
-// tenant in the context.
-type ClosedFunc func(ctx context.Context, tx pgx.Tx, periods []string) (bool, error)
+// ClosedFunc tells whether any of the civil dates falls in a closed period
+// of the tenant in the context. It runs in the caller's transaction (the
+// close package's ClosedOn takes a lock there, so a close cannot count
+// while a write that saw the period open is still in flight).
+type ClosedFunc func(ctx context.Context, tx pgx.Tx, dates []time.Time) (bool, error)
 
-// closed is the single place where a reversion checks the close. The
-// weekly close does not exist yet, so with no Closed hook it always lets
-// the reversion through. When it exists, this is where it plugs in: what
-// already closed is not reverted.
-func (s *PGStore) closed(ctx context.Context, tx pgx.Tx, periods []string) (bool, error) {
+// closed is the single place where a decision checks the close. With no
+// Closed hook it asks the closes table (closes.ClosedOn), so no store can
+// be built without the check; tests set a stub. What it guards (decision of 06/11, by
+// default until Martín says otherwise): a reversion, always; a new
+// operator decision in Suggested. The client's answer to an exception or
+// an escalation goes through after the close; a match it creates on a
+// movement of a closed period is marked as after the close.
+func (s *PGStore) closed(ctx context.Context, tx pgx.Tx, dates []time.Time) (bool, error) {
 	if s.Closed == nil {
-		return false, nil
+		return closes.ClosedOn(ctx, tx, dates)
 	}
-	return s.Closed(ctx, tx, periods)
+	return s.Closed(ctx, tx, dates)
 }
 
 // memberRole is the caller's role read from memberships in tx, not from the
@@ -349,7 +481,7 @@ type trayState struct {
 
 // matchState reads the stored tray of a match, the decision in effect in
 // each tray, and the periods of its movements.
-func matchState(ctx context.Context, tx pgx.Tx, id string) (Tray, map[Tray]trayState, []string, error) {
+func matchState(ctx context.Context, tx pgx.Tx, id string) (Tray, map[Tray]trayState, []time.Time, error) {
 	q := store.New(tx)
 	tp, err := q.MatchTrayAndPeriods(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -366,7 +498,7 @@ func matchState(ctx context.Context, tx pgx.Tx, id string) (Tray, map[Tray]trayS
 	for _, r := range rows {
 		states[Tray(r.Tray)] = trayState{id: r.ID, revision: int(r.Revision), action: Action(r.Action)}
 	}
-	return Tray(tp.Tray), states, tp.Periods, nil
+	return Tray(tp.Tray), states, tp.Dates, nil
 }
 
 // Record stores a human decision on a match, or the reversion of the one in
@@ -433,7 +565,7 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			return err
 		}
 
-		stored, states, periods, err := matchState(ctx, tx, d.MatchID)
+		stored, states, dates, err := matchState(ctx, tx, d.MatchID)
 		if err != nil {
 			return err
 		}
@@ -453,7 +585,7 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			if !CanDecide(d.Role, d.Tray) {
 				return ErrForbidden
 			}
-			isClosed, err := s.closed(ctx, tx, periods)
+			isClosed, err := s.closed(ctx, tx, dates)
 			if err != nil {
 				return err
 			}
@@ -482,6 +614,17 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 			target = states[d.Tray]
 			if target.action != "" {
 				return ErrAlreadyDecided
+			}
+			// The operator decides nothing new in Suggested once the period
+			// closed; the client's answer in Exceptions still goes through.
+			if d.Tray == Suggested {
+				isClosed, err := s.closed(ctx, tx, dates)
+				if err != nil {
+					return err
+				}
+				if isClosed {
+					return ErrClosed
+				}
 			}
 		}
 		d.Revision = target.revision + 1

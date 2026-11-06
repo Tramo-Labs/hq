@@ -24,6 +24,30 @@ func (q *Queries) AnyItemTaken(ctx context.Context, ids []uuid.UUID) (bool, erro
 	return exists, err
 }
 
+const carryPending = `-- name: CarryPending :execrows
+insert into matching.pending (tenant_id, run_id, movement_id, tray, reason, candidates)
+select p.tenant_id, $1::uuid, p.movement_id, p.tray, p.reason, p.candidates
+  from matching.pending p join ledger.movements l on l.id = p.movement_id
+ where p.run_id = $2::uuid and l.date = any($3::date[])
+`
+
+type CarryPendingParams struct {
+	ToRun   uuid.UUID
+	FromRun uuid.UUID
+	Days    []time.Time
+}
+
+// A run of a month with a closed period keeps, for the movements of the
+// closed days, what the run before it left pending: a run never changes
+// what a close froze.
+func (q *Queries) CarryPending(ctx context.Context, arg CarryPendingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, carryPending, arg.ToRun, arg.FromRun, arg.Days)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const decisionByKey = `-- name: DecisionByKey :one
 select match_id, action, user_id, role, at, note, tray from matching.decisions where key = $1
 `
@@ -461,6 +485,17 @@ func (q *Queries) ItemsCountAndSum(ctx context.Context, ids []uuid.UUID) (ItemsC
 	return i, err
 }
 
+const latestRunOf = `-- name: LatestRunOf :one
+select id from matching.runs where period = $1 order by started_at desc, id limit 1
+`
+
+func (q *Queries) LatestRunOf(ctx context.Context, period string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, latestRunOf, period)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const matchDecisionStates = `-- name: MatchDecisionStates :many
 select tray, id, revision, coalesce(action, '')::text as action from matching.decision_state where match_id = $1
 `
@@ -588,20 +623,22 @@ func (q *Queries) MatchExportRows(ctx context.Context, arg MatchExportRowsParams
 
 const matchTrayAndPeriods = `-- name: MatchTrayAndPeriods :one
 
-select tray, coalesce(array(select jsonb_array_elements_text(evidence->'movement_periods')), '{}')::text[] as periods
-  from matching.matches where id = $1
+select m.tray, coalesce(array(select jsonb_array_elements_text(m.evidence->'movement_periods')), '{}')::text[] as periods,
+       coalesce(array(select l.date from ledger.movements l where l.id = any(m.movement_ids)), '{}')::date[] as dates
+  from matching.matches m where m.id = $1
 `
 
 type MatchTrayAndPeriodsRow struct {
 	Tray    string
 	Periods []string
+	Dates   []time.Time
 }
 
 // Match decisions ----------------------------------------------------------
 func (q *Queries) MatchTrayAndPeriods(ctx context.Context, id string) (MatchTrayAndPeriodsRow, error) {
 	row := q.db.QueryRow(ctx, matchTrayAndPeriods, id)
 	var i MatchTrayAndPeriodsRow
-	err := row.Scan(&i.Tray, &i.Periods)
+	err := row.Scan(&i.Tray, &i.Periods, &i.Dates)
 	return i, err
 }
 
@@ -663,6 +700,67 @@ func (q *Queries) MovementAmountDate(ctx context.Context, id uuid.UUID) (Movemen
 	var i MovementAmountDateRow
 	err := row.Scan(&i.Amount, &i.Date)
 	return i, err
+}
+
+const movementDatesOf = `-- name: MovementDatesOf :many
+select id, date from ledger.movements where id = any($1::uuid[])
+`
+
+type MovementDatesOfRow struct {
+	ID   uuid.UUID
+	Date time.Time
+}
+
+func (q *Queries) MovementDatesOf(ctx context.Context, ids []uuid.UUID) ([]MovementDatesOfRow, error) {
+	rows, err := q.db.Query(ctx, movementDatesOf, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MovementDatesOfRow
+	for rows.Next() {
+		var i MovementDatesOfRow
+		if err := rows.Scan(&i.ID, &i.Date); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const movementDays = `-- name: MovementDays :many
+select distinct date from ledger.movements
+ where date between $1::date and $2::date
+ order by date
+`
+
+type MovementDaysParams struct {
+	DateFrom time.Time
+	DateTo   time.Time
+}
+
+// The days that have movements in a range, both ends included.
+func (q *Queries) MovementDays(ctx context.Context, arg MovementDaysParams) ([]time.Time, error) {
+	rows, err := q.db.Query(ctx, movementDays, arg.DateFrom, arg.DateTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []time.Time
+	for rows.Next() {
+		var date time.Time
+		if err := rows.Scan(&date); err != nil {
+			return nil, err
+		}
+		items = append(items, date)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const movementDecisionByKey = `-- name: MovementDecisionByKey :one
@@ -926,6 +1024,34 @@ func (q *Queries) SuggestedPendingByReason(ctx context.Context, arg SuggestedPen
 		return nil, err
 	}
 	return items, nil
+}
+
+const suggestedPendingInRange = `-- name: SuggestedPendingInRange :one
+select ((select count(*) from matching.matches m
+          where m.tray = 'suggested'
+            and not exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id
+                             and d.tray = 'suggested' and d.action is not null)
+            and exists (select 1 from ledger.movements l where l.id = any(m.movement_ids)
+                         and l.date between $1::date and $2::date))
+      + (select count(*) from matching.waiting w join ledger.movements l on l.id = w.movement_id
+          where w.tray = 'suggested' and l.date between $1::date and $2::date))::int as pending
+`
+
+type SuggestedPendingInRangeParams struct {
+	DateFrom time.Time
+	DateTo   time.Time
+}
+
+// What blocks a close: the Suggested tray of the range with no decision in
+// effect. Suggested matches the operator has not decided (an escalated one
+// has a decision, and waits in Exceptions), plus the movements waiting in
+// Suggested (ambiguous, the client's "other" or reject). By the movement's
+// date, both included; a match counts when any of its movements falls in.
+func (q *Queries) SuggestedPendingInRange(ctx context.Context, arg SuggestedPendingInRangeParams) (int32, error) {
+	row := q.db.QueryRow(ctx, suggestedPendingInRange, arg.DateFrom, arg.DateTo)
+	var pending int32
+	err := row.Scan(&pending)
+	return pending, err
 }
 
 const undecidedMatches = `-- name: UndecidedMatches :many

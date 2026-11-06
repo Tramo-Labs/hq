@@ -334,7 +334,7 @@ func mustPanel(t *testing.T, e pgEnv, sp span) map[string]Metric {
 	var ms []Metric
 	if err := e.d.InTenant(e.ctx, func(tx pgx.Tx) error {
 		var err error
-		ms, err = panel(e.ctx, tx, sp, metricsNow)
+		ms, err = panel(e.ctx, tx, sp, metricsNow, true)
 		return err
 	}); err != nil {
 		t.Fatal(err)
