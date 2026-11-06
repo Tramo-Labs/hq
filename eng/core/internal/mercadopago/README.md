@@ -43,7 +43,7 @@ within its 10 minutes.
 Roles are read from memberships in the transaction. Without an app every
 write answers 501 `not_configured`, after the role check.
 
-## Tables (migration 00202)
+## Tables (migration 00252)
 
 | Table | Holds |
 |---|---|
