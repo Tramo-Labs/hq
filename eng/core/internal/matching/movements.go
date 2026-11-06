@@ -183,7 +183,7 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		var matchID *string
 		switch in.Action {
 		case MovementRevert:
-			isClosed, err := s.closed(ctx, tx, []string{period(date)})
+			isClosed, err := s.closed(ctx, tx, []time.Time{date})
 			if err != nil {
 				return err
 			}
@@ -205,8 +205,17 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 			if !waiting {
 				return ErrNotInExceptions
 			}
+			// The operator's answers in Suggested stop at the close; the
+			// client's still go through (see PGStore.closed).
+			isClosed, err := s.closed(ctx, tx, []time.Time{date})
+			if err != nil {
+				return err
+			}
+			if isClosed && !client {
+				return ErrClosed
+			}
 			if in.Action == MovementLink {
-				id, err := linkByHand(ctx, tx, mid, money.Amount(amount), date, items)
+				id, err := linkByHand(ctx, tx, mid, money.Amount(amount), date, items, isClosed)
 				if err != nil {
 					return err
 				}
@@ -339,7 +348,7 @@ func (s *PGStore) OpenItems(ctx context.Context, period, direction string, limit
 }
 
 // linkByHand checks the items and creates (or finds) the manual match.
-func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amount, date time.Time, items []uuid.UUID) (string, error) {
+func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amount, date time.Time, items []uuid.UUID, afterClose bool) (string, error) {
 	slices.SortFunc(items, func(a, b uuid.UUID) int { return compareUUID(a, b) })
 	items = slices.Compact(items)
 	q := store.New(tx)
@@ -366,7 +375,12 @@ func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amou
 		ids[i] = u.String()
 	}
 	id := matchID(RuleManual, []string{mid.String()}, ids)
-	ev, err := json.Marshal(map[string]any{"movement_periods": []string{period(date)}, "linked_by_hand": true})
+	evidence := map[string]any{"movement_periods": []string{period(date)}, "linked_by_hand": true}
+	if afterClose {
+		// Linked after its period closed: not part of what the close froze.
+		evidence["after_close"] = true
+	}
+	ev, err := json.Marshal(evidence)
 	if err != nil {
 		return "", err
 	}

@@ -102,7 +102,8 @@ func (h *Handlers) UploadStatement(ctx context.Context, req apigen.UploadStateme
 	}
 	out := apigen.IngestResult{Status: apigen.IngestResultStatus(r.Status), FileHash: r.FileHash,
 		New: r.New, AlreadyPresent: r.AlreadyPresent,
-		Detail: optStr(r.Detail), Fingerprint: optStr(r.Fingerprint), LayoutId: optStr(r.LayoutID)}
+		Detail: optStr(r.Detail), Fingerprint: optStr(r.Fingerprint), LayoutId: optStr(r.LayoutID),
+		ClosedPeriod: apiClosedPeriod(r.ClosedPeriod)}
 	if r.Reason != "" {
 		reason := apigen.IngestResultReason(r.Reason)
 		out.Reason = &reason
@@ -151,6 +152,7 @@ func (h *Handlers) ListFiles(ctx context.Context, req apigen.ListFilesRequestObj
 			Filename: optStr(r.Filename), Status: apigen.UploadedFileStatus(r.Status), Reason: optStr(r.Reason),
 			Detail: optStr(r.Detail), LayoutId: optStr(r.LayoutID), ReceivedAt: r.ReceivedAt,
 			UploadedBy: r.UploadedBy, UploadedByEmail: optStr(r.UploadedByEmail)}
+		item.ClosedPeriod = apiClosedPeriod(r.ClosedPeriod)
 		if r.From != nil {
 			item.From = &openapi_types.Date{Time: *r.From}
 		}
@@ -234,4 +236,13 @@ func ReadFilePart(mr *multipart.Reader, max int64) (string, []byte, error) {
 		}
 		return part.FileName(), data, nil
 	}
+}
+
+// apiClosedPeriod shows a closed period with its last day included, as the
+// API shows every range.
+func apiClosedPeriod(p *ClosedPeriod) *apigen.PeriodRange {
+	if p == nil {
+		return nil
+	}
+	return &apigen.PeriodRange{From: openapi_types.Date{Time: p.Start}, To: openapi_types.Date{Time: p.End.AddDate(0, 0, -1)}}
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/arca/gateway"
 	"github.com/Tramo-Labs/hq/eng/core/internal/devseed"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
@@ -212,7 +213,7 @@ func newAPI(d *db.DB, ids *identity.Service, outbox string) (http.Handler, error
 		return nil, err
 	}
 	slog.Info("browser origins allowed", "origins", origins.List())
-	deps := app.Deps{DB: d, Identity: ids, CORSOrigins: origins, DocsDir: "api"}
+	deps := app.Deps{DB: d, Identity: ids, CORSOrigins: origins, DocsDir: "api", CloseNumbers: matching.CloseNumbers{}}
 	return app.New(deps, app.NewHandlers(deps))
 }
 

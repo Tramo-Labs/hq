@@ -22,6 +22,7 @@ import (
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/app"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/config"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -122,7 +123,7 @@ func serve() error {
 		ids.Mailer = &mail.Outbox{Path: cfg.MailOutbox}
 	}
 	deps := app.Deps{DB: d, Identity: ids, TrustedProxies: cfg.TrustedProxies, CORSOrigins: cfg.CORSOrigins, DocsDir: cfg.DocsDir,
-		InboxDomain: cfg.InboxDomain}
+		InboxDomain: cfg.InboxDomain, CloseNumbers: matching.CloseNumbers{}}
 	h, err := app.New(deps, app.NewHandlers(deps))
 	if err != nil {
 		return err

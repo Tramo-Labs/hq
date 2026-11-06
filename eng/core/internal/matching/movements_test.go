@@ -426,8 +426,10 @@ func TestPGNoRevertAfterClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	var asked []string
-	e.store.Closed = func(_ context.Context, _ pgx.Tx, periods []string) (bool, error) {
-		asked = append(asked, periods...)
+	e.store.Closed = func(_ context.Context, _ pgx.Tx, dates []time.Time) (bool, error) {
+		for _, d := range dates {
+			asked = append(asked, d.Format("2006-01"))
+		}
 		return true, nil
 	}
 	if _, err := e.decideAs(t, identity.RoleOperator, m, Revert, ""); !errors.Is(err, ErrClosed) {
@@ -436,13 +438,18 @@ func TestPGNoRevertAfterClose(t *testing.T) {
 	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementRevert, ""); !errors.Is(err, ErrClosed) {
 		t.Errorf("movement reverted in a closed period: %v", err)
 	}
-	if len(asked) != 2 || asked[0] != "2026-10" {
-		t.Errorf("periods checked: %v", asked)
+	if len(asked) < 2 || asked[0] != "2026-10" {
+		t.Errorf("dates checked: %v", asked)
 	}
-	// New decisions are not stopped by the close check (only reversions).
+	// With no close (the closes table is empty), the revert goes through.
 	e.store.Closed = nil
 	if _, err := e.decideAs(t, identity.RoleOperator, m, Revert, ""); err != nil {
 		t.Errorf("with no close, the revert goes through: %v", err)
+	}
+	// Closed again: the operator decides nothing new in Suggested.
+	e.store.Closed = func(context.Context, pgx.Tx, []time.Time) (bool, error) { return true, nil }
+	if _, err := e.decideAs(t, identity.RoleOperator, m, Approve, ""); !errors.Is(err, ErrClosed) {
+		t.Errorf("a new operator decision in a closed period: %v", err)
 	}
 }
 

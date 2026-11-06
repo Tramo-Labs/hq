@@ -120,6 +120,7 @@ type Match struct {
 	MovePeriods   []string
 	ItemPeriods   []string
 	LowConfidence bool // an item had data below the automatic threshold
+	AfterClose    bool // the client linked it after its period closed: not in that close
 }
 
 // Candidate is one option of a pending decision.

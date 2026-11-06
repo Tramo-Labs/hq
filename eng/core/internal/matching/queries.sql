@@ -103,6 +103,27 @@ on conflict (tenant_id, id) do nothing;
 insert into matching.pending (tenant_id, run_id, movement_id, tray, reason, candidates)
 values (app_current_tenant(), $1, $2, $3, $4, $5);
 
+-- name: MovementDays :many
+-- The days that have movements in a range, both ends included.
+select distinct date from ledger.movements
+ where date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date
+ order by date;
+
+-- name: MovementDatesOf :many
+select id, date from ledger.movements where id = any(sqlc.arg(ids)::uuid[]);
+
+-- name: LatestRunOf :one
+select id from matching.runs where period = $1 order by started_at desc, id limit 1;
+
+-- name: CarryPending :execrows
+-- A run of a month with a closed period keeps, for the movements of the
+-- closed days, what the run before it left pending: a run never changes
+-- what a close froze.
+insert into matching.pending (tenant_id, run_id, movement_id, tray, reason, candidates)
+select p.tenant_id, sqlc.arg(to_run)::uuid, p.movement_id, p.tray, p.reason, p.candidates
+  from matching.pending p join ledger.movements l on l.id = p.movement_id
+ where p.run_id = sqlc.arg(from_run)::uuid and l.date = any(sqlc.arg(days)::date[]);
+
 -- Roles --------------------------------------------------------------------
 
 -- name: MemberRole :one
@@ -112,8 +133,9 @@ select role::text from memberships where user_id = app_current_user() and tenant
 -- Match decisions ----------------------------------------------------------
 
 -- name: MatchTrayAndPeriods :one
-select tray, coalesce(array(select jsonb_array_elements_text(evidence->'movement_periods')), '{}')::text[] as periods
-  from matching.matches where id = $1;
+select m.tray, coalesce(array(select jsonb_array_elements_text(m.evidence->'movement_periods')), '{}')::text[] as periods,
+       coalesce(array(select l.date from ledger.movements l where l.id = any(m.movement_ids)), '{}')::date[] as dates
+  from matching.matches m where m.id = $1;
 
 -- name: MatchDecisionStates :many
 select tray, id, revision, coalesce(action, '')::text as action from matching.decision_state where match_id = $1;
@@ -236,6 +258,21 @@ select count(*) from matching.matches m
                 and d.tray = 'exception' and d.action is not null)
    and exists (select 1 from ledger.movements l
                 where l.id = any(m.movement_ids) and l.date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date);
+
+-- name: SuggestedPendingInRange :one
+-- What blocks a close: the Suggested tray of the range with no decision in
+-- effect. Suggested matches the operator has not decided (an escalated one
+-- has a decision, and waits in Exceptions), plus the movements waiting in
+-- Suggested (ambiguous, the client's "other" or reject). By the movement's
+-- date, both included; a match counts when any of its movements falls in.
+select ((select count(*) from matching.matches m
+          where m.tray = 'suggested'
+            and not exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id
+                             and d.tray = 'suggested' and d.action is not null)
+            and exists (select 1 from ledger.movements l where l.id = any(m.movement_ids)
+                         and l.date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date))
+      + (select count(*) from matching.waiting w join ledger.movements l on l.id = w.movement_id
+          where w.tray = 'suggested' and l.date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date))::int as pending;
 
 -- name: SuggestedPendingByReason :many
 -- What the operator's Suggested list shows for the range, by reason.
