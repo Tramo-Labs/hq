@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -249,6 +251,102 @@ func TestPGRevertAndDecideAgain(t *testing.T) {
 	}
 	if n := e.count(t, e.ctx, `select count(*) from matching.decisions where match_id = $1 and action = 'revert'`, m.ID); n != 3 {
 		t.Errorf("%d revert rows; want 3", n)
+	}
+}
+
+// barrier makes n concurrent decisions wait for each other after all their
+// checks and before their insert, so they really collide on the insert
+// instead of being serialized by luck.
+func (e pgEnv) barrier(t *testing.T, n int) {
+	t.Helper()
+	var arrived sync.WaitGroup
+	arrived.Add(n)
+	e.store.beforeInsert = func() {
+		arrived.Done()
+		done := make(chan struct{})
+		go func() { arrived.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			t.Error("barrier: the other decision never reached the insert")
+		}
+	}
+	t.Cleanup(func() { e.store.beforeInsert = nil })
+}
+
+// race runs the decisions at once and returns their errors.
+func race(fns ...func() error) []error {
+	errs := make([]error, len(fns))
+	var wg sync.WaitGroup
+	for i, fn := range fns {
+		wg.Add(1)
+		go func() { defer wg.Done(); errs[i] = fn() }()
+	}
+	wg.Wait()
+	return errs
+}
+
+// exactlyOneApplied checks one nil error and every other ErrAlreadyDecided
+// (a 409 for the API, never a 500).
+func exactlyOneApplied(t *testing.T, errs []error) {
+	t.Helper()
+	ok := 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			ok++
+		case errors.Is(err, ErrAlreadyDecided):
+		default:
+			t.Errorf("concurrent decision failed with %v; want ErrAlreadyDecided", err)
+		}
+	}
+	if ok != 1 {
+		t.Errorf("%d concurrent decisions applied; want exactly 1 (%v)", ok, errs)
+	}
+}
+
+// Two people decide the same match at the same time with different keys:
+// one decision is applied, the other is a conflict.
+func TestPGConcurrentMatchDecisions(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	m := suggested(r)
+	e.barrier(t, 2)
+	decide := func(a Action) func() error {
+		return func() error {
+			_, _, err := e.store.Record(e.ctx, DecisionInput{Key: uuid.NewString(), Match: m, Action: a})
+			return err
+		}
+	}
+	exactlyOneApplied(t, race(decide(Approve), decide(Reject)))
+	if n := e.count(t, e.ctx, `select count(*) from matching.decisions where match_id = $1`, m.ID); n != 1 {
+		t.Errorf("%d decisions stored; want 1", n)
+	}
+	if fail := t.Failed(); fail {
+		return
+	}
+	// Same for two reversions of the same decision (a fresh barrier).
+	e.barrier(t, 2)
+	exactlyOneApplied(t, race(decide(Revert), decide(Revert)))
+}
+
+// The same on a movement: two client decisions at once, one applies.
+func TestPGConcurrentMovementDecisions(t *testing.T) {
+	e := newPGEnv(t)
+	e.run(t)
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
+	e.setMembership(t, e.a, identity.RoleApprover)
+	e.barrier(t, 2)
+	decide := func(note string) func() error {
+		return func() error {
+			_, _, err := e.store.DecideMovement(e.ctx, MovementDecisionInput{Key: uuid.NewString(), MovementID: fee,
+				Action: MovementOther, Note: note})
+			return err
+		}
+	}
+	exactlyOneApplied(t, race(decide("gasto bancario"), decide("comisión")))
+	if n := e.count(t, e.ctx, `select count(*) from matching.movement_decisions where movement_id = $1`, fee); n != 1 {
+		t.Errorf("%d movement decisions stored; want 1", n)
 	}
 }
 
