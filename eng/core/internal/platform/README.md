@@ -112,7 +112,10 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   (`TestForwardedForOnlyFromTrustedProxies`,
   `TestSpoofedForwardedForDoesNotDodgeThrottles`). The old
   `TRUST_PROXY_HEADERS` switch, which trusted any peer, is refused at
-  startup. `0.0.0.0/0` is refused as a trusted proxy.
+  startup. Trusted proxy ranges broader than /8 (IPv4) or /32 (IPv6) are
+  refused; IPv4-mapped entries (`::ffff:...`) are judged and matched as the
+  IPv4 range they cover. `TestAuditStoresTheResolvedIP` proves the audit
+  log stores the resolved IP, not a spoofed header.
 
 ## Errors
 

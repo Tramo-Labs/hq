@@ -123,7 +123,18 @@ func trusted(peer netip.Addr, proxies []netip.Prefix) bool {
 	return false
 }
 
-// ParseTrustedProxies reads a comma separated list of IPs or CIDRs.
+// Narrowest allowed trusted proxy ranges: a proxy list names a few hosts,
+// never a slice of the internet.
+const (
+	minProxyBits4 = 8
+	minProxyBits6 = 32
+)
+
+// ParseTrustedProxies reads a comma separated list of IPs or CIDRs. IPv4
+// ranges broader than /8 and IPv6 broader than /32 are refused. IPv4-mapped
+// IPv6 entries (::ffff:a.b.c.d, ::ffff:0:0/96 is all of IPv4) are turned
+// into the IPv4 range they cover, so they match peers (which are unmapped)
+// and get the IPv4 floor.
 func ParseTrustedProxies(s string) ([]netip.Prefix, error) {
 	var out []netip.Prefix
 	for _, f := range strings.Split(s, ",") {
@@ -131,15 +142,28 @@ func ParseTrustedProxies(s string) ([]netip.Prefix, error) {
 		if f == "" {
 			continue
 		}
-		if p, err := netip.ParsePrefix(f); err == nil {
-			out = append(out, p.Masked())
-			continue
-		}
-		a, err := netip.ParseAddr(f)
+		p, err := netip.ParsePrefix(f)
 		if err != nil {
-			return nil, fmt.Errorf("trusted proxy %q is not an IP or CIDR", f)
+			a, aerr := netip.ParseAddr(f)
+			if aerr != nil {
+				return nil, fmt.Errorf("trusted proxy %q is not an IP or CIDR", f)
+			}
+			p = netip.PrefixFrom(a, a.BitLen())
 		}
-		out = append(out, netip.PrefixFrom(a, a.BitLen()))
+		if p.Addr().Is4In6() {
+			if p.Bits() < 96 {
+				return nil, fmt.Errorf("trusted proxy %q covers more than the IPv4-mapped range", f)
+			}
+			p = netip.PrefixFrom(p.Addr().Unmap(), p.Bits()-96)
+		}
+		floor := minProxyBits6
+		if p.Addr().Is4() {
+			floor = minProxyBits4
+		}
+		if p.Bits() < floor {
+			return nil, fmt.Errorf("trusted proxy %q is too broad (narrowest allowed /%d)", f, floor)
+		}
+		out = append(out, p.Masked())
 	}
 	return out, nil
 }

@@ -18,6 +18,13 @@ Tokens are never variables: `export HCLOUD_TOKEN=... CLOUDFLARE_API_TOKEN=...`.
 CI runs `terraform fmt -check`, `terraform init -backend=false` and
 `terraform validate` only. Nobody runs plan or apply from CI.
 
+**What has actually run:** `fmt -check`, `init -backend=false` and
+`validate` once, locally, with the official terraform 1.9.8 binary (SHA256
+checked against HashiCorp's sums): clean and "Success! The configuration is
+valid." qa could not reproduce it (no binary there) and the CI job has not
+run yet. `plan`, `apply` and the cloud-init on a real server have never run.
+See ADR 0005, "What has NOT run".
+
 ```
 terraform init
 terraform plan -var-file=staging.tfvars

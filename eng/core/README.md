@@ -21,6 +21,11 @@ with the privileged URL, then api and worker as `tramo_runtime`, the gateway
 with its own env file, and Caddy. Infra in `deploy/terraform` (what still
 needs accounts and credentials is listed in its README).
 
+**Not yet run:** the Docker image build, both compose files, the CI workflow,
+gosec and govulncheck have never run (no Docker on the dev machine, nothing
+pushed). Terraform fmt and validate ran once locally, not in CI or qa. Full
+table in ADR 0005, "What has NOT run". `make test` is what is proven.
+
 Swagger UI: http://localhost:8080/docs/ once the api is up.
 
 Environment: see `internal/platform/config`. Secrets (`MASTER_KEY`,

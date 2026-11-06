@@ -83,11 +83,6 @@ func Load() (Config, error) {
 	if c.TrustedProxies, err = httpx.ParseTrustedProxies(os.Getenv("TRUSTED_PROXIES")); err != nil {
 		return c, fmt.Errorf("TRUSTED_PROXIES: %w", err)
 	}
-	for _, p := range c.TrustedProxies {
-		if p.Bits() == 0 {
-			return c, errors.New("TRUSTED_PROXIES must not contain 0.0.0.0/0 or ::/0")
-		}
-	}
 	c.MigrateDatabaseURL = get("MIGRATE_DATABASE_URL", c.DatabaseURL)
 	defaultMigrate := "false"
 	if c.Env == "dev" {
