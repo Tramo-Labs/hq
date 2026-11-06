@@ -386,6 +386,19 @@ func (s *Service) Me(ctx context.Context, p Principal) (MeView, error) {
 	return v, err
 }
 
+// TenantIDs lists every tenant, in a system transaction: the one cross
+// tenant read, for platform jobs that do per tenant work (the monthly
+// fan out). Ids only; each tenant's work then runs under its own scope.
+func TenantIDs(ctx context.Context, d *db.DB) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := d.System(ctx, func(tx pgx.Tx) error {
+		var err error
+		ids, err = store.New(tx).ListTenantIDs(ctx)
+		return err
+	})
+	return ids, err
+}
+
 // ListMembers returns the members of the caller's tenant (under RLS).
 func (s *Service) ListMembers(ctx context.Context) ([]store.ListMembersRow, error) {
 	scope, ok := db.ScopeFrom(ctx)

@@ -460,6 +460,31 @@ func (q *Queries) ListMembershipsForUser(ctx context.Context, userID uuid.UUID) 
 	return items, nil
 }
 
+const listTenantIDs = `-- name: ListTenantIDs :many
+select id from tenants order by created_at, id
+`
+
+// Every tenant, for platform jobs that fan out per tenant (system only).
+func (q *Queries) ListTenantIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listTenantIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockTenant = `-- name: LockTenant :one
 select id from tenants where id = $1 for update
 `

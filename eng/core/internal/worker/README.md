@@ -41,6 +41,7 @@ redone by a second enqueue.
 | Kind | Key | Schedule | Does |
 |------|-----|----------|------|
 | `platform.maintenance` | day (Argentina) | hourly attempt, runs once a day | deletes idempotency keys older than 24 h, and refresh tokens, invitations and magic links expired more than 7 days ago |
+| `platform.month_close` | month closed (`YYYY-MM`, the month before now in Argentina) | hourly attempt, runs once a month | lists every tenant through `tramo_system` (`identity.TenantIDs`, ids only) and enqueues `matching.run_month` for each with `jobs.Insert`; those are unique by tenant and period, so a retry or a second fan out enqueues nothing (`TestMonthCloseEnqueuesEveryTenantOnce`, `TestMonthCloseClosesThePreviousArgentineMonth`; mutations checked: not unique, UTC instead of Argentina, a tenant skipped, the current month, each fails) |
 | `identity.magic_link` | email, tenant, request id, IP (one job per request) | on request (`POST /v1/auth/magic-link`) | looks the email up and, if it has an account, stores a 15 minute link and mails it; otherwise nothing. Needs `MAIL_OUTBOX` and `APP_BASE_URL` in the worker (`TestMagicLinkJobSendsThroughTheQueue`) |
 
 ## Tables

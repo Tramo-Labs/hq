@@ -101,10 +101,18 @@ func New(d *db.DB, opts ...Options) (Setup, error) {
 	if err := river.AddWorkerSafely(ws, &matching.MonthWorker{Store: &matching.PGStore{DB: d}, Config: matching.DefaultConfig}); err != nil {
 		return Setup{}, err
 	}
+	// platform: the monthly fan out of matching.run_month to every tenant.
+	if err := river.AddWorkerSafely(ws, &MonthCloseWorker{DB: d}); err != nil {
+		return Setup{}, err
+	}
 	periodic := []*river.PeriodicJob{
 		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return MaintenanceFor(time.Now()), nil },
 			// Hourly attempts, one run per day: the unique key does the rest.
+			&river.PeriodicJobOpts{RunOnStart: true}),
+		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) { return MonthCloseFor(time.Now()), nil },
+			// Hourly attempts, one run per closed month: the month is the key.
 			&river.PeriodicJobOpts{RunOnStart: true}),
 	}
 	return Setup{Workers: ws, Periodic: periodic}, nil

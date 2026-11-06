@@ -6,6 +6,10 @@
 -- name: CreateUser :one
 insert into users (email, password_hash, display_name) values ($1, $2, $3) returning id;
 
+-- name: ListTenantIDs :many
+-- Every tenant, for platform jobs that fan out per tenant (system only).
+select id from tenants order by created_at, id;
+
 -- name: GetUserProfile :one
 select email, display_name from users where id = $1;
 
