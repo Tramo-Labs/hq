@@ -58,6 +58,49 @@ No se reportan, porque ya se conocen: que la web no tenga login, que la web no l
 | Web en 1280 y 390 | Las 8 rutas (`/`, `/app`, `/app/aprobaciones`, `/app/resultados`, `/app/descargas`, `/operador`, `/operador/bandejas`, `/operador/resultados`) dan 200 y no tiran errores de consola. A 390 px ninguna tiene scroll horizontal (scrollWidth = 390): la marquesina de la landing desborda pero queda recortada. |
 | Swagger | `GET /docs/` da 200. |
 
+## Tanda 2: `make dev` de c256cf0 (06/11/2026)
+
+**Cómo se corrió.** Se tomó la rama worktree-backend en c256cf0 (a2dc814, que es lo que verificó qa, más F1) con `git archive` a un directorio temporal. Se corrió `make dev` (el binario `cmd/dev`) con `DEV_PG_PORT=54369`, `DEV_HTTP_ADDR=127.0.0.1:18080`, `DEV_GRPC_ADDR=127.0.0.1:19090` y `DEV_DATA_DIR` en /tmp. Se usaron los usuarios sembrados: owner, approver y viewer @alfa.test, accountant@estudio.test, operator@tramo.test y owner@beta.test. No hubo siembra manual.
+
+### Estado de la tanda 1
+
+| # | Estado en c256cf0 | Evidencia |
+|---|-------------------|-----------|
+| F1 | **resuelta** | Con la clave del owner y el mismo body, viewer y approver reciben 403. El replay del propio owner devuelve el mismo `id`, y con otro body da 422. Sobre una decisión, la clave del approver usada por el viewer o por el owner da 422 `key used for another decision`: no hay replay ajeno. |
+| F2 | sigue | La semilla carga partidas por adentro (`matching.items_loaded` en el audit) y deja 1 match en Auto y 1 en Sugerido. Pero el spec sigue sin un path para cargarlas (lista de paths igual a la de la tanda 1). Para un cliente real, todo sigue cayendo en Excepciones. |
+| F3 | sigue | El Galicia con `CLIENTE UNO` → `CLIENTE 1` da `new: 1, alreadyPresent: 9`. El export muestra dos filas de $250.000 con saldo 1.250.000 y comprobante 000101. Además infla las métricas: el denominador de automatización pasó de 10 a 21 movimientos. |
+| F4 | sigue | El client_other sembrado aparece en el Sugerido del operador. Si el operador lo decide, `revert` y `other` dan 403 y `link` da 400. |
+| F5 | sigue | Después de dos 403 del viewer, el audit tiene solo `identity.login, ledger.account_created, ledger.statement_accepted, matching.items_loaded, matching.movement_other, matching.run`. |
+| F6 | sigue | viewer y approver: movements, matches y audit dan 200, 200 y 200. |
+| F7 | sigue | El owner da accountant u operator: 403. |
+| F8 | sigue | Al invitado nuevo, el login le da 401. |
+| F9 | sigue | El mismo archivo en la cuenta Santander da 200 `duplicate`. |
+| F10 | sin repetir | No quise bloquear a los usuarios sembrados en medio de la pasada. |
+| F11, F12 | siguen | No hay paths nuevos en el spec. |
+| F13 | sigue, y más amplio | El operator da accountant, operator, **owner** y approver: 201 en los cuatro. |
+| F14, F19 | sin cambio | La web no cambió en esta rama. |
+| F15, F16, F17, F18 | siguen | Mismos mensajes que en la tanda 1. |
+
+### Fallas nuevas
+
+| # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
+|---|------|-----------|---------------|----------|------|------|
+| F20 | API | El cliente ve la bandeja Sugerido | owner y viewer de alfa: `GET /v1/matching/matches?tray=suggested` y `GET /v1/matching/pending?tray=suggested`. | Spec §1: "el cliente nunca ve la bandeja Sugerido ni reglas internas sin confirmar". 403 o lista vacía para owner, approver y viewer. | 200 con el match sugerido (regla `amount_tolerance` y el ajuste de redondeo). El pending trae 3 movimientos: los `ambiguous`, con todas las candidatas del operador, y el `client_other`. | alta |
+
+### Lo que pasó bien en la tanda 2
+
+| Escenario | Evidencia |
+|-----------|-----------|
+| Nadie decide Auto | owner y operator, `approve` sobre el match de Auto: 403. |
+| El cliente no decide Sugerido | owner, approver, viewer y accountant, `approve` sobre el sugerido: 403. |
+| Operador: Sugerido → Excepciones | `escalate` 201 (revision 1, role operator). El doble toque con la misma clave devuelve la misma decisión. Una segunda decisión del operador da 403. El match aparece en Excepciones. |
+| El operador no aprueba excepciones ajenas | operator `approve` en Excepciones: 403. viewer y accountant: 403. `escalate` en Excepciones: 400. |
+| El approver decide Excepciones | `approve` 201 (revision 1, role approver, tray exception). El doble toque con la misma clave da la misma respuesta y no aplica dos veces. Un segundo approve del owner da 409. El ítem sale de la bandeja y `openExceptions` baja de 6 a 5. |
+| Revertir | El owner revierte: revision 2. El viewer revierte: 403. En el audit quedan `matching.escalate`, `matching.approve` y `matching.revert`, cada uno con user_id e IP. |
+| Export de matches | Cada fila trae la regla, la versión, el ajuste `rounding:0.75` y la decisión vigente (quién, rol, cuándo, revisión). |
+| Contador con dos clientes sembrados | alfa tiene 21 filas, beta 10, y comparten 0. `/v1/tenants` muestra solo alfa y beta. |
+| Otro tenant por id | El owner de alfa sube a una cuenta de beta: 404. Login del owner de beta con el `tenantId` de alfa: 401. |
+
 ## Sin probar todavía
 
 Factura real con QR de ARCA (no hay fixture sintético de PDF). Decisiones sobre matches de Sugerido y Auto (no se puede, por F2). El cierre de período (`period_closed`). El gateway ARCA desde la API (el núcleo no lo usa en ningún endpoint del cliente). El login por cookie desde el navegador. El tope de 20 fallos por hora por email desde varias IPs.
