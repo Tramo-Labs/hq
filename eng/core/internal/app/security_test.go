@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/uuid"
@@ -21,6 +22,35 @@ func (c client) member(inviter account, tenant, slug, email, role string) accoun
 	}
 	m.access, m.refresh, m.tenant = l.str("accessToken"), l.str("refreshToken"), tenant
 	return m
+}
+
+// F1, qa's surviving mutation: the key is bound to the role too. The same
+// user, demoted from approver to viewer, repeating the key after a refresh
+// gets 403 and no replay of what the approver got.
+func TestIdempotencyKeyDoesNotOutliveARoleChange(t *testing.T) {
+	deps := newDeps(t)
+	c := client{t, serve(t, deps)}
+	own := c.registerAndLogin("molino-f1r", "owner@f1r.test")
+	ap := c.member(own, own.tenant, "approver-f1r", "approver@f1r.test", "approver")
+	acct := c.do("POST", "/v1/ledger/accounts", own.access, map[string]any{"bank": "bancor", "name": "CC"}, idem()...)
+	path := "/v1/ledger/accounts/" + acct.str("id") + "/statements"
+	key := uuid.NewString()
+	if r := c.upload(path, ap.access, "oct.csv", ledgerFixture(t, "bancor_ok.csv"), key); r.status != 201 {
+		t.Fatalf("approver upload: %d %s", r.status, r.raw)
+	}
+	if _, err := deps.DB.Pool.Exec(context.Background(),
+		`update memberships set role = 'viewer' where tenant_id = $1 and user_id = (select id from users where email = $2)`,
+		own.tenant, ap.email); err != nil {
+		t.Fatal(err)
+	}
+	ref := c.do("POST", "/v1/auth/refresh", "", map[string]any{"refreshToken": ap.refresh, "tokenDelivery": "body"})
+	if ref.status != 200 || ref.str("role") != "viewer" {
+		t.Fatalf("refresh after demotion: %d %s", ref.status, ref.raw)
+	}
+	r := c.upload(path, ref.str("accessToken"), "oct.csv", ledgerFixture(t, "bancor_ok.csv"), key)
+	if r.status != 403 || r.header.Get("Idempotent-Replayed") != "" {
+		t.Fatalf("demoted user repeating the key: %d %s (replayed=%q)", r.status, r.raw, r.header.Get("Idempotent-Replayed"))
+	}
 }
 
 // F1 (cliente, qa/ESCENARIOS.md): an Idempotency-Key reused by another user
