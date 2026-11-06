@@ -1,0 +1,87 @@
+# Staging and production on one VPS (Terraform in deploy/terraform).
+#   IMAGE=ghcr.io/<owner>/tramo-core IMAGE_TAG=<sha> APP_DOMAIN=<host> \
+#     docker compose -f docker-compose.prod.yml up -d
+# Secrets live in three files next to this one, never in the repo, mode 0600
+# (names in deploy/env-examples/):
+#   postgres.env  POSTGRES_PASSWORD, TRAMO_RUNTIME_PASSWORD, MIGRATE_DATABASE_URL
+#   core.env      APP_ENV, ARCA_ENV, DATABASE_URL (as tramo_runtime),
+#                 MASTER_KEY, JWT_SIGNING_KEY
+#   gateway.env   ARCA_ENV, ARCA_CUIT, ARCA_CERT, ARCA_KEY
+# ADR 0005.
+services:
+  postgres:
+    image: postgres:17-alpine
+    env_file: postgres.env
+    environment:
+      POSTGRES_USER: tramo_owner
+      POSTGRES_DB: tramo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Creates tramo_runtime on first init (password from postgres.env).
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tramo_owner -d tramo"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+    # Not published: only the compose network reaches it.
+
+  # Privileged, one shot: applies migrations and exits. The api never holds
+  # these credentials.
+  migrate:
+    image: ${IMAGE:?set IMAGE}:${IMAGE_TAG:?set IMAGE_TAG}
+    command: ["/app/api", "migrate"]
+    env_file: postgres.env
+    depends_on: { postgres: { condition: service_healthy } }
+    restart: "no"
+
+  api:
+    image: ${IMAGE}:${IMAGE_TAG}
+    command: ["/app/api"]
+    env_file: core.env
+    environment:
+      ARCA_GATEWAY_ADDR: arca-gateway:9090
+      TRUST_PROXY_HEADERS: "true"
+      MIGRATE_ON_START: "false"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      arca-gateway: { condition: service_started }
+    restart: unless-stopped
+    expose: ["8080"]
+
+  worker:
+    image: ${IMAGE}:${IMAGE_TAG}
+    command: ["/app/worker"]
+    env_file: core.env
+    environment:
+      ARCA_GATEWAY_ADDR: arca-gateway:9090
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  # The only container with the ARCA key. It does not get core.env.
+  arca-gateway:
+    image: ${IMAGE}:${IMAGE_TAG}
+    command: ["/app/arca-gateway"]
+    env_file: gateway.env
+    environment:
+      GRPC_ADDR: ":9090"
+    restart: unless-stopped
+    expose: ["9090"]
+
+  caddy:
+    image: caddy:2.8-alpine
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

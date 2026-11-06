@@ -25,10 +25,16 @@ import (
 
 // Config is the full configuration shared by the core binaries.
 type Config struct {
-	Env               string // dev, staging, prod
-	HTTPAddr          string // api listen address
-	GRPCAddr          string // arca-gateway listen address
-	DatabaseURL       string
+	Env         string // dev, staging, prod
+	HTTPAddr    string // api listen address
+	GRPCAddr    string // arca-gateway listen address
+	DatabaseURL string // runtime connection (tramo_runtime in production)
+	// MigrateDatabaseURL is the privileged connection used only by
+	// `api migrate` (ADR 0005). Defaults to DatabaseURL.
+	MigrateDatabaseURL string
+	// MigrateOnStart applies migrations when the api starts. True by
+	// default only in dev; elsewhere migrations are a separate step.
+	MigrateOnStart    bool
 	ArcaGateway       string // host:port of the gateway as seen by core
 	ArcaEnv           string // sim, homologacion, produccion
 	LogLevel          string
@@ -63,6 +69,12 @@ func Load() (Config, error) {
 	if c.Env != "dev" && c.DatabaseURL == "" {
 		return c, errors.New("DATABASE_URL is required outside dev")
 	}
+	c.MigrateDatabaseURL = get("MIGRATE_DATABASE_URL", c.DatabaseURL)
+	defaultMigrate := "false"
+	if c.Env == "dev" {
+		defaultMigrate = "true"
+	}
+	c.MigrateOnStart = get("MIGRATE_ON_START", defaultMigrate) == "true"
 	switch c.ArcaEnv {
 	case "sim", "homologacion", "produccion":
 	default:
@@ -109,6 +121,8 @@ func (c Config) LogValue() slog.Value {
 		slog.String("http_addr", c.HTTPAddr),
 		slog.String("grpc_addr", c.GRPCAddr),
 		slog.Bool("database_url_set", c.DatabaseURL != ""),
+		slog.Bool("separate_migrate_url", c.MigrateDatabaseURL != c.DatabaseURL),
+		slog.Bool("migrate_on_start", c.MigrateOnStart),
 		slog.String("arca_env", c.ArcaEnv),
 		slog.Bool("trust_proxy_headers", c.TrustProxyHeaders),
 		slog.Any("ephemeral_secrets", c.Ephemeral),

@@ -66,6 +66,37 @@ func TestRejectsBadValues(t *testing.T) {
 	}
 }
 
+// Outside dev the api never migrates by itself: migrations are a separate
+// step with a privileged URL (ADR 0005).
+func TestMigrationDefaults(t *testing.T) {
+	t.Setenv("APP_ENV", "dev")
+	t.Setenv("DATABASE_URL", "postgres://runtime@db/x")
+	t.Setenv("MIGRATE_DATABASE_URL", "")
+	t.Setenv("MIGRATE_ON_START", "")
+	c, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.MigrateOnStart || c.MigrateDatabaseURL != c.DatabaseURL {
+		t.Fatalf("dev: %v %q", c.MigrateOnStart, c.MigrateDatabaseURL)
+	}
+	t.Setenv("APP_ENV", "staging")
+	t.Setenv("ARCA_ENV", "homologacion")
+	t.Setenv("MASTER_KEY", key32)
+	t.Setenv("JWT_SIGNING_KEY", key32)
+	t.Setenv("MIGRATE_DATABASE_URL", "postgres://owner@db/x")
+	c, err = config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.MigrateOnStart || c.MigrateDatabaseURL != "postgres://owner@db/x" {
+		t.Fatalf("staging: %v %q", c.MigrateOnStart, c.MigrateDatabaseURL)
+	}
+	if s := c.String(); strings.Contains(s, "owner@") || strings.Contains(s, "runtime@") {
+		t.Fatalf("database URLs printed: %s", s)
+	}
+}
+
 func TestSecretsNeverPrinted(t *testing.T) {
 	t.Setenv("APP_ENV", "dev")
 	t.Setenv("MASTER_KEY", key32)

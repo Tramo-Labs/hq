@@ -1,0 +1,7 @@
+# Provider cache, state and real variable values never enter the repo.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+crash.log

@@ -1,0 +1,8 @@
+# Keep the build context small and free of local tools, state and secrets.
+bin/
+deploy/terraform/
+**/*_test.go
+**/testdata/
+.env
+*.pem
+*.key

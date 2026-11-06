@@ -1,0 +1,30 @@
+#cloud-config
+# First boot of the VPS: Docker with the compose plugin, a deploy user that
+# can run docker, unattended security upgrades, no password ssh.
+# No secret goes here: the stack's environment (.env with MASTER_KEY,
+# JWT_SIGNING_KEY, DATABASE_URL, and ARCA_* for the gateway) is written by
+# the operator or the deploy job, never by Terraform.
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - unattended-upgrades
+users:
+  - default
+  - name: deploy
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+ssh_pwauth: false
+runcmd:
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - usermod -aG docker deploy
+  - install -d -o deploy -g deploy -m 0750 /srv/tramo
+  - systemctl enable --now docker unattended-upgrades

@@ -57,8 +57,21 @@ func Main(m *testing.M) int {
 }
 
 // URL returns the connection string for a database on the test server.
-func URL(name string) string {
-	return fmt.Sprintf("postgres://postgres:postgres@localhost:%d/%s?sslmode=disable", port, name)
+func URL(name string) string { return URLAs(name, "postgres", "postgres") }
+
+// URLAs is URL for another login role (test-only credentials).
+func URLAs(name, user, password string) string {
+	return fmt.Sprintf("postgres://%s:%s@localhost:%d/%s?sslmode=disable", user, password, port, name)
+}
+
+// DatabaseName returns the name of the database d is connected to.
+func DatabaseName(t testing.TB, d *db.DB) string {
+	t.Helper()
+	var name string
+	if err := d.Pool.QueryRow(context.Background(), "select current_database()").Scan(&name); err != nil {
+		t.Fatal(err)
+	}
+	return name
 }
 
 // New returns a pool on a fresh database with every migration applied.

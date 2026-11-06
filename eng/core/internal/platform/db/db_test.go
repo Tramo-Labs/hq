@@ -229,6 +229,70 @@ func TestMigrationFixesPreexistingRoleAttributes(t *testing.T) {
 	}
 }
 
+// Production runs the api as tramo_runtime (migration 00004, ADR 0005): a
+// login role that owns nothing. Its raw pool reaches no table; only the two
+// role switches work.
+//
+// NEVER t.Parallel(): it creates a server wide role.
+func TestRuntimeLoginRoleReachesDataOnlyThroughTheRoleSwitch(t *testing.T) {
+	admin := dbtest.NewEmpty(t)
+	ctx := context.Background()
+	name := dbtest.DatabaseName(t, admin)
+	if _, err := admin.Pool.Exec(ctx, `create role tramo_runtime login password 'test-only' superuser bypassrls`); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Pool.Exec(ctx, `revoke connect on database `+name+` from tramo_runtime`)
+		_, _ = admin.Pool.Exec(ctx, `drop role if exists tramo_runtime`)
+	})
+	// Created dangerous on purpose: the migration must strip it.
+	if err := admin.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var super, bypass bool
+	if err := admin.Pool.QueryRow(ctx, `select rolsuper, rolbypassrls from pg_roles where rolname = 'tramo_runtime'`).Scan(&super, &bypass); err != nil {
+		t.Fatal(err)
+	}
+	if super || bypass {
+		t.Fatalf("tramo_runtime after migrating: rolsuper=%v rolbypassrls=%v", super, bypass)
+	}
+
+	rt, err := db.Open(ctx, dbtest.URLAs(name, "tramo_runtime", "test-only"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rt.Close()
+	a, b := seed(t, rt) // through System: tramo_system may write identity tables
+
+	// The raw pool, a stray query: no privilege on any table.
+	for _, q := range []string{`select count(*) from tenants`, `select count(*) from users`, `select count(*) from audit_log`} {
+		var n int
+		if err := rt.Pool.QueryRow(ctx, q).Scan(&n); err == nil {
+			t.Errorf("raw pool as tramo_runtime: %q returned %d rows", q, n)
+		}
+	}
+	// The tenant path still works and is scoped.
+	actx := db.WithScope(ctx, a)
+	err = rt.InTenant(actx, func(tx pgx.Tx) error {
+		var n int
+		if err := tx.QueryRow(actx, `select count(*) from tenants`).Scan(&n); err != nil {
+			return err
+		}
+		if n != 1 {
+			t.Errorf("tenant a sees %d tenants", n)
+		}
+		var other string
+		err := tx.QueryRow(actx, `select name from tenants where id = $1`, b.TenantID).Scan(&other)
+		if !errors.Is(err, pgx.ErrNoRows) {
+			t.Errorf("tenant a read tenant b: %q %v", other, err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Every table, including the ones other modules add later, must have row
 // level security enabled and forced.
 func TestEveryTableHasForcedRLS(t *testing.T) {

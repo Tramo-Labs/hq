@@ -15,6 +15,12 @@ make sec         # gosec + govulncheck (make tools-sec installs them)
 make up          # docker compose: postgres, api, worker, arca-gateway, mailpit
 ```
 
+Deploy (ADR 0005): CI publishes `ghcr.io/<owner>/tramo-core:<sha>` on main.
+On a server, `deploy/docker-compose.prod.yml` runs a one shot `api migrate`
+with the privileged URL, then api and worker as `tramo_runtime`, the gateway
+with its own env file, and Caddy. Infra in `deploy/terraform` (what still
+needs accounts and credentials is listed in its README).
+
 Swagger UI: http://localhost:8080/docs/ once the api is up.
 
 Environment: see `internal/platform/config`. Secrets (`MASTER_KEY`,

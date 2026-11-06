@@ -58,9 +58,10 @@ tenant, so "a code bug cannot cross tenants" held only for code that chose
   that creates its own schema grants `tramo_app` usage and table rights in
   its migration. With
   a non superuser owner (prod, managed Postgres), a stray query on the raw
-  pool sees no rows. A superuser owner still bypasses RLS, so production
-  must connect as a non superuser owner; the raw pool is used only to
-  migrate.
+  pool sees no rows. A superuser owner still bypasses RLS. (Superseded by
+  ADR 0005: a non superuser owner cannot run the migrations at all, so
+  production migrates with a privileged URL in a separate step and runs the
+  api as `tramo_runtime`, which owns nothing and has no table privileges.)
 - When migration 00003 runs on a database, it alters both application roles
   to `NOSUPERUSER NOBYPASSRLS NOLOGIN`, also when they already existed with
   other attributes. Two tests cover it: `TestApplicationRolesCannotBypassRLS`

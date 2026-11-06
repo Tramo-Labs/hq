@@ -60,6 +60,11 @@ create policy things_tenant on things to tramo_app
 Also `alter table things force row level security;`: a test fails for any
 table without it (`TestEveryTableHasForcedRLS`).
 
+In production the pool logs in as `tramo_runtime` (migration 00004, ADR
+0005): it owns nothing and has no table privileges, so the raw pool is
+useless by design; migrations run separately with `api migrate` and a
+privileged URL.
+
 `System` runs as `tramo_system`, which reaches only the seven platform and
 identity tables granted in migration 00003 and nothing a module adds later.
 Only `internal/platform/db`, `internal/platform/idempotency` and

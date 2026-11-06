@@ -1,0 +1,2 @@
+# Real environment files of a deployment never enter the repo.
+*.env
