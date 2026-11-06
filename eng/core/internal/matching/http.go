@@ -94,9 +94,35 @@ func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingReques
 	return out, nil
 }
 
-// ListOpenItems is wired in the next commit; until then it answers 501.
+// ListOpenItems lists what "link by hand" offers: the items no match in
+// effect settles. Every member of the tenant sees them.
 func (h *Handlers) ListOpenItems(ctx context.Context, req apigen.ListOpenItemsRequestObject) (apigen.ListOpenItemsResponseObject, error) {
-	return nil, &httpx.Error{Status: http.StatusNotImplemented, Code: "not_implemented", Detail: "not implemented yet"}
+	dir := ""
+	if req.Params.Direction != nil {
+		dir = string(*req.Params.Direction)
+	}
+	items, more, err := h.store.OpenItems(ctx, periodOf(req.Params.Period), dir, listLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := apigen.ListOpenItems200JSONResponse{Items: []apigen.OpenItem{}, Truncated: more}
+	for _, it := range items {
+		oi := apigen.OpenItem{Id: it.ID, Source: it.Source, SourceId: it.SourceID, Kind: it.Kind,
+			Date: openapi_types.Date{Time: it.Date}, Amount: int64(it.Amount), Refs: it.Refs,
+			Confidence: float32(it.Confidence), InvoiceId: it.InvoiceID}
+		if oi.Refs == nil {
+			oi.Refs = []string{}
+		}
+		if it.Due != nil {
+			oi.Due = &openapi_types.Date{Time: *it.Due}
+		}
+		if it.Party != "" {
+			p := it.Party
+			oi.Party = &p
+		}
+		out.Items = append(out.Items, oi)
+	}
+	return out, nil
 }
 
 func (h *Handlers) DecideMatch(ctx context.Context, req apigen.DecideMatchRequestObject) (apigen.DecideMatchResponseObject, error) {

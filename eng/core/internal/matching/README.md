@@ -134,6 +134,15 @@ on the movement itself with `DecideMovement`
 - Only a movement that the latest run of its month left in Exceptions
   without a candidate can be decided (`not_in_exceptions`).
 
+What `link` can offer comes from `GET /v1/matching/items` (`OpenItems`,
+any member): the items no match in effect settles. A match is in effect
+when it is automatic, approved in either tray, or a manual link in effect
+(`matchInEffect`, the same rule the items guard of migration 00104
+applies). A suggested match not yet approved does not settle its items.
+Filters: `period` (item date in that month; without it every open item,
+since an invoice of one month is often paid in the next) and `direction`
+(`in` positive, `out` negative). Oldest first, up to 500 with `truncated`.
+
 After the client's `other` the movement is the operator's (F4, migration
 00106). The operator answers with:
 

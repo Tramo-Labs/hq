@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -285,6 +286,71 @@ func movementTurn(a MovementAction, client bool, cur MovementAction, curRole str
 	return nil
 }
 
+// matchInEffect is the SQL condition, on a match aliased m, of a match
+// that settles its items now: automatic, approved in either tray, or a
+// manual link in effect. The database guard on items (migration 00104)
+// states the same rule.
+const matchInEffect = `(m.tray = 'auto'
+	or exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id and d.action = 'approve')
+	or (m.tray = 'manual' and exists (select 1 from matching.movement_decision_state s
+	     where s.tenant_id = m.tenant_id and s.match_id = m.id and s.action = 'link')))`
+
+// OpenItem is an item no match in effect settles.
+type OpenItem struct {
+	ID         uuid.UUID
+	Source     string
+	SourceID   string
+	Kind       string
+	Date       time.Time
+	Due        *time.Time
+	Amount     money.Amount
+	Refs       []string
+	Party      string
+	Confidence float64
+	InvoiceID  *uuid.UUID
+}
+
+// OpenItems lists the items no match in effect settles, oldest first: what
+// "link by hand" offers. period (YYYY-MM) keeps the items dated in that
+// month, "" all; direction "in" keeps positive amounts, "out" negative, ""
+// both. Up to limit rows; the bool says there were more.
+func (s *PGStore) OpenItems(ctx context.Context, period, direction string, limit int) ([]OpenItem, bool, error) {
+	var out []OpenItem
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			select i.id, i.source, i.source_id, i.kind, i.date, i.due, i.amount, i.refs, i.party, i.confidence, i.invoice_id
+			  from matching.items i
+			 where not exists (select 1 from matching.matches m where i.id = any(m.item_ids) and `+matchInEffect+`)
+			   and ($1 = '' or to_char(i.date, 'YYYY-MM') = $1)
+			   and ($2 = '' or ($2 = 'in' and i.amount > 0) or ($2 = 'out' and i.amount < 0))
+			 order by i.date, i.id
+			 limit $3`, period, direction, limit+1)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var it OpenItem
+			var amount int64
+			var conf float32
+			if err := rows.Scan(&it.ID, &it.Source, &it.SourceID, &it.Kind, &it.Date, &it.Due, &amount, &it.Refs,
+				&it.Party, &conf, &it.InvoiceID); err != nil {
+				return err
+			}
+			it.Amount, it.Confidence = money.Amount(amount), math.Round(float64(conf)*1e4)/1e4 // real column: no float32 noise
+			out = append(out, it)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	if len(out) > limit {
+		return out[:limit], true, nil
+	}
+	return out, false, nil
+}
+
 // linkByHand checks the items and creates (or finds) the manual match.
 func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amount, date time.Time, items []uuid.UUID) (string, error) {
 	slices.SortFunc(items, func(a, b uuid.UUID) int { return compareUUID(a, b) })
@@ -302,12 +368,8 @@ func linkByHand(ctx context.Context, tx pgx.Tx, mid uuid.UUID, amount money.Amou
 		return "", ErrLinkDoesNotAdd
 	}
 	var taken bool
-	if err := tx.QueryRow(ctx, `
-		select exists (select 1 from matching.matches m where m.item_ids && $1 and (
-		  m.tray = 'auto'
-		  or exists (select 1 from matching.decision_state d where d.tenant_id = m.tenant_id and d.match_id = m.id and d.action = 'approve')
-		  or (m.tray = 'manual' and exists (select 1 from matching.movement_decision_state s
-		       where s.tenant_id = m.tenant_id and s.match_id = m.id and s.action = 'link'))))`, items).Scan(&taken); err != nil {
+	if err := tx.QueryRow(ctx,
+		`select exists (select 1 from matching.matches m where m.item_ids && $1 and `+matchInEffect+`)`, items).Scan(&taken); err != nil {
 		return "", err
 	}
 	if taken {

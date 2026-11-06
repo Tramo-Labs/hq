@@ -3,6 +3,7 @@ package matching
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 )
 
@@ -562,4 +564,77 @@ func (e pgEnv) operatorQueue(t *testing.T) map[string]PendingRow {
 	t.Helper()
 	e.setMembership(t, e.a, identity.RoleOperator)
 	return e.pendingIDs(t, Suggested)
+}
+
+// openSources lists the source ids of the open items for the filters.
+func (e pgEnv) openSources(t *testing.T, ctx context.Context, period, direction string) []string {
+	t.Helper()
+	items, _, err := e.store.OpenItems(ctx, period, direction, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, it := range items {
+		out = append(out, it.SourceID)
+	}
+	return out
+}
+
+// What "link by hand" offers: the items no match in effect settles. An
+// automatic match settles; a suggested one not yet approved does not; a
+// manual link settles while it is in effect.
+func TestPGOpenItems(t *testing.T) {
+	e := newPGEnv(t)
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
+	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"CH-12345", "FC-A-1", "FC-A-2"}) {
+		t.Errorf("before any run: %v", got)
+	}
+	e.run(t) // the cheque and FC-A-1 match automatically; FC-A-2 is only suggested
+	// A debit note loaded after the run: open until something settles it.
+	if _, err := e.store.UpsertItems(e.ctx, "erp", []ItemIn{
+		{SourceID: "ND-1", Kind: "payable", Date: day(2), Amount: -850000, Confidence: 1}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"ND-1", "FC-A-2"}) {
+		t.Errorf("after the run: %v", got)
+	}
+	if got := e.openSources(t, e.ctx, "", "in"); !slices.Equal(got, []string{"FC-A-2"}) {
+		t.Errorf("money in: %v", got)
+	}
+	if got := e.openSources(t, e.ctx, "2026-10", "out"); !slices.Equal(got, []string{"ND-1"}) {
+		t.Errorf("money out in October: %v", got)
+	}
+	if got := e.openSources(t, e.ctx, "2026-09", ""); len(got) != 0 {
+		t.Errorf("September: %v", got)
+	}
+	if got := e.openSources(t, e.ctxB, "", ""); len(got) != 0 {
+		t.Errorf("tenant b sees a's items: %v", got)
+	}
+
+	// A manual link settles the item while it is in effect.
+	items, _, _ := e.store.OpenItems(e.ctx, "", "out", 10)
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementLink, "", items[0].ID.String()); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"FC-A-2"}) {
+		t.Errorf("after the link: %v", got)
+	}
+	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementRevert, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.openSources(t, e.ctx, "", ""); !slices.Equal(got, []string{"ND-1", "FC-A-2"}) {
+		t.Errorf("after reverting the link: %v", got)
+	}
+
+	// Through the API, as a viewer: the fields the portal needs.
+	e.setMembership(t, e.a, identity.RoleViewer)
+	res, err := NewHandlers(e.store).ListOpenItems(e.ctx, apigen.ListOpenItemsRequestObject{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := res.(apigen.ListOpenItems200JSONResponse)
+	if len(got.Items) != 2 || got.Truncated || got.Items[0].SourceId != "ND-1" || got.Items[0].Amount != -850000 ||
+		got.Items[0].Confidence != 1 || got.Items[0].Refs == nil || got.Items[0].Date.Format("2006-01-02") != "2026-10-02" {
+		t.Errorf("api: %+v", got)
+	}
 }
