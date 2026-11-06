@@ -6,31 +6,35 @@ nothing of it reaches matching.
 
 ## The checks, in order
 
-1. **File hash.** SHA-256 of the bytes. The same file already accepted for the
-   tenant is `duplicate` and creates nothing (Duotach case 4). A quarantined
-   file does not burn its hash: once its layout is fixed it can be uploaded
-   again.
-2. **Layout fingerprint.** The first header-like row (three or more cells,
+What the file is comes before whether it was seen: the layout, the rows and
+the bank and account are checked first, so the same bytes sent to an
+account of another bank are `bank_mismatch`, not `duplicate` (F9). Then:
+the **file hash** (SHA-256 of the bytes): the same file already accepted
+for the tenant is `duplicate` and creates nothing (Duotach case 4). A
+quarantined file does not burn its hash: once its layout is fixed it can be
+uploaded again. Then balances, chain and movement keys.
+
+1. **Layout fingerprint.** The first header-like row (three or more cells,
    none a date or an amount) is normalized (lowercase, no accents, single
    spaces, trailing empty cells dropped) and hashed with the delimiter. Any
    added, removed, renamed or reordered column changes it. An unknown
    fingerprint is `unknown_layout` and the detail carries the new
    fingerprint, never the header contents.
-3. **Bank and account.** The layout's bank has to be the account's bank; when
+2. **Bank and account.** The layout's bank has to be the account's bank; when
    the file states an account number it has to match the registered one.
-4. **Rows.** Every row has to parse: date, amounts in the layout's decimal
+3. **Rows.** Every row has to parse: date, amounts in the layout's decimal
    style (see `internal/money`), exactly one of debit and credit. One bad row
    stops the file (`row_parse`, with line and column).
-5. **Balances.** Opening plus credits minus debits equals closing; when rows
+4. **Balances.** Opening plus credits minus debits equals closing; when rows
    carry a running balance, each one equals the previous plus the movement;
    a stated closing equals the last running balance. A file with no balance
    evidence at all is refused. A layout that always states its balances
    (Santander trailer, Mercado Pago total row) without them is `incomplete`
    (Duotach case 6).
-6. **Chain.** When a statement starts after the previous one of the account
+5. **Chain.** When a statement starts after the previous one of the account
    ends, its opening has to equal the previous closing (`chain_gap`).
    Overlapping exports skip this check: deduplication handles them.
-7. **Movement keys.** SHA-256 of account, date, amount, running balance,
+6. **Movement keys.** SHA-256 of account, date, amount, running balance,
    normalized description, references and the occurrence number among
    identical movements of the same file. The same movement in two
    overlapping exports gets the same key and is stored once; two genuine

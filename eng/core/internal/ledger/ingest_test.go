@@ -168,6 +168,24 @@ func TestBalanceErrorNamesTheLine(t *testing.T) {
 	}
 }
 
+// F9: the same bytes uploaded to an account of another bank are refused as
+// a bank mismatch, not reported as a duplicate the client would read as
+// "already loaded".
+func TestBankMismatchBeforeDuplicate(t *testing.T) {
+	s := NewMemStore()
+	in := &Ingester{Store: s}
+	if r := ingest(t, in, Galicia, "galicia-acc", "galicia_ok.csv"); r.Status != Accepted {
+		t.Fatalf("first upload %+v", r)
+	}
+	r := ingest(t, in, Santander, "santander-acc", "galicia_ok.csv")
+	if r.Status != Quarantined || r.Reason != ReasonBankMismatch {
+		t.Fatalf("same file to a santander account: %s %s (%s)", r.Status, r.Reason, r.Detail)
+	}
+	if r := ingest(t, in, Galicia, "galicia-acc", "galicia_ok.csv"); r.Status != Duplicate {
+		t.Errorf("same file, same bank: %s", r.Status)
+	}
+}
+
 // Duotach case 4: re-importing the same file creates nothing.
 func TestReimportSameFile(t *testing.T) {
 	s := NewMemStore()
