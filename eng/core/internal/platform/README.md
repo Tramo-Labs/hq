@@ -111,7 +111,7 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   `*`; wildcards, paths and `null` are refused at startup, and http outside
   dev. A foreign origin gets no CORS header and its preflight is a 403
   before the router (`TestCORSGivesForeignOriginsNothing`,
-  `TestCORSOnTheRouter`; mutations checked: allowing any origin, letting a
+  `TestCORSOnTheRouter`, `TestExportFileNameIsReadableFromThePortal`; exposed: `Retry-After`, `X-Request-Id`, `Content-Disposition`; mutations checked: allowing any origin, letting a
   foreign preflight through and unwiring the middleware each fail a test).
 - Problem details never carry submitted values, personal data or amounts.
   `readyz` logs the cause and answers without it.
