@@ -282,7 +282,8 @@ func TestTenantJobSeesOnlyItsTenant(t *testing.T) {
 
 func TestPeriodicScheduleUsesTodaysKey(t *testing.T) {
 	setup, err := worker.New(nil)
-	if err != nil || len(setup.Periodic) != 2 {
+	// maintenance, the monthly fan out and the fortnightly close mark.
+	if err != nil || len(setup.Periodic) != 3 {
 		t.Fatalf("setup: %v %d", err, len(setup.Periodic))
 	}
 	// 01:30 UTC is still the previous day in Argentina (GMT-3).

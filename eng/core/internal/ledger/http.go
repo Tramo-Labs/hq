@@ -146,7 +146,8 @@ func (h *Handlers) ListFiles(ctx context.Context, req apigen.ListFilesRequestObj
 	}
 	out := apigen.ListFiles200JSONResponse{Items: []apigen.UploadedFile{}, Truncated: more}
 	for _, r := range rows {
-		item := apigen.UploadedFile{Id: r.ID, AccountId: r.AccountID, AccountName: r.AccountName, Bank: apigen.Bank(r.Bank),
+		accountID, accountName := r.AccountID, r.AccountName // absent only for unrouted, which this store does not hold yet
+		item := apigen.UploadedFile{Id: r.ID, AccountId: &accountID, AccountName: &accountName, Bank: apigen.Bank(r.Bank),
 			Filename: optStr(r.Filename), Status: apigen.UploadedFileStatus(r.Status), Reason: optStr(r.Reason),
 			Detail: optStr(r.Detail), LayoutId: optStr(r.LayoutID), ReceivedAt: r.ReceivedAt,
 			UploadedBy: r.UploadedBy, UploadedByEmail: optStr(r.UploadedByEmail)}

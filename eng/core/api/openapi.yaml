@@ -726,7 +726,14 @@ paths:
       operationId: listCloses
       tags: [closes]
       summary: The closed periods of the active tenant, newest first
-      description: Every role of the tenant sees them. Each carries its frozen summary.
+      description: |
+        Every role of the tenant sees them. Each carries its frozen summary.
+        Pages of 50; pass nextCursor as cursor for the next one.
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string, maxLength: 64 }
       responses:
         "200":
           description: closes
@@ -740,6 +747,7 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Close" }
                   nextCursor: { type: string, nullable: true }
+        "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
     post:
       operationId: closePeriod
@@ -1278,6 +1286,13 @@ components:
         openExceptionsCapped:
           type: boolean
           description: True when the count stopped at its cap (1000 of each kind).
+        toClose:
+          type: array
+          description: |
+            Periods that are over and not closed yet ("para cerrar"), oldest
+            first, as the fortnightly job marked them. Nothing closes by
+            itself: an operator closes each one.
+          items: { $ref: "#/components/schemas/PeriodRange" }
     Metric:
       type: object
       required: [key, label, status, value, unit, period, source, list]
@@ -1510,6 +1525,12 @@ components:
       additionalProperties: false
       properties:
         periodStart: { type: string, format: date, example: "2026-11-01" }
+    PeriodRange:
+      type: object
+      required: [from, to]
+      properties:
+        from: { type: string, format: date, example: "2026-10-01", description: The period's first day. }
+        to: { type: string, format: date, example: "2026-10-15", description: The period's last day, included. }
     Close:
       type: object
       required: [id, cadence, periodStart, periodEnd, closedAt, closedBy, summary]
@@ -1532,7 +1553,9 @@ components:
           description: |
             The numbers of the period as they were when it closed, frozen:
             the same metrics as the results panel, each with its source and
-            the list it comes from. Open Exceptions are in here.
+            the list it comes from. Open Exceptions are in here. Each
+            metric's period is the range, first and last day included
+            (2026-11-01/2026-11-15).
           items: { $ref: "#/components/schemas/Metric" }
     CloseRefused:
       allOf:
@@ -1580,10 +1603,14 @@ components:
             Set when quarantined. movement_conflict: a line has the identity of a stored movement
             (account, date, amount, running balance, references) but another description; it is
             never stored twice and never overwritten, an operator looks at it. unsupported_format:
-            not a file kind statements come in. unrouted: arrived without an account (by mail) and
+            not a file kind statements come in, or a spreadsheet past the size, row or cell
+            limits, or whose sheets cannot be told apart. unrouted: arrived without an account (by mail) and
             no single account of the tenant matches its bank and number. period_closed: it brings
-            new movements dated in a closed period; nothing enters (the detail names the range).
+            new movements dated in a closed period; nothing enters (closedPeriod names the range).
           enum: [unknown_layout, bank_mismatch, account_mismatch, row_parse, incomplete, balance_mismatch, chain_gap, empty, movement_conflict, unsupported_format, unrouted, period_closed]
+        closedPeriod:
+          allOf: [{ $ref: "#/components/schemas/PeriodRange" }]
+          description: With period_closed, the closed period the file's new movements fall in (the earliest one).
         detail: { type: string }
         fileHash: { type: string, description: SHA-256 of the file in hex. }
         fingerprint: { type: string }
@@ -1592,15 +1619,24 @@ components:
         alreadyPresent: { type: integer, description: Movements an earlier upload already had. }
     UploadedFile:
       type: object
-      required: [id, accountId, accountName, bank, status, receivedAt]
+      required: [id, bank, status, receivedAt]
       properties:
         id: { type: string, format: uuid }
-        accountId: { type: string, format: uuid }
-        accountName: { type: string }
+        accountId:
+          type: string
+          format: uuid
+          description: |
+            The account the file went to. Absent only when it is quarantined
+            as unrouted: it arrived without an account (by mail) and no
+            single account of the tenant matches its bank and number.
+        accountName: { type: string, description: Absent exactly when accountId is. }
         bank: { $ref: "#/components/schemas/Bank" }
         filename: { type: string }
         status: { type: string, enum: [accepted, quarantined] }
         reason: { type: string, description: Set when quarantined (see IngestResult.reason). }
+        closedPeriod:
+          allOf: [{ $ref: "#/components/schemas/PeriodRange" }]
+          description: With reason period_closed, the closed period it hit.
         detail: { type: string }
         layoutId: { type: string }
         from: { type: string, format: date, description: First day of the statement, when accepted. }

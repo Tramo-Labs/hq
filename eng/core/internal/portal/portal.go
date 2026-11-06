@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
+	"github.com/Tramo-Labs/hq/eng/core/internal/closes"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
@@ -34,6 +35,8 @@ type Handlers struct {
 	Identity *identity.Service
 	Ledger   *ledger.PGStore
 	Matching *matching.PGStore
+	// Closes lists the periods marked to close (nil: none shown).
+	Closes *closes.Service
 }
 
 var errNotImplemented = &httpx.Error{Status: http.StatusNotImplemented, Code: "not_implemented",
@@ -105,6 +108,17 @@ func (h *Handlers) status(ctx context.Context, role string) (apigen.TenantStatus
 	}
 	st.OpenExceptions = len(matches) + len(movements)
 	st.OpenExceptionsCapped = len(matches) >= OpenCap || len(movements) >= OpenCap
+	if h.Closes != nil {
+		due, err := h.Closes.PendingDue(ctx)
+		if err != nil {
+			return apigen.TenantStatus{}, err
+		}
+		toClose := make([]apigen.PeriodRange, 0, len(due))
+		for _, d := range due {
+			toClose = append(toClose, closes.ToAPIRange(d.Period))
+		}
+		st.ToClose = &toClose
+	}
 	return st, nil
 }
 

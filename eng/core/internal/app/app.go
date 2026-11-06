@@ -53,6 +53,11 @@ type Deps struct {
 	// DenialWindow coalesces repeated 403s of one user on one operation
 	// into the first one's audit row (DefaultDenialWindow when zero).
 	DenialWindow time.Duration
+	// CloseNumbers gives a period's pending Suggested and summary (datos,
+	// from matching). Nil until it exists: closing answers 501.
+	CloseNumbers closes.Numbers
+	// Now is the clock of the period close (time.Now when nil).
+	Now func() time.Time
 }
 
 // DefaultDenialWindow is how long repeats of a denial count on its row.
@@ -81,6 +86,7 @@ type (
 
 // NewHandlers builds the module handlers.
 func NewHandlers(d Deps) *Handlers {
+	closeSvc := &closes.Service{DB: d.DB, Numbers: d.CloseNumbers, Now: d.Now}
 	return &Handlers{
 		platformHandlers: platformHandlers{ready: d.DB.Ping},
 		Handlers:         identity.NewHandlers(d.Identity),
@@ -91,8 +97,8 @@ func NewHandlers(d Deps) *Handlers {
 		matchingAPI:  matching.NewHandlers(&matching.PGStore{DB: d.DB}),
 		// Read views over the modules above, under the caller's scope.
 		portalAPI: &portal.Handlers{DB: d.DB, Identity: d.Identity,
-			Ledger: &ledger.PGStore{DB: d.DB}, Matching: &matching.PGStore{DB: d.DB}},
-		closesAPI: closes.NewHandlers(),
+			Ledger: &ledger.PGStore{DB: d.DB}, Matching: &matching.PGStore{DB: d.DB}, Closes: closeSvc},
+		closesAPI: closes.NewHandlers(closeSvc),
 	}
 }
 

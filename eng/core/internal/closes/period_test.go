@@ -68,3 +68,36 @@ func TestPeriodOver(t *testing.T) {
 		t.Error("over by UTC while still the 15th in Argentina")
 	}
 }
+
+// The second fortnight ends with the month, whatever its length: it is not
+// over during its last day (30, 31, 28 or 29 Feb) and is over at midnight
+// of the 1st, in Argentina's time, also across a year end.
+func TestSecondFortnightOverAtMonthEnd(t *testing.T) {
+	art := time.FixedZone("ART", -3*3600)
+	for _, c := range []struct{ start, last, next string }{
+		{"2026-11-16", "2026-11-30", "2026-12-01"},
+		{"2026-10-16", "2026-10-31", "2026-11-01"},
+		{"2026-12-16", "2026-12-31", "2027-01-01"},
+		{"2027-02-16", "2027-02-28", "2027-03-01"},
+		{"2028-02-16", "2028-02-29", "2028-03-01"},
+	} {
+		p, err := PeriodStarting(day(c.start), Fortnight)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !p.LastDay().Equal(day(c.last)) {
+			t.Errorf("%s: last day %s, want %s", c.start, p.LastDay(), c.last)
+		}
+		last, next := day(c.last), day(c.next)
+		if p.OverAt(time.Date(last.Year(), last.Month(), last.Day(), 23, 59, 59, 0, art)) {
+			t.Errorf("%s: over during its last day %s", c.start, c.last)
+		}
+		if !p.OverAt(time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, art)) {
+			t.Errorf("%s: not over at midnight of %s", c.start, c.next)
+		}
+		// 02:59 UTC on the 1st is still the month's last day there.
+		if p.OverAt(time.Date(next.Year(), next.Month(), next.Day(), 2, 59, 0, 0, time.UTC)) {
+			t.Errorf("%s: over by UTC on %s while still %s in Argentina", c.start, c.next, c.last)
+		}
+	}
+}

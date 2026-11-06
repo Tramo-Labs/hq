@@ -109,6 +109,10 @@ func New(d *db.DB, opts ...Options) (Setup, error) {
 	if err := river.AddWorkerSafely(ws, &MonthCloseWorker{DB: d}); err != nil {
 		return Setup{}, err
 	}
+	// closes: the fortnightly "para cerrar" mark of every tenant.
+	if err := river.AddWorkerSafely(ws, &CloseDueWorker{DB: d}); err != nil {
+		return Setup{}, err
+	}
 	periodic := []*river.PeriodicJob{
 		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return MaintenanceFor(time.Now()), nil },
@@ -117,6 +121,10 @@ func New(d *db.DB, opts ...Options) (Setup, error) {
 		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return MonthCloseFor(time.Now()), nil },
 			// Hourly attempts, one run per closed month: the month is the key.
+			&river.PeriodicJobOpts{RunOnStart: true}),
+		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) { return CloseDueFor(time.Now()), nil },
+			// Hourly attempts, one run per period over: the period is the key.
 			&river.PeriodicJobOpts{RunOnStart: true}),
 	}
 	return Setup{Workers: ws, Periodic: periodic}, nil
