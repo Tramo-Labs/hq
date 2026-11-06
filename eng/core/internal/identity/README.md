@@ -13,6 +13,7 @@ Accounts, tenants, memberships and sessions. Owned by backend.
 | `GET /v1/me` | bearer | | The caller, active tenant and role, every membership. |
 | `GET /v1/tenant/members` | bearer | | Members of the active tenant. |
 | `POST /v1/tenant/members` | bearer, owner or operator | required | Adds a person; only an operator grants `operator` or `accountant`. |
+| `DELETE /v1/tenant/members/{userId}` | bearer, owner | | Removes a person (204). 404 if not a member, 409 `last_owner` for the last owner. |
 
 Errors (problem `code`): `unauthorized`, `refresh_token_reused`, `email_taken`,
 `slug_taken`, `cuit_taken`, `already_member`, `invalid_email`, `invalid_cuit`,
@@ -24,6 +25,21 @@ password on any tenant stays the generic 401, so it says nothing to someone
 without the password, and it is not counted as a failed guess
 (`TestLoginIntoAForeignTenantSaysNotAMember`; mutation checked: answering
 the generic 401 again fails it).
+
+## Removing a member
+
+Only an owner removes people (spec §1), any role, the operator included:
+the data is the client's, and so is the decision of who reaches it,
+Tramo included (lead's decision, 06/11). An owner may remove themself while
+another owner remains; the last owner can not be removed (409
+`last_owner`). The tenant row is locked during the removal, so two owners
+removing each other at the same time leave exactly one.
+
+**When access ends.** The removed person's refresh tokens for that tenant
+are revoked at once, so the session can not be renewed and adding the
+person back later does not revive it. An access token already issued keeps
+working until it expires: **up to 10 minutes** after the removal. Audited
+as `identity.member_removed` with the removed role.
 
 ## Sessions
 
@@ -69,7 +85,7 @@ ago. To be scheduled by the worker.
   access tokens (10 minutes) but not refresh tokens.
 - Audit (`audit_log`): `identity.register`, `identity.login`,
   `identity.login_failed`, `identity.refresh_reuse`, `identity.logout`,
-  `identity.member_added`, with request id and IP. Never passwords or tokens.
+  `identity.member_added`, `identity.member_removed`, with request id and IP. Never passwords or tokens.
   Every 403 of any module also leaves `authz.denied` (platform README).
 - No clave fiscal and no home banking credential has a field anywhere: the
   request schemas reject unknown properties.
@@ -124,5 +140,14 @@ integrations.
   refusals, the 11th registration from one IP is refused (mutations checked:
   without the login check, and with the failure counter not keyed by IP,
   the test fails).
+- `internal/app/members_test.go`: `TestRemoveMember` (approver, viewer,
+  accountant and operator get 403; the owner removes; the refresh dies and
+  stays dead after adding the person back; the access token still answers
+  right after; 404 on a second removal; 409 for the last owner; the owner
+  removes the operator; audit rows) and
+  `TestRemovingOwnersConcurrentlyKeepsOne` (10 rounds of two owners
+  removing each other). Mutations checked: without the tenant lock, without
+  the last owner check, letting the operator remove, and without the
+  revocation, each fails.
 - `internal/platform/ratelimit`: windows, expiry, reset, bounded memory,
   exactly 100 of 400 concurrent events allowed.

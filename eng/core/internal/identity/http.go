@@ -155,6 +155,15 @@ func (h *Handlers) AddMember(ctx context.Context, req apigen.AddMemberRequestObj
 	return apigen.AddMember201JSONResponse{UserId: m.ID, Email: m.Email, Role: apigen.Role(m.Role)}, nil
 }
 
+// RemoveMember takes a person out of the active tenant.
+func (h *Handlers) RemoveMember(ctx context.Context, req apigen.RemoveMemberRequestObject) (apigen.RemoveMemberResponseObject, error) {
+	p, _ := PrincipalFrom(ctx)
+	if err := h.s.RemoveMember(ctx, p, req.UserId); err != nil {
+		return nil, problem(err)
+	}
+	return apigen.RemoveMember204Response{}, nil
+}
+
 func refreshInput(cookie *string, body *apigen.RefreshRequest) (string, *apigen.TokenDelivery) {
 	tok := ""
 	var delivery *apigen.TokenDelivery
@@ -213,6 +222,8 @@ func problem(err error) error {
 		ErrInvalidCuit:        {http.StatusBadRequest, "invalid_cuit"},
 		ErrForbidden:          {http.StatusForbidden, httpx.CodeForbidden},
 		ErrNotAMember:         {http.StatusForbidden, "not_a_member"},
+		ErrMemberNotFound:     {http.StatusNotFound, httpx.CodeNotFound},
+		ErrLastOwner:          {http.StatusConflict, "last_owner"},
 	}
 	for target, p := range table {
 		if errors.Is(err, target) {

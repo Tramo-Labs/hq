@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const countOwners = `-- name: CountOwners :one
+select count(*) from memberships where tenant_id = $1 and role = 'owner'
+`
+
+func (q *Queries) CountOwners(ctx context.Context, tenantID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countOwners, tenantID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createMembership = `-- name: CreateMembership :exec
 insert into memberships (user_id, tenant_id, role) values ($1, $2, $3)
 `
@@ -75,6 +86,22 @@ func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const deleteMembership = `-- name: DeleteMembership :one
+delete from memberships where user_id = $1 and tenant_id = $2 returning role
+`
+
+type DeleteMembershipParams struct {
+	UserID   uuid.UUID
+	TenantID uuid.UUID
+}
+
+func (q *Queries) DeleteMembership(ctx context.Context, arg DeleteMembershipParams) (Role, error) {
+	row := q.db.QueryRow(ctx, deleteMembership, arg.UserID, arg.TenantID)
+	var role Role
+	err := row.Scan(&role)
+	return role, err
 }
 
 const ensureUser = `-- name: EnsureUser :one
@@ -273,6 +300,18 @@ func (q *Queries) ListMembershipsForUser(ctx context.Context, userID uuid.UUID) 
 	return items, nil
 }
 
+const lockTenant = `-- name: LockTenant :one
+select id from tenants where id = $1 for update
+`
+
+// Serializes membership changes that must keep at least one owner.
+func (q *Queries) LockTenant(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockTenant, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const markRefreshTokenUsed = `-- name: MarkRefreshTokenUsed :exec
 update refresh_tokens set used_at = now() where id = $1
 `
@@ -288,6 +327,24 @@ update refresh_tokens set revoked_at = now() where family_id = $1 and revoked_at
 
 func (q *Queries) RevokeFamily(ctx context.Context, familyID uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, revokeFamily, familyID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeUserTenantSessions = `-- name: RevokeUserTenantSessions :execrows
+update refresh_tokens set revoked_at = now()
+where user_id = $1 and tenant_id = $2 and revoked_at is null
+`
+
+type RevokeUserTenantSessionsParams struct {
+	UserID   uuid.UUID
+	TenantID *uuid.UUID
+}
+
+func (q *Queries) RevokeUserTenantSessions(ctx context.Context, arg RevokeUserTenantSessionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeUserTenantSessions, arg.UserID, arg.TenantID)
 	if err != nil {
 		return 0, err
 	}

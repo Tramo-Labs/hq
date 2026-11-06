@@ -60,3 +60,17 @@ delete from refresh_tokens where expires_at < now() - interval '7 days';
 -- name: GetTenant :one
 -- Runs in a tenant transaction: RLS only lets the scoped tenant through.
 select id, name, cuit from tenants where id = $1;
+
+-- name: LockTenant :one
+-- Serializes membership changes that must keep at least one owner.
+select id from tenants where id = $1 for update;
+
+-- name: CountOwners :one
+select count(*) from memberships where tenant_id = $1 and role = 'owner';
+
+-- name: DeleteMembership :one
+delete from memberships where user_id = $1 and tenant_id = $2 returning role;
+
+-- name: RevokeUserTenantSessions :execrows
+update refresh_tokens set revoked_at = now()
+where user_id = $1 and tenant_id = $2 and revoked_at is null;

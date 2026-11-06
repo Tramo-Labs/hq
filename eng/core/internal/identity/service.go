@@ -48,6 +48,10 @@ var (
 	// ErrNotAMember answers a login with the right password on a tenant
 	// the user does not belong to (F18). Only reachable with the password.
 	ErrNotAMember = errors.New("not a member of that tenant")
+	// ErrMemberNotFound: the user is not a member of the caller's tenant.
+	ErrMemberNotFound = errors.New("member not found")
+	// ErrLastOwner: removing this member would leave the tenant without owner.
+	ErrLastOwner = errors.New("the tenant needs at least one owner")
 )
 
 // Service implements the identity use cases.
@@ -378,6 +382,54 @@ func (s *Service) AddMember(ctx context.Context, p Principal, email, role string
 		return store.ListMembersRow{}, err
 	}
 	return store.ListMembersRow{ID: user, Email: email, Role: store.Role(role)}, nil
+}
+
+// CanRemoveMembers reports whether role may remove people from a tenant.
+// Spec §1: only the owner; the operator only creates the first owner.
+func CanRemoveMembers(role string) bool { return role == RoleOwner }
+
+// RemoveMember takes user out of the caller's tenant. The last owner can
+// not be removed (the tenant row is locked so two owners removing each
+// other can not both succeed). The user's refresh tokens for this tenant
+// are revoked at once; an access token already issued keeps working until
+// it expires, at most AccessTTL (10 minutes).
+func (s *Service) RemoveMember(ctx context.Context, p Principal, user uuid.UUID) error {
+	if !CanRemoveMembers(p.Role) {
+		return ErrForbidden
+	}
+	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		q := store.New(tx)
+		if _, err := q.LockTenant(ctx, p.TenantID); err != nil {
+			return err
+		}
+		role, err := q.DeleteMembership(ctx, store.DeleteMembershipParams{UserID: user, TenantID: p.TenantID})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrMemberNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if role == store.RoleOwner {
+			n, err := q.CountOwners(ctx, p.TenantID)
+			if err != nil {
+				return err
+			}
+			if n == 0 {
+				return ErrLastOwner // rolls the delete back
+			}
+		}
+		return audit.Record(ctx, tx, audit.Entry{Action: "identity.member_removed", Subject: "users:" + user.String(),
+			Detail: map[string]any{"role": string(role)}})
+	})
+	if err != nil {
+		return err
+	}
+	// refresh_tokens is not visible to tramo_app. If this fails the session
+	// still ends at the next refresh, which checks the membership.
+	return s.DB.System(ctx, func(tx pgx.Tx) error {
+		_, err := store.New(tx).RevokeUserTenantSessions(ctx, store.RevokeUserTenantSessionsParams{UserID: user, TenantID: &p.TenantID})
+		return err
+	})
 }
 
 // TenantInfo is the active tenant as stored.

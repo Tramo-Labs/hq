@@ -16,10 +16,6 @@ type pendingHandlers struct{}
 var errPending = &httpx.Error{Status: http.StatusNotImplemented, Code: "not_implemented",
 	Detail: "not available yet; see the API description"}
 
-func (pendingHandlers) RemoveMember(context.Context, apigen.RemoveMemberRequestObject) (apigen.RemoveMemberResponseObject, error) {
-	return nil, errPending
-}
-
 func (pendingHandlers) AcceptInvite(context.Context, apigen.AcceptInviteRequestObject) (apigen.AcceptInviteResponseObject, error) {
 	return nil, errPending
 }
