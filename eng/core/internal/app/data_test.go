@@ -209,6 +209,27 @@ func TestDataPathsEndToEnd(t *testing.T) {
 // the file: the tenant sees them, to fix the file, and they are its own
 // data. They never reach the logs (architecture section 6: no amounts in
 // logs) nor the audit log.
+// F27: an account name with nothing visible, or with a bidi control that
+// flips how the rest of a line reads, is 400 invalid_name, like a person's
+// name; a valid one is stored trimmed. Escapes so a review can see them.
+func TestAccountNameMustBeVisible(t *testing.T) {
+	c := client{t: t, srv: server(t)}
+	own := c.registerAndLogin("molino-nombres", "owner@nombres.test")
+	for _, name := range []string{"\u200b\u200b", "\u3164", "Cuenta \u202elaicnes", "   "} {
+		r := c.do("POST", "/v1/ledger/accounts", own.access, map[string]any{"bank": "bancor", "name": name}, idem()...)
+		if r.status != 400 || r.str("code") != "invalid_name" {
+			t.Errorf("name %q: %d %s", name, r.status, r.raw)
+		}
+	}
+	r := c.do("POST", "/v1/ledger/accounts", own.access, map[string]any{"bank": "bancor", "name": "  Cuenta sueldos  "}, idem()...)
+	if r.status != 201 || r.str("name") != "Cuenta sueldos" {
+		t.Errorf("valid name: %d %s", r.status, r.raw)
+	}
+	if l := c.do("GET", "/v1/ledger/accounts", own.access, nil); len(l.body["items"].([]any)) != 1 {
+		t.Errorf("refused names were stored: %s", l.raw)
+	}
+}
+
 func TestQuarantineDetailIsShownNeverLogged(t *testing.T) {
 	var logs bytes.Buffer
 	prev := slog.Default()

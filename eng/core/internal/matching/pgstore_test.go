@@ -522,7 +522,7 @@ func TestPGRejectRequiresANote(t *testing.T) {
 	e := newPGEnv(t)
 	r, _ := e.run(t)
 	sug := suggested(r)
-	for _, note := range []string{"", "   "} {
+	for _, note := range []string{"", "   ", "\u200b", "\u200b\u202e"} { // F28: invisible is no reason
 		if _, err := e.decideAs(t, identity.RoleOperator, sug, Reject, note); !errors.Is(err, ErrNoteRequired) {
 			t.Errorf("operator reject with note %q: %v", note, err)
 		}

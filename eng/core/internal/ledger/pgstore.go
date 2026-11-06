@@ -15,6 +15,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
+	"github.com/Tramo-Labs/hq/eng/core/internal/text"
 )
 
 // PGStore is the Postgres Store. Every call runs in db.InTenant: the tenant
@@ -230,10 +231,20 @@ func (s *PGStore) MovementsBetween(ctx context.Context, from, to time.Time) ([]S
 	return out, err
 }
 
-// CreateAccount registers an account for the tenant in the context.
+// MaxAccountName is the longest account name, in characters (the spec's
+// maxLength).
+const MaxAccountName = 120
+
+// CreateAccount registers an account for the tenant in the context. The
+// name follows the rule of a person's name (text.Name, F27): something
+// visible, no zero width or bidi characters; it is stored trimmed.
 func (s *PGStore) CreateAccount(ctx context.Context, bank Bank, number, name string) (uuid.UUID, error) {
+	name, err := text.Name(name, MaxAccountName)
+	if err != nil {
+		return uuid.Nil, err
+	}
 	var id uuid.UUID
-	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx,
 			`insert into ledger.accounts (tenant_id, bank, number, name) values (app_current_tenant(), $1, $2, $3) returning id`,
 			string(bank), nullText(number), name).Scan(&id); err != nil {

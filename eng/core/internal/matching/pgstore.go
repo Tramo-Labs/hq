@@ -17,6 +17,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
+	"github.com/Tramo-Labs/hq/eng/core/internal/text"
 )
 
 // PGStore persists items, runs and decisions, always through db.InTenant.
@@ -315,8 +316,10 @@ var ErrActionNotInTray = errors.New("matching: this action is not available in t
 // (blank counts as none).
 var ErrNoteRequired = errors.New("matching: this action requires a note")
 
-// noteMissing reports whether a note is empty or only spaces.
-func noteMissing(note string) bool { return strings.TrimSpace(note) == "" }
+// noteMissing reports whether a note says nothing: no letter or number that
+// shows (spaces, zero width or bidi characters and blank looking letters
+// alone are no reason, F28).
+func noteMissing(note string) bool { return !text.HasLetterOrNumber(note) }
 
 // DecisionInput is everything a caller may say about a decision. Who
 // decides and with which role are never input: the user comes from the
