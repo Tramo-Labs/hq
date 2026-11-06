@@ -97,6 +97,33 @@ func TestMigrationDefaults(t *testing.T) {
 	}
 }
 
+func TestTrustedProxies(t *testing.T) {
+	t.Setenv("APP_ENV", "dev")
+	t.Setenv("TRUST_PROXY_HEADERS", "")
+	t.Setenv("TRUSTED_PROXIES", "")
+	c, err := config.Load()
+	if err != nil || len(c.TrustedProxies) != 0 {
+		t.Fatalf("default: %v %v", c.TrustedProxies, err)
+	}
+	t.Setenv("TRUSTED_PROXIES", "172.30.0.10, 10.1.0.0/16")
+	c, err = config.Load()
+	if err != nil || len(c.TrustedProxies) != 2 || c.TrustedProxies[0].String() != "172.30.0.10/32" {
+		t.Fatalf("list: %v %v", c.TrustedProxies, err)
+	}
+	for _, bad := range []string{"0.0.0.0/0", "::/0", "proxy.local", "10.0.0.1/99"} {
+		t.Setenv("TRUSTED_PROXIES", bad)
+		if _, err := config.Load(); err == nil {
+			t.Errorf("TRUSTED_PROXIES=%q accepted", bad)
+		}
+	}
+	// The old switch trusted any peer; it must not be silently ignored.
+	t.Setenv("TRUSTED_PROXIES", "")
+	t.Setenv("TRUST_PROXY_HEADERS", "true")
+	if _, err := config.Load(); err == nil {
+		t.Fatal("TRUST_PROXY_HEADERS still accepted")
+	}
+}
+
 func TestSecretsNeverPrinted(t *testing.T) {
 	t.Setenv("APP_ENV", "dev")
 	t.Setenv("MASTER_KEY", key32)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 
 func TestRequestMeta(t *testing.T) {
 	var got httpx.Meta
-	h := httpx.RequestMeta(false)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	h := httpx.RequestMeta(nil)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		got, _ = httpx.MetaFrom(r.Context())
 	}))
 
@@ -38,14 +39,38 @@ func TestRequestMeta(t *testing.T) {
 		t.Fatalf("malformed id kept: %q", got.RequestID)
 	}
 
-	// Behind our proxy the last hop wins; a client supplied first hop does not.
-	trusted := httpx.RequestMeta(true)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+}
+
+// X-Forwarded-For counts only when the TCP peer is a configured trusted
+// proxy. A client that reaches the api directly cannot pick its own IP
+// (which would let it dodge per IP throttles), even when proxies are
+// configured.
+func TestForwardedForOnlyFromTrustedProxies(t *testing.T) {
+	proxies := []netip.Prefix{netip.MustParsePrefix("172.30.0.10/32"), netip.MustParsePrefix("fd00:30::/64")}
+	var got httpx.Meta
+	h := httpx.RequestMeta(proxies)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		got, _ = httpx.MetaFrom(r.Context())
 	}))
-	r.Header.Set("X-Forwarded-For", "6.6.6.6, 198.51.100.1")
-	trusted.ServeHTTP(httptest.NewRecorder(), r)
-	if got.IP.String() != "198.51.100.1" {
-		t.Fatalf("trusted proxy ip: %s", got.IP)
+	for name, tc := range map[string]struct {
+		peer, xff, want string
+	}{
+		"direct client spoofing":       {"203.0.113.7:51000", "198.51.100.1", "203.0.113.7"},
+		"direct client, many hops":     {"203.0.113.7:51000", "6.6.6.6, 198.51.100.1", "203.0.113.7"},
+		"trusted proxy, last hop wins": {"172.30.0.10:40000", "6.6.6.6, 198.51.100.1", "198.51.100.1"},
+		"trusted proxy over ipv6":      {"[fd00:30::5]:40000", "2001:db8::1", "2001:db8::1"},
+		"neighbour of the proxy":       {"172.30.0.11:40000", "198.51.100.1", "172.30.0.11"},
+		"trusted proxy, junk header":   {"172.30.0.10:40000", "not an ip", "172.30.0.10"},
+		"trusted proxy, no header":     {"172.30.0.10:40000", "", "172.30.0.10"},
+	} {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = tc.peer
+		if tc.xff != "" {
+			r.Header.Set("X-Forwarded-For", tc.xff)
+		}
+		h.ServeHTTP(httptest.NewRecorder(), r)
+		if got.IP.String() != tc.want {
+			t.Errorf("%s: client ip %s, want %s", name, got.IP, tc.want)
+		}
 	}
 }
 

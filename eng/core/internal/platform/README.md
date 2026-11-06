@@ -105,8 +105,14 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   `readyz` logs the cause and answers without it.
 - The audit log stores IP and request id, never bodies. `Detail` must not
   carry secrets, third party CUIT or amounts.
-- `X-Forwarded-For` is ignored unless `TRUST_PROXY_HEADERS=true`, and then
-  only the last hop (our Caddy) counts.
+- `X-Forwarded-For` is believed only when the TCP peer is in
+  `TRUSTED_PROXIES` (our Caddy's address), and then only its last hop, the
+  one Caddy appended. A client reaching the api directly cannot choose its
+  IP, so it cannot dodge per IP throttles or forge the IP in the audit log
+  (`TestForwardedForOnlyFromTrustedProxies`,
+  `TestSpoofedForwardedForDoesNotDodgeThrottles`). The old
+  `TRUST_PROXY_HEADERS` switch, which trusted any peer, is refused at
+  startup. `0.0.0.0/0` is refused as a trusted proxy.
 
 ## Errors
 

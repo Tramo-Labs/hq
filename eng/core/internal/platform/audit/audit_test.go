@@ -22,7 +22,7 @@ func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
 func requestCtx(t *testing.T, s db.Scope) context.Context {
 	t.Helper()
 	var ctx context.Context
-	h := httpx.RequestMeta(false)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { ctx = r.Context() }))
+	h := httpx.RequestMeta(nil)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { ctx = r.Context() }))
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 	r.RemoteAddr = "192.0.2.10:4000"
 	r.Header.Set("X-Request-Id", "req-1")

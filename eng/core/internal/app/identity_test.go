@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strconv"
 	"strings"
 	"testing"
@@ -350,7 +351,9 @@ func TestIdentityIsAudited(t *testing.T) {
 
 func TestLoginAndRegisterAreThrottled(t *testing.T) {
 	deps := newDeps(t)
-	deps.TrustProxy = true // the client IP comes from X-Forwarded-For, as behind Caddy
+	// The test client plays our Caddy: its loopback address is the trusted
+	// proxy, so the client IP comes from X-Forwarded-For.
+	deps.TrustedProxies = loopback
 	c := client{t, serve(t, deps)}
 	from := func(ip string) []string { return []string{"X-Forwarded-For", ip} }
 	login := func(ip, email, password string) resp {
@@ -410,6 +413,27 @@ func TestLoginAndRegisterAreThrottled(t *testing.T) {
 	}
 	if got429 != 1 {
 		t.Fatalf("register throttle: %d of 11 refused, want 1", got429)
+	}
+}
+
+var loopback = []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32"), netip.MustParsePrefix("::1/128")}
+
+// A client that reaches the api directly cannot dodge the per IP throttle by
+// writing its own X-Forwarded-For: only the configured proxy is believed.
+func TestSpoofedForwardedForDoesNotDodgeThrottles(t *testing.T) {
+	deps := newDeps(t)
+	deps.TrustedProxies = []netip.Prefix{netip.MustParsePrefix("10.0.0.1/32")} // our Caddy, not the test client
+	c := client{t, serve(t, deps)}
+	refused := 0
+	for i := 0; i < 40; i++ {
+		r := c.do("POST", "/v1/auth/login", "", map[string]any{"email": "x" + strconv.Itoa(i) + "@alfa.test", "password": "guess"},
+			"X-Forwarded-For", "198.51.100."+strconv.Itoa(i+1)) // a new "IP" every time
+		if r.status == 429 {
+			refused++
+		}
+	}
+	if refused != 10 {
+		t.Fatalf("rotating X-Forwarded-For from a direct client: %d of 40 refused, want 10 (30 per minute per real IP)", refused)
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -37,9 +38,10 @@ import (
 
 // Deps are the shared dependencies of the API.
 type Deps struct {
-	DB         *db.DB
-	Identity   *identity.Service
-	TrustProxy bool
+	DB       *db.DB
+	Identity *identity.Service
+	// TrustedProxies whose X-Forwarded-For is believed (config.TrustedProxies).
+	TrustedProxies []netip.Prefix
 	// DocsDir serves the Swagger UI and the spec when set.
 	DocsDir string
 }
@@ -84,7 +86,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 	spec.Servers = nil // validate paths regardless of the host serving them
 
 	r := chi.NewRouter()
-	r.Use(httpx.RequestMeta(d.TrustProxy), httpx.Recover, identity.Authenticate(d.Identity.Signer))
+	r.Use(httpx.RequestMeta(d.TrustedProxies), httpx.Recover, identity.Authenticate(d.Identity.Signer))
 	if d.DocsDir != "" {
 		r.Handle("/docs/*", http.StripPrefix("/docs/", http.FileServer(http.Dir(d.DocsDir))))
 	}

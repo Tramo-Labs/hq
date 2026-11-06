@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/netip"
@@ -35,8 +36,8 @@ func Health(mux *http.ServeMux, ready func(context.Context) error) {
 	})
 }
 
-// RequestID is RequestMeta without trusting proxy headers.
-func RequestID(next http.Handler) http.Handler { return RequestMeta(false)(next) }
+// RequestID is RequestMeta without trusted proxies.
+func RequestID(next http.Handler) http.Handler { return RequestMeta(nil)(next) }
 
 // Meta is what every request carries for logs and the audit log.
 type Meta struct {
@@ -54,9 +55,11 @@ func MetaFrom(ctx context.Context) (Meta, bool) {
 
 // RequestMeta gives every request an id (a well formed incoming
 // X-Request-Id is kept), echoes it, and stores it with the client IP in the
-// context. With trustProxy the IP is the last X-Forwarded-For hop, which is
-// the one our own reverse proxy (Caddy) appended; otherwise RemoteAddr.
-func RequestMeta(trustProxy bool) func(http.Handler) http.Handler {
+// context. The client IP is the TCP peer. Only when that peer is one of
+// trustedProxies (our own Caddy) is X-Forwarded-For used, and then only its
+// last hop, the one the proxy appended; anything a client wrote before it
+// is ignored.
+func RequestMeta(trustedProxies []netip.Prefix) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			id := r.Header.Get("X-Request-Id")
@@ -66,7 +69,7 @@ func RequestMeta(trustProxy bool) func(http.Handler) http.Handler {
 				id = hex.EncodeToString(b[:])
 			}
 			w.Header().Set("X-Request-Id", id)
-			m := Meta{RequestID: id, IP: clientIP(r, trustProxy)}
+			m := Meta{RequestID: id, IP: clientIP(r, trustedProxies)}
 			ctx := context.WithValue(r.Context(), metaKey{}, m)
 			log := slog.Default().With("request_id", id)
 			next.ServeHTTP(w, r.WithContext(WithLogger(ctx, log)))
@@ -86,20 +89,59 @@ func validRequestID(s string) bool {
 	return true
 }
 
-func clientIP(r *http.Request, trustProxy bool) netip.Addr {
-	if trustProxy {
-		if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
-			hops := strings.Split(xff[len(xff)-1], ",")
-			if a, err := netip.ParseAddr(strings.TrimSpace(hops[len(hops)-1])); err == nil {
-				return a
-			}
+func clientIP(r *http.Request, trustedProxies []netip.Prefix) netip.Addr {
+	peer := peerIP(r.RemoteAddr)
+	if !trusted(peer, trustedProxies) {
+		return peer
+	}
+	if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
+		hops := strings.Split(xff[len(xff)-1], ",")
+		if a, err := netip.ParseAddr(strings.TrimSpace(hops[len(hops)-1])); err == nil {
+			return a.Unmap()
 		}
 	}
-	if ap, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
-		return ap.Addr()
+	return peer
+}
+
+func peerIP(remote string) netip.Addr {
+	if ap, err := netip.ParseAddrPort(remote); err == nil {
+		return ap.Addr().Unmap()
 	}
-	a, _ := netip.ParseAddr(r.RemoteAddr)
-	return a
+	a, _ := netip.ParseAddr(remote)
+	return a.Unmap()
+}
+
+func trusted(peer netip.Addr, proxies []netip.Prefix) bool {
+	if !peer.IsValid() {
+		return false
+	}
+	for _, p := range proxies {
+		if p.Contains(peer) {
+			return true
+		}
+	}
+	return false
+}
+
+// ParseTrustedProxies reads a comma separated list of IPs or CIDRs.
+func ParseTrustedProxies(s string) ([]netip.Prefix, error) {
+	var out []netip.Prefix
+	for _, f := range strings.Split(s, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		if p, err := netip.ParsePrefix(f); err == nil {
+			out = append(out, p.Masked())
+			continue
+		}
+		a, err := netip.ParseAddr(f)
+		if err != nil {
+			return nil, fmt.Errorf("trusted proxy %q is not an IP or CIDR", f)
+		}
+		out = append(out, netip.PrefixFrom(a, a.BitLen()))
+	}
+	return out, nil
 }
 
 type loggerKey struct{}

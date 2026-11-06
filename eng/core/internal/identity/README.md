@@ -85,7 +85,9 @@ for everyone for up to an hour; that trade off is deliberate.
 
 Limits: counters are in memory, per api process (with several replicas the
 limits multiply; restart clears them). The client IP is the TCP peer, or the
-last `X-Forwarded-For` hop with `TRUST_PROXY_HEADERS=true` behind our Caddy.
+last `X-Forwarded-For` hop only when the peer is a configured trusted proxy
+(`TRUSTED_PROXIES`, our Caddy). A direct client rotating `X-Forwarded-For`
+still counts as its real IP.
 The 429 response is not yet declared in `api/openapi.yaml` (the spec is
 frozen while datos adds its paths); it follows the same Problem schema.
 

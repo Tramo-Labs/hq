@@ -91,7 +91,7 @@ func serve() error {
 	if err != nil {
 		return err
 	}
-	deps := app.Deps{DB: d, Identity: ids, TrustProxy: cfg.TrustProxyHeaders, DocsDir: cfg.DocsDir}
+	deps := app.Deps{DB: d, Identity: ids, TrustedProxies: cfg.TrustedProxies, DocsDir: cfg.DocsDir}
 	h, err := app.New(deps, app.NewHandlers(deps))
 	if err != nil {
 		return err

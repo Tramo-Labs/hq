@@ -41,7 +41,8 @@ services:
     env_file: core.env
     environment:
       ARCA_GATEWAY_ADDR: arca-gateway:9090
-      TRUST_PROXY_HEADERS: "true"
+      # Only Caddy's fixed address is believed for X-Forwarded-For.
+      TRUSTED_PROXIES: 172.30.0.10
       MIGRATE_ON_START: "false"
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -80,6 +81,16 @@ services:
       - caddy_config:/config
     depends_on: [api]
     restart: unless-stopped
+    networks:
+      default:
+        ipv4_address: 172.30.0.10
+
+# Fixed subnet so the api can trust exactly one proxy address.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
 
 volumes:
   pgdata:
