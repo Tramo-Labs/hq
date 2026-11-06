@@ -292,7 +292,7 @@ export const app = {
       label: "Cómo querés que te veamos",
       placeholder: "Ej.: Ana Pérez",
       save: "Guardar",
-      invalid: "Revisá el nombre: no puede quedar vacío ni pasar de 120 caracteres.",
+      invalid: "Revisá el nombre: tiene que tener al menos una letra o un número, hasta 120 caracteres, y sin caracteres invisibles.",
       failed: "No se pudo guardar. Probá de nuevo.",
     },
     // Draft for producto (frontend, 06/11): accepting an invitation.

@@ -24,11 +24,15 @@ function session() {
 /** Names set in this tab, by email (sample people start with none, like a new account). */
 const names = new Map<string, string>();
 
-/** Like the core: trimmed, 1 to 120 characters, no control characters (else 400 invalid_name). */
+// The core's name rules (internal/identity/name.go): trimmed, 1 to 120 characters, at least one
+// letter or number, and no control, format (zero width, bidi), separator or blank-looking characters.
+const invisible = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}ㅤᅟᅠﾠ⠀]/u;
+const visible = /[\p{L}\p{N}]/u;
+
 export async function updateName(name: string) {
   const s = session();
   const v = name.trim();
-  if (!v || v.length > 120 || /[\u0000-\u001f\u007f]/.test(v)) throw new ApiError(400, "invalid_name");
+  if (!v || [...v].length > 120 || invisible.test(v) || !visible.test(v)) throw new ApiError(400, "invalid_name");
   names.set(s.email, v);
   setSession({ ...s, name: v });
   return v;
