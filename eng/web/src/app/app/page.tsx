@@ -56,8 +56,6 @@ export default async function Onboarding() {
               ))}
             </ul>
           )}
-          <p className="mt-4 text-[13px] text-white/60">{o.bank.mailbox}</p>
-          <p className="mt-1 break-all font-mono text-[14px] text-white">{t.bank.mailbox}</p>
           {t.bank.status === "ready" && (
             <div className="mt-4 flex flex-wrap gap-2">
               {[o.bank.addAccount, o.bank.upload].map((a) => <button key={a} type="button" disabled className={ghostBtn} title={o.soon}>{a}</button>)}

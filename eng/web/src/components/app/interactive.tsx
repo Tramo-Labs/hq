@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { app } from "@/content/app";
-import { decide, requestFullExport } from "@/lib/api";
+import { decide } from "@/lib/api";
 import type { Outcome } from "@/lib/api";
 
 import { ghostBtn, primaryBtn } from "@/components/app/buttons";
@@ -97,19 +97,5 @@ export function Decision({ matchId, variant, by, hasProposal }: { matchId: strin
       </div>
       {state === "error" && <p role="alert" className="text-[14px] text-accent">{a.failed}</p>}
     </div>
-  );
-}
-
-export function FullExport() {
-  const [key] = useState(() => crypto.randomUUID());
-  const [hours, setHours] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false);
-  return hours !== null ? (
-    <p role="status" className="text-[14.5px] text-white/85">{app.files.full.queued(hours)}</p>
-  ) : (
-    <button type="button" disabled={busy} className={primaryBtn}
-      onClick={async () => { setBusy(true); const r = await requestFullExport(key); setHours(r.expiresInHours); }}>
-      {app.files.full.action}
-    </button>
   );
 }

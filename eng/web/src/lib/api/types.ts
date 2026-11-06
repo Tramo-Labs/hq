@@ -27,7 +27,7 @@ export type BankAccount = {
   problem?: string;
   lastStatementAt?: string;
 };
-export type BankStep = { status: StepStatus; mailbox: string; accounts: BankAccount[] };
+export type BankStep = { status: StepStatus; accounts: BankAccount[] };
 
 export type ErpStep = {
   status: StepStatus;

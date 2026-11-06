@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { app } from "@/content/app";
 import { Card, PageHead, formatDate } from "@/components/app/ui";
-import { FullExport } from "@/components/app/interactive";
+import { primaryBtn } from "@/components/app/buttons";
 import { can, getSession, listFiles } from "@/lib/api";
 
 export const metadata: Metadata = { title: app.files.eyebrow };
@@ -18,7 +18,12 @@ export default async function Files() {
       <Card className="p-5 sm:p-6">
         <h2 className="text-[20px] font-light">{f.full.name}</h2>
         <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-white/70">{f.full.body}</p>
-        <div className="mt-5">{can(session.role, "download") ? <FullExport /> : <p className="text-[14.5px] text-white/70">{f.full.noRole}</p>}</div>
+        <div className="mt-5">{can(session.role, "download") ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" disabled aria-describedby="full-soon" className={primaryBtn}>{f.full.action}</button>
+            <span id="full-soon" className="text-[13px] text-white/60">{app.onboarding.soon}</span>
+          </div>
+        ) : <p className="text-[14.5px] text-white/70">{f.full.noRole}</p>}</div>
       </Card>
 
       <h2 className="mb-3 mt-10 font-mono text-[12px] tracking-wide text-white/60">{f.listTitle}</h2>

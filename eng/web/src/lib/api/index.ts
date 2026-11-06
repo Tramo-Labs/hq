@@ -15,7 +15,7 @@ export type * from "./types";
  *   POST /v1/matches/{id}/decision         Idempotency-Key required
  *   GET  /v1/metrics?tenant=&period=       panel, each number with its source and list
  *   GET  /v1/files                         uploaded statements and documents
- *   POST /v1/exports                       full download, built in the background
+ *   POST /v1/exports                       full download (not wired: the action stays disabled)
  */
 
 export const isSample = true;
@@ -87,7 +87,7 @@ export async function listMetrics(tenantId: string) {
   const exceptions: MetricList = { tray: "exception" };
   const items: Metric[] = [
     { key: "auto_rate", value: Math.round((100 * auto.length) / own.length), unit: "percent", period: "Hoy",
-      source: `${auto.length} matches en Automático ÷ ${own.length} movimientos del cliente`, list: { tray: "auto" } },
+      source: `${auto.length} ${auto.length === 1 ? "match" : "matches"} en Automático ÷ ${own.length} ${own.length === 1 ? "movimiento" : "movimientos"} del cliente`, list: { tray: "auto" } },
     { key: "open_exceptions", value: open.length, unit: "count", period: "Hoy", source: "matches en Excepciones sin decisión", list: exceptions },
     ...(open.length > 0
       ? [{ key: "oldest_exception", value: Math.max(...open.map((m) => daysSince(m.openedAt))), unit: "days", period: "Hoy",
@@ -124,7 +124,10 @@ export async function listFiles() {
   return page(files);
 }
 
-/** POST /v1/exports: the core builds a ZIP and mails a link that expires in 24 hours. */
+/**
+ * POST /v1/exports. Placeholder for the contract only: nothing calls it yet, and the portal
+ * shows the download disabled until the core builds and delivers the export.
+ */
 export async function requestFullExport(idempotencyKey: string) {
   if (!idempotencyKey) throw new Error("Idempotency-Key is required");
   return { status: "queued" as const, expiresInHours: 24 };

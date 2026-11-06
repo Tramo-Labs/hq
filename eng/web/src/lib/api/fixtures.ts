@@ -16,7 +16,7 @@ export const tenants: Tenant[] = [
     id: "t-agro", name: "Agroinsumos del Sur SA", cuit: "30-00000001-0", openExceptions: 3, waitingSince: "2026-11-03",
     arca: { status: "ready", confirmedAt: "2026-11-02" },
     bank: {
-      status: "ready", mailbox: "extractos+agro@tramo.example",
+      status: "ready",
       accounts: [
         { bank: "Galicia", kind: "Cuenta corriente", currency: "ARS", last4: "4021", status: "ready", lastStatementAt: "2026-11-03" },
         { bank: "Macro", kind: "Caja de ahorro", currency: "USD", last4: "7730", status: "problem", problem: "El saldo no cierra: faltan movimientos entre el 3 y el 7 de octubre. ¿Podés exportar ese rango?" },
@@ -27,14 +27,14 @@ export const tenants: Tenant[] = [
   {
     id: "t-frio", name: "Frigorífico La Pampa SRL", cuit: "30-00000002-9", openExceptions: 0, waitingSince: "2026-10-27",
     arca: { status: "pending" },
-    bank: { status: "pending", mailbox: "extractos+frio@tramo.example", accounts: [] },
+    bank: { status: "pending", accounts: [] },
     erp: { status: "pending" },
   },
   {
     id: "t-ferr", name: "Ferretería Industrial Norte", cuit: "30-00000003-7", openExceptions: 1, waitingSince: "2026-10-31",
     arca: { status: "ready", confirmedAt: "2026-10-28" },
     bank: {
-      status: "checking", mailbox: "extractos+ferr@tramo.example",
+      status: "checking",
       accounts: [{ bank: "Bancor", kind: "Cuenta corriente", currency: "ARS", last4: "1188", status: "checking", lastStatementAt: "2026-11-05" }],
     },
     erp: { status: "ready", system: "Odoo", mode: "api", credentialTail: "…XXXX" },
@@ -43,7 +43,7 @@ export const tenants: Tenant[] = [
     id: "t-trans", name: "Transportes Río Cuarto SA", cuit: "30-00000004-5", openExceptions: 0,
     arca: { status: "ready", confirmedAt: "2026-10-20" },
     bank: {
-      status: "ready", mailbox: "extractos+trans@tramo.example",
+      status: "ready",
       accounts: [
         { bank: "Santander", kind: "Cuenta corriente", currency: "ARS", last4: "5502", status: "ready", lastStatementAt: "2026-11-04" },
         { bank: "Mercado Pago", kind: "Cuenta", currency: "ARS", last4: "0091", status: "ready", lastStatementAt: "2026-11-06" },
@@ -129,6 +129,6 @@ export const matches: Match[] = [
 export const files: UploadedFile[] = [
   { name: "galicia-octubre.csv", kind: "statement", uploadedAt: "2026-11-03", by: "Lucía Ferreyra", status: "ready" },
   { name: "macro-usd-octubre.xls", kind: "statement", uploadedAt: "2026-11-03", by: "Lucía Ferreyra", status: "problem" },
-  { name: "galicia-octubre.csv", kind: "statement", uploadedAt: "2026-11-04", by: "Mail de extractos", status: "duplicate" },
+  { name: "galicia-octubre.csv", kind: "statement", uploadedAt: "2026-11-04", by: "Lucía Ferreyra", status: "duplicate" },
   { name: "FA-0004-00000902.pdf", kind: "document", uploadedAt: "2026-11-02", by: "Martina Gil", status: "ready" },
 ];
