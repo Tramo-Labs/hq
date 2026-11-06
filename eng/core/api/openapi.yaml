@@ -562,8 +562,12 @@ paths:
     get:
       operationId: listQuarantine
       tags: [ledger]
-      summary: Files that did not enter, with the reason
+      deprecated: true
+      summary: Files that did not enter, with the reason (deprecated)
       description: |
+        Deprecated: use GET /v1/ledger/files?status=quarantined, which the
+        portal reads and which also lists files mailed without an account
+        (this one never does). No caller is left; it will be removed.
         Newest first. The detail names lines, columns and fingerprints; for a balance that does
         not close it also names the amounts that disagree, so the tenant can fix its own file.
         The detail is shown to the tenant and never logged nor written to the audit log.
