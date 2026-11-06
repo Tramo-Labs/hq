@@ -155,6 +155,40 @@ Two rules for what does not exist yet:
   client's ERP yet. When they are, reverting one that was already written
   will need a compensating entry in the ERP, never a deletion.
 
+## Metrics
+
+**These numbers are this tenant's, computed from this tenant's stored
+data. They are not an automation rate of the product. They are not used on
+the landing page or in sales until there are real statements labeled by a
+person.**
+
+`PGStore.Metrics(period, now)` computes the results panel for one month in
+one tenant transaction; `GET /v1/metrics?period=YYYY-MM` serves it. Each
+metric has a `source` (what it counts, over which rows, in Spanish for the
+portal) and a `list` (the API path with those rows). With nothing to
+measure the status is `no_data` and the value is null: no data is never
+shown as zero.
+
+| Key | Unit | What | No data when | List |
+|-----|------|------|--------------|------|
+| `automation_rate` | percent | movements of the month settled by an automatic match / all movements of the month | no movements, or the month was not run | matches `tray=auto&period` |
+| `suggested_acceptance_rate` | percent | suggested matches of the month approved / approved plus rejected, by the decision in effect | nothing decided | matches export of the month |
+| `open_exception_movements` | count | movements left in Exceptions without candidate by the latest run, with no client decision in effect | month not run | pending `tray=exception&period` |
+| `open_exception_matches` | count | escalated matches of the month the client has not decided | month not run | matches `tray=exception&period` |
+| `oldest_open_exception_days` | days | days since the oldest open exception movement | month not run, or none open | pending `tray=exception&period` |
+| `pending_<reason>` | count | movements in Suggested by reason (ambiguous, combination_ambiguous, reference_amount_differs, client_other) | month not run | pending `tray=suggested&period` |
+| `invoices_processed` | count | invoices stored in the month (Argentina time) | no invoice ever stored | invoices `period` |
+| `invoices_held` | count | of those, the ones not eligible for automatic | no invoice ever stored | invoices `period&autoEligible=false` |
+
+Not in the panel because nothing stored can measure them yet: bank against
+accounting difference (no ERP), duplicates caught (not stored), hours
+returned (no baseline the client confirmed).
+
+The matches export (`MatchRows`, `GET /v1/exports/matches`) has one row
+per match with a movement in the date range: rule and version, tray,
+links, adjustments, evidence and the decision in effect (tray, action,
+user, role, when, revision). The portal writes it formula safe.
+
 Still to do: the scheduled job per tenant and month (after backend wires
 River).
 

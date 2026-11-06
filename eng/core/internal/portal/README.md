@@ -11,9 +11,9 @@ request.
 |-----------------|-----|------|
 | `GET /v1/me/tenant` | any member | Onboarding status of the active tenant: three steps and open exceptions. |
 | `GET /v1/tenants` | operator or accountant | The same status for every tenant where the caller has one of those roles; 403 otherwise. |
-| `GET /v1/metrics?period=YYYY-MM` | any member | **501** `not_implemented`: shape declared, numbers not built (they belong to matching and must be measured there first). |
+| `GET /v1/metrics?period=YYYY-MM` | any member | Results panel of the month, computed by `matching.PGStore.Metrics`; `no_data` (null value) when there is nothing to measure. Definitions in internal/matching/README.md, "Metrics". |
 | `GET /v1/exports` | any member | Downloads available, with row counts. |
-| `GET /v1/exports/{kind}` | any member | CSV of `movements` or `audit`, optional `from`/`to`; `matches` is **501** for now. |
+| `GET /v1/exports/{kind}` | any member | CSV of `movements`, `matches` (rows from `matching.PGStore.MatchRows`) or `audit`, optional `from`/`to`. |
 
 ### Onboarding steps
 
@@ -59,7 +59,9 @@ tenant's own rows, under RLS).
   `tenantId` in the query string is ignored; exports count and return the
   tenant's own movements (10 rows from the Bancor fixture), another tenant
   gets only the header, the audit export holds the tenant's trail and not
-  the other's; an inverted range is 400; metrics and matches export are 501.
+  the other's; an inverted range is 400; the matches export answers its
+  header and metrics answer 200 before any run (metrics are tested in
+  internal/matching and internal/app/data_test.go).
 - `csv_test.go`: formula neutralization. Mutations checked: without it five
   cells fail; reading each console tenant without its own scope fails the
   console test.

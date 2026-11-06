@@ -127,7 +127,8 @@ func TestExportsAreTheTenantsOwnAndFormulaSafe(t *testing.T) {
 		m := it.(map[string]any)
 		byKind[m["kind"].(string)] = m
 	}
-	if byKind["movements"]["rows"] != float64(10) || byKind["movements"]["available"] != true || byKind["matches"]["available"] != false {
+	if byKind["movements"]["rows"] != float64(10) || byKind["movements"]["available"] != true ||
+		byKind["matches"]["available"] != true || byKind["matches"]["rows"] != float64(0) {
 		t.Fatalf("exports: %s", list.raw)
 	}
 
@@ -153,10 +154,12 @@ func TestExportsAreTheTenantsOwnAndFormulaSafe(t *testing.T) {
 		t.Fatalf("inverted range: %d", s)
 	}
 
-	for _, path := range []string{"/v1/exports/matches", "/v1/metrics?period=2026-11"} {
-		r := c.do("GET", path, a.access, nil)
-		if r.status != 501 || r.str("code") != "not_implemented" {
-			t.Errorf("%s: %d %s", path, r.status, r.raw)
-		}
+	// Matches export and metrics are built by datos now (no longer 501):
+	// header only and no data while nothing has run.
+	if s, _, m := c.get("/v1/exports/matches", a.access); s != 200 || strings.Count(m, "\n") != 1 {
+		t.Errorf("matches export before any run: %d %q", s, m)
+	}
+	if r := c.do("GET", "/v1/metrics?period=2026-11", a.access, nil); r.status != 200 {
+		t.Errorf("metrics: %d %s", r.status, r.raw)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -132,6 +133,43 @@ func TestDataPathsEndToEnd(t *testing.T) {
 	}
 	if r := c.do("POST", mpath, other.access, map[string]any{"action": "other", "note": "x"}, idem()...); r.status != 404 {
 		t.Errorf("other tenant decided on a's movement: %d %s", r.status, r.raw)
+	}
+
+	// The results panel: every number is measured or no data, says what it
+	// counts, and its list opens.
+	met := c.do("GET", "/v1/metrics?period=2026-10", own.access, nil)
+	items, _ = met.body["items"].([]any)
+	if met.status != 200 || len(items) == 0 {
+		t.Fatalf("metrics: %d %s", met.status, met.raw)
+	}
+	for _, it := range items {
+		m := it.(map[string]any)
+		key, status, list := m["key"].(string), m["status"].(string), m["list"].(string)
+		if (status == "no_data") != (m["value"] == nil) || m["source"] == "" {
+			t.Errorf("metric %s: status %s value %v source %q", key, status, m["value"], m["source"])
+		}
+		if code, _, _ := c.get(list, own.access); code != 200 {
+			t.Errorf("metric %s: list %s answers %d", key, list, code)
+		}
+	}
+	// No match is automatic here (no items): measured 0%, not no data.
+	for _, it := range items {
+		if m := it.(map[string]any); m["key"] == "automation_rate" && (m["status"] != "measured" || m["value"] != float64(0)) {
+			t.Errorf("automation_rate %v", m)
+		}
+	}
+	if code, _, body := c.get("/v1/exports/matches?from=2026-10-01&to=2026-10-31", own.access); code != 200 ||
+		!strings.HasPrefix(body, "match_id,rule,rule_version,tray") {
+		t.Errorf("matches export: %d %q", code, body)
+	}
+	if r := c.do("GET", "/v1/metrics?period=2026-10", other.access, nil); r.status != 200 {
+		t.Errorf("other tenant metrics: %d", r.status)
+	} else {
+		for _, it := range r.body["items"].([]any) {
+			if m := it.(map[string]any); m["status"] != "no_data" {
+				t.Errorf("other tenant sees a measured %v", m)
+			}
+		}
 	}
 
 	if r := c.do("GET", "/v1/matching/matches?tray=suggested", own.access, nil); r.status != 200 {
