@@ -102,6 +102,7 @@ func TestPGMetricsOfAMonth(t *testing.T) {
 	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, "gasto bancario"); err != nil {
 		t.Fatal(err)
 	}
+	e.setMembership(t, e.a, identity.RoleOperator) // the Suggested metrics are the operator's
 	k = byKey(t, mustMetrics(t, e, "2026-10"))
 	if v := value(t, k["suggested_acceptance_rate"]); v != 100 {
 		t.Errorf("suggested_acceptance_rate %v; want 100", v)

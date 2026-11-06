@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
@@ -33,34 +33,30 @@ func (h *Handlers) RunMatching(ctx context.Context, req apigen.RunMatchingReques
 	if p.Role != identity.RoleOwner && p.Role != identity.RoleOperator {
 		return nil, errForbidden
 	}
-	from, err := time.Parse("2006-01", req.Body.Period)
-	if err != nil {
+	if _, _, err := monthRange(req.Body.Period); err != nil {
 		return nil, &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: "period must be YYYY-MM"}
 	}
-	to := from.AddDate(0, 1, -1)
-	in, err := h.store.LoadInput(ctx, from, to, h.cfg)
+	sum, err := h.store.RunMonth(ctx, req.Body.Period, h.cfg)
 	if err != nil {
 		return nil, err
 	}
-	r := Run(h.cfg, in)
-	runID, n, err := h.store.SaveRun(ctx, req.Body.Period, h.cfg, r)
-	if err != nil {
-		return nil, err
-	}
-	return apigen.RunMatching201JSONResponse{RunId: runID, Period: req.Body.Period, Matches: len(r.Matches), New: n,
-		Pending: len(r.Pending), Exceptions: len(r.Exceptions)}, nil
+	return apigen.RunMatching201JSONResponse{RunId: sum.RunID, Period: sum.Period, Matches: sum.Matches, New: sum.New,
+		Pending: sum.Pending, Exceptions: sum.Exceptions}, nil
 }
 
 func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesRequestObject) (apigen.ListMatchesResponseObject, error) {
 	ms, err := h.store.UndecidedIn(ctx, Tray(req.Params.Tray), periodOf(req.Params.Period), listLimit)
 	if err != nil {
-		return nil, err
+		return nil, decisionProblem(err)
 	}
 	out := apigen.ListMatches200JSONResponse{Items: []apigen.Match{}}
 	for _, m := range ms {
 		am, err := toAPIMatch(m)
 		if err != nil {
 			return nil, err
+		}
+		if req.Params.Tray == "exception" {
+			am.Tray = apigen.MatchTray("exception") // escalated: it waits in Exceptions now
 		}
 		out.Items = append(out.Items, am)
 	}
@@ -70,7 +66,7 @@ func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesReques
 func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingRequestObject) (apigen.ListPendingResponseObject, error) {
 	rows, err := h.store.LatestPendingIn(ctx, Tray(req.Params.Tray), periodOf(req.Params.Period), listLimit)
 	if err != nil {
-		return nil, err
+		return nil, decisionProblem(err)
 	}
 	out := apigen.ListPending200JSONResponse{Items: []apigen.PendingMovement{}}
 	for _, r := range rows {
@@ -79,7 +75,9 @@ func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingReques
 			return nil, err
 		}
 		pm := apigen.PendingMovement{MovementId: mid, RunId: r.RunID, Tray: apigen.PendingMovementTray(r.Tray),
-			Reason: apigen.PendingMovementReason(r.Reason), Candidates: []apigen.Candidate{}}
+			Reason: apigen.PendingMovementReason(r.Reason), Candidates: []apigen.Candidate{},
+			Date: openapi_types.Date{Time: r.Date}, Amount: int64(r.Amount), Description: r.Description,
+			AccountId: r.AccountID, AccountName: r.AccountName, Bank: apigen.Bank(r.Bank)}
 		if r.Note != "" {
 			note := r.Note
 			pm.Note = &note

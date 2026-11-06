@@ -111,6 +111,11 @@ func TestDataPathsEndToEnd(t *testing.T) {
 	items, _ := exc.body["items"].([]any)
 	firstExc, _ := items[0].(map[string]any)
 	mv, _ := firstExc["movementId"].(string)
+	// Each exception says which movement it is.
+	if firstExc["description"] == "" || firstExc["bank"] != "bancor" || firstExc["date"] == nil || firstExc["amount"] == nil ||
+		firstExc["accountName"] != "Cuenta corriente" {
+		t.Errorf("exception without its movement: %v", firstExc)
+	}
 	mpath := "/v1/matching/movements/" + mv + "/decision"
 	if r := c.do("POST", mpath, own.access, map[string]any{"action": "other"}, idem()...); r.status != 400 {
 		t.Errorf("other without a note: %d %s", r.status, r.raw)
@@ -172,8 +177,14 @@ func TestDataPathsEndToEnd(t *testing.T) {
 		}
 	}
 
-	if r := c.do("GET", "/v1/matching/matches?tray=suggested", own.access, nil); r.status != 200 {
-		t.Errorf("matches: %d %s", r.status, r.raw)
+	// F20: the client never sees Suggested (spec section 1); it sees results.
+	for _, path := range []string{"/v1/matching/matches?tray=suggested", "/v1/matching/pending?tray=suggested"} {
+		if r := c.do("GET", path, own.access, nil); r.status != 403 {
+			t.Errorf("owner %s: %d %s", path, r.status, r.raw)
+		}
+	}
+	if r := c.do("GET", "/v1/matching/matches?tray=auto", own.access, nil); r.status != 200 {
+		t.Errorf("owner automatic results: %d %s", r.status, r.raw)
 	}
 	if r := c.do("POST", "/v1/matching/matches/00000000000000000000000000000000/decision", own.access,
 		map[string]any{"action": "approve"}, idem()...); r.status != 404 {

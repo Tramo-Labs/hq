@@ -91,22 +91,19 @@ type Ingester struct {
 // Ingest checks and stores one file. The returned error is reserved for
 // store failures; a bad file is a Result with Status Quarantined.
 //
-// Order: file hash (duplicate) → layout fingerprint → bank and account →
-// rows → balances → chain with the previous statement → movement keys.
+// Order: layout fingerprint and rows → bank and account → file hash
+// (duplicate) → balances → chain with the previous statement → movement keys.
 func (in *Ingester) Ingest(ctx context.Context, u Upload) (Result, error) {
 	sum := sha256.Sum256(u.Data)
 	res := Result{FileHash: hex.EncodeToString(sum[:])}
-
-	seen, err := in.Store.FileSeen(ctx, u.TenantID, res.FileHash)
-	if err != nil {
-		return res, err
-	}
-	if seen {
-		res.Status = Duplicate
-		res.Detail = "this exact file was already uploaded"
-		return res, nil
+	quarantine := func(reason, detail string) (Result, error) {
+		res.Status, res.Reason, res.Detail = Quarantined, reason, detail
+		return res, in.Store.SaveQuarantined(ctx, u, res)
 	}
 
+	// What the file is comes first: a file of another bank or account is
+	// refused as such even when the same bytes were accepted for another
+	// account. Only then is it a duplicate of this tenant's upload.
 	st, reason, detail := Parse(u.Data)
 	if st != nil {
 		res.Fingerprint, res.LayoutID = st.Fingerprint, st.LayoutID
@@ -114,14 +111,27 @@ func (in *Ingester) Ingest(ctx context.Context, u Upload) (Result, error) {
 		res.Fingerprint = detail
 		detail = "header fingerprint " + detail + " is not a known layout"
 	}
-	if reason == "" {
-		if reason, detail, err = in.checks(ctx, u, st); err != nil {
-			return res, err
-		}
+	if reason != "" {
+		return quarantine(reason, detail)
+	}
+	if reason, detail := identityChecks(u, st); reason != "" {
+		return quarantine(reason, detail)
+	}
+
+	seen, err := in.Store.FileSeen(ctx, u.TenantID, res.FileHash)
+	if err != nil {
+		return res, err
+	}
+	if seen {
+		return Result{Status: Duplicate, FileHash: res.FileHash, Fingerprint: res.Fingerprint, LayoutID: res.LayoutID,
+			Detail: "this exact file was already uploaded"}, nil
+	}
+
+	if reason, detail, err = in.checks(ctx, u, st); err != nil {
+		return res, err
 	}
 	if reason != "" {
-		res.Status, res.Reason, res.Detail = Quarantined, reason, detail
-		return res, in.Store.SaveQuarantined(ctx, u, res)
+		return quarantine(reason, detail)
 	}
 
 	keys := movementKeys(u.AccountID, st.Movements)
@@ -148,13 +158,19 @@ func (in *Ingester) Ingest(ctx context.Context, u Upload) (Result, error) {
 	return res, nil
 }
 
-func (in *Ingester) checks(ctx context.Context, u Upload, st *Statement) (string, string, error) {
+// identityChecks: is this file a statement of this account at all.
+func identityChecks(u Upload, st *Statement) (string, string) {
 	if u.Bank != "" && st.Bank != u.Bank {
-		return ReasonBankMismatch, fmt.Sprintf("file is a %s export, account is %s", st.Bank, u.Bank), nil
+		return ReasonBankMismatch, fmt.Sprintf("file is a %s export, account is %s", st.Bank, u.Bank)
 	}
 	if u.AccountNumber != "" && st.AccountNumber != "" && !sameAccount(u.AccountNumber, st.AccountNumber) {
-		return ReasonAccountMismatch, "the file states another account number", nil
+		return ReasonAccountMismatch, "the file states another account number"
 	}
+	return "", ""
+}
+
+// checks: does the statement's content hold.
+func (in *Ingester) checks(ctx context.Context, u Upload, st *Statement) (string, string, error) {
 	if len(st.Movements) == 0 && !(st.OpeningStated && st.ClosingStated) {
 		return ReasonEmpty, "no movements and no stated balances", nil
 	}

@@ -72,8 +72,9 @@ func NewHandlers(d Deps) *Handlers {
 		platformHandlers: platformHandlers{ready: d.DB.Ping},
 		Handlers:         identity.NewHandlers(d.Identity),
 		// Data modules: every query through db.InTenant.
-		ledgerAPI:    ledger.NewHandlers(&ledger.PGStore{DB: d.DB}),
-		documentsAPI: documents.NewHandlers(&documents.PGStore{DB: d.DB}),
+		ledgerAPI: ledger.NewHandlers(&ledger.PGStore{DB: d.DB}),
+		// An invoice generates its open item in the same transaction (F2).
+		documentsAPI: documents.NewHandlers(&documents.PGStore{DB: d.DB, OnSaved: (&matching.PGStore{DB: d.DB}).InvoiceItemTx}),
 		matchingAPI:  matching.NewHandlers(&matching.PGStore{DB: d.DB}),
 		// Read views over the modules above, under the caller's scope.
 		portalAPI: &portal.Handlers{DB: d.DB, Identity: d.Identity,

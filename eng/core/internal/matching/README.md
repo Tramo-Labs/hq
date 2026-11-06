@@ -189,8 +189,36 @@ per match with a movement in the date range: rule and version, tray,
 links, adjustments, evidence and the decision in effect (tray, action,
 user, role, when, revision). The portal writes it formula safe.
 
-Still to do: the scheduled job per tenant and month (after backend wires
-River).
+## Who sees Suggested (F20)
+
+The client never sees the Suggested tray nor internal rules not yet
+confirmed (product spec section 1); the accountant neither. Enforced in the
+store, inside the tenant transaction, with the role read from memberships:
+listing Suggested matches or pending movements is 403 for anyone but an
+operator; the matches export gives them results only (automatic, linked by
+hand, approved, and what an operator sent to Exceptions), never an
+undecided or rejected suggestion; the metrics about Suggested
+(`suggested_acceptance_rate`, `pending_*`) are not offered to them.
+Everyone sees Automatic as a result, and Exceptions.
+
+## Monthly job
+
+`matching.run_month` (River, registered in `worker.New`). Arguments: the
+tenant id and the period, nothing else (River stores them in clear). They
+are the unique key (`ByArgs`): a month enqueued twice, or again after it
+ran, runs once. `MonthWorker.Work` scopes the context with
+`jobs.TenantContext` and calls `PGStore.RunMonth`, the only implementation
+of a month run, which `POST /v1/matching/runs` also uses. A retry is safe:
+matches are stored once by their ID. `EnqueueMonth(ctx, client, period)`
+enqueues for the tenant in the scope.
+
+Tested with a real River worker: twice and after completion, one run;
+another month, another run; tenant b's run of the same month touches none
+of tenant a's rows. Removing the unique key fails the first test.
+
+Not done: who enqueues every tenant's month on a schedule. A periodic job
+that lists tenants needs a cross tenant read, which matching does not do;
+that fan out belongs to platform (backend).
 
 ## Sensitive data
 

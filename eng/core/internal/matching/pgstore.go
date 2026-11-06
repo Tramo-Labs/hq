@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
@@ -71,6 +72,24 @@ func (s *PGStore) UpsertItems(ctx context.Context, source string, items []ItemIn
 			Detail: map[string]any{"source": source, "items": len(items)}})
 	})
 	return ids, err
+}
+
+// InvoiceItemTx stores the open item of an invoice inside the invoice's own
+// transaction (documents.PGStore.OnSaved). Source "document", source id the
+// invoice id, tied to it by invoice_id: the item follows the invoice, and
+// the database refuses to change an item a match in effect settles.
+func (s *PGStore) InvoiceItemTx(ctx context.Context, tx pgx.Tx, invoiceID uuid.UUID, d documents.ItemDraft) error {
+	refs := d.Refs
+	if refs == nil {
+		refs = []string{}
+	}
+	_, err := tx.Exec(ctx,
+		`insert into matching.items (tenant_id, source, source_id, invoice_id, kind, date, amount, refs, confidence, party)
+		 values (app_current_tenant(), 'document', $1, $2, $3, $4, $5, $6, $7, $8)
+		 on conflict (tenant_id, source, source_id) do update set kind = excluded.kind, date = excluded.date,
+		   amount = excluded.amount, refs = excluded.refs, confidence = excluded.confidence, party = excluded.party`,
+		invoiceID.String(), invoiceID, d.Kind, d.Date, int64(d.Amount), refs, d.Confidence, d.Party)
+	return err
 }
 
 // LoadInput builds the engine input for movements dated in [from, to]:
@@ -336,6 +355,37 @@ func memberRole(ctx context.Context, tx pgx.Tx) (string, error) {
 	return role, err
 }
 
+// seesSuggested reports whether the caller may see the Suggested tray:
+// only an operator (product spec section 1: the client never sees
+// Suggested, nor internal rules not yet confirmed; the accountant neither).
+// The role is the membership's, read in tx like for decisions. No
+// membership (a job, a stranger) sees nothing of it.
+func seesSuggested(ctx context.Context, tx pgx.Tx) (bool, error) {
+	role, err := memberRole(ctx, tx)
+	if errors.Is(err, ErrForbidden) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return role == identity.RoleOperator, nil
+}
+
+// mustSeeTray refuses a Suggested listing to anyone but an operator.
+func mustSeeTray(ctx context.Context, tx pgx.Tx, tray Tray) error {
+	if tray != Suggested {
+		return nil
+	}
+	ok, err := seesSuggested(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+	return nil
+}
+
 // trayState is the decision in effect in one tray of a match.
 type trayState struct {
 	id       int64
@@ -571,6 +621,9 @@ func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match,
 func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, limit int) ([]Match, error) {
 	var out []Match
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		if err := mustSeeTray(ctx, tx, tray); err != nil {
+			return err
+		}
 		// auto: nobody decides, listed for review. suggested: no operator
 		// decision yet. exception: escalated, no client decision yet.
 		rows, err := tx.Query(ctx, `select `+matchColumns+` from matching.matches m
@@ -606,6 +659,13 @@ func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, lim
 type PendingRow struct {
 	RunID uuid.UUID
 	Note  string // the client's note, for ReasonClientOther
+	// The movement itself, so each pending row can be told apart.
+	Date        time.Time
+	Amount      money.Amount
+	Description string
+	AccountID   uuid.UUID
+	AccountName string
+	Bank        string
 	Pending
 }
 
@@ -624,6 +684,9 @@ func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]Pe
 func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string, limit int) ([]PendingRow, error) {
 	var out []PendingRow
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		if err := mustSeeTray(ctx, tx, tray); err != nil {
+			return err
+		}
 		// A movement the client decided leaves the Exceptions tray; if the
 		// decision in effect is "other", it shows in Suggested for the
 		// operator with the client's note. A reverted decision puts it back.
@@ -633,11 +696,14 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 			     cur as (select p.*, s.action as decided, s.note as client_note from matching.pending p
 			               left join matching.movement_decision_state s on s.tenant_id = p.tenant_id and s.movement_id = p.movement_id
 			              where p.run_id in (select id from latest))
-			select run_id, movement_id,
-			       case when tray = 'exception' and decided = 'other' then 'suggested' else tray end,
-			       case when tray = 'exception' and decided = 'other' then 'client_other' else reason end,
-			       candidates, coalesce(client_note, '')
+			select cur.run_id, cur.movement_id,
+			       case when cur.tray = 'exception' and decided = 'other' then 'suggested' else cur.tray end,
+			       case when cur.tray = 'exception' and decided = 'other' then 'client_other' else reason end,
+			       candidates, coalesce(client_note, ''),
+			       l.date, l.amount, l.description, a.id, a.name, a.bank
 			  from cur
+			  join ledger.movements l on l.id = cur.movement_id
+			  join ledger.accounts a on a.id = l.account_id
 			 where case $1
 			         when 'exception' then tray = 'exception' and decided is null
 			         when 'suggested' then tray = 'suggested' or (tray = 'exception' and decided = 'other')
@@ -652,9 +718,12 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 			var mid uuid.UUID
 			var t, reason string
 			var cands []byte
-			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands, &r.Note); err != nil {
+			var amount int64
+			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands, &r.Note,
+				&r.Date, &amount, &r.Description, &r.AccountID, &r.AccountName, &r.Bank); err != nil {
 				return err
 			}
+			r.Amount = money.Amount(amount)
 			r.MovementID, r.Tray, r.Reason = mid.String(), Tray(t), PendingReason(reason)
 			if r.Reason != ReasonClientOther {
 				r.Note = ""

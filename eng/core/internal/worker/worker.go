@@ -11,6 +11,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
 )
@@ -68,6 +69,10 @@ type Setup struct {
 func New(d *db.DB) (Setup, error) {
 	ws := river.NewWorkers()
 	if err := river.AddWorkerSafely(ws, &MaintenanceWorker{DB: d}); err != nil {
+		return Setup{}, err
+	}
+	// datos: the monthly matching run of one tenant (internal/matching).
+	if err := river.AddWorkerSafely(ws, &matching.MonthWorker{Store: &matching.PGStore{DB: d}, Config: matching.DefaultConfig}); err != nil {
 		return Setup{}, err
 	}
 	periodic := []*river.PeriodicJob{

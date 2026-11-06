@@ -78,6 +78,9 @@ type Invoice struct {
 	Fields map[Name]Field
 	// Trail records each stage that ran and what it found, for the audit log.
 	Trail []string
+	// ItemReason says why the stored invoice generated no open item ("" when
+	// it did, or before it is stored). See DraftItem.
+	ItemReason string `json:"-"`
 }
 
 func newInvoice() *Invoice { return &Invoice{Fields: map[Name]Field{}} }
@@ -130,7 +133,10 @@ func (inv *Invoice) Untrusted() []Name {
 
 // AutoEligible reports whether every required field is trusted. Only then
 // may the invoice be registered without review or feed an automatic match.
-func (inv *Invoice) AutoEligible() bool { return len(inv.Untrusted()) == 0 }
+// An invoice that is someone else's (F21) never is.
+func (inv *Invoice) AutoEligible() bool {
+	return inv.ItemReason != NoItemNotThisTenant && len(inv.Untrusted()) == 0
+}
 
 // MinConfidence over the required fields (0 if any is missing). A field in
 // conflict or from the language model counts at most LLMCap. Matching uses
