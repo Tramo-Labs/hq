@@ -84,6 +84,7 @@ func TestPGMovementOtherGoesBackToTheOperator(t *testing.T) {
 	if _, ok := e.pendingIDs(t, Exception)[fee]; ok {
 		t.Error("a decided movement is still in the client's tray")
 	}
+	e.setMembership(t, e.a, identity.RoleOperator) // Suggested is the operator's to see
 	if r, ok := e.pendingIDs(t, Suggested)[fee]; !ok || r.Reason != ReasonClientOther || r.Note == "" {
 		t.Errorf("not back with the operator: %+v", r)
 	}
@@ -381,5 +382,70 @@ func TestPGNoRevertAfterClose(t *testing.T) {
 	e.store.Closed = nil
 	if _, err := e.decideAs(t, identity.RoleOperator, m, Revert, ""); err != nil {
 		t.Errorf("with no close, the revert goes through: %v", err)
+	}
+}
+
+// F20, spec section 1: the client never sees the Suggested tray. Only an
+// operator lists Suggested matches and pending movements, gets undecided or
+// rejected suggestions in the matches export, and the metrics about
+// Suggested. Everyone sees Automatic as a result, and Exceptions.
+func TestPGSuggestedIsTheOperatorsOnly(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	sug := suggested(r)
+	exportHas := func(id string) bool {
+		rows, err := e.store.MatchRows(e.ctx, day(1), day(31))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, row := range rows[1:] {
+			if row[0] == id {
+				return true
+			}
+		}
+		return false
+	}
+	metricKeys := func() map[string]bool {
+		out := map[string]bool{}
+		for _, m := range mustMetrics(t, e, "2026-10") {
+			out[m.Key] = true
+		}
+		return out
+	}
+	for _, role := range []string{identity.RoleOwner, identity.RoleApprover, identity.RoleViewer, identity.RoleAccountant} {
+		e.setMembership(t, e.a, role)
+		if _, err := e.store.UndecidedIn(e.ctx, Suggested, "", 10); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s lists suggested matches: %v", role, err)
+		}
+		if _, err := e.store.LatestPendingIn(e.ctx, Suggested, "", 10); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s lists suggested pending movements: %v", role, err)
+		}
+		if _, err := e.store.UndecidedIn(e.ctx, Auto, "", 10); err != nil {
+			t.Errorf("%s cannot list automatic results: %v", role, err)
+		}
+		if _, err := e.store.LatestPendingIn(e.ctx, Exception, "", 10); err != nil {
+			t.Errorf("%s cannot list exceptions: %v", role, err)
+		}
+		if exportHas(sug.ID) {
+			t.Errorf("%s gets an undecided suggestion in the export", role)
+		}
+		if k := metricKeys(); k["suggested_acceptance_rate"] || k["pending_ambiguous"] || !k["automation_rate"] {
+			t.Errorf("%s metrics: %v", role, k)
+		}
+	}
+	e.setMembership(t, e.a, identity.RoleOperator)
+	if l, err := e.store.UndecidedIn(e.ctx, Suggested, "", 10); err != nil || len(l) != 1 {
+		t.Errorf("operator: %d suggested, %v", len(l), err)
+	}
+	if !exportHas(sug.ID) || !metricKeys()["suggested_acceptance_rate"] {
+		t.Error("operator does not see the Suggested tray")
+	}
+	// Escalated, it is the client's Exceptions: now the owner sees it.
+	if _, err := e.decideAs(t, identity.RoleOperator, sug, Escalate, "confirmar con el cliente"); err != nil {
+		t.Fatal(err)
+	}
+	e.setMembership(t, e.a, identity.RoleOwner)
+	if !exportHas(sug.ID) {
+		t.Error("owner does not see the match sent to Exceptions")
 	}
 }

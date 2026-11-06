@@ -189,6 +189,18 @@ per match with a movement in the date range: rule and version, tray,
 links, adjustments, evidence and the decision in effect (tray, action,
 user, role, when, revision). The portal writes it formula safe.
 
+## Who sees Suggested (F20)
+
+The client never sees the Suggested tray nor internal rules not yet
+confirmed (product spec section 1); the accountant neither. Enforced in the
+store, inside the tenant transaction, with the role read from memberships:
+listing Suggested matches or pending movements is 403 for anyone but an
+operator; the matches export gives them results only (automatic, linked by
+hand, approved, and what an operator sent to Exceptions), never an
+undecided or rejected suggestion; the metrics about Suggested
+(`suggested_acceptance_rate`, `pending_*`) are not offered to them.
+Everyone sees Automatic as a result, and Exceptions.
+
 ## Monthly job
 
 `matching.run_month` (River, registered in `worker.New`). Arguments: the

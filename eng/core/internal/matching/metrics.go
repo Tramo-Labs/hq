@@ -61,6 +61,11 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 		var movements, autoMoves, approved, rejected, openMoves, openMatches, invoices, held int
 		var invoicesEver bool
 		var hasRun bool
+		// Metrics about the Suggested tray are the operator's only.
+		operator, err := seesSuggested(ctx, tx)
+		if err != nil {
+			return err
+		}
 		var oldest *time.Time
 		pending := map[PendingReason]int{}
 
@@ -166,6 +171,14 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 					autoMoves, movements))
 		}
 
+		suggestedOnly := m
+		m = func(key, label, unit, list string, v *float64, source string) {
+			if !operator && (key == "suggested_acceptance_rate" || strings.HasPrefix(key, "pending_")) {
+				return
+			}
+			suggestedOnly(key, label, unit, list, v, source)
+		}
+
 		if approved+rejected == 0 {
 			m("suggested_acceptance_rate", "Sugerencias aceptadas", "percent", exportList, nil,
 				"Ninguna sugerencia del mes tiene todavía una decisión del operador")
@@ -237,6 +250,14 @@ func (s *PGStore) MatchRows(ctx context.Context, from, to time.Time) ([][]string
 		"reference", "date_diff_days", "cross_period", "low_confidence",
 		"decision_tray", "decision", "decided_by", "decided_role", "decided_at", "decision_revision"}}
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		// Anyone but an operator sees results, not the Suggested tray:
+		// automatic matches, links by hand, approved matches and what an
+		// operator sent to Exceptions. A suggestion still undecided, or one
+		// the operator rejected, is the operator's (spec section 1).
+		operator, err := seesSuggested(ctx, tx)
+		if err != nil {
+			return err
+		}
 		rows, err := tx.Query(ctx, `
 			select m.id, m.rule_id, m.rule_version, m.tray, m.movement_ids::text[], m.item_ids::text[], m.adjustments, m.evidence,
 			       coalesce(dx.tray, ds.tray, ''), coalesce(dx.action, ds.action, ms.action, ''),
@@ -251,7 +272,8 @@ func (s *PGStore) MatchRows(ctx context.Context, from, to time.Time) ([][]string
 			  left join matching.movement_decision_state ms on ms.tenant_id = m.tenant_id and ms.match_id = m.id and ms.action = 'link'
 			  left join matching.movement_decisions md on md.id = ms.id
 			 where exists (select 1 from ledger.movements l where l.id = any(m.movement_ids) and l.date between $1 and $2)
-			 order by m.created_at, m.id`, from, to)
+			   and ($3 or m.tray = 'auto' or ms.action = 'link' or ds.action in ('approve', 'escalate') or dx.action is not null)
+			 order by m.created_at, m.id`, from, to, operator)
 		if err != nil {
 			return err
 		}

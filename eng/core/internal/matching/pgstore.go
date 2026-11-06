@@ -355,6 +355,37 @@ func memberRole(ctx context.Context, tx pgx.Tx) (string, error) {
 	return role, err
 }
 
+// seesSuggested reports whether the caller may see the Suggested tray:
+// only an operator (product spec section 1: the client never sees
+// Suggested, nor internal rules not yet confirmed; the accountant neither).
+// The role is the membership's, read in tx like for decisions. No
+// membership (a job, a stranger) sees nothing of it.
+func seesSuggested(ctx context.Context, tx pgx.Tx) (bool, error) {
+	role, err := memberRole(ctx, tx)
+	if errors.Is(err, ErrForbidden) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return role == identity.RoleOperator, nil
+}
+
+// mustSeeTray refuses a Suggested listing to anyone but an operator.
+func mustSeeTray(ctx context.Context, tx pgx.Tx, tray Tray) error {
+	if tray != Suggested {
+		return nil
+	}
+	ok, err := seesSuggested(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+	return nil
+}
+
 // trayState is the decision in effect in one tray of a match.
 type trayState struct {
 	id       int64
@@ -590,6 +621,9 @@ func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match,
 func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, limit int) ([]Match, error) {
 	var out []Match
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		if err := mustSeeTray(ctx, tx, tray); err != nil {
+			return err
+		}
 		// auto: nobody decides, listed for review. suggested: no operator
 		// decision yet. exception: escalated, no client decision yet.
 		rows, err := tx.Query(ctx, `select `+matchColumns+` from matching.matches m
@@ -643,6 +677,9 @@ func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]Pe
 func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string, limit int) ([]PendingRow, error) {
 	var out []PendingRow
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		if err := mustSeeTray(ctx, tx, tray); err != nil {
+			return err
+		}
 		// A movement the client decided leaves the Exceptions tray; if the
 		// decision in effect is "other", it shows in Suggested for the
 		// operator with the client's note. A reverted decision puts it back.

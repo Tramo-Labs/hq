@@ -46,7 +46,7 @@ func (h *Handlers) RunMatching(ctx context.Context, req apigen.RunMatchingReques
 func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesRequestObject) (apigen.ListMatchesResponseObject, error) {
 	ms, err := h.store.UndecidedIn(ctx, Tray(req.Params.Tray), periodOf(req.Params.Period), listLimit)
 	if err != nil {
-		return nil, err
+		return nil, decisionProblem(err)
 	}
 	out := apigen.ListMatches200JSONResponse{Items: []apigen.Match{}}
 	for _, m := range ms {
@@ -62,7 +62,7 @@ func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesReques
 func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingRequestObject) (apigen.ListPendingResponseObject, error) {
 	rows, err := h.store.LatestPendingIn(ctx, Tray(req.Params.Tray), periodOf(req.Params.Period), listLimit)
 	if err != nil {
-		return nil, err
+		return nil, decisionProblem(err)
 	}
 	out := apigen.ListPending200JSONResponse{Items: []apigen.PendingMovement{}}
 	for _, r := range rows {
