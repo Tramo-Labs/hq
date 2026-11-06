@@ -45,7 +45,7 @@ the request. Inside `InTenant` the role is also `current_setting('app.role',
 true)` for policies. The token lives 10 minutes: an action that must see a
 demotion right away re-reads the membership in its transaction.
 
-New tables (migrations 00100 to 00199 for datos) must have `tenant_id uuid not null
+New tables (numbering: one sequence, `migrations/README.md`) must have `tenant_id uuid not null
 references tenants(id)` and:
 
 ```sql
@@ -89,7 +89,7 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
 | `refresh_tokens` | no access | identity only, through `System` (`tramo_system`) |
 | `invites` | no access | identity only, through `System`; token hashes only |
 | `audit_log` | read and insert for the current tenant | UPDATE and DELETE rejected by trigger, for every role |
-| `audit_denial_repeats` (00010) | read, insert and update for the current tenant | counter of repeated 403s on a denial's audit row |
+| `audit_denial_repeats` (00112) | read, insert and update for the current tenant | counter of repeated 403s on a denial's audit row |
 | `idempotency_requests` | current tenant | middleware uses `System` with explicit scope |
 | `tenant_keys` | read own key | wrapped data keys |
 
@@ -127,7 +127,7 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   ones.) **Repeats are coalesced**: the first 403 of a user on an
   operation is the audit row; further ones within a minute
   (`Deps.DenialWindow`) only bump a counter on that row in
-  `audit_denial_repeats` (migration 00010, forced RLS per tenant), since
+  `audit_denial_repeats` (migration 00112, forced RLS per tenant), since
   `audit_log` is append only. Nothing is dropped: the count and the last
   time are durable, and the audit export shows them (`repeated`,
   `repeated_until`). A member hammering a forbidden operation writes at
