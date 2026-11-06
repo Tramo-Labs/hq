@@ -19,7 +19,10 @@ type Mod = typeof import("./session");
 const person = (email: string) => ({ accessToken: "t", tenantId: "a", tenantName: "Alfa", role: "owner" as const, email, name: null, memberships: [] });
 const settle = () => new Promise((r) => setTimeout(r, 50));
 
-test("accepting an invitation in one tab ends the other tab's session, live", async () => {
+let liveReady = false;
+function live() {
+  if (liveReady) return;
+  liveReady = true;
   process.env.TRAMO_CORE_MODE = "live";
   const g = globalThis as Record<string, unknown>;
   g.window ??= globalThis;
@@ -30,7 +33,11 @@ test("accepting an invitation in one tab ends the other tab's session, live", as
       (this as unknown as { unref(): void }).unref();
     }
   };
-  const tab = (id: string): Promise<Mod> => import(new URL(`./session.ts?tab=${id}`, import.meta.url).href);
+}
+const tab = (id: string): Promise<Mod> => import(new URL(`./session.ts?tab=${id}`, import.meta.url).href);
+
+test("accepting an invitation in one tab ends the other tab's session, live", async () => {
+  live();
   const [owner, invite] = await Promise.all([tab("owner"), tab("invite")]);
   assert.equal(owner.getMode(), "live");
 
@@ -59,4 +66,22 @@ test("accepting an invitation in one tab ends the other tab's session, live", as
   await settle();
   assert.equal(owner.getSession(), null);
   assert.equal(owner.endedElsewhere(), true);
+});
+
+test("what one tab tells the others is exactly { email }: no token or other field leaves the tab", async () => {
+  live();
+  const sender = await tab("sender");
+  const heard: unknown[] = [];
+  const ear = new BroadcastChannel("tramo-session");
+  ear.addEventListener("message", (e) => heard.push((e as MessageEvent).data));
+  // A session carrying everything a token response could hold, plus fields that must stay put.
+  const full = { ...person("ana@alfa.test"), accessToken: "secret-access", refreshToken: "secret-refresh", idToken: "secret-id", name: "Ana", memberships: [{ tenantId: "a", tenantName: "Alfa", role: "owner" }] };
+  sender.setSession(full as Parameters<Mod["setSession"]>[0]);
+  await settle();
+  sender.setSession(null);
+  await settle();
+  ear.close();
+  assert.deepEqual(heard, [{ email: "ana@alfa.test" }, { email: null }]);
+  for (const m of heard) assert.deepEqual(Object.keys(m as object), ["email"]);
+  assert.doesNotMatch(JSON.stringify(heard), /secret/);
 });
