@@ -54,7 +54,7 @@ func TestPersonName(t *testing.T) {
 			t.Errorf("%s: %d %s", name, p.status, p.raw)
 		}
 	}
-	for _, s := range []string{"   ", "​", "‮oteB", "Be to"} {
+	for _, s := range []string{"   ", "\u200b", "\u202eoteB", "Be\u2028to"} {
 		if p := c.do("PATCH", "/v1/me", beto.access, map[string]any{"name": s}); p.status != 400 || p.str("code") != "invalid_name" {
 			t.Errorf("name %q: %d %s", s, p.status, p.raw)
 		}

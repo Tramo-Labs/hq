@@ -20,6 +20,11 @@ const MaxName = 120
 // carries control characters.
 var ErrInvalidName = errors.New("invalid name")
 
+// blankLooking are characters that render as blank but are letters or
+// symbols to Unicode, so no category rule catches them: the Hangul fillers
+// (U+3164, U+115F, U+1160, U+FFA0) and the Braille blank (U+2800).
+var blankLooking = map[rune]bool{0x3164: true, 0x115F: true, 0x1160: true, 0xFFA0: true, 0x2800: true}
+
 // normalizeName trims the name and refuses what cannot be shown: nothing
 // left, more than MaxName characters, or control characters (line breaks
 // included, which would also break a CSV cell or a mail header).
@@ -31,15 +36,18 @@ func normalizeName(s string) (string, error) {
 	visible := false
 	for _, r := range s {
 		// Control and format characters (Cf: zero width, the bidi controls
-		// that flip how a name reads in the audit or the members list) and
-		// line or paragraph separators never belong in a name.
-		if unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) {
+		// that flip how a name reads in the audit or the members list),
+		// line or paragraph separators, and characters that look blank
+		// never belong in a name.
+		if unicode.IsControl(r) || unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp) || blankLooking[r] {
 			return "", ErrInvalidName
 		}
-		if unicode.In(r, unicode.L, unicode.N, unicode.P, unicode.S) {
+		if unicode.In(r, unicode.L, unicode.N) {
 			visible = true
 		}
 	}
+	// A work name has at least one letter or number: punctuation, symbols
+	// or emoji alone ("...", "★") are not a name.
 	if !visible {
 		return "", ErrInvalidName
 	}

@@ -52,6 +52,14 @@ and 00006, which call River's own migrator pinned to River versions 4 and 8.
 Migration 00007: role `tramo_jobs` (no superuser, no bypass, no login) is the
 only role with access, with forced RLS and a single policy for it.
 
+Tables the jobs use outside `river` (none reachable by `tramo_jobs`; the
+workers reach them through `db.System`, `tramo_system`):
+
+| Table | Migration | Used by | Holds |
+|-------|-----------|---------|-------|
+| `platform.month_closes` | 00115 | `platform.month_close` | one row per closed month (period, when, tenants): the durable mark that keeps a month from closing twice after River forgets the job |
+| `magic_link_requests` (identity) | 00114 | `identity.magic_link` | the pending request (email, tenant, request id, IP) the job takes and deletes; older than a day is purged by `platform.maintenance` |
+
 ## Roles and connections
 
 - The queue uses its own pool; every connection does `SET ROLE tramo_jobs`.

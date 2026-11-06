@@ -27,14 +27,25 @@ func TestNameLengthBoundary(t *testing.T) {
 // separators (Zl, Zp). And a name needs something visible.
 func TestNameRefusesInvisibleAndBidiCharacters(t *testing.T) {
 	for name, s := range map[string]string{
-		"zero width space alone": "​",
-		"right to left override": "‮oteB",
-		"left to right isolate":  "Be⁦to",
-		"line separator":         "Be to",
-		"paragraph separator":    "Be to",
-		"only spaces":            "   ",
-		"only combining marks":   "́̈",
-		"control":                "Be\x07to",
+		"zero width space alone": "\u200b",
+		"right to left override": "\u202eoteB",
+		"left to right isolate":  "Be\u2066to",
+		"line separator":         "Be\u2028to",
+		"paragraph separator":    "Be\u2029to",
+		"only spaces":            " \u00a0 ",
+		"only combining marks":   "\u0301\u0308",
+		// Look blank yet are letters or symbols to Unicode.
+		"hangul filler":               "\u3164",
+		"hangul choseong filler":      "\u115f",
+		"halfwidth hangul filler":     "\uffa0",
+		"braille blank":               "\u2800",
+		"two fillers":                 "\u3164\u1160",
+		"a filler inside a name":      "Ana\u3164P\u00e9rez",
+		"braille blank inside a name": "Ana\u2800P\u00e9rez",
+		// Something visible but no letter or number.
+		"only punctuation": "...",
+		"only symbols":     "★☆",
+		"control":          "Be\x07to",
 	} {
 		if _, err := normalizeName(s); !errors.Is(err, ErrInvalidName) {
 			t.Errorf("%s accepted", name)

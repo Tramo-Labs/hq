@@ -188,8 +188,11 @@ expired more than 7 days ago. All run in the worker's daily
   without it, the invitation ignoring it, each fails). A name refuses
   format characters (Cf: zero width, the bidi controls such as U+202E that
   flip how it reads in the audit or the members list) and line or paragraph
-  separators, and needs a visible character (letter, number, punctuation or
-  symbol); the 120 character limit is enforced in code too
+  separators, and characters that look blank but are letters or symbols to
+  Unicode (the Hangul fillers U+3164, U+115F, U+1160, U+FFA0 and the Braille
+  blank U+2800), anywhere in the name. It needs at least one letter or
+  number: punctuation, symbols or emoji alone ("...", "★") are not a work
+  name. The 120 character limit is enforced in code too
   (`TestNameLengthBoundary`, `TestNameRefusesInvisibleAndBidiCharacters`).
   An invitation never overwrites a name already set
   (`TestInviteDoesNotOverwriteAName`). Mutations checked: the invitation
