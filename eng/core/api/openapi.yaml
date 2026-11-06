@@ -1007,8 +1007,10 @@ components:
         did): no_tenant_cuit (the tenant has no CUIT on file),
         missing_total_or_date (no trusted total or issue date),
         foreign_currency (not pesos; no conversion is guessed),
-        unknown_direction (no issuer to tell the tenant's side).
-      enum: [no_tenant_cuit, missing_total_or_date, foreign_currency, unknown_direction]
+        unknown_direction (no issuer to tell the tenant's side),
+        not_this_tenant (trusted issuer and receiver are both someone else;
+        never auto eligible).
+      enum: [no_tenant_cuit, missing_total_or_date, foreign_currency, unknown_direction, not_this_tenant]
     Invoice:
       type: object
       required: [id, fields, autoEligible, minConfidence, missing, trail]
@@ -1057,7 +1059,10 @@ components:
         id: { type: string }
         rule: { type: string, example: reference_exact }
         ruleVersion: { type: integer }
-        tray: { type: string, enum: [auto, suggested] }
+        tray:
+          type: string
+          description: Where the match waits now; a suggested match an operator escalated is in exception.
+          enum: [auto, suggested, exception]
         movementIds:
           type: array
           items: { type: string, format: uuid }
@@ -1081,10 +1086,16 @@ components:
           items: { type: string, format: uuid }
     PendingMovement:
       type: object
-      required: [movementId, runId, tray, reason, candidates]
+      required: [movementId, runId, tray, reason, candidates, date, amount, description, accountId, accountName, bank]
       properties:
         movementId: { type: string, format: uuid }
         runId: { type: string, format: uuid }
+        date: { type: string, format: date, description: Date of the movement. }
+        amount: { $ref: "#/components/schemas/Cents" }
+        description: { type: string, description: As the bank wrote it. }
+        accountId: { type: string, format: uuid }
+        accountName: { type: string }
+        bank: { $ref: "#/components/schemas/Bank" }
         tray: { type: string, enum: [suggested, exception] }
         reason:
           type: string
