@@ -106,6 +106,12 @@ return on movements) is checked by the server: missing or blank is 400
 note). No list or export shows that reason yet, neither to the operator nor
 in the matches export: open item for whoever builds the operator's view.
 
+The role is read before the idempotency key, for matches and movements:
+someone whose membership decides no tray (viewer, accountant, or a role
+lowered after deciding) is 403 whatever key it sends, never a replay of
+another decision nor a 422 (tested with another person's key and with the
+decider's own key after its role was lowered).
+
 Nothing about the decider is input: the user is the scope's; the role is
 read from `memberships` in the same transaction (a token can be ten minutes
 old; a lowered role stops decisions at once); the tray is the stored one

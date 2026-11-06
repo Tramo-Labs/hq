@@ -129,7 +129,17 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		var prevUser uuid.UUID
 		var prevRev int
 		var prevAt time.Time
-		err := tx.QueryRow(ctx,
+		// The role first (see Record): someone who decides on no movement
+		// is 403 whatever key it sends.
+		var err error
+		if d.Role, err = memberRole(ctx, tx); err != nil {
+			return err
+		}
+		client, operator := CanDecide(d.Role, Exception), d.Role == identity.RoleOperator
+		if !client && !operator {
+			return ErrForbidden
+		}
+		err = tx.QueryRow(ctx,
 			`select movement_id, action, user_id, role, note, match_id, revision, at from matching.movement_decisions where key = $1`, key).
 			Scan(&prevMove, &prevAction, &prevUser, &prevRole, &prevNote, &prevMatch, &prevRev, &prevAt)
 		if err == nil {
@@ -155,14 +165,6 @@ func (s *PGStore) DecideMovement(ctx context.Context, in MovementDecisionInput) 
 		if err != nil {
 			return err
 		}
-		if d.Role, err = memberRole(ctx, tx); err != nil {
-			return err
-		}
-		client, operator := CanDecide(d.Role, Exception), d.Role == identity.RoleOperator
-		if !client && !operator {
-			return ErrForbidden
-		}
-
 		var cur struct {
 			id       int64
 			revision int

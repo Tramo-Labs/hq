@@ -473,12 +473,21 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 	}
 	applied := false
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
-		// Replay first: the same key, match, action and user answers what
+		// The role first, read from the membership: someone who decides no
+		// tray is 403 whatever key it sends, never a replay nor a 422.
+		var err error
+		if d.Role, err = memberRole(ctx, tx); err != nil {
+			return err
+		}
+		if !CanDecide(d.Role, Suggested) && !CanDecide(d.Role, Exception) {
+			return ErrForbidden
+		}
+		// Then the replay: the same key, match, action and user answers what
 		// was stored, before anything else is looked at again.
 		var prevMatch, prevAction, prevRole, prevNote, prevTray string
 		var prevUser uuid.UUID
 		var prevAt time.Time
-		err := tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note, tray from matching.decisions where key = $1`, key).
+		err = tx.QueryRow(ctx, `select match_id, action, user_id, role, at, note, tray from matching.decisions where key = $1`, key).
 			Scan(&prevMatch, &prevAction, &prevUser, &prevRole, &prevAt, &prevNote, &prevTray)
 		if err == nil {
 			if prevMatch == d.MatchID && prevAction == string(d.Action) && prevUser == sc.UserID {
@@ -493,9 +502,6 @@ func (s *PGStore) Record(ctx context.Context, in DecisionInput) (Decision, bool,
 
 		stored, states, periods, err := matchState(ctx, tx, d.MatchID)
 		if err != nil {
-			return err
-		}
-		if d.Role, err = memberRole(ctx, tx); err != nil {
 			return err
 		}
 

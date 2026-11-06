@@ -14,6 +14,7 @@ import (
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 )
 
 // movementsByDescription returns the ids of tenant a's movements with that
@@ -171,6 +172,58 @@ func TestPGMovementMustBeAnException(t *testing.T) {
 }
 
 // A role lowered while the token is still valid stops movement decisions too.
+// A viewer that sends the key of someone else's decision gets 403, not a
+// replay nor a 422: the role is checked before the key, for matches and
+// for movements. The same viewer with a fresh key is 403 too.
+func TestPGRoleBeforeIdempotencyKey(t *testing.T) {
+	e := newPGEnv(t)
+	r, _ := e.run(t)
+	m := e.escalated(t, r)
+	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
+
+	e.setMembership(t, e.a, identity.RoleApprover)
+	matchKey, moveKey := uuid.NewString(), uuid.NewString()
+	if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: matchKey, Match: m, Action: Approve}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := e.store.DecideMovement(e.ctx, MovementDecisionInput{Key: moveKey, MovementID: fee,
+		Action: MovementOther, Note: "gasto bancario"}); err != nil {
+		t.Fatal(err)
+	}
+	// Another person of the tenant, a viewer, sends the approver's keys (F1).
+	other := uuid.New()
+	bg := context.Background()
+	if err := e.d.System(bg, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(bg, `insert into users (id, email) values ($1, 'viewer@alfa.test')`, other); err != nil {
+			return err
+		}
+		_, err := tx.Exec(bg, `insert into memberships (user_id, tenant_id, role) values ($1, $2, 'viewer')`, other, e.a.TenantID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	vctx := session(db.Scope{TenantID: e.a.TenantID, UserID: other}, identity.RoleViewer)
+	if _, _, err := e.store.Record(vctx, DecisionInput{Key: matchKey, Match: m, Action: Approve}); !errors.Is(err, ErrForbidden) {
+		t.Errorf("another viewer with the approver's match key: %v; want forbidden", err)
+	}
+	if _, _, err := e.store.DecideMovement(vctx, MovementDecisionInput{Key: moveKey, MovementID: fee,
+		Action: MovementOther, Note: "gasto bancario"}); !errors.Is(err, ErrForbidden) {
+		t.Errorf("another viewer with the approver's movement key: %v; want forbidden", err)
+	}
+
+	// The approver itself, lowered: no replay of its own decision either.
+	for _, role := range []string{identity.RoleViewer, identity.RoleAccountant} {
+		e.setMembership(t, e.a, role)
+		if _, _, err := e.store.Record(e.ctx, DecisionInput{Key: matchKey, Match: m, Action: Approve}); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s with the approver's match key: %v; want forbidden", role, err)
+		}
+		if _, _, err := e.store.DecideMovement(e.ctx, MovementDecisionInput{Key: moveKey, MovementID: fee,
+			Action: MovementOther, Note: "gasto bancario"}); !errors.Is(err, ErrForbidden) {
+			t.Errorf("%s with the approver's movement key: %v; want forbidden", role, err)
+		}
+	}
+}
+
 func TestPGMovementDowngradedRole(t *testing.T) {
 	e := newPGEnv(t)
 	e.run(t)
