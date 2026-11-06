@@ -1,26 +1,26 @@
-# Competencia relevada el 05/11/2026
+# Competencia
 
-Todo sale de los sitios de cada empresa. Los números de resultados son autodeclarados por cada una.
+Todo sale de los sitios de cada empresa. Los números de resultados son autodeclarados por cada una. Cada fila de la tabla de Argentina lleva la fecha de su última revisión: si dice 05/11, no se volvió a mirar desde el primer relevamiento. Las pasadas con fecha están al final.
 
 ## Argentina
 
-| Quién | Qué vende | Precio publicado | Prueba | Ángulo |
-|---|---|---|---|---|
-| [Looking for Trouble](https://lookingfortrouble.ai) | Agentes a medida operados, finanzas y compras de empresas medianas y grandes | Fee mensual por agente, sin monto | 45 logos (Arcor, Coca-Cola, Banco de Santa Fe) | Agente como servicio. El más directo en finanzas |
-| [AutonomIA](https://autonomia.ar) (Entre Ríos) | Automatización de procesos para pymes de 5 a 200 personas | USD 2.500 a 8.000 primer release, diagnóstico pago | 7 logos, "30+ empresas" | Proyecto sobre n8n y LLMs |
-| [Zent Agency](https://zent-agency.com) (CABA) | Socio tecnológico: software, IA y automatización; agro y alimentos entre sus rubros | Honorario mensual fijo tras diagnóstico | ~16 clientes, casos con horas ahorradas | Partner con retainer |
-| [Duotach](https://duotach.com) (CABA) | Automatización con IA "que llega a producción" para pymes con ERP | Desde USD 1.500; retainer USD 800 a 3.000/mes | Testimonios | Boutique, el código es del cliente. Tienen post sobre conciliación bancaria |
-| [VELION](https://velion.com.ar) (Córdoba capital) | Bots y sistemas para pymes de servicios | USD 89/mes + 379 setup hasta USD 549/mes + 2.299 | 1 caso (estudio contable, VEPs en ARCA) | Producto empaquetado con garantía de 30 días |
-| [Estudio Antídoto](https://estudioantidoto.com.ar) (Castelar) | Agencia de IA y automatización | Sin cifra; por fases más mantenimiento | 3 casos nombrados | Solución |
-| [Tec5](https://tec5.tech) (CABA) | IT services con línea de IA | Desde USD 250/mes (producto) o USD 900/mes (a medida) | ~17 logos | Proveedor IT |
-| [Agéntica-IA](https://agentica-ia.ar) | Consultoría de adopción de IA | Sin cifra | Ninguna | Consultoría |
-| [Develop Argentina](https://developargentina.com) | Software a medida y agentes | USD 500 a 2.000 setup + 50 a 300/mes (simple) | Sin logos | Dev shop con SEO |
-| [BEM-WEB](https://bem-web.com) (Córdoba) | Freelance n8n, Make, WhatsApp | Sin precio | Sin casos | Freelance |
-| [Neowyze](https://neowyze.tech) (Rosario) | Agencia digital con chatbots | Sin precio | 22 logos | Agencia que sumó IA |
-| [Robotipy](https://robotipy.com) (regional) | RPA | Sin precio | Caso real: agro en Córdoba, conciliación multibanco contra Finnegans | RPA con partner |
+| Quién | Qué vende | Precio publicado | Prueba | Ángulo | Revisado |
+|---|---|---|---|---|---|
+| [Looking for Trouble](https://lookingfortrouble.ai) | Agentes a medida operados, finanzas y compras de empresas medianas y grandes | Fee mensual por agente, sin monto | 45 logos (Arcor, Coca-Cola, Banco de Santa Fe) | Agente como servicio. El más directo en finanzas | 05/11 |
+| [AutonomIA](https://autonomia.ar) (Entre Ríos) | Automatización de procesos para pymes de 5 a 200 personas | USD 2.500 a 8.000 primer release, diagnóstico pago | 7 logos, "30+ empresas" | Proyecto sobre n8n y LLMs | 06/11 |
+| [Zent Agency](https://zent-agency.com) (CABA) | Socio tecnológico: software, IA y automatización; agro y alimentos entre sus rubros | Honorario mensual fijo tras diagnóstico | ~16 clientes, casos con horas ahorradas | Partner con retainer | 05/11 |
+| [Duotach](https://duotach.com) (CABA) | Automatización con IA "que llega a producción" para pymes con ERP | Proyectos: no publicado ("cotizamos por scope"); el "desde USD 1.500" y el retainer del 05/11 no se confirmaron el 06/11. Chatbot Vozia: USD 500 + desde USD 200/mes | Testimonios | Boutique, el código es del cliente. Tienen post sobre conciliación bancaria | 06/11 |
+| [VELION](https://velion.com.ar) (Córdoba capital) | Bots y sistemas para pymes de servicios | USD 89/mes + 379 setup hasta USD 549/mes + 2.299 | 1 caso (estudio contable, VEPs en ARCA) | Producto empaquetado con garantía de 30 días | 06/11 |
+| [Estudio Antídoto](https://estudioantidoto.com.ar) (Castelar) | Agencia de IA y automatización | Sin cifra; por fases más mantenimiento | 3 casos nombrados | Solución | 05/11 |
+| [Tec5](https://tec5.tech) (CABA) | IT services con línea de IA | Desde USD 250/mes (producto) o USD 900/mes (a medida) | ~17 logos | Proveedor IT | 05/11 |
+| [Agéntica-IA](https://agentica-ia.ar) | Consultoría de adopción de IA | Sin cifra | Ninguna | Consultoría | 05/11 |
+| [Develop Argentina](https://developargentina.com) | Software a medida y agentes | USD 500 a 2.000 setup + 50 a 300/mes (simple) | Sin logos | Dev shop con SEO | 05/11 |
+| [BEM-WEB](https://bem-web.com) (Córdoba) | Freelance n8n, Make, WhatsApp | Sin precio | Sin casos | Freelance | 05/11 |
+| [Neowyze](https://neowyze.tech) (Rosario) | Agencia digital con chatbots | Sin precio | 22 logos | Agencia que sumó IA | 05/11 |
+| [Robotipy](https://robotipy.com) (regional) | RPA | Sin precio | Caso real: agro en Córdoba, conciliación multibanco contra Finnegans | RPA con partner | 05/11 |
 
 ## Productos que atacan el mismo dolor
-- [Asentia](https://asentia.io): conciliación e imputación con IA, integra Nación, Galicia, BBVA, ARCA; exporta a Xubio, Tango, Colppy, Odoo, SAP B1. Sin clientes nombrados.
+- [Asentia](https://www.asentia.io) (revisado 06/11; el dominio sin www no abre): conciliación e imputación con IA, trabaja con archivos y sin credenciales; parsers de cinco bancos, ARCA por archivos; exporta a diez sistemas. Sin precio ni clientes nombrados. Detalle en la pasada del 06/11.
 - Xubio sumó conciliación con IA desde PDF, gratis hasta 31/01/2027. Riesgo directo: "leer el PDF" ya lo regala el ERP.
 - Centum, The Eye (enterprise), CargaFacturas (cuentas a pagar, 50+ empresas).
 
@@ -101,4 +101,33 @@ No relevadas en esta pasada. Queda para la próxima (Google, Trustpilot, grupos 
 2. Ofrecer a cada cliente una casilla de correo propia para reenviar facturas de proveedores, como hace Contabilium con su IA de compras; es la forma más simple de entrada para cuentas a pagar (fuente: Contabilium, 06/11). Es una idea, no copiar el texto.
 3. Programa para estudios contables: Xubio da un plan gratis con un cliente y escala por cantidad de clientes del estudio (precio de entrada 49.600 el Básico). Tramo puede dar el primer cliente del estudio sin costo para entrar por el contador, que es el canal uno.
 4. Publicar los precios con la lista de lo que incluye, al lado del costo típico del ERP (100.000 a 260.000 por mes en Xubio, Colppy y Contabilium). Los cuatro muestran precio; los boutiques de IA no. Depende de la decisión de Martín sobre la escalera.
-5. Próxima pasada: reintentar Asentia y VELION, reconfirmar los precios de Duotach, y leer reseñas de los cuatro ERP para ver de qué se quejan los contadores.
+5. Próxima pasada: reintentar Asentia y VELION, reconfirmar los precios de Duotach, y leer reseñas de los cuatro ERP para ver de qué se quejan los contadores. (Hecho en la segunda pasada del 06/11.)
+
+---
+
+# Pasada del 06/11/2026, segunda (08:50 a 09:30)
+
+Solo páginas públicas. "1 fuente" = el dato está en una sola página.
+
+## Reintento de Asentia y VELION
+Los dominios sin "www" siguen rechazando la conexión; con "www" ambos cargan. Lo de esta mañana era un problema de la dirección, no de las empresas.
+- **Asentia** (www.asentia.io, leído 06/11). Conciliación bancaria e imputación contable para empresas y estudios de Argentina. Precio: no publicado; el botón lleva a agendar una llamada y después prueban con los archivos del cliente ("sin permanencia"). **No pide credenciales ni conexión con el banco**: trabaja con archivos (extracto en PDF, Excel o escaneado; ZIP/CSV de Mis Comprobantes y Portal IVA de ARCA; plan de cuentas del ERP). Parser propio para Nación, Credicoop, BBVA, Galicia y Galicia Empresas. Lee y exporta con Xubio, Tango, Colppy, Contabilium, Bejerman, Holistor, SOS Contador, SAP B1, Odoo y Finnegans. Mercado Pago: no aparece. Clientes nombrados: ninguno. Cifras de marketing sin caso: "92% conciliado desde el segundo mes" y "98% el mejor resultado" (1 fuente, autodeclaradas). Tecnología visible: Next.js, agenda con cal.com, sin chat visible. Pie: "Diseñado por Velvok". Es el más parecido a Tramo en lo que hace.
+- **VELION** (www.velion.com.ar, leído 06/11). Precios sin cambios: desde USD 89/mes + setup 379 hasta USD 549/mes + setup 2.299, en dólares, se acepta pesos al cambio del día (1 fuente: la página con www; la versión sin www no cargó). La garantía no es devolución: si en 30 días no se cumplen los indicadores acordados, bonifican el mantenimiento mensual, y solo en los planes de bot de WhatsApp; el setup no se devuelve. Sin prueba gratis. Único caso con nombre: GC Consultores (estudio contable), donde **un robot entra al portal de ARCA con las credenciales de cada contribuyente**, genera VEPs y lee el monto del PDF (descripción de ellos). Tecnología que declaran en el caso: Next.js, Supabase, Playwright, n8n, Docker.
+
+## Duotach: los precios del 05/11 no se confirman
+Se leyeron home, chatbots, servicios, n8n, casos y el blog. "Desde USD 1.500" y el retainer de USD 800 a 3.000 **no están publicados**: dicen "cotizamos cada caso por scope" y un post del 11/10 dice que no hay importe único. El "3.000" que aparece en el sitio es el tope de conversaciones del plan de su chatbot Vozia, probable origen de la confusión. Queda corregido arriba: precio de proyectos, no publicado. Sí está publicado Vozia: implementación USD 500 una vez + desde USD 200/mes (hasta 3.000 conversaciones, usuarios extra USD 20/mes) y bandas por volumen con tipo de cambio del 23/10/2026. Todo de duotach.com, leído 06/11. No leí su página de software a medida ni los posts de guía de precios (quedan para la próxima).
+- **Cambio visible: ritmo de contenido.** El blog sumó 15 posts entre el 16/10 y el 05/11, casi todos con el molde "qué contratar" (aprobación humana en agentes, portal de proveedores, migrar de Excel, Claude con SAP por MCP). Es SEO en castellano para quien busca contratar. Ninguno es de Córdoba ni de agroindustria, según los títulos (no abrí cada post).
+
+## Reseñas y quejas públicas: poca evidencia, no alcanza para una conclusión
+- **Xubio**: una reseña en Capterra de alguien que lo usó tres años: sirve para facturar y presupuestar, pero tiene inconsistencias, no le dieron asistencia para resolverlas, la ayuda se reduce a tutoriales y sus sugerencias no tuvieron respuesta. Es una sola opinión (1 fuente). SoftwareReview: 3 de 5 con 1 reseña.
+- **Alegra**: Capterra España 4,5 de 5 con 4 opiniones, con soporte en 3,8 (lo más bajo). Una guía de software cita 83 reseñas en Trustpilot con 4,1, y dice que 25% dan una estrella por errores técnicos (cita de segunda mano, no la abrí).
+- **Colppy**: G2, 4,3 con 2 reseñas de 2023, invitadas por G2, por lo que pesan poco. Valoran la atención y que el contador entre a los mismos datos.
+- **Contabilium**: no encontré reseñas de usuarios.
+- Lo único que se repite es soporte que no resuelve inconsistencias y errores técnicos, y viene de muy pocas opiniones. Las comparativas de YoFacturo y Contabilium sobre Xubio son de competidores; no cuentan como evidencia. No hay quejas específicas de contadores de Córdoba. Pendiente: grupos de contadores y reseñas en Google, que esta búsqueda no cubrió.
+
+## Propuestas para Tramo
+1. Hacer del "no te pedimos tu clave fiscal" el contraste frontal con los robots: el caso estrella de VELION es un robot que entra a ARCA con las credenciales de cada contribuyente, y Asentia lo evita trabajando con archivos. Tramo trabaja con delegación y nunca toma la clave (fuente: VELION y Asentia, 06/11). El texto "tres cosas que nunca te vamos a pedir" ya existe; lo nuevo es compararlo de frente.
+2. Ofrecer la prueba como el rubro la ofrece: Asentia prueba con los archivos del propio cliente y "sin permanencia". El diagnóstico sin costo de Tramo puede decir "traé un extracto tuyo y te mostramos qué concilia solo y qué no" (fuente: Asentia, 06/11).
+3. Diferenciarse de Asentia con lo que no muestra: clientes con nombre (el molino, la carnicería), una persona que resuelve las excepciones y Bancor. Asentia nombra parsers de cinco bancos, sin Bancor, y ningún caso (fuente: Asentia, 06/11).
+4. Empezar un blog corto en castellano con el molde de Duotach ("qué contratar") pero de agroindustria de Córdoba: conciliar cheques y e-cheqs, retenciones, cartas de porte. Duotach publicó 15 posts en tres semanas y ninguno cubre eso por título (fuente: duotach.com/blog, 06/11).
+5. La queja que más se lee es que el soporte no resuelve; no prometer un tiempo de respuesta en el sitio hasta medirlo con clientes reales. Próxima pasada: posts de precios de Duotach, página de conciliación de Alegra y reseñas en Google de los cuatro ERP.
