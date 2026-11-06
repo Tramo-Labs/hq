@@ -1,6 +1,7 @@
 bin/
 # Binaries `go build ./cmd/<name>` drops here; builds go to bin/ (make dev-bin).
-/api
+# Not /api: that is the spec directory (go build ./cmd/api refuses to
+# write over it anyway).
 /dev
 /worker
 /arca-gateway
