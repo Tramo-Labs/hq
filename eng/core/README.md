@@ -58,9 +58,13 @@ movements) and a matching run for 2026-10. Every tray has items: 1
 automatic, 1 suggested match plus 2 suggested movements, 6 exceptions. The
 onboarding shows ARCA pending, bank verified, ERP pending.
 
-From a browser app on another port, call the api through the app's own dev
-proxy (same origin): the api has no CORS and the refresh cookie is
-`SameSite=Strict`.
+Browsers call the api directly (D-18, ADR 0007): in production the portal
+at app.X calls api.X, with CORS restricted to the exact origins in
+`CORS_ALLOWED_ORIGINS` (never `*`). The refresh cookie is `SameSite=Strict`
+and still travels because both are on one registrable domain. In dev the
+allowed origin defaults to `APP_BASE_URL` (http://localhost:3000). The
+web's same origin `/v1` proxy is for dev only; it is not the production
+path.
 
 Deploy (ADR 0005): CI publishes `ghcr.io/<owner>/tramo-core:<sha>` on main.
 On a server, `deploy/docker-compose.prod.yml` runs a one shot `api migrate`

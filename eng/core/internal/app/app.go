@@ -4,7 +4,7 @@
 //
 // Middleware order, outermost first:
 //
-//	RequestMeta -> Recover -> Authenticate -> spec validation (+ auth required?) -> Idempotency -> handler
+//	RequestMeta -> Recover -> CORS -> Authenticate -> spec validation (+ auth required?) -> Idempotency -> handler
 //
 // Authenticate reads a bearer token when present and puts the principal and
 // the tenant scope in the context. Whether an operation needs one is
@@ -45,6 +45,8 @@ type Deps struct {
 	Identity *identity.Service
 	// TrustedProxies whose X-Forwarded-For is believed (config.TrustedProxies).
 	TrustedProxies []netip.Prefix
+	// CORSOrigins may call the api from a browser (config.CORSOrigins, D-18).
+	CORSOrigins httpx.Origins
 	// DocsDir serves the Swagger UI and the spec when set.
 	DocsDir string
 }
@@ -95,7 +97,7 @@ func New(d Deps, h apigen.StrictServerInterface) (http.Handler, error) {
 	spec.Servers = nil // validate paths regardless of the host serving them
 
 	r := chi.NewRouter()
-	r.Use(httpx.RequestMeta(d.TrustedProxies), httpx.Recover, identity.Authenticate(d.Identity.Signer))
+	r.Use(httpx.RequestMeta(d.TrustedProxies), httpx.Recover, httpx.CORS(d.CORSOrigins), identity.Authenticate(d.Identity.Signer))
 	if d.DocsDir != "" {
 		r.Handle("/docs/*", http.StripPrefix("/docs/", http.FileServer(http.Dir(d.DocsDir))))
 	}

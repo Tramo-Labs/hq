@@ -105,6 +105,13 @@ does not answer). Both in `api/openapi.yaml`, tag `platform`. Swagger UI in `/do
   and purpose, so a blob copied to another row or tenant does not decrypt.
 - Idempotent responses are stored in clear in `idempotency_requests`:
   handlers behind an `Idempotency-Key` must never return tokens or keys.
+- CORS (`httpx.CORS`, ADR 0007): only the exact origins in
+  `CORS_ALLOWED_ORIGINS` get CORS headers, echoed with credentials, never
+  `*`; wildcards, paths and `null` are refused at startup, and http outside
+  dev. A foreign origin gets no CORS header and its preflight is a 403
+  before the router (`TestCORSGivesForeignOriginsNothing`,
+  `TestCORSOnTheRouter`; mutations checked: allowing any origin, letting a
+  foreign preflight through and unwiring the middleware each fail a test).
 - Problem details never carry submitted values, personal data or amounts.
   `readyz` logs the cause and answers without it.
 - The audit log stores IP and request id, never bodies. `Detail` must not
