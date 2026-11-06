@@ -273,9 +273,12 @@ Tested with a real River worker: twice and after completion, one run;
 another month, another run; tenant b's run of the same month touches none
 of tenant a's rows. Removing the unique key fails the first test.
 
-Not done: who enqueues every tenant's month on a schedule. A periodic job
-that lists tenants needs a cross tenant read, which matching does not do;
-that fan out belongs to platform (backend).
+Every tenant's month is enqueued by `platform.month_close` (worker,
+backend): once a month, for the month just closed in Argentina time, it
+lists every tenant (the one cross tenant read, ids only, which matching
+never does) and enqueues `matching.run_month` for each. The unique key
+above makes a second fan out or a retry enqueue nothing. Schedule, key and
+tests are in `internal/worker/README.md`.
 
 ## Sensitive data
 
