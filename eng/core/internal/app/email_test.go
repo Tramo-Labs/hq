@@ -3,6 +3,9 @@ package app_test
 import (
 	"context"
 	"testing"
+	"time"
+
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/ratelimit"
 )
 
 // F25: one tenant must never write another tenant's view of a person.
@@ -70,9 +73,13 @@ func TestAddingAMemberNeverRewritesTheStoredEmail(t *testing.T) {
 // account that looks identical to the real one. Refused with 400, on every
 // input that takes an email.
 func TestEmailsRefuseInvisibleCharacters(t *testing.T) {
-	c := client{t, server(t)}
+	deps := newDeps(t)
+	deps.Identity.Limits.RegisterPerIP = ratelimit.Rule{Limit: 100, Window: time.Hour}
+	c := client{t, serve(t, deps)}
 	own := c.registerAndLogin("molino-f30", "owner@f30.test")
-	for _, e := range []string{"owner\u200b@f30.test", "owner@f30\u202e.test", "own\u2028er@f30.test", "owner\u3164@f30.test", "owner\u00ad@f30.test"} {
+	// Spaces of any kind inside too (batch 6: NBSP gave 201).
+	for _, e := range []string{"owner\u200b@f30.test", "owner@f30\u202e.test", "own\u2028er@f30.test", "owner\u3164@f30.test", "owner\u00ad@f30.test",
+		"owner\u00a0@f30.test", "owner @f30.test", "ow\u2009ner@f30.test", "owner@f30\u3000.test", "owner\u202f@f30.test", "owner\u205f@f30.test", "owner\u1680@f30.test"} {
 		if r := c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": e, "role": "viewer"}, idem()...); r.status != 400 {
 			t.Errorf("add %q: %d %s", e, r.status, r.raw)
 		}

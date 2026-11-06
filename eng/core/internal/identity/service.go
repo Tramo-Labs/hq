@@ -708,7 +708,7 @@ func validRole(r string) bool {
 func normalizeEmail(s string) (string, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	for _, r := range s {
-		if text.Invisible(r) {
+		if text.Invisible(r) || text.Space(r) {
 			return "", ErrInvalidEmail
 		}
 	}

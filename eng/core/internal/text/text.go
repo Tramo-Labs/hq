@@ -19,6 +19,13 @@ var ErrInvalidName = errors.New("text: invalid name")
 // (U+3164, U+115F, U+1160, U+FFA0) and the Braille blank (U+2800).
 var blankLooking = map[rune]bool{0x3164: true, 0x115F: true, 0x1160: true, 0xFFA0: true, 0x2800: true}
 
+// Space reports a space of any kind: ASCII and Unicode white space, and
+// every space separator (NBSP, thin, narrow, ideographic, ogham...). An
+// email carries none: "owner\u00a0@alfa.test" reads as the real one.
+func Space(r rune) bool {
+	return unicode.IsSpace(r) || unicode.Is(unicode.Zs, r)
+}
+
 // Invisible reports a character that changes how text reads without
 // showing itself: controls, format characters (Cf: zero width, soft
 // hyphen, the bidi controls), line and paragraph separators, and the blank

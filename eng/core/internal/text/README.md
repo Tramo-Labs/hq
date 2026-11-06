@@ -9,6 +9,10 @@ every module refuses the same invisible input.
   looking letters below. Identity refuses them in emails (F30); `Name` uses
   it. No module keeps its own list (`identity.TestIdentityUsesTheSharedTextRules`
   checks every code point).
+- `Space(r)`: a space of any kind (ASCII and Unicode white space and every
+  space separator: NBSP, thin, narrow, ideographic, ogham). Identity
+  refuses it inside an email, with `Invisible` (F30: `owner\u00a0@alfa.test`
+  gave 201).
 - `HasLetterOrNumber(s)`: at least one letter or number that shows. Spaces
   of any kind, zero width and bidi characters, and the letters that look
   blank (Hangul fillers U+3164, U+115F, U+1160, U+FFA0, Braille blank

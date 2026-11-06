@@ -36,6 +36,19 @@ func TestName(t *testing.T) {
 	}
 }
 
+func TestSpace(t *testing.T) {
+	for _, r := range []rune{' ', '\t', '\u00a0', '\u1680', '\u2000', '\u2009', '\u200a', '\u202f', '\u205f', '\u3000', '\u0085'} {
+		if !Space(r) {
+			t.Errorf("%U is not a space", r)
+		}
+	}
+	for _, r := range []rune{'a', '@', '.', '\u200b'} {
+		if Space(r) {
+			t.Errorf("%U taken as a space", r)
+		}
+	}
+}
+
 func TestInvisible(t *testing.T) {
 	for _, r := range []rune{'\u200b', '\u200d', '\ufeff', '\u00ad', '\u202e', '\u2066', '\u2028', '\u2029', '\n', '\x00',
 		'\u3164', '\u115f', '\u1160', '\uffa0', '\u2800'} {

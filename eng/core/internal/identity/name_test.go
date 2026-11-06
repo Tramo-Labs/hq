@@ -75,4 +75,11 @@ func TestIdentityUsesTheSharedTextRules(t *testing.T) {
 			t.Fatalf("email with %U accepted", r)
 		}
 	}
+	for r := rune(0); r <= 0x10FFFF; r++ {
+		if text.Space(r) {
+			if _, err := normalizeEmail("ana" + string(r) + "@paz.test"); err == nil {
+				t.Fatalf("email with the space %U accepted", r)
+			}
+		}
+	}
 }
