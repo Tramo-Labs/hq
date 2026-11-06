@@ -99,7 +99,16 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/Tokens" }
         "400": { $ref: "#/components/responses/Problem" }
-        "401": { $ref: "#/components/responses/Problem" }
+        "401":
+          description: |
+            Wrong email or password (code unauthorized), or the email is under
+            a distributed password attack (code magic_link_required): 20
+            failures from 3 or more IPs in 15 minutes switch it to magic link
+            for an hour. In that mode the password is not checked, right or
+            wrong the answer is the same; log in with POST /v1/auth/magic-link.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "403":
           description: |
             The password is right but the user is not a member of the
@@ -110,7 +119,10 @@ paths:
         "429":
           description: |
             Throttled (code rate_limited): too many logins from this IP, or
-            too many failures for this email. Checked before the password.
+            too many failures for this email from this IP. Checked before the
+            password. Never a lockout of the email for every IP. When it is
+            the email and IP pair, the problem carries `magicLink: true`: the
+            person can still get in with POST /v1/auth/magic-link.
           headers:
             Retry-After: { schema: { type: integer }, description: seconds to wait }
           content:
@@ -137,6 +149,66 @@ paths:
         "200": { $ref: "#/components/responses/Tokens" }
         "400": { $ref: "#/components/responses/Problem" }
         "401": { $ref: "#/components/responses/Problem" }
+        "429":
+          description: Throttled (code rate_limited).
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/auth/magic-link:
+    post:
+      operationId: requestMagicLink
+      tags: [identity]
+      summary: Email a one time login link
+      description: |
+        Always answers 202, whether or not the email has an account, so it
+        does not reveal which emails exist. If it does, a single use link
+        valid for 15 minutes goes to that email. Throttled per IP and per
+        email (sending, not logging in).
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MagicLinkRequest" }
+      responses:
+        "202": { description: accepted; a link was sent if the email has an account }
+        "400": { $ref: "#/components/responses/Problem" }
+        "429":
+          description: Throttled (code rate_limited).
+          headers:
+            Retry-After: { schema: { type: integer }, description: seconds to wait }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/auth/magic-link/accept:
+    post:
+      operationId: acceptMagicLink
+      tags: [identity]
+      summary: Open a session with a magic link
+      description: |
+        The token comes only in the email. Unknown, used and expired tokens
+        all answer 401 invalid_magic_link. Opens a session on the tenant
+        asked for when the link was requested, or the oldest membership.
+        Clears that email's failures from this IP. Rate limited per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MagicLinkAcceptRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Tokens" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403":
+          description: The tenant asked for is not one of the person's (code not_a_member).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "429":
           description: Throttled (code rate_limited).
           headers:
@@ -939,6 +1011,11 @@ components:
           example: idempotency_key_reused
         detail: { type: string }
         requestId: { type: string }
+        magicLink:
+          type: boolean
+          description: |
+            On a login 429 for the email and IP pair: a magic link
+            (POST /v1/auth/magic-link) still lets the person in.
     OnboardingStep:
       type: object
       required: [kind, status, detail]
@@ -1088,6 +1165,23 @@ components:
       properties:
         token: { type: string, minLength: 43, maxLength: 64 }
         password: { $ref: "#/components/schemas/Password" }
+        tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    MagicLinkRequest:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        tenantId:
+          type: string
+          format: uuid
+          description: Tenant to open the session on. Defaults to the oldest membership.
+    MagicLinkAcceptRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token: { type: string, minLength: 43, maxLength: 64 }
         tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
     RefreshRequest:
       type: object
