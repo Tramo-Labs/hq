@@ -1,110 +1,202 @@
 /**
- * Shapes the portal and the operator console consume, following product/ESPECIFICACION.md.
- * They mirror the paths we asked backend to add to eng/core/api/openapi.yaml; once the spec
- * has them, replace this file with generated types and keep the names.
- * Amounts are integer cents. Dates are ISO 8601.
+ * Hand-written mirror of the schemas in eng/core/api/openapi.yaml (components.schemas).
+ * Names and fields follow the spec exactly; when the spec changes, this file changes with it.
+ * No code generator on purpose: no new dependency, and the file is small enough to review.
+ *
+ * Conventions from the spec: amounts are integer cents (credits positive, debits negative),
+ * dates and times are ISO 8601, lists come wrapped as { items, nextCursor }, errors are
+ * application/problem+json with a stable `code`. The tenant always comes from the token.
  */
 
-/** Every list comes wrapped so the core can paginate without breaking the screens. */
-export type Page<T> = { items: T[]; nextCursor?: string };
-/** Errors come as RFC 9457 problem+json. */
-export type Problem = { type: string; title: string; status: number; detail?: string; code?: string };
+export type Page<T> = { items: T[]; nextCursor?: string | null };
 
-export type Role ="owner" | "approver" | "viewer" | "accountant" | "operator";
-export type Session = { name: string; role: Role };
-
-/** Four states per step (spec section 3). A problem always carries a sentence, never a code. */
-export type StepStatus = "pending" | "checking" | "ready" | "problem";
-
-export type ArcaStep = { status: StepStatus; problem?: string; confirmedAt?: string };
-
-export type BankAccount = {
-  bank: string;
-  kind: string;
-  currency: "ARS" | "USD";
-  last4: string;
-  status: StepStatus;
-  problem?: string;
-  lastStatementAt?: string;
-};
-export type BankStep = { status: StepStatus; accounts: BankAccount[] };
-
-export type ErpStep = {
-  status: StepStatus;
-  system?: string;
-  mode?: "api" | "export";
-  /** Last characters of the stored credential. The full one is never sent back. */
-  credentialTail?: string;
-  problem?: string;
+export type Problem = {
+  type: string;
+  title: string;
+  status: number;
+  code: string;
+  detail?: string;
+  requestId?: string;
 };
 
-export type Tenant = {
+export type Role = "owner" | "approver" | "viewer" | "operator" | "accountant";
+export type Cuit = string;
+export type Cents = number;
+
+// identity
+
+export type TokenDelivery = "cookie" | "body";
+
+export type LoginRequest = {
+  email: string;
+  password: string;
+  /** Tenant to act on. Defaults to the oldest membership. */
+  tenantId?: string;
+  tokenDelivery?: TokenDelivery;
+};
+
+export type Tokens = {
+  accessToken: string;
+  tokenType: "Bearer";
+  /** Seconds. */
+  expiresIn: number;
+  /** Only with tokenDelivery body; the web always uses the cookie. */
+  refreshToken?: string;
+  tenantId: string;
+  role: Role;
+};
+
+export type Membership = { tenantId: string; tenantName: string; role: Role };
+
+export type Me = {
+  userId: string;
+  email: string;
+  activeTenantId: string;
+  role: Role;
+  memberships: Membership[];
+};
+
+// portal
+
+export type StepKind = "arca" | "bank" | "erp";
+export type StepStatus = "verified" | "pending" | "failed";
+
+export type OnboardingStep = {
+  kind: StepKind;
+  status: StepStatus;
+  /** Why the step has this status, in English, for the UI to translate. */
+  detail: string;
+  verifiedAt?: string | null;
+};
+
+export type TenantStatus = {
   id: string;
   name: string;
-  cuit: string;
-  arca: ArcaStep;
-  bank: BankStep;
-  erp: ErpStep;
-  /** When the tenant started waiting on its oldest missing step. */
-  waitingSince?: string;
+  cuit?: Cuit | null;
+  /** The caller's role in this tenant. */
+  role: Role;
+  steps: OnboardingStep[];
   openExceptions: number;
+  openExceptionsCapped: boolean;
 };
 
-export type Tray = "auto" | "suggested" | "exception";
-export type Outcome = "approved" | "rejected" | "other";
+export type MetricUnit = "percent" | "count" | "cents" | "days" | "hours";
 
-/** Why an item landed in its tray (spec sections 4 and 5). Labels live in content/app.ts. */
-export type Motive =
-  /** Automático: a unique reference (cheque number, Mercado Pago id, invoice number) is the main pass. */
-  | "unique_reference" | "exact" | "recurring"
-  | "tolerance" | "combination" | "model"
-  /** supplier_or_po: supplier not authorized, or invoice without a purchase order. */
-  | "no_candidate" | "duplicate" | "balance" | "supplier_or_po" | "over_threshold" | "not_verified";
+export type Metric = {
+  key: string;
+  label: string;
+  /** no_data is not zero and is shown differently. */
+  status: "measured" | "no_data";
+  /** Null when status is no_data. */
+  value: number | null;
+  unit: MetricUnit;
+  period: string;
+  source: string;
+  /** API path that returns the rows behind the number. */
+  list: string;
+};
 
-export type Movement = { date: string; account: string; description: string; amountCents: number };
-export type DocumentRef = { kind: string; number: string; counterparty: string; amountCents: number };
+export type ExportKind = "movements" | "matches" | "audit";
+
+export type ExportInfo = {
+  kind: ExportKind;
+  format: "csv";
+  available: boolean;
+  rows?: number | null;
+  updatedAt?: string | null;
+};
+
+// ledger
+
+export type Bank = "galicia" | "santander" | "bancor" | "macro" | "mercadopago";
+
+export type Account = { id: string; bank: Bank; number?: string; name: string; currency: string };
+
+export type QuarantinedFile = {
+  id: string;
+  accountId: string;
+  filename?: string;
+  reason: string;
+  detail?: string;
+  fingerprint?: string;
+  receivedAt: string;
+};
+
+// matching
+
+export type Adjustment = {
+  kind: string;
+  amount: Cents;
+  source: "documented_by_source" | "rounding_tolerance";
+};
 
 export type Match = {
   id: string;
-  tenantId: string;
-  tray: Tray;
-  motive: Motive;
-  openedAt: string;
-  /** One sentence: what this is. */
-  summary: string;
-  /** Why it was not resolved on its own. */
-  explanation: string;
-  /** What we propose to register, if anything. */
-  proposal?: string;
-  movement: Movement;
-  document?: DocumentRef;
-  rule: { id: string; version: number; name: string };
-  decision?: { by: string; at: string; outcome: Outcome; note?: string };
+  rule: string;
+  ruleVersion: number;
+  /** Where the match waits now; a suggested match an operator escalated is in exception. */
+  tray: "auto" | "suggested" | "exception";
+  movementIds: string[];
+  itemIds: string[];
+  adjustments: Adjustment[];
+  reference?: string;
+  dateDiffDays?: number;
+  crossPeriod: boolean;
+  lowConfidence: boolean;
 };
 
-export type MetricKey = "auto_rate" | "open_exceptions" | "oldest_exception" | "bank_vs_books" | "invoices" | "held_invoices" | "duplicates";
+export type Candidate = { rule: string; itemIds: string[] };
 
-/** The list behind a number, as a tray filter. Each area turns it into its own link. */
-export type MetricList = { tray: Tray; motive?: Motive };
+export type PendingReason = "ambiguous" | "combination_ambiguous" | "reference_amount_differs" | "no_candidate" | "client_other";
 
-export type Metric = {
-  key: MetricKey;
-  /** null means "no data yet", which is shown differently from zero. */
-  value: number | null;
-  unit: "percent" | "count" | "days" | "ars";
-  period: string;
-  /** Table, filter and formula the number comes from. */
-  source: string;
-  /** A number whose list cannot be opened does not go on the panel (spec section 4). */
-  list?: MetricList;
-  /** Per-account breakdown, for numbers the spec asks by account. */
-  byAccount?: { account: string; value: number | null; list?: MetricList }[];
+export type PendingMovement = {
+  movementId: string;
+  runId: string;
+  /** Date of the movement. */
+  date: string;
+  amount: Cents;
+  /** As the bank wrote it. */
+  description: string;
+  accountId: string;
+  accountName: string;
+  bank: Bank;
+  tray: "suggested" | "exception";
+  reason: PendingReason;
+  /** The client's note, for client_other. */
+  note?: string;
+  candidates: Candidate[];
 };
 
-export type UploadedFile = {
-  name: string;
-  kind: "statement" | "document";
-  uploadedAt: string;
-  by: string;
-  status: "ready" | "problem" | "duplicate" | "quarantine";
+/** Query value of GET /v1/matching/matches. */
+export type MatchTray = "auto" | "suggested" | "exception";
+/** Query value of GET /v1/matching/pending. */
+export type PendingTray = "suggested" | "exception";
+
+export type DecisionAction = "approve" | "reject" | "escalate" | "other" | "revert";
+export type DecisionRequest = { action: DecisionAction; note?: string };
+
+export type Decision = {
+  matchId: string;
+  tray: "suggested" | "exception";
+  action: DecisionAction;
+  userId: string;
+  role: Role;
+  at: string;
+  note?: string;
+  /** Per match and tray; a revert is a new revision. */
+  revision: number;
+};
+
+export type MovementDecisionAction = "other" | "link" | "revert";
+export type MovementDecisionRequest = { action: MovementDecisionAction; note?: string; itemIds?: string[] };
+
+export type MovementDecision = {
+  movementId: string;
+  action: MovementDecisionAction;
+  matchId?: string;
+  note?: string;
+  userId: string;
+  role: Role;
+  at: string;
+  revision: number;
 };

@@ -1,134 +1,145 @@
-import type { Match, Session, Tenant, UploadedFile } from "./types";
+import type { Account, Match, Membership, PendingMovement, QuarantinedFile, Role, TenantStatus } from "./types";
 
 /**
- * Synthetic data for the portal and the console until the core serves these paths.
- * Every company, CUIT, amount and date here is invented; the UI labels it as sample data.
+ * Synthetic data for sample mode (no CORE_API_URL), in the exact shapes of
+ * eng/core/api/openapi.yaml. Every company, CUIT, email, id and amount is invented: CUITs
+ * use the zeros pattern and emails the reserved .example domain. The UI labels all of it
+ * as sample data. Never put a real customer here.
  */
 
-/** Fixed "today" so sample ages do not drift between builds. */
+/** Fixed "today" so sample ages and the default month do not drift between builds. */
 export const asOf = "2026-11-06";
 
-export const session: Session = { name: "Lucía Ferreyra", role: "owner" };
-export const operatorSession: Session = { name: "Operador Tramo", role: "operator" };
+/** Sample login only: the core is not involved and no real account uses it. */
+export const samplePassword = "ejemplo";
 
-export const tenants: Tenant[] = [
+const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const hex = (n: number) => n.toString(16).padStart(32, "0");
+
+export const T = { agro: id(1), frio: id(2), ferr: id(3), trans: id(4) };
+
+export type SampleTenant = Omit<TenantStatus, "role" | "openExceptions" | "openExceptionsCapped">;
+
+export const tenants: SampleTenant[] = [
   {
-    id: "t-agro", name: "Agroinsumos del Sur SA", cuit: "30-00000001-0", openExceptions: 3, waitingSince: "2026-11-03",
-    arca: { status: "ready", confirmedAt: "2026-11-02" },
-    bank: {
-      status: "ready",
-      accounts: [
-        { bank: "Galicia", kind: "Cuenta corriente", currency: "ARS", last4: "4021", status: "ready", lastStatementAt: "2026-11-03" },
-        { bank: "Macro", kind: "Caja de ahorro", currency: "USD", last4: "7730", status: "problem", problem: "El saldo no cierra: faltan movimientos entre el 3 y el 7 de octubre. ¿Podés exportar ese rango?" },
-      ],
-    },
-    erp: { status: "pending" },
+    id: T.agro, name: "Agroinsumos del Sur SA", cuit: "30000000015",
+    steps: [
+      { kind: "arca", status: "pending", detail: "CUIT on file; ARCA verification is not connected yet" },
+      { kind: "bank", status: "verified", detail: "statement accepted for Galicia CC", verifiedAt: "2026-11-03T13:10:00Z" },
+      { kind: "erp", status: "pending", detail: "no ERP connector available yet" },
+    ],
   },
   {
-    id: "t-frio", name: "Frigorífico La Pampa SRL", cuit: "30-00000002-9", openExceptions: 0, waitingSince: "2026-10-27",
-    arca: { status: "pending" },
-    bank: { status: "pending", accounts: [] },
-    erp: { status: "pending" },
+    id: T.frio, name: "Frigorífico La Pampa SRL", cuit: null,
+    steps: [
+      { kind: "arca", status: "pending", detail: "CUIT not on file yet" },
+      { kind: "bank", status: "pending", detail: "no bank account yet" },
+      { kind: "erp", status: "pending", detail: "no ERP connector available yet" },
+    ],
   },
   {
-    id: "t-ferr", name: "Ferretería Industrial Norte", cuit: "30-00000003-7", openExceptions: 1, waitingSince: "2026-10-31",
-    arca: { status: "ready", confirmedAt: "2026-10-28" },
-    bank: {
-      status: "checking",
-      accounts: [{ bank: "Bancor", kind: "Cuenta corriente", currency: "ARS", last4: "1188", status: "checking", lastStatementAt: "2026-11-05" }],
-    },
-    erp: { status: "ready", system: "Odoo", mode: "api", credentialTail: "…XXXX" },
+    id: T.ferr, name: "Ferretería Industrial Norte", cuit: "30000000023",
+    steps: [
+      { kind: "arca", status: "pending", detail: "CUIT on file; ARCA verification is not connected yet" },
+      { kind: "bank", status: "pending", detail: "account created; no statement accepted yet" },
+      { kind: "erp", status: "pending", detail: "no ERP connector available yet" },
+    ],
   },
   {
-    id: "t-trans", name: "Transportes Río Cuarto SA", cuit: "30-00000004-5", openExceptions: 0,
-    arca: { status: "ready", confirmedAt: "2026-10-20" },
-    bank: {
-      status: "ready",
-      accounts: [
-        { bank: "Santander", kind: "Cuenta corriente", currency: "ARS", last4: "5502", status: "ready", lastStatementAt: "2026-11-04" },
-        { bank: "Mercado Pago", kind: "Cuenta", currency: "ARS", last4: "0091", status: "ready", lastStatementAt: "2026-11-06" },
-      ],
-    },
-    erp: { status: "ready", system: "Tango", mode: "export" },
+    id: T.trans, name: "Transportes Río Cuarto SA", cuit: "30000000031",
+    steps: [
+      { kind: "arca", status: "pending", detail: "CUIT on file; ARCA verification is not connected yet" },
+      { kind: "bank", status: "verified", detail: "statement accepted for Santander CC", verifiedAt: "2026-11-04T11:00:00Z" },
+      { kind: "erp", status: "pending", detail: "no ERP connector available yet" },
+    ],
   },
 ];
 
-/** The tenant the client portal shows. */
-export const currentTenantId = "t-agro";
-
-const rule = (id: string, name: string, version = 1) => ({ id, name, version });
-
-export const matches: Match[] = [
-  {
-    id: "m-101", tenantId: "t-agro", tray: "auto", motive: "exact", openedAt: "2026-11-03",
-    summary: "Cobro de $ 184.500 de Cooperativa Agrícola Este", explanation: "Monto y CUIT exactos, fecha dentro de la ventana de 3 días.",
-    movement: { date: "2026-11-03", account: "Galicia CC", description: "TRANSF RECIBIDA 30000000110", amountCents: 184_500_00 },
-    document: { kind: "Factura A", number: "0003-00001207", counterparty: "Cooperativa Agrícola Este", amountCents: 184_500_00 },
-    rule: rule("r-exact", "Monto y CUIT exactos"),
-  },
-  {
-    id: "m-102", tenantId: "t-trans", tray: "auto", motive: "recurring", openedAt: "2026-11-04",
-    summary: "Débito de seguro de $ 32.180", explanation: "Débito mensual con la misma referencia que confirmó el cliente.",
-    movement: { date: "2026-11-04", account: "Santander CC", description: "DEB AUTOM SEGURO 4471", amountCents: -32_180_00 },
-    document: { kind: "Factura B", number: "0012-00088410", counterparty: "Aseguradora Central", amountCents: 32_180_00 },
-    rule: rule("r-recurring", "Débito recurrente confirmado", 2),
-  },
-  {
-    id: "m-103", tenantId: "t-trans", tray: "auto", motive: "unique_reference", openedAt: "2026-11-05",
-    summary: "Cobro de $ 58.300 por Mercado Pago", explanation: "El id de la operación de Mercado Pago figura en la factura.",
-    movement: { date: "2026-11-05", account: "Mercado Pago", description: "COBRO MP 81234567890", amountCents: 58_300_00 },
-    document: { kind: "Factura B", number: "0005-00002231", counterparty: "Consumidor final", amountCents: 58_300_00 },
-    rule: rule("r-ref", "Referencia única"),
-  },
-  {
-    id: "m-201", tenantId: "t-agro", tray: "suggested", motive: "tolerance", openedAt: "2026-11-02",
-    summary: "Pago de $ 96.993 a Semillas Pampeanas", explanation: "La factura es de $ 97.000: $ 7 de diferencia, dentro de la tolerancia del cliente.",
-    proposal: "Registrar el pago contra la factura y la diferencia como redondeo.",
-    movement: { date: "2026-11-02", account: "Galicia CC", description: "TRANSF 30000000220 PAGO FC", amountCents: -96_993_00 },
-    document: { kind: "Factura A", number: "0001-00004410", counterparty: "Semillas Pampeanas SA", amountCents: 97_000_00 },
-    rule: rule("r-tolerance", "Tolerancia de redondeo"),
-  },
-  {
-    id: "m-202", tenantId: "t-ferr", tray: "suggested", motive: "combination", openedAt: "2026-11-01",
-    summary: "Pago de $ 250.000 a Fletes Unidos", explanation: "Un solo pago coincide con la suma de dos facturas abiertas.",
-    proposal: "Imputar el pago a las facturas 0002-00000311 y 0002-00000312.",
-    movement: { date: "2026-11-01", account: "Bancor CC", description: "TRANSF 30000000330", amountCents: -250_000_00 },
-    document: { kind: "2 facturas", number: "0002-00000311 + 0002-00000312", counterparty: "Fletes Unidos", amountCents: 250_000_00 },
-    rule: rule("r-combo", "Combinación de comprobantes"),
-  },
-  {
-    id: "m-301", tenantId: "t-agro", tray: "exception", motive: "over_threshold", openedAt: "2026-11-02",
-    summary: "Pago de $ 740.000 a Maquinarias Oeste", explanation: "La factura coincide, pero supera el umbral de $ 500.000 a partir del cual pediste firmar.",
-    proposal: "Registrar el pago contra la factura 0004-00000902.",
-    movement: { date: "2026-11-02", account: "Galicia CC", description: "TRANSF 30000000440", amountCents: -740_000_00 },
-    document: { kind: "Factura A", number: "0004-00000902", counterparty: "Maquinarias Oeste", amountCents: 740_000_00 },
-    rule: rule("r-threshold", "Umbral de firma"),
-  },
-  {
-    id: "m-302", tenantId: "t-agro", tray: "exception", motive: "no_candidate", openedAt: "2026-10-31",
-    summary: "Transferencia de $ 61.200 del 31/10 sin factura que la explique", explanation: "No encontramos ninguna factura ni partida abierta por ese monto en los 30 días anteriores.",
-    movement: { date: "2026-10-31", account: "Galicia CC", description: "TRANSF 30000000550", amountCents: -61_200_00 },
-    rule: rule("r-none", "Sin candidato"),
-  },
-  {
-    id: "m-303", tenantId: "t-agro", tray: "exception", motive: "duplicate", openedAt: "2026-10-31",
-    summary: "Posible pago duplicado de $ 18.450 a Servicios Gráficos", explanation: "La misma factura ya figura pagada el 24/10 desde la misma cuenta.",
-    proposal: "No registrar este pago contra la factura y dejarlo para que lo revises con el proveedor.",
-    movement: { date: "2026-10-31", account: "Galicia CC", description: "TRANSF 30000000660", amountCents: -18_450_00 },
-    document: { kind: "Factura C", number: "0001-00000077", counterparty: "Servicios Gráficos", amountCents: 18_450_00 },
-    rule: rule("r-dup", "Posible duplicado"),
-  },
-  {
-    id: "m-304", tenantId: "t-ferr", tray: "exception", motive: "no_candidate", openedAt: "2026-10-30",
-    summary: "Extracción de $ 40.000 en cajero", explanation: "Extracción en efectivo sin comprobante asociado.",
-    movement: { date: "2026-10-30", account: "Bancor CC", description: "EXTRACCION CAJERO", amountCents: -40_000_00 },
-    rule: rule("r-none", "Sin candidato"),
-  },
+/** Sample people. Any of them logs in with samplePassword. */
+export const users: { email: string; memberships: { tenantId: string; role: Role }[] }[] = [
+  { email: "titular@agro.example", memberships: [{ tenantId: T.agro, role: "owner" }] },
+  { email: "aprobador@agro.example", memberships: [{ tenantId: T.agro, role: "approver" }] },
+  { email: "lectura@agro.example", memberships: [{ tenantId: T.agro, role: "viewer" }] },
+  { email: "contador@estudio.example", memberships: [{ tenantId: T.ferr, role: "accountant" }, { tenantId: T.trans, role: "accountant" }] },
+  { email: "operador@tramo.example", memberships: [T.agro, T.frio, T.ferr, T.trans].map((tenantId) => ({ tenantId, role: "operator" as const })) },
 ];
 
-export const files: UploadedFile[] = [
-  { name: "galicia-octubre.csv", kind: "statement", uploadedAt: "2026-11-03", by: "Lucía Ferreyra", status: "ready" },
-  { name: "macro-usd-octubre.xls", kind: "statement", uploadedAt: "2026-11-03", by: "Lucía Ferreyra", status: "problem" },
-  { name: "galicia-octubre.csv", kind: "statement", uploadedAt: "2026-11-04", by: "Lucía Ferreyra", status: "duplicate" },
-  { name: "FA-0004-00000902.pdf", kind: "document", uploadedAt: "2026-11-02", by: "Martina Gil", status: "ready" },
+export const memberships = (email: string): Membership[] =>
+  (users.find((u) => u.email === email)?.memberships ?? []).map((m) => ({ ...m, tenantName: tenants.find((t) => t.id === m.tenantId)!.name }));
+
+/** Who the portal and the console show before anyone logs in, in sample mode. */
+export const defaultUser = { portal: "titular@agro.example", console: "operador@tramo.example" } as const;
+
+export const accounts: Record<string, Account[]> = {
+  [T.agro]: [
+    { id: id(101), bank: "galicia", number: "0000000000004021", name: "Galicia CC", currency: "ARS" },
+    { id: id(102), bank: "macro", number: "0000000000007730", name: "Macro CA USD", currency: "USD" },
+  ],
+  [T.ferr]: [{ id: id(103), bank: "bancor", number: "0000000000001188", name: "Bancor CC", currency: "ARS" }],
+  [T.trans]: [
+    { id: id(104), bank: "santander", number: "0000000000005502", name: "Santander CC", currency: "ARS" },
+    { id: id(105), bank: "mercadopago", name: "Mercado Pago", currency: "ARS" },
+  ],
+};
+
+export const quarantine: Record<string, QuarantinedFile[]> = {
+  [T.agro]: [
+    { id: id(201), accountId: id(102), filename: "macro-usd-octubre.xls", reason: "balance_mismatch",
+      detail: "closing balance of line 41 does not follow from the opening balance", receivedAt: "2026-11-03T14:02:00Z" },
+  ],
+  [T.ferr]: [
+    { id: id(202), accountId: id(103), filename: "bancor-octubre.pdf", reason: "unknown_layout",
+      detail: "header fingerprint 3f9a is not a known layout", receivedAt: "2026-11-05T09:30:00Z" },
+  ],
+};
+
+/** A match plus where the sample lists it and the month of its movement. */
+export type SampleMatch = { tenantId: string; listed: "auto" | "suggested" | "exception"; period: string; match: Match };
+
+const m = (n: number, rule: string, tray: Match["tray"], extra: Partial<Match> = {}): Match => ({
+  id: hex(n), rule, ruleVersion: 1, tray, movementIds: [id(1000 + n)], itemIds: [id(2000 + n)],
+  adjustments: [], crossPeriod: false, lowConfidence: false, ...extra,
+});
+
+export const matches: SampleMatch[] = [
+  { tenantId: T.agro, listed: "auto", period: "2026-11", match: m(1, "reference_exact", "auto", { reference: "0003-00001207", dateDiffDays: 0 }) },
+  { tenantId: T.agro, listed: "auto", period: "2026-11", match: m(2, "amount_date_window", "auto", { dateDiffDays: 2 }) },
+  { tenantId: T.agro, listed: "auto", period: "2026-11", match: m(3, "reference_exact", "auto", { reference: "0003-00001215", dateDiffDays: 1 }) },
+  { tenantId: T.agro, listed: "suggested", period: "2026-11", match: m(4, "amount_tolerance", "suggested", {
+    dateDiffDays: 1, adjustments: [{ kind: "rounding", amount: -700, source: "rounding_tolerance" }] }) },
+  { tenantId: T.agro, listed: "exception", period: "2026-11", match: m(5, "one_movement_many_items", "exception", {
+    itemIds: [id(2005), id(2105)], dateDiffDays: 3 }) },
+  { tenantId: T.trans, listed: "auto", period: "2026-11", match: m(6, "reference_exact", "auto", { reference: "MP 81234567890", dateDiffDays: 0 }) },
+  { tenantId: T.trans, listed: "suggested", period: "2026-11", match: m(7, "net_of_documented_fees", "suggested", {
+    reference: "MP 81234567999", adjustments: [{ kind: "mp_fee", amount: -1_749_00, source: "documented_by_source" }] }) },
+  { tenantId: T.ferr, listed: "suggested", period: "2026-11", match: m(8, "many_movements_one_item", "suggested", {
+    movementIds: [id(1008), id(1108)], dateDiffDays: 4, lowConfidence: true }) },
 ];
+
+export type SamplePending = { tenantId: string; period: string; pending: PendingMovement };
+
+export const pending: SamplePending[] = [
+  { tenantId: T.agro, period: "2026-11", pending: { movementId: id(3001), runId: id(4001), date: "2026-11-04", amount: -18_450_000,
+    description: "TRANSF A 30-00000000-1 VARIOS", accountId: id(101), accountName: "Galicia CC", bank: "galicia",
+    tray: "exception", reason: "no_candidate", candidates: [] } },
+  { tenantId: T.agro, period: "2026-11", pending: { movementId: id(3002), runId: id(4001), date: "2026-11-05", amount: 4_235_000,
+    description: "CREDITO TRANSF 30-00000000-2", accountId: id(101), accountName: "Galicia CC", bank: "galicia",
+    tray: "suggested", reason: "ambiguous",
+    candidates: [{ rule: "amount_date_window", itemIds: [id(2201)] }, { rule: "amount_date_window", itemIds: [id(2202)] }] } },
+  { tenantId: T.ferr, period: "2026-11", pending: { movementId: id(3003), runId: id(4002), date: "2026-11-03", amount: -912_000,
+    description: "DEBITO AUTOMATICO SERVICIO", accountId: id(103), accountName: "Bancor CC", bank: "bancor",
+    tray: "exception", reason: "no_candidate", candidates: [] } },
+  { tenantId: T.ferr, period: "2026-11", pending: { movementId: id(3004), runId: id(4002), date: "2026-11-02", amount: -2_600_000,
+    description: "TRANSF A 20-00000000-3", accountId: id(103), accountName: "Bancor CC", bank: "bancor",
+    tray: "suggested", reason: "client_other", note: "Adelanto a un proveedor, todavía sin factura", candidates: [] } },
+];
+
+/** Movements per tenant and month, for the automation rate and the movements export. */
+export const movementCount: Record<string, Record<string, number>> = {
+  [T.agro]: { "2026-11": 7 },
+  [T.trans]: { "2026-11": 2 },
+  [T.ferr]: { "2026-11": 4 },
+};
+
+/** Oldest open exception movement, in days, per tenant (sample). */
+export const oldestOpenDays: Record<string, number> = { [T.agro]: 6, [T.ferr]: 7 };
