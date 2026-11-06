@@ -12,8 +12,8 @@ request.
 | `GET /v1/me/tenant` | any member | Onboarding status of the active tenant: three steps and open exceptions. |
 | `GET /v1/tenants` | operator or accountant | The same status for every tenant where the caller has one of those roles; 403 otherwise. |
 | `GET /v1/metrics?period=YYYY-MM` | any member | Results panel of the month, computed by `matching.PGStore.Metrics`; `no_data` (null value) when there is nothing to measure. Definitions in internal/matching/README.md, "Metrics". |
-| `GET /v1/exports` | any member | Downloads available, with row counts. |
-| `GET /v1/exports/{kind}` | any member | CSV of `movements`, `matches` (rows from `matching.PGStore.MatchRows`) or `audit`, optional `from`/`to`. |
+| `GET /v1/exports` | owner, accountant, operator | Downloads available, with row counts. |
+| `GET /v1/exports/{kind}` | owner, accountant, operator | CSV of `movements`, `matches` (rows from `matching.PGStore.MatchRows`) or `audit`, optional `from`/`to`. |
 
 ### Onboarding steps
 
@@ -34,6 +34,10 @@ request.
 (`identity.ConsolePrincipals`) and reads each tenant with
 `identity.WithPrincipal` for that membership, so RLS applies per tenant with
 the role of that membership.
+
+Exports, the audit export included, follow spec §1 ("Descargar todo" and
+"Ver el audit log"): approver and viewer get 403 `forbidden` on both export
+operations (`CanExport`).
 
 ## Tables, jobs, events
 
@@ -62,6 +66,10 @@ tenant's own rows, under RLS).
   the other's; an inverted range is 400; the matches export answers its
   header and metrics answer 200 before any run (metrics are tested in
   internal/matching and internal/app/data_test.go).
+- `internal/app/authz_test.go`, `TestExportsAreOnlyForOwnerAccountantAndOperator`:
+  every role against the list and the three kinds (F6). Mutations checked:
+  letting approver through fails 4 cases; dropping the check from
+  `GetExport` alone fails 6.
 - `csv_test.go`: formula neutralization. Mutations checked: without it five
   cells fail; reading each console tenant without its own scope fails the
   console test.

@@ -156,8 +156,34 @@ var (
 	allTo   = time.Date(2100, 12, 31, 0, 0, 0, 0, time.UTC)
 )
 
+// errExportForbidden answers approvers and viewers: spec §1 gives
+// "Descargar todo" and "Ver el audit log" only to owner, accountant and
+// operator.
+var errExportForbidden = &httpx.Error{Status: http.StatusForbidden, Code: httpx.CodeForbidden,
+	Detail: "your role cannot download the tenant's data"}
+
+// CanExport reports whether role may download the tenant's data and read
+// its audit log (product/ESPECIFICACION.md §1).
+func CanExport(role string) bool {
+	switch role {
+	case identity.RoleOwner, identity.RoleAccountant, identity.RoleOperator:
+		return true
+	}
+	return false
+}
+
+func exportAllowed(ctx context.Context) error {
+	if p, ok := identity.PrincipalFrom(ctx); !ok || !CanExport(p.Role) {
+		return errExportForbidden
+	}
+	return nil
+}
+
 // ListExports reports what the client can download and how many rows.
 func (h *Handlers) ListExports(ctx context.Context, _ apigen.ListExportsRequestObject) (apigen.ListExportsResponseObject, error) {
+	if err := exportAllowed(ctx); err != nil {
+		return nil, err
+	}
 	movements, err := h.Ledger.MovementsBetween(ctx, allFrom, allTo)
 	if err != nil {
 		return nil, err
@@ -180,6 +206,9 @@ func (h *Handlers) ListExports(ctx context.Context, _ apigen.ListExportsRequestO
 
 // GetExport streams one export as CSV.
 func (h *Handlers) GetExport(ctx context.Context, req apigen.GetExportRequestObject) (apigen.GetExportResponseObject, error) {
+	if err := exportAllowed(ctx); err != nil {
+		return nil, err
+	}
 	from, to := allFrom, allTo
 	if req.Params.From != nil {
 		from = req.Params.From.Time
