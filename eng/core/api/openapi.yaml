@@ -1794,8 +1794,10 @@ components:
             (account, date, amount, running balance, references) but another description; it is
             never stored twice and never overwritten, an operator looks at it. unsupported_format:
             not a file kind statements come in, or a spreadsheet past the size, row or cell
-            limits, or whose sheets cannot be told apart. unrouted: arrived without an account (by mail) and
-            no single account of the tenant matches its bank and number. period_closed: it brings
+            limits, or whose sheets cannot be told apart. unrouted: a readable file that arrived
+            without an account (by mail) and that no single account of the tenant matches by bank and
+            number; a mailed file that cannot be read keeps its reading reason (unknown_layout,
+            unsupported_format, row_parse), never unrouted. period_closed: it brings
             new movements dated in a closed period; nothing enters (closedPeriod names the range).
           enum: [unknown_layout, bank_mismatch, account_mismatch, row_parse, incomplete, balance_mismatch, chain_gap, empty, movement_conflict, unsupported_format, unrouted, period_closed]
         closedPeriod:
@@ -1807,20 +1809,48 @@ components:
         layoutId: { type: string, example: bancor/csv-v1 }
         new: { type: integer, description: Movements stored by this upload. }
         alreadyPresent: { type: integer, description: Movements an earlier upload already had. }
+        accountId:
+          type: string
+          format: uuid
+          description: |
+            The account the file went to. Absent when it arrived by mail without an account
+            and was not assigned: unrouted, or unreadable (reason says which).
+        source: { $ref: "#/components/schemas/IngestSource" }
+        routed: { $ref: "#/components/schemas/RoutedBy" }
+    IngestSource:
+      type: string
+      enum: [upload, mail]
+      description: How the file came in, uploaded in the portal or mailed to the tenant's mailbox (D-22).
+    RoutedBy:
+      type: string
+      enum: [number, single_account]
+      description: |
+        Only for a mailed file that was assigned: number, the account number
+        read in the file matched one account; single_account, the file states
+        no number and the tenant has a single account of that bank.
     UploadedFile:
       type: object
-      required: [id, bank, status, receivedAt]
+      required: [id, status, receivedAt]
       properties:
         id: { type: string, format: uuid }
         accountId:
           type: string
           format: uuid
           description: |
-            The account the file went to. Absent only when it is quarantined
-            as unrouted: it arrived without an account (by mail) and no
-            single account of the tenant matches its bank and number.
+            The account the file went to. Absent only for a file that arrived
+            by mail without an account and was not assigned: quarantined as
+            unrouted (readable, but no single account matches its bank and
+            number) or with a reading reason (unknown_layout,
+            unsupported_format, row_parse).
         accountName: { type: string, description: Absent exactly when accountId is. }
-        bank: { $ref: "#/components/schemas/Bank" }
+        bank:
+          allOf: [{ $ref: "#/components/schemas/Bank" }]
+          x-go-type-skip-optional-pointer: true
+          description: |
+            The bank of the account, or the one read from the file. Absent only
+            when a file arrived by mail without an account and could not be read.
+        source: { $ref: "#/components/schemas/IngestSource" }
+        routed: { $ref: "#/components/schemas/RoutedBy" }
         filename: { type: string }
         status: { type: string, enum: [accepted, quarantined] }
         reason: { type: string, description: Set when quarantined (see IngestResult.reason). }
