@@ -34,6 +34,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/inbox"
 	"github.com/Tramo-Labs/hq/eng/core/internal/ledger"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
+	"github.com/Tramo-Labs/hq/eng/core/internal/mercadopago"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
@@ -64,6 +65,11 @@ type Deps struct {
 	// InboxIngest delivers mailed attachments to ingestion (datos). Nil
 	// until it exists: receipts say not_delivered.
 	InboxIngest inbox.Ingest
+	// MercadoPago is the Mercado Pago app (MP_* variables); empty means
+	// not configured and connecting answers 501. MercadoPagoHTTP is the
+	// client to reach it (nil: a 15 second timeout).
+	MercadoPago     mercadopago.Config
+	MercadoPagoHTTP *http.Client
 }
 
 // DefaultDenialWindow is how long repeats of a denial count on its row.
@@ -80,16 +86,18 @@ type Handlers struct {
 	*portalAPI
 	*closesAPI
 	*inboxAPI
+	*mercadoPagoAPI
 }
 
 // Aliases give each embedded module handler set its own field name.
 type (
-	inboxAPI     = inbox.Handlers
-	ledgerAPI    = ledger.Handlers
-	documentsAPI = documents.Handlers
-	matchingAPI  = matching.Handlers
-	portalAPI    = portal.Handlers
-	closesAPI    = closes.Handlers
+	mercadoPagoAPI = mercadopago.Handlers
+	inboxAPI       = inbox.Handlers
+	ledgerAPI      = ledger.Handlers
+	documentsAPI   = documents.Handlers
+	matchingAPI    = matching.Handlers
+	portalAPI      = portal.Handlers
+	closesAPI      = closes.Handlers
 )
 
 // NewHandlers builds the module handlers.
@@ -108,6 +116,8 @@ func NewHandlers(d Deps) *Handlers {
 			Ledger: &ledger.PGStore{DB: d.DB}, Matching: &matching.PGStore{DB: d.DB}, Closes: closeSvc},
 		closesAPI: closes.NewHandlers(closeSvc),
 		inboxAPI:  inbox.NewHandlers(&inbox.Service{DB: d.DB, Ingest: d.InboxIngest, Domain: d.InboxDomain, Now: d.Now}),
+		mercadoPagoAPI: mercadopago.NewHandlers(&mercadopago.Service{DB: d.DB, Keyring: d.Identity.Keyring,
+			Config: d.MercadoPago, HTTP: d.MercadoPagoHTTP, Now: d.Now}),
 	}
 }
 

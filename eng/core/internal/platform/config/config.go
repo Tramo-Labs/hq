@@ -60,6 +60,11 @@ type Config struct {
 	// (INBOX_DOMAIN, D-22). Empty: addresses are created but not shown,
 	// until Martín picks the receiving provider and its domain.
 	InboxDomain string
+	// Mercado Pago app (D-22, ADR 0010): MP_CLIENT_ID, MP_CLIENT_SECRET
+	// (a secret: environment only), MP_REDIRECT_URI (the portal's
+	// /app/mercadopago/vuelta), and MP_AUTH_URL and MP_API_URL, empty for
+	// Mercado Pago's own. Without the first three nothing connects.
+	MPClientID, MPClientSecret, MPRedirectURI, MPAuthURL, MPAPIURL string
 	// MailOutbox is a file that receives every email instead of sending it
 	// (MAIL_OUTBOX). There is no SMTP transport: empty means invitations
 	// are created but not delivered, and that is logged.
@@ -86,6 +91,12 @@ func Load() (Config, error) {
 		AppBaseURL:  get("APP_BASE_URL", "http://localhost:3000"),
 		InboxDomain: get("INBOX_DOMAIN", ""),
 		MailOutbox:  get("MAIL_OUTBOX", ""),
+
+		MPClientID:     get("MP_CLIENT_ID", ""),
+		MPClientSecret: get("MP_CLIENT_SECRET", ""),
+		MPRedirectURI:  get("MP_REDIRECT_URI", ""),
+		MPAuthURL:      get("MP_AUTH_URL", ""),
+		MPAPIURL:       get("MP_API_URL", ""),
 	}
 	switch c.Env {
 	case "dev", "staging", "prod":

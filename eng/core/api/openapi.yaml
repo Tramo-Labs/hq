@@ -28,6 +28,13 @@ tags:
       The period close of a tenant (D-6: fortnightly by default, the period
       is a parameter). An operator closes a period once its Suggested tray
       is empty; the close freezes it and stores the summary the client sees.
+  - name: mercadopago
+    description: |
+      The client's Mercado Pago account connected by OAuth with PKCE (D-22).
+      Mercado Pago returns the browser to the portal's page
+      /app/mercadopago/vuelta (MP_REDIRECT_URI points there), which sends
+      code and state to POST /v1/integrations/mercadopago/connect with the
+      owner's session. Tokens are kept encrypted per tenant and never shown.
   - name: inbox
     description: |
       The client's own mailbox for statements (D-22): an address with a
@@ -814,6 +821,97 @@ paths:
               schema: { $ref: "#/components/schemas/Close" }
         "401": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+  /v1/integrations/mercadopago:
+    get:
+      operationId: getMercadoPago
+      tags: [mercadopago]
+      summary: The tenant's Mercado Pago connection
+      description: Owner, accountant and operator. Never carries a token.
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MercadoPagoConnection" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: disconnectMercadoPago
+      tags: [mercadopago]
+      summary: Forget the connection and its tokens (owner)
+      description: |
+        Deletes the tokens here. Mercado Pago documents no endpoint for an
+        integrator to revoke an authorization: the owner also removes the
+        app from their Mercado Pago account to end it there (the answer's
+        revokeInMercadoPago says so).
+      responses:
+        "200":
+          description: disconnected here
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MercadoPagoConnection" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+  /v1/integrations/mercadopago/authorize:
+    post:
+      operationId: authorizeMercadoPago
+      tags: [mercadopago]
+      summary: Start connecting Mercado Pago (owner)
+      description: |
+        Returns the Mercado Pago URL to send the browser to. It carries a
+        state (random, single use, 10 minutes) and a PKCE S256 challenge;
+        the verifier stays here, encrypted. 501 not_configured while the
+        app's credentials are not set (after the role check).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: where to send the browser
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authorizeUrl, expiresAt]
+                properties:
+                  authorizeUrl: { type: string }
+                  expiresAt: { type: string, format: date-time, description: When the state stops being accepted. }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "501": { $ref: "#/components/responses/Problem" }
+  /v1/integrations/mercadopago/connect:
+    post:
+      operationId: connectMercadoPago
+      tags: [mercadopago]
+      summary: Finish connecting with the code Mercado Pago returned (owner)
+      description: |
+        The portal's return page sends what Mercado Pago put in its URL.
+        Refused, with nothing stored: 400 state_invalid (unknown state),
+        403 state_not_yours (started by another person or for another
+        tenant), 409 state_expired (older than 10 minutes), 409 state_used
+        (already spent), 422 mp_code_rejected (Mercado Pago refused the
+        code: expired, used or not for this app), 502 mp_unavailable
+        (Mercado Pago did not answer properly; start again), 501
+        not_configured. Connecting again replaces the previous tokens.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectMercadoPagoRequest" }
+      responses:
+        "201":
+          description: connected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MercadoPagoConnection" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "501": { $ref: "#/components/responses/Problem" }
+        "502": { $ref: "#/components/responses/Problem" }
   /v1/inbox:
     get:
       operationId: getInbox
@@ -1625,6 +1723,46 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         role: { $ref: "#/components/schemas/Role" }
+    ConnectMercadoPagoRequest:
+      type: object
+      required: [code, state]
+      additionalProperties: false
+      properties:
+        code: { type: string, minLength: 1, maxLength: 512 }
+        state: { type: string, minLength: 1, maxLength: 128 }
+    MercadoPagoConnection:
+      type: object
+      required: [configured, status, revokeInMercadoPago]
+      properties:
+        configured:
+          type: boolean
+          description: False while the app's credentials are not set; nothing can connect.
+        status:
+          type: string
+          enum: [disconnected, connected, needs_reconnect]
+          description: |
+            needs_reconnect: Mercado Pago stopped accepting the tokens (the
+            seller removed the app, changed their password, or the
+            authorization expired); they were deleted and the owner connects
+            again.
+        mpUserId: { type: string, description: The Mercado Pago account connected. }
+        connectedAt: { type: string, format: date-time }
+        connectedBy: { type: string, format: uuid }
+        tokenExpiresAt: { type: string, format: date-time, description: When the current access token expires; it is renewed before. }
+        lastRefreshAt: { type: string, format: date-time }
+        lastErrorCode:
+          type: string
+          enum: [revoked, mp_unavailable]
+          description: |
+            The last problem talking to Mercado Pago, as a code (never
+            Mercado Pago's text). revoked: Mercado Pago answered invalid_grant.
+            mp_unavailable: no proper answer; it is retried.
+        lastErrorAt: { type: string, format: date-time }
+        revokeInMercadoPago:
+          type: boolean
+          description: |
+            True right after a disconnect here: the authorization may still
+            exist in Mercado Pago until the owner removes the app there.
     Inbox:
       type: object
       required: [address, senders, limits]

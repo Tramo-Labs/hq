@@ -51,6 +51,17 @@ Decisions:
    it does (the init script creates it before the first migration). No
    change to Terraform or compose.
 
+Deploy checklist: `inbox.address_tenant` runs with its owner's rights,
+and its owner is whoever ran migration 00201. In tests that is the
+`postgres` superuser, so RLS never applies to it there. In production it
+must be the migration owner, which is not a superuser (ADR 0005); the
+function then reads `inbox.addresses` only through the `owner_lookup`
+policy that 00201 creates for that same role. After the first deploy,
+check `select pg_get_userbyid(proowner), r.rolsuper from pg_proc p join
+pg_roles r on r.oid = p.proowner where proname = 'address_tenant'` shows
+the migration owner and `false`, and that a mail to a known address is
+found (one receipt appears).
+
 Consequences: switching providers touches only the adapter. Rotating the
 address is the answer to a leaked one; the old address drops mail at once
 and leaves no receipt (there is no tenant to write it under).
