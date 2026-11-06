@@ -132,8 +132,9 @@ select id, rule_id, rule_version, tray, movement_ids, item_ids, adjustments, evi
 
 -- name: UndecidedMatches :many
 -- auto: nobody decides, listed for review. suggested: no operator decision
--- yet. exception: escalated, no client decision yet. period YYYY-MM keeps
--- the matches with a movement dated in that month (empty: all).
+-- yet. exception: escalated, no client decision yet. date_from and
+-- date_to (both included) keep the matches with a movement dated in that
+-- range (null: all).
 select m.id, m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids, m.adjustments, m.evidence
   from matching.matches m
  where case sqlc.arg(tray)::text
@@ -145,8 +146,8 @@ select m.id, m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids, m.ad
            and not exists (select 1 from matching.decision_state d
            where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception' and d.action is not null)
          else false end
-   and (sqlc.arg(period)::text = '' or exists (select 1 from ledger.movements mv
-         where mv.id = any(m.movement_ids) and to_char(mv.date, 'YYYY-MM') = sqlc.arg(period)::text))
+   and (sqlc.narg(date_from)::date is null or exists (select 1 from ledger.movements mv
+         where mv.id = any(m.movement_ids) and mv.date between sqlc.narg(date_from)::date and sqlc.narg(date_to)::date))
  order by m.created_at, m.id
  limit sqlc.arg(max_rows)::int;
 
@@ -184,20 +185,26 @@ select match_id from matching.movement_decisions where id = $1;
 -- Trays and panel ----------------------------------------------------------
 
 -- name: Waiting :many
--- What waits in a tray (matching.waiting), with the movement itself.
+-- What waits in a tray (matching.waiting), with the movement itself, by
+-- the movement's date when date_from and date_to (both included) are set
+-- (the month of the run that left it pending is the movement's month).
 select w.run_id, w.movement_id, w.tray, w.reason, w.candidates, w.note, coalesce(w.match_id, '')::text as match_id,
        l.date, l.amount, l.description, a.id as account_id, a.name as account_name, a.bank
   from matching.waiting w
   join ledger.movements l on l.id = w.movement_id
   join ledger.accounts a on a.id = l.account_id
  where w.tray = sqlc.arg(tray)::text
-   and (sqlc.arg(period)::text = '' or w.period = sqlc.arg(period)::text)
+   and (sqlc.narg(date_from)::date is null or l.date between sqlc.narg(date_from)::date and sqlc.narg(date_to)::date)
  order by w.movement_id
  limit sqlc.arg(max_rows)::int;
 
 -- name: MonthCounts :one
 select (select count(*) from ledger.movements where date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date) as movements,
-       exists (select 1 from matching.runs where period = sqlc.arg(period)::text) as has_run,
+       -- A run covers its whole month: the range has a run when a run's
+       -- month overlaps it.
+       exists (select 1 from matching.runs
+                where to_date(period, 'YYYY-MM') <= sqlc.arg(date_to)::date
+                  and (to_date(period, 'YYYY-MM') + interval '1 month')::date > sqlc.arg(date_from)::date) as has_run,
        (select count(distinct l.id) from matching.matches m
           join ledger.movements l on l.id = any(m.movement_ids)
          where m.tray = 'auto' and l.date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date) as auto_movements;
@@ -213,11 +220,12 @@ select count(*) filter (where d.action = 'approve') as approved, count(*) filter
                 where l.id = any(m.movement_ids) and l.date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date);
 
 -- name: OpenExceptionMovements :one
--- The movements the client's Exceptions list shows for the month, and the
--- oldest date among them (empty when there are none).
+-- The movements the client's Exceptions list shows for the range (by the
+-- movement's date, which is in the month of the run that left it pending),
+-- and the oldest date among them (empty when there are none).
 select count(*), coalesce(to_char(min(l.date), 'YYYY-MM-DD'), '')::text as oldest
   from matching.waiting w join ledger.movements l on l.id = w.movement_id
- where w.tray = 'exception' and w.period = sqlc.arg(period)::text;
+ where w.tray = 'exception' and l.date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date;
 
 -- name: OpenEscalatedMatches :one
 -- Escalated matches of the month the client has not decided.
@@ -230,15 +238,17 @@ select count(*) from matching.matches m
                 where l.id = any(m.movement_ids) and l.date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date);
 
 -- name: SuggestedPendingByReason :many
--- What the operator's Suggested list shows for the month, by reason.
-select w.reason, count(*) from matching.waiting w
- where w.tray = 'suggested' and w.period = sqlc.arg(period)::text
+-- What the operator's Suggested list shows for the range, by reason.
+select w.reason, count(*) from matching.waiting w join ledger.movements l on l.id = w.movement_id
+ where w.tray = 'suggested' and l.date between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date
  group by 1;
 
 -- name: InvoiceCounts :one
 select exists (select 1 from documents.invoices) as ever,
-       count(*) filter (where to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = sqlc.arg(period)::text) as month,
-       count(*) filter (where to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = sqlc.arg(period)::text
+       count(*) filter (where (created_at at time zone 'America/Argentina/Buenos_Aires')::date
+                          between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date) as month,
+       count(*) filter (where (created_at at time zone 'America/Argentina/Buenos_Aires')::date
+                          between sqlc.arg(date_from)::date and sqlc.arg(date_to)::date
                           and (not auto_eligible or item_reason is not null)) as held
   from documents.invoices;
 

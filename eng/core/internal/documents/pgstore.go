@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/documents/store"
+	"github.com/Tramo-Labs/hq/eng/core/internal/listrange"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 )
@@ -195,17 +196,29 @@ type Summary struct {
 
 // ListFilter narrows List.
 type ListFilter struct {
-	Period       string // YYYY-MM, Argentina time; "" all
-	AutoEligible *bool  // only those that do or do not qualify
-	Review       bool   // only those to review: not eligible, or no open item
+	Period       string           // YYYY-MM, Argentina time; "" all
+	Range        *listrange.Range // days stored, Argentina time, both included; not with Period
+	AutoEligible *bool            // only those that do or do not qualify
+	Review       bool             // only those to review: not eligible, or no open item
 }
 
 // List returns the invoices of the tenant in the context, newest first.
 func (s *PGStore) List(ctx context.Context, f ListFilter, limit int) ([]Summary, error) {
+	r := f.Range
+	if f.Period != "" {
+		if r != nil {
+			return nil, fmt.Errorf("%w: period does not go with a range", listrange.ErrInvalid)
+		}
+		var err error
+		if r, err = listrange.Parse(&f.Period, nil, nil); err != nil {
+			return nil, err
+		}
+	}
+	from, last := r.Bounds()
 	var out []Summary
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		rows, err := store.New(tx).ListInvoices(ctx, store.ListInvoicesParams{
-			Period: f.Period, AutoEligible: f.AutoEligible, Review: f.Review, MaxRows: int32(limit), // #nosec G115 -- callers clamp limit
+			DateFrom: from, DateTo: last, AutoEligible: f.AutoEligible, Review: f.Review, MaxRows: int32(limit), // #nosec G115 -- callers clamp limit
 		})
 		if err != nil {
 			return err

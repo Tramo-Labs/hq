@@ -83,16 +83,18 @@ const listInvoices = `-- name: ListInvoices :many
 select id, issuer_cuit, doc_type, point_of_sale, number, issue_date, total, auto_eligible, min_confidence,
        fields, coalesce(item_reason, '')::text as item_reason, created_at
   from documents.invoices
- where ($1::text = ''
-        or to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1::text)
-   and ($2::boolean is null or auto_eligible = $2::boolean)
-   and (not $3::boolean or not auto_eligible or item_reason is not null)
+ where ($1::date is null
+        or (created_at at time zone 'America/Argentina/Buenos_Aires')::date
+           between $1::date and $2::date)
+   and ($3::boolean is null or auto_eligible = $3::boolean)
+   and (not $4::boolean or not auto_eligible or item_reason is not null)
  order by created_at desc, id
- limit $4::int
+ limit $5::int
 `
 
 type ListInvoicesParams struct {
-	Period       string
+	DateFrom     *time.Time
+	DateTo       *time.Time
 	AutoEligible *bool
 	Review       bool
 	MaxRows      int32
@@ -113,12 +115,13 @@ type ListInvoicesRow struct {
 	CreatedAt     time.Time
 }
 
-// Newest first. period is YYYY-MM in Argentina time (empty for all);
-// auto_eligible null for both; review keeps only those not eligible or
-// without an open item.
+// Newest first. date_from and date_to (both included) keep the invoices
+// stored on those days, Argentina time (null for all); auto_eligible null
+// for both; review keeps only those not eligible or without an open item.
 func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]ListInvoicesRow, error) {
 	rows, err := q.db.Query(ctx, listInvoices,
-		arg.Period,
+		arg.DateFrom,
+		arg.DateTo,
 		arg.AutoEligible,
 		arg.Review,
 		arg.MaxRows,

@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/listrange"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
 
@@ -44,7 +46,11 @@ func (h *Handlers) RunMatching(ctx context.Context, req apigen.RunMatchingReques
 }
 
 func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesRequestObject) (apigen.ListMatchesResponseObject, error) {
-	ms, err := h.store.UndecidedIn(ctx, Tray(req.Params.Tray), periodOf(req.Params.Period), listLimit)
+	r, err := dateFilter(req.Params.Period, req.Params.From, req.Params.To)
+	if err != nil {
+		return nil, err
+	}
+	ms, err := h.store.UndecidedInRange(ctx, Tray(req.Params.Tray), r, listLimit)
 	if err != nil {
 		return nil, decisionProblem(err)
 	}
@@ -63,7 +69,11 @@ func (h *Handlers) ListMatches(ctx context.Context, req apigen.ListMatchesReques
 }
 
 func (h *Handlers) ListPending(ctx context.Context, req apigen.ListPendingRequestObject) (apigen.ListPendingResponseObject, error) {
-	rows, err := h.store.LatestPendingIn(ctx, Tray(req.Params.Tray), periodOf(req.Params.Period), listLimit)
+	r, err := dateFilter(req.Params.Period, req.Params.From, req.Params.To)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := h.store.LatestPendingInRange(ctx, Tray(req.Params.Tray), r, listLimit)
 	if err != nil {
 		return nil, decisionProblem(err)
 	}
@@ -267,6 +277,24 @@ func toAPIMatch(m Match) (apigen.Match, error) {
 		out.DateDiffDays = &d
 	}
 	return out, nil
+}
+
+// dateFilter reads a list's period or from and to; the rules the spec
+// cannot express (they go together, not with period, to not before from)
+// are 400.
+func dateFilter(period *apigen.PeriodFilter, from *apigen.RangeFrom, to *apigen.RangeTo) (*listrange.Range, error) {
+	var f, t *time.Time
+	if from != nil {
+		f = &from.Time
+	}
+	if to != nil {
+		t = &to.Time
+	}
+	r, err := listrange.Parse(period, f, t)
+	if err != nil {
+		return nil, &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: err.Error()}
+	}
+	return r, nil
 }
 
 // periodOf reads an optional period filter ("" when absent).

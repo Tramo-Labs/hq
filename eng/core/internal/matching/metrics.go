@@ -47,6 +47,46 @@ func monthRange(period string) (time.Time, time.Time, error) {
 	return from, from.AddDate(0, 1, -1), nil
 }
 
+// span is the dates a panel covers, both ends included. A month is named
+// by its period (YYYY-MM) and its lists filter by it; any other span (the
+// fortnight of a close) by its dates.
+type span struct {
+	From, Last time.Time
+	Period     string // YYYY-MM when the span is a whole month, else empty
+}
+
+func monthSpan(period string) (span, error) {
+	from, last, err := monthRange(period)
+	if err != nil {
+		return span{}, err
+	}
+	return span{From: from, Last: last, Period: period}, nil
+}
+
+// query is the span's filter in a list path: the period of a month, else
+// from and to, both included, as the API takes them.
+func (sp span) query() string {
+	if sp.Period != "" {
+		return "period=" + sp.Period
+	}
+	return "from=" + sp.From.Format("2006-01-02") + "&to=" + sp.Last.Format("2006-01-02")
+}
+
+// of and in name the span in a source text.
+func (sp span) of() string {
+	if sp.Period != "" {
+		return "del mes"
+	}
+	return "del período"
+}
+
+func (sp span) in() string {
+	if sp.Period != "" {
+		return "en el mes"
+	}
+	return "en el período"
+}
+
 // pendingReasons are the reasons counted one by one in the Suggested tray.
 var pendingReasons = []PendingReason{ReasonAmbiguous, ReasonSharedCandidate, ReasonComboAmbiguous, ReasonRefAmountDiffers,
 	ReasonClientOther, ReasonClientRejected}
@@ -54,13 +94,27 @@ var pendingReasons = []PendingReason{ReasonAmbiguous, ReasonSharedCandidate, Rea
 // Metrics computes the results panel of the tenant in the context for one
 // month, in one tenant transaction. now dates the age of open exceptions.
 func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]Metric, error) {
-	from, to, err := monthRange(period)
+	sp, err := monthSpan(period)
 	if err != nil {
 		return nil, err
 	}
-	exportList := "/v1/exports/matches?from=" + from.Format("2006-01-02") + "&to=" + to.Format("2006-01-02")
 	var out []Metric
 	err = s.DB.InTenant(ctx, func(tx pgx.Tx) error {
+		out, err = panel(ctx, tx, sp, now)
+		return err
+	})
+	return out, err
+}
+
+// panel computes the results panel over a span in the caller's tenant
+// transaction, without opening another: a close counts and freezes the
+// numbers in its own.
+func panel(ctx context.Context, tx pgx.Tx, sp span, now time.Time) ([]Metric, error) {
+	from, to, period := sp.From, sp.Last, sp.Period
+	of, in, filter := sp.of(), sp.in(), sp.query()
+	exportList := "/v1/exports/matches?from=" + from.Format("2006-01-02") + "&to=" + to.Format("2006-01-02")
+	var out []Metric
+	err := func() error {
 		var movements, autoMoves, approved, rejected, openMoves, openMatches, invoices, held int
 		var invoicesEver bool
 		var hasRun bool
@@ -73,7 +127,7 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 		pending := map[PendingReason]int{}
 
 		q := store.New(tx)
-		mc, err := q.MonthCounts(ctx, store.MonthCountsParams{DateFrom: from, DateTo: to, Period: period})
+		mc, err := q.MonthCounts(ctx, store.MonthCountsParams{DateFrom: from, DateTo: to})
 		if err != nil {
 			return err
 		}
@@ -90,7 +144,7 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 		// Open exceptions: the movements the client's Exceptions list shows
 		// for the month (matching.waiting, the same definition), and
 		// escalated matches of the month the client has not decided.
-		oe, err := q.OpenExceptionMovements(ctx, period)
+		oe, err := q.OpenExceptionMovements(ctx, store.OpenExceptionMovementsParams{DateFrom: from, DateTo: to})
 		if err != nil {
 			return err
 		}
@@ -109,7 +163,7 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 		openMatches = int(om)
 
 		// Pending by reason in Suggested: what the operator's list shows.
-		byReason, err := q.SuggestedPendingByReason(ctx, period)
+		byReason, err := q.SuggestedPendingByReason(ctx, store.SuggestedPendingByReasonParams{DateFrom: from, DateTo: to})
 		if err != nil {
 			return err
 		}
@@ -118,28 +172,31 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 		}
 
 		// Invoices stored in the month (Argentina time), and how many need review.
-		ic, err := q.InvoiceCounts(ctx, period)
+		ic, err := q.InvoiceCounts(ctx, store.InvoiceCountsParams{DateFrom: from, DateTo: to})
 		if err != nil {
 			return err
 		}
 		invoicesEver, invoices, held = ic.Ever, int(ic.Month), int(ic.Held)
 
 		noRun := "El mes todavía no se corrió"
+		if period == "" {
+			noRun = "El período todavía no se corrió"
+		}
 		m := func(key, label, unit, list string, v *float64, source string) {
 			out = append(out, Metric{Key: key, Label: label, Unit: unit, Period: period, Value: v, Source: source, List: list})
 		}
 
 		switch {
 		case movements == 0:
-			m("automation_rate", "Conciliación automática", "percent", "/v1/matching/matches?tray=auto&period="+period, nil,
-				"Sin movimientos cargados en el mes")
+			m("automation_rate", "Conciliación automática", "percent", "/v1/matching/matches?tray=auto&"+filter, nil,
+				"Sin movimientos cargados "+in)
 		case !hasRun:
-			m("automation_rate", "Conciliación automática", "percent", "/v1/matching/matches?tray=auto&period="+period, nil, noRun)
+			m("automation_rate", "Conciliación automática", "percent", "/v1/matching/matches?tray=auto&"+filter, nil, noRun)
 		default:
-			m("automation_rate", "Conciliación automática", "percent", "/v1/matching/matches?tray=auto&period="+period,
+			m("automation_rate", "Conciliación automática", "percent", "/v1/matching/matches?tray=auto&"+filter,
 				percent(autoMoves, movements),
-				fmt.Sprintf("Movimientos del mes registrados por una regla automática (%d) sobre todos los movimientos del mes (%d)",
-					autoMoves, movements))
+				fmt.Sprintf("Movimientos %s registrados por una regla automática (%d) sobre todos los movimientos %s (%d)",
+					of, autoMoves, of, movements))
 		}
 
 		suggestedOnly := m
@@ -152,50 +209,50 @@ func (s *PGStore) Metrics(ctx context.Context, period string, now time.Time) ([]
 
 		if approved+rejected == 0 {
 			m("suggested_acceptance_rate", "Sugerencias aceptadas", "percent", exportList, nil,
-				"Ninguna sugerencia del mes tiene todavía una decisión del operador")
+				"Ninguna sugerencia "+of+" tiene todavía una decisión del operador")
 		} else {
 			m("suggested_acceptance_rate", "Sugerencias aceptadas", "percent", exportList, percent(approved, approved+rejected),
-				fmt.Sprintf("Sugerencias del mes aprobadas (%d) sobre las decididas (%d), según la decisión vigente",
-					approved, approved+rejected))
+				fmt.Sprintf("Sugerencias %s aprobadas (%d) sobre las decididas (%d), según la decisión vigente",
+					of, approved, approved+rejected))
 		}
 
 		if !hasRun {
-			m("open_exception_movements", "Movimientos sin explicar", "count", "/v1/matching/pending?tray=exception&period="+period, nil, noRun)
-			m("open_exception_matches", "Sugerencias esperando al cliente", "count", "/v1/matching/matches?tray=exception&period="+period, nil, noRun)
-			m("oldest_open_exception_days", "Antigüedad de la excepción más vieja", "days", "/v1/matching/pending?tray=exception&period="+period, nil, noRun)
+			m("open_exception_movements", "Movimientos sin explicar", "count", "/v1/matching/pending?tray=exception&"+filter, nil, noRun)
+			m("open_exception_matches", "Sugerencias esperando al cliente", "count", "/v1/matching/matches?tray=exception&"+filter, nil, noRun)
+			m("oldest_open_exception_days", "Antigüedad de la excepción más vieja", "days", "/v1/matching/pending?tray=exception&"+filter, nil, noRun)
 			for _, r := range pendingReasons {
-				m("pending_"+string(r), "Pendientes: "+reasonLabel[r], "count", "/v1/matching/pending?tray=suggested&period="+period, nil, noRun)
+				m("pending_"+string(r), "Pendientes: "+reasonLabel[r], "count", "/v1/matching/pending?tray=suggested&"+filter, nil, noRun)
 			}
 		} else {
-			m("open_exception_movements", "Movimientos sin explicar", "count", "/v1/matching/pending?tray=exception&period="+period,
-				measured(float64(openMoves)), "Movimientos del mes en Excepciones sin candidato, sin decisión del cliente o devueltos por el operador, según la última corrida")
-			m("open_exception_matches", "Sugerencias esperando al cliente", "count", "/v1/matching/matches?tray=exception&period="+period,
-				measured(float64(openMatches)), "Sugerencias del mes que el operador mandó a Excepciones y el cliente no decidió")
+			m("open_exception_movements", "Movimientos sin explicar", "count", "/v1/matching/pending?tray=exception&"+filter,
+				measured(float64(openMoves)), "Movimientos "+of+" en Excepciones sin candidato, sin decisión del cliente o devueltos por el operador, según la última corrida")
+			m("open_exception_matches", "Sugerencias esperando al cliente", "count", "/v1/matching/matches?tray=exception&"+filter,
+				measured(float64(openMatches)), "Sugerencias "+of+" que el operador mandó a Excepciones y el cliente no decidió")
 			if oldest == nil {
-				m("oldest_open_exception_days", "Antigüedad de la excepción más vieja", "days", "/v1/matching/pending?tray=exception&period="+period,
-					nil, "No hay movimientos del mes esperando en Excepciones")
+				m("oldest_open_exception_days", "Antigüedad de la excepción más vieja", "days", "/v1/matching/pending?tray=exception&"+filter,
+					nil, "No hay movimientos "+of+" esperando en Excepciones")
 			} else {
 				days := math.Floor(civilDay(now).Sub(*oldest).Hours() / 24)
-				m("oldest_open_exception_days", "Antigüedad de la excepción más vieja", "days", "/v1/matching/pending?tray=exception&period="+period,
+				m("oldest_open_exception_days", "Antigüedad de la excepción más vieja", "days", "/v1/matching/pending?tray=exception&"+filter,
 					measured(days), "Días desde la fecha del movimiento más viejo que espera en Excepciones")
 			}
 			for _, r := range pendingReasons {
-				m("pending_"+string(r), "Pendientes: "+reasonLabel[r], "count", "/v1/matching/pending?tray=suggested&period="+period,
-					measured(float64(pending[r])), "Movimientos del mes en Sugerido por este motivo, según la última corrida")
+				m("pending_"+string(r), "Pendientes: "+reasonLabel[r], "count", "/v1/matching/pending?tray=suggested&"+filter,
+					measured(float64(pending[r])), "Movimientos "+of+" en Sugerido por este motivo, según la última corrida")
 			}
 		}
 
-		invList := "/v1/documents/invoices?period=" + period
+		invList := "/v1/documents/invoices?" + filter
 		if !invoicesEver {
 			m("invoices_processed", "Facturas procesadas", "count", invList, nil, "Todavía no se cargó ninguna factura")
 			m("invoices_held", "Facturas para revisar", "count", invList+"&review=true", nil, "Todavía no se cargó ninguna factura")
 		} else {
-			m("invoices_processed", "Facturas procesadas", "count", invList, measured(float64(invoices)), "Facturas cargadas en el mes")
+			m("invoices_processed", "Facturas procesadas", "count", invList, measured(float64(invoices)), "Facturas cargadas "+in)
 			m("invoices_held", "Facturas para revisar", "count", invList+"&review=true", measured(float64(held)),
-				"Facturas del mes con algún dato obligatorio faltante, dudoso o en conflicto, o que no generaron partida")
+				"Facturas "+of+" con algún dato obligatorio faltante, dudoso o en conflicto, o que no generaron partida")
 		}
 		return nil
-	})
+	}()
 	return out, err
 }
 
