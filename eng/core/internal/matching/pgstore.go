@@ -659,6 +659,13 @@ func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, lim
 type PendingRow struct {
 	RunID uuid.UUID
 	Note  string // the client's note, for ReasonClientOther
+	// The movement itself, so each pending row can be told apart.
+	Date        time.Time
+	Amount      money.Amount
+	Description string
+	AccountID   uuid.UUID
+	AccountName string
+	Bank        string
 	Pending
 }
 
@@ -689,11 +696,14 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 			     cur as (select p.*, s.action as decided, s.note as client_note from matching.pending p
 			               left join matching.movement_decision_state s on s.tenant_id = p.tenant_id and s.movement_id = p.movement_id
 			              where p.run_id in (select id from latest))
-			select run_id, movement_id,
-			       case when tray = 'exception' and decided = 'other' then 'suggested' else tray end,
-			       case when tray = 'exception' and decided = 'other' then 'client_other' else reason end,
-			       candidates, coalesce(client_note, '')
+			select cur.run_id, cur.movement_id,
+			       case when cur.tray = 'exception' and decided = 'other' then 'suggested' else cur.tray end,
+			       case when cur.tray = 'exception' and decided = 'other' then 'client_other' else reason end,
+			       candidates, coalesce(client_note, ''),
+			       l.date, l.amount, l.description, a.id, a.name, a.bank
 			  from cur
+			  join ledger.movements l on l.id = cur.movement_id
+			  join ledger.accounts a on a.id = l.account_id
 			 where case $1
 			         when 'exception' then tray = 'exception' and decided is null
 			         when 'suggested' then tray = 'suggested' or (tray = 'exception' and decided = 'other')
@@ -708,9 +718,12 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 			var mid uuid.UUID
 			var t, reason string
 			var cands []byte
-			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands, &r.Note); err != nil {
+			var amount int64
+			if err := rows.Scan(&r.RunID, &mid, &t, &reason, &cands, &r.Note,
+				&r.Date, &amount, &r.Description, &r.AccountID, &r.AccountName, &r.Bank); err != nil {
 				return err
 			}
+			r.Amount = money.Amount(amount)
 			r.MovementID, r.Tray, r.Reason = mid.String(), Tray(t), PendingReason(reason)
 			if r.Reason != ReasonClientOther {
 				r.Note = ""

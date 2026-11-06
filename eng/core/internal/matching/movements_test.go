@@ -66,8 +66,14 @@ func TestPGMovementOtherGoesBackToTheOperator(t *testing.T) {
 	e := newPGEnv(t)
 	e.run(t)
 	fee := e.movementsByDescription(t, "COMISION MANTENIMIENTO CUENTA")[0]
-	if _, ok := e.pendingIDs(t, Exception)[fee]; !ok {
+	row, ok := e.pendingIDs(t, Exception)[fee]
+	if !ok {
 		t.Fatal("the fee should be an exception without candidate")
+	}
+	// Each pending row carries its movement, so the client can tell them apart.
+	if row.Description != "COMISION MANTENIMIENTO CUENTA" || row.Amount != -850000 || !row.Date.Equal(day(2)) ||
+		row.Bank != "bancor" || row.AccountName != "Cuenta" {
+		t.Errorf("pending row without its movement: %+v", row)
 	}
 	if _, err := e.decideMovementAs(t, identity.RoleApprover, fee, MovementOther, ""); !errors.Is(err, ErrActionNotInTray) {
 		t.Errorf("other without a note: %v", err)
