@@ -13,10 +13,14 @@ GOVULNCHECK_VERSION  := v1.9.0
 BIN := $(CURDIR)/bin
 export PATH := $(BIN):$(PATH)
 
-.PHONY: build test test-short lint sec tools tools-sec gen gen-check dev up down migrate
+.PHONY: build test test-short lint sec tools tools-sec gen gen-check dev dev-bin up down migrate
 
 build:
 	$(GO) build ./...
+
+# A binary of make dev, in bin/ (ignored by git), never in the source tree.
+dev-bin:
+	$(GO) build -o $(BIN)/dev ./cmd/dev
 
 # Database tests run on an embedded Postgres 17 (ports 54329-54338).
 test:

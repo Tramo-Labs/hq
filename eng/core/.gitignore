@@ -1,4 +1,9 @@
 bin/
+# Binaries `go build ./cmd/<name>` drops here; builds go to bin/ (make dev-bin).
+/api
+/dev
+/worker
+/arca-gateway
 .env
 *.pem
 *.key

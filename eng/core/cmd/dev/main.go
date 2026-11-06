@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -34,6 +35,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/jobs"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
 	"github.com/Tramo-Labs/hq/eng/core/internal/worker"
@@ -155,13 +157,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// Invitations land in a private file in the data directory; nothing
-	// is ever sent.
-	outbox := filepath.Join(dir, "outbox")
-	ids.Mailer, ids.AppBaseURL = &mail.Outbox{Path: outbox}, env("DEV_APP_BASE_URL", "http://localhost:3000")
-	slog.Info("invitation emails go to a local file (mode 0600), never sent", "outbox", outbox)
-	deps := app.Deps{DB: d, Identity: ids, DocsDir: "api"}
-	h, err := app.New(deps, app.NewHandlers(deps))
+	h, err := newAPI(d, ids, filepath.Join(dir, "outbox"))
 	if err != nil {
 		return err
 	}
@@ -187,6 +183,41 @@ func run() error {
 	_ = wk.Stop(shutdown)
 	<-gwDone
 	return nil
+}
+
+// newAPI builds the api handler exactly as make dev serves it. Emails land
+// in a private outbox file; nothing is ever sent. The browser origins
+// allowed (CORS and the refresh Origin check, ADR 0007) are
+// CORS_ALLOWED_ORIGINS, or else DEV_APP_BASE_URL's origin
+// (http://localhost:3000 by default): without them every cookie refresh
+// and logout from the portal would be a 403.
+func newAPI(d *db.DB, ids *identity.Service, outbox string) (http.Handler, error) {
+	base := env("DEV_APP_BASE_URL", "http://localhost:3000")
+	ids.Mailer, ids.AppBaseURL = &mail.Outbox{Path: outbox}, base
+	slog.Info("emails go to a local file (mode 0600), never sent", "outbox", outbox)
+	origins, err := devOrigins(base)
+	if err != nil {
+		return nil, err
+	}
+	slog.Info("browser origins allowed", "origins", origins.List())
+	deps := app.Deps{DB: d, Identity: ids, CORSOrigins: origins, DocsDir: "api"}
+	return app.New(deps, app.NewHandlers(deps))
+}
+
+func devOrigins(base string) (httpx.Origins, error) {
+	list := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if list == "" {
+		u, err := url.Parse(base)
+		if err != nil || u.Host == "" {
+			return httpx.Origins{}, fmt.Errorf("DEV_APP_BASE_URL %q is not a URL", base)
+		}
+		list = u.Scheme + "://" + u.Host
+	}
+	o, err := httpx.ParseOrigins(list, true)
+	if err != nil {
+		return httpx.Origins{}, fmt.Errorf("CORS_ALLOWED_ORIGINS: %w", err)
+	}
+	return o, nil
 }
 
 func ensureDatabase(ctx context.Context, adminURL, name string) error {

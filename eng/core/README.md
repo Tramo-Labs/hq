@@ -62,7 +62,7 @@ Browsers call the api directly (D-18, ADR 0007): in production the portal
 at app.X calls api.X, with CORS restricted to the exact origins in
 `CORS_ALLOWED_ORIGINS` (never `*`). The refresh cookie is `SameSite=Strict`
 and still travels because both are on one registrable domain. In dev the
-allowed origin defaults to `APP_BASE_URL` (http://localhost:3000). The
+allowed origin defaults to `APP_BASE_URL` (`DEV_APP_BASE_URL` under `make dev`, http://localhost:3000), or `CORS_ALLOWED_ORIGINS` when set. The
 web's same origin `/v1` proxy is for dev only; it is not the production
 path.
 
