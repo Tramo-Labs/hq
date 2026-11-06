@@ -45,8 +45,15 @@ func (s *PGStore) RunMonth(ctx context.Context, period string, cfg Config) (RunS
 }
 
 // MonthArgs is the monthly run of one tenant. Tenant and period are the
-// natural key: however many times a month is enqueued, it runs once (a
-// completed job included). Only ids live here: River stores args in clear.
+// unique key, but only while River keeps the job: a month enqueued again
+// while its job is queued, running or completed is skipped, and River
+// deletes completed jobs after 24 hours (its default, which jobs.go keeps).
+// After that the same month can be enqueued and run again. The durable
+// "once per month" is the fan out's: backend's platform.month_closes marks
+// each period it enqueued. A second run is harmless (matches are stored
+// once by their ID; it adds a run row), and POST /v1/matching/runs may run
+// a month by hand at any time. Only ids live here: River stores args in
+// clear.
 type MonthArgs struct {
 	Tenant uuid.UUID `json:"tenant"`
 	Period string    `json:"period"` // YYYY-MM
@@ -55,8 +62,8 @@ type MonthArgs struct {
 // Kind is the stable job name stored in the queue.
 func (MonthArgs) Kind() string { return "matching.run_month" }
 
-// InsertOpts makes tenant and period the unique key, whatever state the
-// job is in.
+// InsertOpts makes tenant and period the unique key among the jobs River
+// still has, whatever their state (see MonthArgs for how long that is).
 func (MonthArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{UniqueOpts: river.UniqueOpts{ByArgs: true}, MaxAttempts: 5}
 }
@@ -86,7 +93,8 @@ func (w *MonthWorker) Work(ctx context.Context, job *river.Job[MonthArgs]) error
 }
 
 // EnqueueMonth asks for the monthly run of the tenant in the context. It
-// returns false when that month was already enqueued (or ran).
+// returns false when River still has a job for that month (queued,
+// running, or completed within its retention).
 func EnqueueMonth(ctx context.Context, c *jobs.Client, period string) (bool, error) {
 	sc, ok := db.ScopeFrom(ctx)
 	if !ok {

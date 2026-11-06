@@ -262,20 +262,31 @@ Everyone sees Automatic as a result, and Exceptions.
 
 `matching.run_month` (River, registered in `worker.New`). Arguments: the
 tenant id and the period, nothing else (River stores them in clear). They
-are the unique key (`ByArgs`): a month enqueued twice, or again after it
-ran, runs once. `MonthWorker.Work` scopes the context with
+are the unique key (`ByArgs`), but only while River keeps the job: a month
+enqueued again while its job is queued, running or completed is skipped,
+and River deletes completed jobs after 24 hours (its default). After that
+the same month can be enqueued and run again; the durable once per month is
+the fan out's (below). A second run is harmless: matches are stored once
+by their ID, it only adds a run row. `POST /v1/matching/runs` may still run
+a month by hand at any time. `MonthWorker.Work` scopes the context with
 `jobs.TenantContext` and calls `PGStore.RunMonth`, the only implementation
 of a month run, which `POST /v1/matching/runs` also uses. A retry is safe:
 matches are stored once by their ID. `EnqueueMonth(ctx, client, period)`
 enqueues for the tenant in the scope.
 
 Tested with a real River worker: twice and after completion, one run;
+once River deleted the completed job, the month runs again and stores no
+new match;
 another month, another run; tenant b's run of the same month touches none
 of tenant a's rows. Removing the unique key fails the first test.
 
-Not done: who enqueues every tenant's month on a schedule. A periodic job
-that lists tenants needs a cross tenant read, which matching does not do;
-that fan out belongs to platform (backend).
+Every tenant's month is enqueued by `platform.month_close` (worker,
+backend): once a month, for the month just closed in Argentina time, it
+lists every tenant (the one cross tenant read, ids only, which matching
+never does) and enqueues `matching.run_month` for each. A durable mark per
+period on the fan out side (`platform.month_closes`, backend) keeps a month
+from being fanned out twice, also after River forgot the jobs. Schedule, key and
+tests are in `internal/worker/README.md`.
 
 ## Sensitive data
 

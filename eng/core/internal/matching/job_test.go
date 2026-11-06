@@ -100,8 +100,12 @@ func (e jobEnv) runs(t *testing.T, ctx context.Context, period string) int {
 	return n
 }
 
-// The same month enqueued twice runs once; enqueued again after it ran,
-// still nothing. It is the same run as the API's: same matches stored.
+// While River keeps the job, the same month enqueued twice runs once, and
+// enqueued again after it completed, still nothing. It is the same run as
+// the API's: same matches stored. Once River deletes the completed job
+// (after 24 hours) the key is free again: the durable once per month is
+// the fan out's (platform.month_closes), and a second run stores no new
+// match.
 func TestMonthJobRunsOncePerTenantAndMonth(t *testing.T) {
 	e := newJobEnv(t)
 	first, err := EnqueueMonth(e.ctx, e.inserter, "2026-10")
@@ -125,6 +129,23 @@ func TestMonthJobRunsOncePerTenantAndMonth(t *testing.T) {
 	// amount and date, tolerance).
 	if n := e.count(t, e.ctx, `select count(*) from matching.matches`); n != 3 {
 		t.Errorf("%d matches stored by the job; want 3", n)
+	}
+	// River's cleaner deletes completed jobs after its retention; do it
+	// now. The key is free: the month enqueues and runs again, and the
+	// second run stores no new match.
+	if _, err := e.d.Pool.Exec(context.Background(),
+		`delete from river.river_job where kind = 'matching.run_month' and state = 'completed'`); err != nil {
+		t.Fatal(err)
+	}
+	if again, err := EnqueueMonth(e.ctx, e.inserter, "2026-10"); err != nil || !again {
+		t.Fatalf("enqueue once River forgot the job: %v %v; want enqueued", again, err)
+	}
+	e.waitRuns(t, 1)
+	if n := e.runs(t, e.ctx, "2026-10"); n != 2 {
+		t.Errorf("%d runs stored for the month; want 2", n)
+	}
+	if n := e.count(t, e.ctx, `select count(*) from matching.matches`); n != 3 {
+		t.Errorf("%d matches after the second run; want still 3", n)
 	}
 	// Another month of the same tenant is another key.
 	if other, err := EnqueueMonth(e.ctx, e.inserter, "2026-11"); err != nil || !other {
