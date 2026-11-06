@@ -34,7 +34,7 @@ func (s *Service) invite(ctx context.Context, p Principal, user uuid.UUID, role 
 	err := s.DB.System(ctx, func(tx pgx.Tx) error {
 		var err error
 		inviter := p.UserID
-		if iv, err = issueInvite(ctx, store.New(tx), p.TenantID, user, &inviter, role, s.now()); err != nil {
+		if iv, err = issueInvite(ctx, store.New(tx), p.TenantID, user, &inviter, role, s.now(), true); err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, audit.Entry{Action: "identity.invite_created", Subject: "users:" + user.String(),
@@ -53,12 +53,13 @@ type issuedInvite struct {
 	hasPassword                 bool
 }
 
-// issueInvite stores a new invitation of user to tenant and revokes the
-// person's earlier unused ones to that tenant only: one from another
-// tenant stays valid. It goes to the address stored for the account
-// (F35). Used when a person is added and when a pending person asks for a
-// sign in link (F36).
-func issueInvite(ctx context.Context, q *store.Queries, tenant, user uuid.UUID, createdBy *uuid.UUID, role string, now time.Time) (issuedInvite, error) {
+// issueInvite stores a new invitation of user to tenant. It goes to the
+// address stored for the account (F35). With revoke, the person's earlier
+// unused ones to that tenant die (an owner adding the person again); one
+// from another tenant stays valid. Without it nothing is revoked: a resend
+// asked through a sign in link request (F36) can come from anyone who
+// knows the email, and must not kill the link the person already has.
+func issueInvite(ctx context.Context, q *store.Queries, tenant, user uuid.UUID, createdBy *uuid.UUID, role string, now time.Time, revoke bool) (issuedInvite, error) {
 	token, hash, err := newRefreshToken()
 	if err != nil {
 		return issuedInvite{}, err
@@ -75,8 +76,10 @@ func issueInvite(ctx context.Context, q *store.Queries, tenant, user uuid.UUID, 
 		return iv, err
 	}
 	iv.tenantName = t.Name
-	if _, err := q.RevokeOpenTenantInvites(ctx, store.RevokeOpenTenantInvitesParams{UserID: user, TenantID: tenant}); err != nil {
-		return iv, err
+	if revoke {
+		if _, err := q.RevokeOpenTenantInvites(ctx, store.RevokeOpenTenantInvitesParams{UserID: user, TenantID: tenant}); err != nil {
+			return iv, err
+		}
 	}
 	err = q.InsertInvite(ctx, store.InsertInviteParams{TenantID: tenant, UserID: user, CreatedBy: createdBy,
 		TokenHash: hash, ExpiresAt: now.Add(InviteTTL)})

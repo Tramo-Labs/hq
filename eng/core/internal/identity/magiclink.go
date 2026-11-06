@@ -93,9 +93,10 @@ type MagicLinkWorker struct {
 //
 // A link that could only answer 403 is not sent (F36): when the person
 // asked for a company where their membership is pending, or has no active
-// membership but pending ones, the invitation goes again instead (a new
-// token, that company's earlier ones revoked), at most maxResent of them.
-// The request's public answer was the same 202 either way.
+// membership but pending ones, the invitation goes again instead, at most
+// maxResent of them. A new token that revokes nothing: anyone can ask with
+// the email, and must not kill the link the person already has. The
+// request's public answer was the same 202 either way.
 func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs]) error {
 	token, hash, err := newRefreshToken()
 	if err != nil {
@@ -139,7 +140,7 @@ func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs
 		}
 		if len(targets) > 0 {
 			for _, p := range targets {
-				iv, err := issueInvite(actx, q, p.TenantID, u.ID, p.InvitedBy, string(p.Role), time.Now())
+				iv, err := issueInvite(actx, q, p.TenantID, u.ID, p.InvitedBy, string(p.Role), time.Now(), false)
 				if err != nil {
 					return err
 				}
@@ -177,8 +178,9 @@ func (w *MagicLinkWorker) Work(ctx context.Context, job *river.Job[MagicLinkArgs
 	return nil
 }
 
-// maxResent bounds the invitations one link request sends again; the
-// request itself is throttled per email.
+// maxResent bounds the invitations one link request sends again. With the
+// request capped at 3 per email every 15 minutes, a person gets at most 15
+// resent invitations in that time, all in their own inbox.
 const maxResent = 5
 
 // pendingTargets lists the pending invitations a link request should get

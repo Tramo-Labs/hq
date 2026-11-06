@@ -240,11 +240,16 @@ expired more than 7 days ago. All run in the worker's daily
 - A link that could only answer 403 is never sent (F36). When the person
   asks for a company where their membership is pending, or has no active
   membership but pending ones, the worker mails the invitation again
-  instead (a new token, that company's earlier ones revoked, at most 5,
-  audited as `identity.invite_resent` with `via: magic_link`). The request
-  still answers the same 202 (`TestAPendingPersonAskingForALinkGetsTheInvitation`;
-  mutations checked: never resending, and not resending for the company
-  asked, each fail it).
+  instead, audited as `identity.invite_resent` with `via: magic_link`. A
+  new token that revokes nothing: anyone who knows the email can ask, so a
+  resend must not kill the link the person already has (all of them go to
+  the same stored inbox; once one is used the rest are spent). At most 5
+  resends per request; with requests capped at 3 per email every 15
+  minutes, at most 15 resends per person in that time. The request still
+  answers the same 202 (`TestAPendingPersonAskingForALinkGetsTheInvitation`,
+  `TestALinkRequestResendsAtMostFive`; mutations checked: never resending,
+  not resending for the company asked, revoking on a resend, and no cap of
+  5, each fail one of them).
 - Invitation and magic link tokens: only SHA-256 stored; the clear token
   exists only in the email (the outbox file in dev and tests), in the URL
   fragment so it never reaches a server log. Never in a response.

@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -58,11 +59,14 @@ func TestAPendingPersonAskingForALinkGetsTheInvitation(t *testing.T) {
 	if len(toks) != 2 {
 		t.Fatalf("invitations mailed: %d, want the first and a fresh one", len(toks))
 	}
-	if r := accept(c, toks[0], "a long enough password"); r.status != 401 {
-		t.Fatalf("the old invitation still works: %d %s", r.status, r.raw)
+	// Anyone can ask for a link with this email: the resend revokes
+	// nothing, so the link the person already had keeps working. Once one
+	// is used, the other is spent.
+	if r := accept(c, toks[0], "a long enough password"); r.status != 200 || r.str("role") != "approver" || r.str("tenantId") != alfa.tenant {
+		t.Fatalf("the invitation the person had, after a resend: %d %s", r.status, r.raw)
 	}
-	if r := accept(c, toks[1], "a long enough password"); r.status != 200 || r.str("role") != "approver" || r.str("tenantId") != alfa.tenant {
-		t.Fatalf("the fresh invitation: %d %s", r.status, r.raw)
+	if r := accept(c, toks[1], "a long enough password"); r.status != 401 {
+		t.Fatalf("the resent invitation after the person joined: %d %s", r.status, r.raw)
 	}
 
 	// An account active in alfa, pending in beta, asks for a link into beta.
@@ -88,5 +92,28 @@ func TestAPendingPersonAskingForALinkGetsTheInvitation(t *testing.T) {
 	ask("198.51.100.63", viewer.email, "")
 	if n := links(viewer.email); n != 1 {
 		t.Fatalf("sign in links for an active account: %d", n)
+	}
+}
+
+// One link request resends at most 5 pending invitations (and the request
+// is capped at 3 per email every 15 minutes: at most 15 per person).
+func TestALinkRequestResendsAtMostFive(t *testing.T) {
+	deps := newDeps(t)
+	deps.TrustedProxies = loopback
+	q, _ := withMagicLinks(t, deps)
+	c := client{t, serve(t, deps)}
+	for i := 0; i < 7; i++ {
+		own := c.registerAndLogin(fmt.Sprintf("molino-f36-%d", i), fmt.Sprintf("owner%d@f36m.test", i))
+		if r := c.do("POST", "/v1/tenant/members", own.access, map[string]any{"email": "muchas@f36m.test", "role": "viewer"}, idem()...); r.status != 201 {
+			t.Fatalf("add %d: %d %s", i, r.status, r.raw)
+		}
+	}
+	before := len(c.invitesTo("muchas@f36m.test"))
+	if r := c.do("POST", "/v1/auth/magic-link", "", map[string]any{"email": "muchas@f36m.test"}, append(idem(), "X-Forwarded-For", "198.51.100.64")...); r.status != 202 {
+		t.Fatalf("ask: %d %s", r.status, r.raw)
+	}
+	q.run(t)
+	if got := len(c.invitesTo("muchas@f36m.test")) - before; got != 5 {
+		t.Fatalf("one request resent %d invitations, want 5", got)
 	}
 }
