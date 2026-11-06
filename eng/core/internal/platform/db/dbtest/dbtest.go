@@ -7,8 +7,9 @@
 //
 //	func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
 //
-// Ports: backend packages use 54329 to 54338 (go test runs packages in
-// parallel; each takes the first free port). Tests are skipped with -short.
+// Ports: 54329 to 54338 by default (go test runs packages in parallel; each
+// takes the first free port). Another suite running at the same time sets
+// TRAMO_TEST_PG_PORTS, e.g. 54349-54358 for qa. Skipped with -short.
 package dbtest
 
 import (
@@ -89,8 +90,13 @@ func start() {
 	if startErr != nil {
 		return
 	}
+	first, last, err := portRange()
+	if err != nil {
+		startErr = err
+		return
+	}
 	var lastErr error
-	for p := uint32(firstPort); p <= lastPort; p++ {
+	for p := first; p <= last; p++ {
 		dir := filepath.Join(tmpDir, fmt.Sprint(p))
 		pg := embeddedpostgres.NewDatabase(embeddedpostgres.DefaultConfig().
 			Version(embeddedpostgres.V17).
@@ -110,7 +116,7 @@ func start() {
 		break
 	}
 	if server == nil {
-		startErr = fmt.Errorf("no free port in %d-%d: %w", firstPort, lastPort, lastErr)
+		startErr = fmt.Errorf("no free port in %d-%d: %w", first, last, lastErr)
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -125,6 +131,20 @@ func start() {
 	}
 	startErr = d.Migrate(ctx)
 	d.Close() // a template must have no open connections to be cloned
+}
+
+// portRange reads TRAMO_TEST_PG_PORTS ("first-last") so concurrent suites
+// (backend, datos, qa) can run side by side; the default is backend's range.
+func portRange() (uint32, uint32, error) {
+	v := os.Getenv("TRAMO_TEST_PG_PORTS")
+	if v == "" {
+		return firstPort, lastPort, nil
+	}
+	var a, b uint32
+	if _, err := fmt.Sscanf(v, "%d-%d", &a, &b); err != nil || a == 0 || b < a || b > 65535 {
+		return 0, 0, fmt.Errorf("TRAMO_TEST_PG_PORTS=%q, want first-last like 54349-54358", v)
+	}
+	return a, b, nil
 }
 
 func exec(ctx context.Context, database, sql string) error {

@@ -132,10 +132,99 @@ func TestAuditLogIsAppendOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The raw pool is the owner (a superuser in tests): only the trigger
+	// stands in the way.
 	for _, q := range []string{`update audit_log set action = 'other'`, `delete from audit_log`} {
-		err := d.System(ctx, func(tx pgx.Tx) error { _, err := tx.Exec(ctx, q); return err })
-		if err == nil {
-			t.Errorf("%q succeeded even as owner", q)
+		if _, err := d.Pool.Exec(ctx, q); err == nil {
+			t.Errorf("%q succeeded as owner", q)
 		}
+	}
+}
+
+func TestApplicationRolesCannotBypassRLS(t *testing.T) {
+	d := dbtest.New(t)
+	rows, err := d.Pool.Query(context.Background(),
+		`select rolname, rolsuper, rolbypassrls, rolcanlogin from pg_roles where rolname = any($1)`,
+		[]string{db.AppRole, db.SystemRole})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	seen := 0
+	for rows.Next() {
+		var name string
+		var super, bypass, login bool
+		if err := rows.Scan(&name, &super, &bypass, &login); err != nil {
+			t.Fatal(err)
+		}
+		seen++
+		if super || bypass || login {
+			t.Errorf("%s: rolsuper=%v rolbypassrls=%v rolcanlogin=%v, want all false", name, super, bypass, login)
+		}
+	}
+	if seen != 2 {
+		t.Fatalf("found %d of the 2 application roles", seen)
+	}
+}
+
+// Every table, including the ones other modules add later, must have row
+// level security enabled and forced.
+func TestEveryTableHasForcedRLS(t *testing.T) {
+	d := dbtest.New(t)
+	rows, err := d.Pool.Query(context.Background(), `
+		select c.relname, c.relrowsecurity, c.relforcerowsecurity
+		from pg_class c join pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relname <> 'goose_db_version'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		var name string
+		var rls, force bool
+		if err := rows.Scan(&name, &rls, &force); err != nil {
+			t.Fatal(err)
+		}
+		n++
+		if !rls || !force {
+			t.Errorf("table %s: row security enabled=%v forced=%v", name, rls, force)
+		}
+	}
+	if n < 7 {
+		t.Fatalf("only %d tables found", n)
+	}
+}
+
+// A business table a module adds later is invisible to the system role
+// unless a migration grants it explicitly.
+func TestSystemRoleCannotReachBusinessTables(t *testing.T) {
+	d := dbtest.New(t)
+	a, _ := seed(t, d)
+	ctx := context.Background()
+	// What a module migration looks like (default privileges reach tramo_app only).
+	for _, q := range []string{
+		`create table movements (id bigint generated always as identity primary key, tenant_id uuid not null references tenants(id), amount_cents bigint not null)`,
+		`alter table movements enable row level security`,
+		`alter table movements force row level security`,
+		`create policy movements_tenant on movements to tramo_app using (tenant_id = app_current_tenant()) with check (tenant_id = app_current_tenant())`,
+	} {
+		if _, err := d.Pool.Exec(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	actx := db.WithScope(ctx, a)
+	if err := d.InTenant(actx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(actx, `insert into movements (tenant_id, amount_cents) values ($1, 100)`, a.TenantID)
+		return err
+	}); err != nil {
+		t.Fatalf("tenant insert: %v", err)
+	}
+	err := d.System(ctx, func(tx pgx.Tx) error {
+		var n int
+		return tx.QueryRow(ctx, `select count(*) from movements`).Scan(&n)
+	})
+	if err == nil {
+		t.Fatal("tramo_system read a business table")
 	}
 }

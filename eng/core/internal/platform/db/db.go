@@ -5,11 +5,15 @@
 //     restricted role tramo_app with app.tenant_id and app.user_id set, so
 //     row level security filters every table by tenant even if a query
 //     forgets to.
-//   - System: runs as the schema owner and bypasses RLS. Only platform and
-//     identity use it (registration, login, refresh tokens, idempotency),
-//     always with explicit keys in the WHERE clause.
+//   - System: runs as tramo_system, which reaches only the platform and
+//     identity tables granted to it in migration 00003 (registration,
+//     login, refresh tokens, idempotency, tenant keys, audit). It has no
+//     access to any business table. Which packages may call it is an
+//     allowlist enforced by a test (TestSystemCallersAreAllowlisted).
 //
-// See ADR 0002.
+// The pool itself connects as the schema owner, used only to migrate.
+// Every table has FORCE ROW LEVEL SECURITY, so on a non superuser owner a
+// stray query on the raw pool sees no rows. See ADR 0002.
 package db
 
 import (
@@ -26,8 +30,11 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/migrations"
 )
 
-// AppRole is the restricted role tenant transactions switch to.
-const AppRole = "tramo_app"
+// Roles the transactions switch to (migrations 00002 and 00003).
+const (
+	AppRole    = "tramo_app"
+	SystemRole = "tramo_system"
+)
 
 // ErrNoScope means a tenant transaction was requested without a tenant in
 // the context. It is a programming error, never a client error.
@@ -118,8 +125,13 @@ func (d *DB) InTenant(ctx context.Context, fn func(pgx.Tx) error) error {
 	})
 }
 
-// System runs fn in an owner transaction that bypasses RLS. Reserved for
-// platform and identity; business modules must use InTenant.
+// System runs fn as tramo_system. Reserved for platform and identity (see
+// the allowlist test); business modules must use InTenant.
 func (d *DB) System(ctx context.Context, fn func(pgx.Tx) error) error {
-	return pgx.BeginFunc(ctx, d.Pool, fn)
+	return pgx.BeginFunc(ctx, d.Pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "set local role "+SystemRole); err != nil {
+			return fmt.Errorf("db: set role: %w", err)
+		}
+		return fn(tx)
+	})
 }

@@ -16,6 +16,7 @@ servers:
   - url: http://localhost:8080
 tags:
   - name: platform
+  - name: identity
 paths:
   /healthz:
     get:
@@ -34,6 +35,148 @@ paths:
       responses:
         "204": { description: ready }
         "503": { $ref: "#/components/responses/Problem" }
+
+  /v1/auth/register:
+    post:
+      operationId: register
+      tags: [identity]
+      summary: Create an account, its first tenant and the owner membership
+      description: |
+        Returns ids only (the response is stored for idempotency, so it never
+        carries tokens). Log in afterwards.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegisterResponse" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/auth/login:
+    post:
+      operationId: login
+      tags: [identity]
+      summary: Exchange email and password for an access token and a refresh token
+      description: |
+        The access token is a 10 minute EdDSA JWT for one tenant. The refresh
+        token lives 30 days and rotates on every use. With
+        `tokenDelivery: cookie` (browsers) it travels only in an HttpOnly
+        cookie scoped to /v1/auth; with `body` (API clients) it is returned
+        in the body.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Tokens" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/auth/refresh:
+    post:
+      operationId: refresh
+      tags: [identity]
+      summary: Rotate the refresh token and get a new access token
+      description: |
+        Send the refresh token in the cookie or in the body. A refresh token
+        that was already used revokes its whole family (theft detected) and
+        answers 401.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/RefreshCookie"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/Tokens" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      tags: [identity]
+      summary: Revoke the refresh token family of this session
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/RefreshCookie"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
+      responses:
+        "204":
+          description: logged out
+          headers:
+            Set-Cookie: { schema: { type: string }, description: clears the refresh cookie }
+  /v1/me:
+    get:
+      operationId: getMe
+      tags: [identity]
+      summary: The caller, the active tenant and every membership
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/tenant/members:
+    get:
+      operationId: listMembers
+      tags: [identity]
+      summary: Members of the active tenant
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Member" }
+                  nextCursor: { type: string, nullable: true }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: addMember
+      tags: [identity]
+      summary: Add a person to the active tenant (owner or operator)
+      description: |
+        Creates the user without a password when the email is new; they get
+        in with a magic link (not built yet). Only an operator can grant
+        `operator` or `accountant`.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddMemberRequest" }
+      responses:
+        "201":
+          description: added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Member" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
 security:
   - bearer: []
 components:
@@ -52,7 +195,22 @@ components:
         response for 24 hours; same key with another body is 422; a key
         whose first request is still running is 409.
       schema: { type: string, format: uuid }
+    RefreshCookie:
+      name: tramo_refresh
+      in: cookie
+      required: false
+      description: Refresh token for browsers (HttpOnly, Secure, SameSite=Strict, Path=/v1/auth).
+      schema: { type: string }
   responses:
+    Tokens:
+      description: tokens issued
+      headers:
+        Set-Cookie:
+          description: refresh token cookie when tokenDelivery is cookie
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Tokens" }
     Problem:
       description: Error
       content:
@@ -72,3 +230,98 @@ components:
           example: idempotency_key_reused
         detail: { type: string }
         requestId: { type: string }
+    Role:
+      type: string
+      enum: [owner, approver, viewer, operator, accountant]
+    Cuit:
+      type: string
+      pattern: "^[0-9]{11}$"
+      description: CUIT, 11 digits without dashes. The check digit is verified.
+      example: "30712345674"
+    Password:
+      type: string
+      minLength: 12
+      maxLength: 128
+      format: password
+    TokenDelivery:
+      type: string
+      enum: [cookie, body]
+      default: cookie
+    RegisterRequest:
+      type: object
+      required: [email, password, tenantName, tenantSlug]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { $ref: "#/components/schemas/Password" }
+        tenantName: { type: string, minLength: 2, maxLength: 120 }
+        tenantSlug: { type: string, pattern: "^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$" }
+        cuit: { $ref: "#/components/schemas/Cuit" }
+    RegisterResponse:
+      type: object
+      required: [userId, tenantId]
+      properties:
+        userId: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 1, maxLength: 128, format: password }
+        tenantId:
+          type: string
+          format: uuid
+          description: Tenant to act on. Defaults to the oldest membership.
+        tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        refreshToken: { type: string, maxLength: 128 }
+        tokenDelivery: { $ref: "#/components/schemas/TokenDelivery" }
+    Tokens:
+      type: object
+      required: [accessToken, tokenType, expiresIn, tenantId, role]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, enum: [Bearer] }
+        expiresIn: { type: integer, description: seconds, example: 600 }
+        refreshToken:
+          type: string
+          description: Only with tokenDelivery body.
+        tenantId: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/Role" }
+    Membership:
+      type: object
+      required: [tenantId, tenantName, role]
+      properties:
+        tenantId: { type: string, format: uuid }
+        tenantName: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+    Me:
+      type: object
+      required: [userId, email, activeTenantId, role, memberships]
+      properties:
+        userId: { type: string, format: uuid }
+        email: { type: string }
+        activeTenantId: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/Role" }
+        memberships:
+          type: array
+          items: { $ref: "#/components/schemas/Membership" }
+    Member:
+      type: object
+      required: [userId, email, role]
+      properties:
+        userId: { type: string, format: uuid }
+        email: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+    AddMemberRequest:
+      type: object
+      required: [email, role]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        role: { $ref: "#/components/schemas/Role" }

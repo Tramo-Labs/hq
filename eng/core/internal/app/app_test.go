@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,15 +11,40 @@ import (
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/app"
+	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db/dbtest"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
 
 func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
 
-func server(t *testing.T) *httptest.Server {
+// fastArgon keeps the suite quick under -race; production uses DefaultArgon2.
+var fastArgon = identity.Argon2Params{Memory: 8 * 1024, Time: 1, Threads: 1}
+
+func newDeps(t *testing.T) app.Deps {
 	t.Helper()
-	deps := app.Deps{DB: dbtest.New(t)}
+	d := dbtest.New(t)
+	seed, master := make([]byte, 32), make([]byte, 32)
+	_, _ = rand.Read(seed)
+	_, _ = rand.Read(master)
+	signer, err := identity.NewSigner(seed, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	kr, err := crypto.NewKeyring(master)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids, err := identity.NewService(d, signer, kr, fastArgon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return app.Deps{DB: d, Identity: ids}
+}
+
+func serve(t *testing.T, deps app.Deps) *httptest.Server {
+	t.Helper()
 	h, err := app.New(deps, app.NewHandlers(deps))
 	if err != nil {
 		t.Fatal(err)
@@ -27,6 +53,8 @@ func server(t *testing.T) *httptest.Server {
 	t.Cleanup(srv.Close)
 	return srv
 }
+
+func server(t *testing.T) *httptest.Server { return serve(t, newDeps(t)) }
 
 func TestPlatformEndpoints(t *testing.T) {
 	srv := server(t)

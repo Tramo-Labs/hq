@@ -6,6 +6,7 @@ BUF_VERSION          := v1.75.0
 PROTOC_GEN_GO        := v1.36.12
 PROTOC_GEN_GO_GRPC   := v1.6.2
 GOOSE_VERSION        := v3.29.0
+SQLC_VERSION         := v1.31.1
 GOSEC_VERSION        := v2.30.0
 GOVULNCHECK_VERSION  := v1.9.0
 
@@ -41,6 +42,7 @@ tools:
 	GOBIN=$(BIN) $(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO)
 	GOBIN=$(BIN) $(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GEN_GO_GRPC)
 	GOBIN=$(BIN) $(GO) install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION)
+	GOBIN=$(BIN) $(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
 
 # Security tools are separate: some sandboxes cannot fetch them.
 tools-sec:
@@ -53,10 +55,11 @@ gen:
 	mkdir -p gen/api
 	oapi-codegen -config api/oapi.yaml api/openapi.yaml
 	buf generate
+	sqlc generate
 
 # Fails when gen/ is stale (run in CI).
 gen-check: gen
-	git diff --exit-code -- gen/
+	git diff --exit-code -- gen/ internal/*/store/
 
 up:
 	docker compose -f deploy/docker-compose.yml up --build -d

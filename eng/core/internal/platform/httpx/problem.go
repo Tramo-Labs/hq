@@ -33,6 +33,16 @@ const (
 	CodeInternal            = "internal"
 )
 
+// Error is returned by strict handlers to answer with a specific problem.
+// Any other error becomes a 500 without detail.
+type Error struct {
+	Status int
+	Code   string
+	Detail string
+}
+
+func (e *Error) Error() string { return e.Code + ": " + e.Detail }
+
 // WriteProblem writes a problem response. Title defaults to the status text.
 func WriteProblem(w http.ResponseWriter, r *http.Request, status int, code, detail string) {
 	p := Problem{
