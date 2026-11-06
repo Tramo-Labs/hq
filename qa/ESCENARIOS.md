@@ -209,3 +209,72 @@ Una nota sobre F24. Después de reiniciar el núcleo, la cuenta que estaba en mo
 | # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
 |---|------|-----------|---------------|----------|------|------|
 | F32 | Web | Sin contraseña y sin la invitación, no hay forma de pedir el link | 1) owner: `POST /v1/tenant/members` con un email nuevo (`inv-…@alfa-sint.test`); la persona no abre la invitación (se pierde o vence a las 72 h). 2) En `/entrar` pone su email y cualquier contraseña. | Que la web le ofrezca "Mandame un enlace". La API se lo da: el link mágico sirve para quien no tiene contraseña (tanda 4). | `401` y "El email o la contraseña no coinciden.", sin el botón. En un `/entrar` limpio el botón tampoco aparece: solo se ve después de un 429 o de `magic_link_required`. Volver a invitarla tampoco sirve: el alta da 409 `already_member`, y sacarla y volver a sumarla no manda mail (F29). | media |
+
+## Tanda 5: `make dev` de main 2dc077c (06/11/2026)
+
+Levanté `make dev` con un directorio de datos nuevo. La web es un build de producción (`PORTAL_ENABLED=1 NEXT_PUBLIC_API_BASE=http://localhost:18080 next build`, `next start -p 13100`). La API se recorrió con los scripts de la tanda 4 y la web con Playwright a 390 px. A mitad de la tanda pasé el núcleo a un directorio en disco, porque /tmp está compartido, y por eso los contadores de intentos en memoria arrancaron de cero. Los usuarios nuevos son `*-sint.test`.
+
+Una aclaración para leer los 429: en la primera mitad, los scripts de la API gastaron los cupos por IP documentados en el README de identity, que son 10 pedidos de link y 10 aceptaciones de invitación cada 15 minutos. Después de eso la web mostró "Hubo demasiados intentos" y no es una falla. Lo que sigue se repitió con los contadores en cero.
+
+### Estado de las tandas 1 a 4
+
+| # | Estado | Evidencia |
+|---|--------|-----------|
+| F1 | resuelta | La tanda 4 lo cubrió y no hubo cambios en esa zona. El replay de un `Idempotency-Key` con otro body da 422 `idempotency_key_reused`, también en `POST /v1/auth/magic-link`. |
+| F2 | resuelta | Una factura con QR por el importe y la fecha del `PAGO PROVEEDOR EJEMPLO SA` pasa de 4 a 5 partidas (`source: document`). Después de `POST /v1/matching/runs` el pago ya no está en Excepciones. |
+| F3 | resuelta | Galicia con `CLIENTE UNO` → `CLIENTE 1`: `quarantined, movement_conflict`, "line 11 has the date, amount, balance and references of a movement already stored, with another description". |
+| F4 | resuelta | approver `other` con nota: 201. Aparece en el Sugerido del operador. operator `resolve`: 201, revision 2. operator `approve`: 403. |
+| F5 | resuelta | Los 403 del viewer y del approver dejan filas `authz.denied` con `operation:getExport`, user_id, request_id, IP y `repeated`. |
+| F6 | resuelta | viewer y approver: audit, movements y matches dan 403 "your role cannot download the tenant's data". |
+| F7 | resuelta | El owner da accountant, owner, approver y viewer: 201. Si da operator, 403. |
+| F8 | resuelta | Invitado sin contraseña: 200 en `invite/accept` y después entra con la contraseña nueva. En la web, ver F23. |
+| F9 | resuelta | El Galicia subido a la cuenta Santander: `quarantined, bank_mismatch`. |
+| F10 | resuelta | Seis contraseñas malas desde 127.0.0.2: la sexta da 429 con `magicLink: true`. El titular entra desde 127.0.0.3 con 200. Hubo 24 fallos repartidos entre 127.0.0.10 y 127.0.0.15, y después la contraseña buena desde 127.0.0.20 da 401 `magic_link_required`. |
+| F11 | resuelta | `DELETE` del contador: 204. Después, su login y su cambio de empresa a alfa dan 403 `not_a_member`. Si el owner intenta sacarse a sí mismo siendo el último owner, da 409 `last_owner`. |
+| F12 | resuelta | `GET /v1/ledger/files` trae cada archivo con su cuenta, su estado y el motivo. `GET /v1/ledger/movements?period=2026-10` da 200. |
+| F13 | resuelta | El operator da accountant, operator, owner o approver: 403 en los cuatro. |
+| F14 | sin repetir | Esta tanda no recorrió las decisiones del portal. |
+| F15 | resuelta | `other` sin nota: 400 `note_required`. |
+| F16 | resuelta | Una comilla suelta da `row_parse` "line 2: bare \" in non-quoted-field". Una comilla sin cerrar da "line 11: extraneous or missing \" in quoted-field". |
+| F17 | resuelta | `period=2026-13` da "invalid parameter \"period\"". Un body sin `name` da "invalid request body: /name". |
+| F18 | resuelta | El owner de beta con el `tenantId` de alfa: 403 `not_a_member`. |
+| F19 | resuelta | `reject` sin nota, con espacios o con ZWSP: 400 `note_required`. |
+| F20 | resuelta | owner, viewer y approver piden Sugerido, en matches y en pending: 403 en los seis casos. |
+| F21 | resuelta | Factura con `nroDocRec` de beta: 201 `autoEligible: false`. |
+| F22 | resuelta | Refresh por cookie con Origin `https://evil.example`, sin Origin, `null` o `http://localhost:13100.evil.example`: 403 `origin_not_allowed`. Con el origen de la web: 200. Lo mismo vale para `switch-tenant` por cookie. |
+| F23 | resuelta | Invitación a 390 px: el link abre "Sumate a Tramo.", se acepta con 200 y entra a `/app` como "Inés Invitada · aprobador". Después de recargar sigue adentro. Si se reusa el link, aparece "La invitación ya se usó o venció…". Sin token, aparece "Este enlace está incompleto…". El link mágico entra a `/app`. El cambio de empresa funciona sin contraseña. |
+| F24 | resuelta | Seis contraseñas malas desde la web y después la buena: "Hubo demasiados intentos. Probá de nuevo en 15 minutos." y el botón "Entrar con un enlace por mail". Hay `202` y `200 …/accept`, y entra a `/app`. Con `magic_link_required` la web muestra "Por seguridad, a esta cuenta hoy se entra con un enlace por mail." y el link también entra. |
+| F25 | **sigue** | Un alta de alfa que da 409 `already_member`, con otras mayúsculas, cambia el email guardado a `CASING-…@ALFA-SINT.TEST`. Después el owner de beta suma a la misma persona con otras mayúsculas (201), y alfa pasa a verla como `Casing-…@Alfa-Sint.Test`. Con `APPROVER@ALFA.TEST` desde beta, el `/v1/me` del approver devuelve `APPROVER@ALFA.TEST`. |
+| F26 | **sigue** | El owner de beta suma a `viewer@alfa.test`: 201, no hay ningún mail en el outbox y el viewer puede cambiar a beta (200). La decisión del 06/11 ("membership is always an accepted invitation") todavía no está en el código. |
+| F27 | **sigue en parte** | Ahora los nombres de cuenta con ZWSP, RLO o relleno Hangul dan 400 `invalid_name`, con un mensaje claro. En cambio, `POST /v1/auth/register` acepta con 201 un `tenantName` de solo ZWSP, de solo relleno Hangul, de solo NBSP o con RLO. |
+| F28 | resuelta | `reject` con nota de relleno Hangul, NBSP, solo RLO o solo un combinante: 400 `note_required`. Con texto real: 201. |
+| F29 | **sigue** | Si a la persona la sacan antes de que acepte y abre la invitación, recibe 403, pero la contraseña queda guardada. Cuando la vuelven a sumar, entra con esa contraseña (200). La vuelta a sumar no manda mail: hay un solo mail de invitación y el token viejo da 401. |
+| F30 | **sigue** | `POST /v1/tenant/members {"email":"owner​@alfa.test"}` (con ZWSP): 201, y crea un usuario nuevo. |
+| F31 | **sigue** | Los mails siguen en inglés: "Subject: Your sign in link", "Sign in with this link…". |
+| F32 | **resuelta** | Ahora `/entrar` siempre muestra "¿No tenés contraseña o no la recordás?…" con el botón "Entrar con un enlace por mail". La persona invitada que nunca abrió la invitación escribe su email y toca el botón. Hay `202` y aparece "Si ese email tiene cuenta en Tramo, te mandamos un enlace. Vale 15 minutos y sirve una sola vez.". El link del mail hace `200 …/accept` y entra a `/app` como "perdida-…@alfa-sint.test · aprobador", y al recargar sigue adentro. Si el email está vacío: "Escribí tu email arriba y te mandamos el enlace.", sin pedido a la API. Si el email no es válido: 400 y "Revisá el email: no parece una dirección válida.". Con un email que no existe: el mismo 202 y el mismo texto. Todo a 390 px, sin scroll horizontal. |
+
+### Fallas nuevas
+
+| # | Capa | Escenario | Pasos exactos | Esperado | Pasó | Sev. |
+|---|------|-----------|---------------|----------|------|------|
+| F33 | Web | Aceptar una invitación en un navegador donde ya entró otra persona le cambia la sesión sin avisar | 1) En un navegador, el owner entra por `/entrar` y abre `/app/aprobaciones`. 2) En otra pestaña del mismo navegador abre el link de invitación de `inv3-…@alfa-sint.test` (viewer), por ejemplo para ver qué le llega. 3) Completa nombre y contraseña y toca Entrar. 4) Vuelve a la pestaña del owner y navega. | Que la página de invitación avise "Estás adentro como owner@alfa.test" y pida salir primero, o que no toque la sesión abierta. | La invitación no menciona la sesión abierta. Después de aceptar, la pestaña del owner sigue mostrando "owner@alfa.test · titular" mientras navega sin recargar. En la próxima carga pasa a "Vale Visor · lectura" (`200 POST /v1/auth/refresh`), y en Descargas aparece "Tu rol no p…". El owner pierde su sesión sin enterarse, y durante un rato la pantalla dice una identidad mientras la cookie ya es de otra. | media |
+| F34 | Web | El error de la invitación queda pegado | En `/invitacion#token=…`, 1) pone dos contraseñas distintas y toca Entrar: "Las dos contraseñas no coinciden.". 2) Las cambia por `123` en los dos campos y toca Entrar. | Que el aviso cambie a "Al menos 12 caracteres" o que se borre. | Sigue diciendo "Las dos contraseñas no coinciden." aunque son iguales. El navegador frena el envío por el largo mínimo y no hay pedido a la API, pero el texto en pantalla contradice lo que la persona escribió. | baja |
+| F35 | API | El link mágico sale a la dirección como la escribió quien lo pidió | En `/entrar`, escribir ` PERDIDA-…@ALFA-SINT.TEST ` (con espacios y mayúsculas) y tocar "Entrar con un enlace por mail". | Que el mail salga a la dirección guardada de la cuenta (`perdida-…@alfa-sint.test`). | El outbox tiene `To: PERDIDA-…@ALFA-SINT.TEST`. Hoy el link llega igual, pero el destino lo decide el que pide y no la cuenta. Es la misma familia que F25. | baja |
+
+### Lo que pasó bien en la tanda 5
+
+| Escenario | Evidencia |
+|-----------|-----------|
+| Una carga por banco | Galicia, Santander, Macro y Mercado Pago: 201 `accepted` con 10, 10, 10 y 4 movimientos. Repetir Galicia: 200 `duplicate`. |
+| Invitación a 390 px | Con nombre de solo ZWSP o con RLO: 400 y "Revisá el nombre: tiene que tener al menos una letra o un número…". El nombre es opcional según el spec (`AcceptInviteRequest` pide solo token y password): con el nombre vacío entra y el encabezado muestra el email. |
+| Link mágico sin contraseña | Después de entrar por link, la invitación vieja sigue abriendo el formulario. Coincide con el spec: "works only while the person has no password". |
+| Cambio de empresa a 390 px | El contador entra con contraseña y la pantalla pregunta "¿Con qué empresa querés trabajar?". Pasa de Alfa a Beta y de vuelta a Alfa sin pedir contraseña, con `200 switch-tenant`. En Beta, `/operador/bandejas`, `/operador/resultados`, `/app`, `/app/aprobaciones`, `/app/resultados` y `/app/descargas` no muestran ninguna cuenta de Alfa. Si vuelve dos veces para atrás, tampoco. En `/operador` aparece "Molino Alfa (dev)" en Clientes: es su lista de clientes, con el CUIT y los pasos que faltan, no datos de Alfa. Ninguna página tiene scroll horizontal y no hay 4xx. |
+| Dos pestañas | Si la pestaña 2 cambia a Beta, la pestaña 1 sigue diciendo Alfa hasta que navega. En la próxima carga pasa a Beta. Es coherente con una sesión por navegador. |
+| CORS | El preflight desde el origen de la web: 204 con credenciales. Desde las mayúsculas, la barra final, https, otro puerto, 127.0.0.1, `.evil.example`, `evil.localhost` o `null`: 403 sin ACAO. |
+| Nombres de persona | `PATCH /v1/me` sigue rechazando las 16 variantes invisibles de la tanda 4. Con acentos y emoji: 200. |
+
+### Notas
+
+Después de mandar el link, el botón "Entrar con un enlace por mail" desaparece. Si el mail no llega, la persona tiene que recargar para pedirlo de nuevo. No lo cuento como falla, pero vale tenerlo en cuenta.
+
+Por IP, los cupos son 10 pedidos de link y 10 aceptaciones de invitación cada 15 minutos. Ahora que el link es la vía normal para quien no tiene contraseña (F32), un estudio contable con una sola IP de salida puede llegar a ese techo en un día de altas.
