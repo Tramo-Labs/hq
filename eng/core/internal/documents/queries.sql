@@ -14,14 +14,15 @@ values (app_current_tenant(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
 returning id;
 
 -- name: ListInvoices :many
--- Newest first. period is YYYY-MM in Argentina time (empty for all);
--- auto_eligible null for both; review keeps only those not eligible or
--- without an open item.
+-- Newest first. date_from and date_to (both included) keep the invoices
+-- stored on those days, Argentina time (null for all); auto_eligible null
+-- for both; review keeps only those not eligible or without an open item.
 select id, issuer_cuit, doc_type, point_of_sale, number, issue_date, total, auto_eligible, min_confidence,
        fields, coalesce(item_reason, '')::text as item_reason, created_at
   from documents.invoices
- where (sqlc.arg(period)::text = ''
-        or to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = sqlc.arg(period)::text)
+ where (sqlc.narg(date_from)::date is null
+        or (created_at at time zone 'America/Argentina/Buenos_Aires')::date
+           between sqlc.narg(date_from)::date and sqlc.narg(date_to)::date)
    and (sqlc.narg(auto_eligible)::boolean is null or auto_eligible = sqlc.narg(auto_eligible)::boolean)
    and (not sqlc.arg(review)::boolean or not auto_eligible or item_reason is not null)
  order by created_at desc, id

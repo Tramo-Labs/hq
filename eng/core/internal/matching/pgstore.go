@@ -14,6 +14,7 @@ import (
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/documents"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/listrange"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching/store"
 	"github.com/Tramo-Labs/hq/eng/core/internal/money"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/audit"
@@ -624,6 +625,29 @@ func (s *PGStore) Undecided(ctx context.Context, tray Tray, limit int) ([]Match,
 // UndecidedIn is Undecided restricted to matches with a movement dated in
 // period (YYYY-MM); "" means every period.
 func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, limit int) ([]Match, error) {
+	r, err := monthFilter(period)
+	if err != nil {
+		return nil, err
+	}
+	return s.UndecidedInRange(ctx, tray, r, limit)
+}
+
+// monthFilter turns a period (YYYY-MM, "" for none) into a range.
+func monthFilter(period string) (*listrange.Range, error) {
+	if period == "" {
+		return nil, nil
+	}
+	r, err := listrange.Parse(&period, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
+	return r, nil
+}
+
+// UndecidedInRange is Undecided restricted to matches with a movement dated
+// in the range; nil means every date.
+func (s *PGStore) UndecidedInRange(ctx context.Context, tray Tray, r *listrange.Range, limit int) ([]Match, error) {
+	from, last := r.Bounds()
 	var out []Match
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		if err := mustSeeTray(ctx, tx, tray); err != nil {
@@ -631,7 +655,7 @@ func (s *PGStore) UndecidedIn(ctx context.Context, tray Tray, period string, lim
 		}
 		// See the query: which matches each tray lists as undecided.
 		rows, err := store.New(tx).UndecidedMatches(ctx, store.UndecidedMatchesParams{
-			Tray: string(tray), Period: period, MaxRows: rowLimit(limit),
+			Tray: string(tray), DateFrom: from, DateTo: last, MaxRows: rowLimit(limit),
 		})
 		if err != nil {
 			return err
@@ -687,6 +711,17 @@ func (s *PGStore) LatestPending(ctx context.Context, tray Tray, limit int) ([]Pe
 // LatestPendingIn is LatestPending for the latest run of one period
 // (YYYY-MM); "" means the latest run of every period.
 func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string, limit int) ([]PendingRow, error) {
+	r, err := monthFilter(period)
+	if err != nil {
+		return nil, err
+	}
+	return s.LatestPendingInRange(ctx, tray, r, limit)
+}
+
+// LatestPendingInRange is LatestPending for the movements dated in the
+// range (each is in the latest run of its own month); nil means every date.
+func (s *PGStore) LatestPendingInRange(ctx context.Context, tray Tray, r *listrange.Range, limit int) ([]PendingRow, error) {
+	from, last := r.Bounds()
 	var out []PendingRow
 	err := s.DB.InTenant(ctx, func(tx pgx.Tx) error {
 		if err := mustSeeTray(ctx, tx, tray); err != nil {
@@ -695,7 +730,7 @@ func (s *PGStore) LatestPendingIn(ctx context.Context, tray Tray, period string,
 		// What each tray holds, decisions included: matching.waiting, the
 		// same definition the results panel counts.
 		rows, err := store.New(tx).Waiting(ctx, store.WaitingParams{
-			Tray: string(tray), Period: period, MaxRows: rowLimit(limit),
+			Tray: string(tray), DateFrom: from, DateTo: last, MaxRows: rowLimit(limit),
 		})
 		if err != nil {
 			return err

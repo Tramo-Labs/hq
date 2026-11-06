@@ -252,6 +252,15 @@ portal) and a `list` (the API path with those rows). With nothing to
 measure the status is `no_data` and the value is null: no data is never
 shown as zero.
 
+The panel itself works on any span of dates (`panel`, in the caller's
+transaction), so a fortnight close can count and freeze it in its own
+transaction. Every row is placed by the movement's date (invoices by the
+day they were stored, Argentina time), never by the month of the run; a
+span has a run when a run's month overlaps it. A month's lists filter by
+`period`; any other span's by `from` and `to`, both included, and its
+sources say "del período". `TestPGPanelOfASpan` checks that two spans
+cutting a month add up to the month.
+
 | Key | Unit | What | No data when | List |
 |-----|------|------|--------------|------|
 | `automation_rate` | percent | movements of the month settled by an automatic match / all movements of the month | no movements, or the month was not run | matches `tray=auto&period` |

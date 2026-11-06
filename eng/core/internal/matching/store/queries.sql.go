@@ -418,11 +418,18 @@ func (q *Queries) InsertRun(ctx context.Context, arg InsertRunParams) (uuid.UUID
 
 const invoiceCounts = `-- name: InvoiceCounts :one
 select exists (select 1 from documents.invoices) as ever,
-       count(*) filter (where to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1::text) as month,
-       count(*) filter (where to_char(created_at at time zone 'America/Argentina/Buenos_Aires', 'YYYY-MM') = $1::text
+       count(*) filter (where (created_at at time zone 'America/Argentina/Buenos_Aires')::date
+                          between $1::date and $2::date) as month,
+       count(*) filter (where (created_at at time zone 'America/Argentina/Buenos_Aires')::date
+                          between $1::date and $2::date
                           and (not auto_eligible or item_reason is not null)) as held
   from documents.invoices
 `
+
+type InvoiceCountsParams struct {
+	DateFrom time.Time
+	DateTo   time.Time
+}
 
 type InvoiceCountsRow struct {
 	Ever  bool
@@ -430,8 +437,8 @@ type InvoiceCountsRow struct {
 	Held  int64
 }
 
-func (q *Queries) InvoiceCounts(ctx context.Context, period string) (InvoiceCountsRow, error) {
-	row := q.db.QueryRow(ctx, invoiceCounts, period)
+func (q *Queries) InvoiceCounts(ctx context.Context, arg InvoiceCountsParams) (InvoiceCountsRow, error) {
+	row := q.db.QueryRow(ctx, invoiceCounts, arg.DateFrom, arg.DateTo)
 	var i InvoiceCountsRow
 	err := row.Scan(&i.Ever, &i.Month, &i.Held)
 	return i, err
@@ -614,7 +621,11 @@ func (q *Queries) MemberRole(ctx context.Context) (string, error) {
 
 const monthCounts = `-- name: MonthCounts :one
 select (select count(*) from ledger.movements where date between $1::date and $2::date) as movements,
-       exists (select 1 from matching.runs where period = $3::text) as has_run,
+       -- A run covers its whole month: the range has a run when a run's
+       -- month overlaps it.
+       exists (select 1 from matching.runs
+                where to_date(period, 'YYYY-MM') <= $2::date
+                  and (to_date(period, 'YYYY-MM') + interval '1 month')::date > $1::date) as has_run,
        (select count(distinct l.id) from matching.matches m
           join ledger.movements l on l.id = any(m.movement_ids)
          where m.tray = 'auto' and l.date between $1::date and $2::date) as auto_movements
@@ -623,7 +634,6 @@ select (select count(*) from ledger.movements where date between $1::date and $2
 type MonthCountsParams struct {
 	DateFrom time.Time
 	DateTo   time.Time
-	Period   string
 }
 
 type MonthCountsRow struct {
@@ -633,7 +643,7 @@ type MonthCountsRow struct {
 }
 
 func (q *Queries) MonthCounts(ctx context.Context, arg MonthCountsParams) (MonthCountsRow, error) {
-	row := q.db.QueryRow(ctx, monthCounts, arg.DateFrom, arg.DateTo, arg.Period)
+	row := q.db.QueryRow(ctx, monthCounts, arg.DateFrom, arg.DateTo)
 	var i MonthCountsRow
 	err := row.Scan(&i.Movements, &i.HasRun, &i.AutoMovements)
 	return i, err
@@ -754,18 +764,24 @@ func (q *Queries) OpenEscalatedMatches(ctx context.Context, arg OpenEscalatedMat
 const openExceptionMovements = `-- name: OpenExceptionMovements :one
 select count(*), coalesce(to_char(min(l.date), 'YYYY-MM-DD'), '')::text as oldest
   from matching.waiting w join ledger.movements l on l.id = w.movement_id
- where w.tray = 'exception' and w.period = $1::text
+ where w.tray = 'exception' and l.date between $1::date and $2::date
 `
+
+type OpenExceptionMovementsParams struct {
+	DateFrom time.Time
+	DateTo   time.Time
+}
 
 type OpenExceptionMovementsRow struct {
 	Count  int64
 	Oldest string
 }
 
-// The movements the client's Exceptions list shows for the month, and the
-// oldest date among them (empty when there are none).
-func (q *Queries) OpenExceptionMovements(ctx context.Context, period string) (OpenExceptionMovementsRow, error) {
-	row := q.db.QueryRow(ctx, openExceptionMovements, period)
+// The movements the client's Exceptions list shows for the range (by the
+// movement's date, which is in the month of the run that left it pending),
+// and the oldest date among them (empty when there are none).
+func (q *Queries) OpenExceptionMovements(ctx context.Context, arg OpenExceptionMovementsParams) (OpenExceptionMovementsRow, error) {
+	row := q.db.QueryRow(ctx, openExceptionMovements, arg.DateFrom, arg.DateTo)
 	var i OpenExceptionMovementsRow
 	err := row.Scan(&i.Count, &i.Oldest)
 	return i, err
@@ -876,19 +892,24 @@ func (q *Queries) SuggestedDecided(ctx context.Context, arg SuggestedDecidedPara
 }
 
 const suggestedPendingByReason = `-- name: SuggestedPendingByReason :many
-select w.reason, count(*) from matching.waiting w
- where w.tray = 'suggested' and w.period = $1::text
+select w.reason, count(*) from matching.waiting w join ledger.movements l on l.id = w.movement_id
+ where w.tray = 'suggested' and l.date between $1::date and $2::date
  group by 1
 `
+
+type SuggestedPendingByReasonParams struct {
+	DateFrom time.Time
+	DateTo   time.Time
+}
 
 type SuggestedPendingByReasonRow struct {
 	Reason string
 	Count  int64
 }
 
-// What the operator's Suggested list shows for the month, by reason.
-func (q *Queries) SuggestedPendingByReason(ctx context.Context, period string) ([]SuggestedPendingByReasonRow, error) {
-	rows, err := q.db.Query(ctx, suggestedPendingByReason, period)
+// What the operator's Suggested list shows for the range, by reason.
+func (q *Queries) SuggestedPendingByReason(ctx context.Context, arg SuggestedPendingByReasonParams) ([]SuggestedPendingByReasonRow, error) {
+	rows, err := q.db.Query(ctx, suggestedPendingByReason, arg.DateFrom, arg.DateTo)
 	if err != nil {
 		return nil, err
 	}
@@ -919,16 +940,17 @@ select m.id, m.rule_id, m.rule_version, m.tray, m.movement_ids, m.item_ids, m.ad
            and not exists (select 1 from matching.decision_state d
            where d.tenant_id = m.tenant_id and d.match_id = m.id and d.tray = 'exception' and d.action is not null)
          else false end
-   and ($2::text = '' or exists (select 1 from ledger.movements mv
-         where mv.id = any(m.movement_ids) and to_char(mv.date, 'YYYY-MM') = $2::text))
+   and ($2::date is null or exists (select 1 from ledger.movements mv
+         where mv.id = any(m.movement_ids) and mv.date between $2::date and $3::date))
  order by m.created_at, m.id
- limit $3::int
+ limit $4::int
 `
 
 type UndecidedMatchesParams struct {
-	Tray    string
-	Period  string
-	MaxRows int32
+	Tray     string
+	DateFrom *time.Time
+	DateTo   *time.Time
+	MaxRows  int32
 }
 
 type UndecidedMatchesRow struct {
@@ -943,10 +965,16 @@ type UndecidedMatchesRow struct {
 }
 
 // auto: nobody decides, listed for review. suggested: no operator decision
-// yet. exception: escalated, no client decision yet. period YYYY-MM keeps
-// the matches with a movement dated in that month (empty: all).
+// yet. exception: escalated, no client decision yet. date_from and
+// date_to (both included) keep the matches with a movement dated in that
+// range (null: all).
 func (q *Queries) UndecidedMatches(ctx context.Context, arg UndecidedMatchesParams) ([]UndecidedMatchesRow, error) {
-	rows, err := q.db.Query(ctx, undecidedMatches, arg.Tray, arg.Period, arg.MaxRows)
+	rows, err := q.db.Query(ctx, undecidedMatches,
+		arg.Tray,
+		arg.DateFrom,
+		arg.DateTo,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1065,15 +1093,16 @@ select w.run_id, w.movement_id, w.tray, w.reason, w.candidates, w.note, coalesce
   join ledger.movements l on l.id = w.movement_id
   join ledger.accounts a on a.id = l.account_id
  where w.tray = $1::text
-   and ($2::text = '' or w.period = $2::text)
+   and ($2::date is null or l.date between $2::date and $3::date)
  order by w.movement_id
- limit $3::int
+ limit $4::int
 `
 
 type WaitingParams struct {
-	Tray    string
-	Period  string
-	MaxRows int32
+	Tray     string
+	DateFrom *time.Time
+	DateTo   *time.Time
+	MaxRows  int32
 }
 
 type WaitingRow struct {
@@ -1093,9 +1122,16 @@ type WaitingRow struct {
 }
 
 // Trays and panel ----------------------------------------------------------
-// What waits in a tray (matching.waiting), with the movement itself.
+// What waits in a tray (matching.waiting), with the movement itself, by
+// the movement's date when date_from and date_to (both included) are set
+// (the month of the run that left it pending is the movement's month).
 func (q *Queries) Waiting(ctx context.Context, arg WaitingParams) ([]WaitingRow, error) {
-	rows, err := q.db.Query(ctx, waiting, arg.Tray, arg.Period, arg.MaxRows)
+	rows, err := q.db.Query(ctx, waiting,
+		arg.Tray,
+		arg.DateFrom,
+		arg.DateTo,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}

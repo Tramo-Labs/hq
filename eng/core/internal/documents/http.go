@@ -7,12 +7,14 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	apigen "github.com/Tramo-Labs/hq/eng/core/gen/api"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
+	"github.com/Tramo-Labs/hq/eng/core/internal/listrange"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/httpx"
 )
 
@@ -78,10 +80,20 @@ func (h *Handlers) GetInvoice(ctx context.Context, req apigen.GetInvoiceRequestO
 // ListInvoices lists the tenant's invoices (the rows behind the invoice
 // metrics).
 func (h *Handlers) ListInvoices(ctx context.Context, req apigen.ListInvoicesRequestObject) (apigen.ListInvoicesResponseObject, error) {
-	f := ListFilter{AutoEligible: req.Params.AutoEligible}
-	if req.Params.Period != nil {
-		f.Period = *req.Params.Period
+	// period or from and to; the rules the spec cannot express (they go
+	// together, not with period, to not before from) are 400.
+	var from, to *time.Time
+	if req.Params.From != nil {
+		from = &req.Params.From.Time
 	}
+	if req.Params.To != nil {
+		to = &req.Params.To.Time
+	}
+	r, err := listrange.Parse(req.Params.Period, from, to)
+	if err != nil {
+		return nil, &httpx.Error{Status: http.StatusBadRequest, Code: httpx.CodeBadRequest, Detail: err.Error()}
+	}
+	f := ListFilter{AutoEligible: req.Params.AutoEligible, Range: r}
 	if req.Params.Review != nil {
 		f.Review = *req.Params.Review
 	}
