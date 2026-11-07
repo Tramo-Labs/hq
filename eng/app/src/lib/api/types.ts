@@ -143,7 +143,12 @@ export type QuarantinedFile = {
   accountId?: string;
   /** Absent exactly when accountId is. */
   accountName?: string;
-  bank: Bank;
+  /** The account's bank, or the one read from the file. Absent only for a mailed file that could not be read. */
+  bank?: Bank;
+  /** How the file came in: uploaded in the portal or mailed to the tenant's mailbox. */
+  source?: "upload" | "mail";
+  /** Only for a mailed file that was assigned: by the account number in it, or to the tenant's single account of that bank. */
+  routed?: "number" | "single_account";
   filename?: string;
   reason?: string;
   /** With period_closed, the closed period the file's new movements fall in. */

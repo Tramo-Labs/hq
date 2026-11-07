@@ -7,7 +7,7 @@ import type { ExportInfo } from "@/lib/api";
 import { Card, Notice, PageHead, formatDate } from "@/components/app/ui";
 import { ghostBtn } from "@/components/app/buttons";
 import { useData, useSession } from "@/components/app/session";
-import { accountText, reasonText, truncatedNotice } from "@/components/app/quarantine-rules";
+import { accountText, reasonText, sourceText, truncatedNotice } from "@/components/app/quarantine-rules";
 import { Loaded } from "./loaded";
 
 const f = app.files;
@@ -76,7 +76,7 @@ export function Files() {
                   <li key={q.id} className="grid gap-1 py-4">
                     <span className="break-all font-mono text-[14px] text-white">{q.filename ?? q.id}</span>
                     <span className="text-[13.5px] text-white/70">
-                      {formatDate(q.receivedAt)} · {accountText(q)}
+                      {formatDate(q.receivedAt)}{sourceText(q) && ` · ${sourceText(q)}`} · {accountText(q)}
                     </span>
                     <span className="text-[14px] text-accent">{reasonText(q)}</span>
                   </li>
