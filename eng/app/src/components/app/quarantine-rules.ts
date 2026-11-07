@@ -29,6 +29,17 @@ export function reasonText(q: Pick<QuarantinedFile, "reason" | "closedPeriod">):
 }
 
 /**
+ * Where a file came from, as words after its date: nothing for an upload (the usual case, and the
+ * old core that sends no source), "por mail" for a mailed one, plus how it was assigned when the
+ * core says so. A routing without mail is not a case the spec has: it is ignored.
+ */
+export function sourceText(q: Pick<QuarantinedFile, "source" | "routed">): string | null {
+  if (q.source !== "mail") return null;
+  const how = q.routed && f.routed[q.routed];
+  return how ? `${f.byMail}, ${how}` : f.byMail;
+}
+
+/**
  * What the list says under its rows: when the core cut it at its 500 rows there are more files
  * that did not enter than the ones shown, and the view must say so instead of cutting in silence.
  */

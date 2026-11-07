@@ -197,6 +197,9 @@ export const app = {
     day: (d: number, month: string, year?: number) => `${d} de ${month}${year ? ` de ${year}` : ""}`,
     range: (from: string, to: string) => `del ${from} al ${to}`,
     noAccount: "Sin cuenta asignada",
+    // Draft for producto: where a file came from, next to its date (only when it came by mail).
+    byMail: "por mail",
+    routed: { number: "asignado por número", single_account: "a la única cuenta" },
     quarantineTruncated: "Hay más archivos que no entraron de los que entran en esta lista: se muestran los más recientes.",
     otherReason: "No entró.",
   },
