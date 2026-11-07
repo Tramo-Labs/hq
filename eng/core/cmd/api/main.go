@@ -23,6 +23,7 @@ import (
 	"github.com/Tramo-Labs/hq/eng/core/internal/app"
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
+	"github.com/Tramo-Labs/hq/eng/core/internal/mercadopago"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/config"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
@@ -124,6 +125,8 @@ func serve() error {
 	}
 	deps := app.Deps{DB: d, Identity: ids, TrustedProxies: cfg.TrustedProxies, CORSOrigins: cfg.CORSOrigins, DocsDir: cfg.DocsDir,
 		InboxDomain: cfg.InboxDomain, CloseNumbers: matching.CloseNumbers{}}
+	deps.MercadoPago = mercadopago.Config{ClientID: cfg.MPClientID, ClientSecret: cfg.MPClientSecret,
+		RedirectURI: cfg.MPRedirectURI, AuthURL: cfg.MPAuthURL, APIURL: cfg.MPAPIURL}
 	h, err := app.New(deps, app.NewHandlers(deps))
 	if err != nil {
 		return err

@@ -16,7 +16,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Tramo-Labs/hq/eng/core/internal/mercadopago"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/config"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/jobs"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
@@ -56,6 +58,13 @@ func run() error {
 	if cfg.MailOutbox != "" {
 		opts.Mailer = &mail.Outbox{Path: cfg.MailOutbox}
 	}
+	// Mercado Pago tokens are renewed here; they are sealed with the
+	// tenant's data key, so the worker needs the keyring too.
+	if opts.Keyring, err = crypto.NewKeyring(cfg.MasterKey); err != nil {
+		return err
+	}
+	opts.MercadoPago = mercadopago.Config{ClientID: cfg.MPClientID, ClientSecret: cfg.MPClientSecret,
+		RedirectURI: cfg.MPRedirectURI, AuthURL: cfg.MPAuthURL, APIURL: cfg.MPAPIURL}
 	setup, err := worker.New(d, opts)
 	if err != nil {
 		return err

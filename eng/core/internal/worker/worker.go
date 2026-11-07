@@ -6,12 +6,15 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/riverqueue/river"
 
 	"github.com/Tramo-Labs/hq/eng/core/internal/identity"
 	"github.com/Tramo-Labs/hq/eng/core/internal/matching"
+	"github.com/Tramo-Labs/hq/eng/core/internal/mercadopago"
+	"github.com/Tramo-Labs/hq/eng/core/internal/platform/crypto"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/db"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/idempotency"
 	"github.com/Tramo-Labs/hq/eng/core/internal/platform/mail"
@@ -85,6 +88,11 @@ type Options struct {
 	// logs that a link was not delivered, like invitations.
 	Mailer     mail.Sender
 	AppBaseURL string
+	// MercadoPago and Keyring renew the Mercado Pago tokens. An app not
+	// configured registers no renewal.
+	MercadoPago     mercadopago.Config
+	MercadoPagoHTTP *http.Client
+	Keyring         *crypto.Keyring
 }
 
 // New registers the workers and the schedule. Modules add their jobs here.
@@ -113,6 +121,10 @@ func New(d *db.DB, opts ...Options) (Setup, error) {
 	if err := river.AddWorkerSafely(ws, &CloseDueWorker{DB: d}); err != nil {
 		return Setup{}, err
 	}
+	// mercadopago: the daily token renewal (does nothing when no app is set).
+	if err := river.AddWorkerSafely(ws, &MPRefreshWorker{DB: d, Keyring: o.Keyring, Config: o.MercadoPago, HTTP: o.MercadoPagoHTTP}); err != nil {
+		return Setup{}, err
+	}
 	periodic := []*river.PeriodicJob{
 		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return MaintenanceFor(time.Now()), nil },
@@ -125,6 +137,10 @@ func New(d *db.DB, opts ...Options) (Setup, error) {
 		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 			func() (river.JobArgs, *river.InsertOpts) { return CloseDueFor(time.Now()), nil },
 			// Hourly attempts, one run per period over: the period is the key.
+			&river.PeriodicJobOpts{RunOnStart: true}),
+		river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) { return MPRefreshFor(time.Now()), nil },
+			// Hourly attempts, one run per day: the day is the key.
 			&river.PeriodicJobOpts{RunOnStart: true}),
 	}
 	return Setup{Workers: ws, Periodic: periodic}, nil
