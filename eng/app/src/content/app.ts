@@ -41,7 +41,7 @@ export const app = {
     } satisfies Record<StepKind, string>,
     actions: {
       arca: ["Confirmar CUIT"],
-      bank: ["Subir extracto", "Conectar Mercado Pago"],
+      bank: ["Subir extracto"],
       erp: ["Elegir mi sistema"],
     } satisfies Record<StepKind, string[]>,
     /** The core explains each step in English; these are the sentences it sends today. */
@@ -58,6 +58,57 @@ export const app = {
     accounts: (n: number) => (n === 0 ? "Todavía no hay cuentas" : n === 1 ? "1 cuenta" : `${n} cuentas`),
     banks: { galicia: "Galicia", santander: "Santander", bancor: "Bancor", macro: "Macro", mercadopago: "Mercado Pago" } satisfies Record<Bank, string>,
     soon: "Todavía no se puede hacer desde el portal",
+  },
+  // Draft for producto: Mercado Pago in the Bancos step and its return page (D-22).
+  mercadoPago: {
+    title: "Mercado Pago",
+    body: "Conectá tu cuenta para que sus movimientos entren solos. Mercado Pago te pide que autorices el acceso; tu contraseña nunca pasa por Tramo.",
+    states: {
+      unavailable: "Todavía no disponible.",
+      disconnected: "Sin conectar.",
+      connected: "Conectado.",
+      connected_no_import: "Conectado, todavía sin movimientos importados.",
+      needs_reconnect: "Mercado Pago dejó de aceptar la conexión. Volvé a conectar para que sigan entrando los movimientos.",
+    },
+    connectedOn: (d: string) => `Conectado el ${d}`,
+    lastImport: (d: string) => `última importación el ${d}`,
+    /** How the last sync ended, by the core's code; imported says nothing (the import date already does). */
+    sync: {
+      stopped_by_quarantine: "La última importación quedó frenada: un archivo no entró y lo tiene que revisar el operador. Mientras tanto no se importa nada nuevo.",
+      mp_unavailable: "La última importación no se pudo hacer porque Mercado Pago no respondió; se vuelve a intentar sola.",
+    },
+    connect: "Conectar Mercado Pago",
+    reconnect: "Volver a conectar",
+    opening: "Abriendo Mercado Pago…",
+    disconnect: "Desconectar",
+    confirm: "¿Desconectar Mercado Pago? Dejan de entrar sus movimientos.",
+    confirmYes: "Sí, desconectar",
+    cancel: "Cancelar",
+    disconnecting: "Desconectando…",
+    revoke: "Listo, Tramo ya no usa tu cuenta. Para cortar el acceso también del lado de Mercado Pago, quitá la app de Tramo desde tu cuenta de Mercado Pago.",
+    ownerOnly: "Solo el dueño de la empresa puede conectar o desconectar Mercado Pago.",
+    failed: "No se pudo. Probá de nuevo.",
+    back: {
+      eyebrow: "Mercado Pago",
+      title: "Conectar Mercado Pago",
+      connecting: "Conectando con Mercado Pago…",
+      done: "Listo: Mercado Pago quedó conectado.",
+      toOnboarding: "Volver al alta",
+    },
+    /** Each refusal of connect, by the core's code; the return page never shows Mercado Pago's text. */
+    errors: {
+      state_invalid: "Esta dirección de vuelta no es válida. Empezá de nuevo desde el alta.",
+      state_not_yours: "La conexión la empezó otra persona o para otra empresa. Empezala de nuevo desde tu alta.",
+      state_expired: "Pasaron más de 10 minutos desde que empezaste. Empezá de nuevo desde el alta.",
+      state_used: "Esta dirección de vuelta ya se usó. Si Mercado Pago no figura conectado en el alta, empezá de nuevo.",
+      mp_code_rejected: "Mercado Pago no aceptó la autorización. Empezá de nuevo desde el alta.",
+      mp_unavailable: "Mercado Pago no respondió bien. Probá de nuevo en unos minutos desde el alta.",
+      not_configured: "La conexión con Mercado Pago todavía no está disponible.",
+      forbidden: "Solo el dueño de la empresa puede conectar Mercado Pago.",
+      cancelled: "No se autorizó la conexión en Mercado Pago. Podés intentarlo de nuevo desde el alta.",
+      missing: "A esta dirección le faltan los datos que manda Mercado Pago. Empezá de nuevo desde el alta.",
+      other: "No se pudo conectar Mercado Pago. Empezá de nuevo desde el alta.",
+    },
   },
   approvals: {
     eyebrow: "Excepciones",
