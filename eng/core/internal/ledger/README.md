@@ -199,7 +199,7 @@ since 06/11 (lead):
 
 Today only the Santander layout states its account number, so most mailed
 statements are routed by rule 2. A file that is not routed is stored with
-no account (migration 00251) and listed in `GET /v1/ledger/files`; a file
+no account (migration 00253) and listed in `GET /v1/ledger/files`; a file
 already accepted is a duplicate instead. Each file keeps how it came in
 (`source`: upload or mail) and, for mail, how it was routed (`routed`:
 number or single_account). The detail of an unrouted file names the bank,
