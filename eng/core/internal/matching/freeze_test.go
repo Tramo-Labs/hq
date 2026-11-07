@@ -149,6 +149,45 @@ func TestPGCloseFreezesTheFortnight(t *testing.T) {
 	}
 }
 
+// With no close, a match the client links by hand is not marked after the
+// close: the mark is the close's, never the link's.
+func TestPGLinkOnAnOpenDayIsNotAfterClose(t *testing.T) {
+	e := newPGEnv(t)
+	e.run(t)
+	ids, err := e.store.UpsertItems(e.ctx, "erp", []ItemIn{
+		{SourceID: "FC-Z-1", Kind: "invoice", Date: day(6), Amount: 10000000, Confidence: 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	twin := e.movementsByDescription(t, "TRANSFERENCIA RECIBIDA CLIENTE DOS")[0]
+	d, err := e.decideMovementAs(t, identity.RoleApprover, twin, MovementLink, "", ids["FC-Z-1"].String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.setMembership(t, e.a, identity.RoleOperator)
+	rows, err := e.store.MatchRows(e.ctx, day(1), day(31))
+	if err != nil {
+		t.Fatal(err)
+	}
+	col := map[string]int{}
+	for i, h := range rows[0] {
+		col[h] = i
+	}
+	seen := false
+	for _, row := range rows[1:] {
+		if row[col["match_id"]] == d.MatchID {
+			seen = true
+			if v := row[col["after_close"]]; v != "false" {
+				t.Errorf("a link on an open day has after_close %q", v)
+			}
+		}
+	}
+	if !seen {
+		t.Error("the linked match is not in the export")
+	}
+}
+
 type trayIDs struct{ exception, suggested []string }
 
 func (e pgEnv) trays(t *testing.T) trayIDs {

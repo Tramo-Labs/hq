@@ -12,6 +12,48 @@ import (
 	"github.com/google/uuid"
 )
 
+const accountsOfBank = `-- name: AccountsOfBank :many
+select a.id, coalesce(a.number, '')::text as number, a.currency,
+       exists (select 1 from ledger.statements s where s.account_id = a.id) as has_statement
+  from ledger.accounts a
+ where a.bank = $1
+ order by a.created_at, a.id
+`
+
+type AccountsOfBankRow struct {
+	ID           uuid.UUID
+	Number       string
+	Currency     string
+	HasStatement bool
+}
+
+// What routing a mailed file needs: the tenant's accounts of a bank, and
+// whether each already has an accepted statement.
+func (q *Queries) AccountsOfBank(ctx context.Context, bank string) ([]AccountsOfBankRow, error) {
+	rows, err := q.db.Query(ctx, accountsOfBank, bank)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AccountsOfBankRow
+	for rows.Next() {
+		var i AccountsOfBankRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Number,
+			&i.Currency,
+			&i.HasStatement,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const fileAccepted = `-- name: FileAccepted :one
 
 select exists (select 1 from ledger.files where sha256 = $1 and status = 'accepted')
@@ -51,17 +93,20 @@ func (q *Queries) GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, 
 }
 
 const insertAcceptedFile = `-- name: InsertAcceptedFile :one
-insert into ledger.files (tenant_id, account_id, sha256, filename, status, fingerprint, layout_id, uploaded_by)
-values (app_current_tenant(), $1, $2, $3, 'accepted', $4, $5, app_current_user())
+insert into ledger.files (tenant_id, account_id, sha256, filename, status, fingerprint, layout_id, uploaded_by, source, routed)
+values (app_current_tenant(), $1, $2, $3, 'accepted', $4, $5, app_current_user(),
+        $6::text, $7::text)
 returning id
 `
 
 type InsertAcceptedFileParams struct {
-	AccountID   uuid.UUID
+	AccountID   *uuid.UUID
 	Sha256      []byte
 	Filename    *string
 	Fingerprint *string
 	LayoutID    *string
+	Source      string
+	Routed      *string
 }
 
 func (q *Queries) InsertAcceptedFile(ctx context.Context, arg InsertAcceptedFileParams) (uuid.UUID, error) {
@@ -71,6 +116,8 @@ func (q *Queries) InsertAcceptedFile(ctx context.Context, arg InsertAcceptedFile
 		arg.Filename,
 		arg.Fingerprint,
 		arg.LayoutID,
+		arg.Source,
+		arg.Routed,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -97,35 +144,39 @@ func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (u
 
 const insertQuarantinedFile = `-- name: InsertQuarantinedFile :one
 insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id, uploaded_by,
-                          closed_start, closed_end)
-values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7, app_current_user(),
-        $8::date, $9::date)
+                          closed_start, closed_end, source, routed)
+values (app_current_tenant(), $7::uuid, $1, $2, 'quarantined', $3, $4, $5, $6, app_current_user(),
+        $8::date, $9::date, $10::text, $11::text)
 returning id
 `
 
 type InsertQuarantinedFileParams struct {
-	AccountID   uuid.UUID
 	Sha256      []byte
 	Filename    *string
 	Reason      *string
 	Detail      *string
 	Fingerprint *string
 	LayoutID    *string
+	AccountID   *uuid.UUID
 	ClosedStart *time.Time
 	ClosedEnd   *time.Time
+	Source      string
+	Routed      *string
 }
 
 func (q *Queries) InsertQuarantinedFile(ctx context.Context, arg InsertQuarantinedFileParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, insertQuarantinedFile,
-		arg.AccountID,
 		arg.Sha256,
 		arg.Filename,
 		arg.Reason,
 		arg.Detail,
 		arg.Fingerprint,
 		arg.LayoutID,
+		arg.AccountID,
 		arg.ClosedStart,
 		arg.ClosedEnd,
+		arg.Source,
+		arg.Routed,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -236,9 +287,10 @@ select f.id, f.account_id, a.name as account_name, a.bank, coalesce(f.filename, 
        st.period_from, st.period_to,
        (select count(*) from ledger.movements m where m.statement_id = st.id) as movements,
        f.received_at, f.uploaded_by, coalesce(u.email, '')::text as uploaded_by_email,
-       f.closed_start, f.closed_end
+       f.closed_start, f.closed_end, f.source, f.routed
   from ledger.files f
-  join ledger.accounts a on a.id = f.account_id
+  -- A file with no account (mailed, not routed) is listed too.
+  left join ledger.accounts a on a.id = f.account_id
   left join ledger.statements st on st.file_id = f.id
   left join users u on u.id = f.uploaded_by
  where ($1::text = ''
@@ -256,9 +308,9 @@ type ListFilesParams struct {
 
 type ListFilesRow struct {
 	ID              uuid.UUID
-	AccountID       uuid.UUID
-	AccountName     string
-	Bank            string
+	AccountID       *uuid.UUID
+	AccountName     *string
+	Bank            *string
 	Filename        string
 	Status          string
 	Reason          string
@@ -272,6 +324,8 @@ type ListFilesRow struct {
 	UploadedByEmail string
 	ClosedStart     *time.Time
 	ClosedEnd       *time.Time
+	Source          string
+	Routed          *string
 }
 
 // The "Archivos" list (F12), newest first. period is YYYY-MM received in
@@ -303,6 +357,8 @@ func (q *Queries) ListFiles(ctx context.Context, arg ListFilesParams) ([]ListFil
 			&i.UploadedByEmail,
 			&i.ClosedStart,
 			&i.ClosedEnd,
+			&i.Source,
+			&i.Routed,
 		); err != nil {
 			return nil, err
 		}
@@ -399,7 +455,7 @@ select id, account_id, coalesce(filename, '')::text as filename, reason::text as
 
 type ListQuarantineRow struct {
 	ID          uuid.UUID
-	AccountID   uuid.UUID
+	AccountID   *uuid.UUID
 	Filename    string
 	Reason      string
 	Detail      string

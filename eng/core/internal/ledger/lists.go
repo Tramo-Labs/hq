@@ -14,9 +14,11 @@ import (
 
 // FileRow is an uploaded file as the "Archivos" list shows it (F12).
 type FileRow struct {
-	ID, AccountID   uuid.UUID
-	AccountName     string
-	Bank            Bank
+	ID              uuid.UUID
+	AccountID       *uuid.UUID // nil for a mailed file that was not routed
+	AccountName     string     // empty exactly when AccountID is nil
+	Bank            Bank       // the account's; with no account, the layout's (empty when unread)
+	Source, Routed  string     // how it came in (upload, mail) and, for mail, how it was routed
 	Filename        string
 	Status          Status
 	Reason, Detail  string
@@ -44,10 +46,16 @@ func (s *PGStore) Files(ctx context.Context, f FileFilter, limit int) ([]FileRow
 			Period: f.Period, Status: string(f.Status), MaxRows: maxRows(limit),
 		})
 		for _, r := range rows {
-			row := FileRow{ID: r.ID, AccountID: r.AccountID, AccountName: r.AccountName, Bank: Bank(r.Bank),
+			row := FileRow{ID: r.ID, AccountID: r.AccountID, Bank: bankOfLayout(r.LayoutID),
 				Filename: r.Filename, Status: Status(r.Status), Reason: r.Reason, Detail: r.Detail, LayoutID: r.LayoutID,
 				From: r.PeriodFrom, To: r.PeriodTo, Movements: int(r.Movements), ReceivedAt: r.ReceivedAt,
-				UploadedBy: r.UploadedBy, UploadedByEmail: r.UploadedByEmail}
+				UploadedBy: r.UploadedBy, UploadedByEmail: r.UploadedByEmail, Source: r.Source}
+			if r.AccountName != nil && r.Bank != nil {
+				row.AccountName, row.Bank = *r.AccountName, Bank(*r.Bank)
+			}
+			if r.Routed != nil {
+				row.Routed = *r.Routed
+			}
 			if r.ClosedStart != nil && r.ClosedEnd != nil {
 				row.ClosedPeriod = &ClosedPeriod{Start: *r.ClosedStart, End: *r.ClosedEnd}
 			}

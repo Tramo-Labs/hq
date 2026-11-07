@@ -18,15 +18,16 @@ select period_from, period_to, closing from ledger.statements
  limit 1;
 
 -- name: InsertAcceptedFile :one
-insert into ledger.files (tenant_id, account_id, sha256, filename, status, fingerprint, layout_id, uploaded_by)
-values (app_current_tenant(), $1, $2, $3, 'accepted', $4, $5, app_current_user())
+insert into ledger.files (tenant_id, account_id, sha256, filename, status, fingerprint, layout_id, uploaded_by, source, routed)
+values (app_current_tenant(), $1, $2, $3, 'accepted', $4, $5, app_current_user(),
+        sqlc.arg(source)::text, sqlc.narg(routed)::text)
 returning id;
 
 -- name: InsertQuarantinedFile :one
 insert into ledger.files (tenant_id, account_id, sha256, filename, status, reason, detail, fingerprint, layout_id, uploaded_by,
-                          closed_start, closed_end)
-values (app_current_tenant(), $1, $2, $3, 'quarantined', $4, $5, $6, $7, app_current_user(),
-        sqlc.narg(closed_start)::date, sqlc.narg(closed_end)::date)
+                          closed_start, closed_end, source, routed)
+values (app_current_tenant(), sqlc.narg(account_id)::uuid, $1, $2, 'quarantined', $3, $4, $5, $6, app_current_user(),
+        sqlc.narg(closed_start)::date, sqlc.narg(closed_end)::date, sqlc.arg(source)::text, sqlc.narg(routed)::text)
 returning id;
 
 -- name: InsertStatement :one
@@ -56,6 +57,15 @@ returning id;
 -- name: ListAccounts :many
 select id, bank, coalesce(number, '')::text as number, name, currency from ledger.accounts order by created_at, id;
 
+-- name: AccountsOfBank :many
+-- What routing a mailed file needs: the tenant's accounts of a bank, and
+-- whether each already has an accepted statement.
+select a.id, coalesce(a.number, '')::text as number, a.currency,
+       exists (select 1 from ledger.statements s where s.account_id = a.id) as has_statement
+  from ledger.accounts a
+ where a.bank = $1
+ order by a.created_at, a.id;
+
 -- name: GetAccount :one
 select bank, coalesce(number, '')::text as number, name, currency from ledger.accounts where id = $1;
 
@@ -77,9 +87,10 @@ select f.id, f.account_id, a.name as account_name, a.bank, coalesce(f.filename, 
        st.period_from, st.period_to,
        (select count(*) from ledger.movements m where m.statement_id = st.id) as movements,
        f.received_at, f.uploaded_by, coalesce(u.email, '')::text as uploaded_by_email,
-       f.closed_start, f.closed_end
+       f.closed_start, f.closed_end, f.source, f.routed
   from ledger.files f
-  join ledger.accounts a on a.id = f.account_id
+  -- A file with no account (mailed, not routed) is listed too.
+  left join ledger.accounts a on a.id = f.account_id
   left join ledger.statements st on st.file_id = f.id
   left join users u on u.id = f.uploaded_by
  where (sqlc.arg(period)::text = ''

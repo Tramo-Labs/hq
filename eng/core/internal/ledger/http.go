@@ -103,7 +103,7 @@ func (h *Handlers) UploadStatement(ctx context.Context, req apigen.UploadStateme
 	out := apigen.IngestResult{Status: apigen.IngestResultStatus(r.Status), FileHash: r.FileHash,
 		New: r.New, AlreadyPresent: r.AlreadyPresent,
 		Detail: optStr(r.Detail), Fingerprint: optStr(r.Fingerprint), LayoutId: optStr(r.LayoutID),
-		ClosedPeriod: apiClosedPeriod(r.ClosedPeriod)}
+		ClosedPeriod: apiClosedPeriod(r.ClosedPeriod), AccountId: &acct.ID, Source: apiSource(SourceUpload)}
 	if r.Reason != "" {
 		reason := apigen.IngestResultReason(r.Reason)
 		out.Reason = &reason
@@ -147,12 +147,13 @@ func (h *Handlers) ListFiles(ctx context.Context, req apigen.ListFilesRequestObj
 	}
 	out := apigen.ListFiles200JSONResponse{Items: []apigen.UploadedFile{}, Truncated: more}
 	for _, r := range rows {
-		accountID, accountName := r.AccountID, r.AccountName // absent only for unrouted, which this store does not hold yet
-		item := apigen.UploadedFile{Id: r.ID, AccountId: &accountID, AccountName: &accountName, Bank: apigen.Bank(r.Bank),
+		// Absent for a mailed file that was not routed.
+		item := apigen.UploadedFile{Id: r.ID, AccountId: r.AccountID, AccountName: optStr(r.AccountName), Bank: apigen.Bank(r.Bank),
 			Filename: optStr(r.Filename), Status: apigen.UploadedFileStatus(r.Status), Reason: optStr(r.Reason),
 			Detail: optStr(r.Detail), LayoutId: optStr(r.LayoutID), ReceivedAt: r.ReceivedAt,
 			UploadedBy: r.UploadedBy, UploadedByEmail: optStr(r.UploadedByEmail)}
 		item.ClosedPeriod = apiClosedPeriod(r.ClosedPeriod)
+		item.Source, item.Routed = apiSource(r.Source), apiRouted(r.Routed)
 		if r.From != nil {
 			item.From = &openapi_types.Date{Time: *r.From}
 		}
@@ -245,4 +246,22 @@ func apiClosedPeriod(p *ClosedPeriod) *apigen.PeriodRange {
 		return nil
 	}
 	return &apigen.PeriodRange{From: openapi_types.Date{Time: p.Start}, To: openapi_types.Date{Time: p.End.AddDate(0, 0, -1)}}
+}
+
+// apiSource is how a file came in; a row stored before the column is an upload.
+func apiSource(s string) *apigen.IngestSource {
+	if s == "" {
+		s = SourceUpload
+	}
+	v := apigen.IngestSource(s)
+	return &v
+}
+
+// apiRouted is how a mailed file found its account; absent otherwise.
+func apiRouted(s string) *apigen.RoutedBy {
+	if s == "" {
+		return nil
+	}
+	v := apigen.RoutedBy(s)
+	return &v
 }
