@@ -195,3 +195,36 @@ contatech.org/conciliabot y contatech.org devuelven HTTP 200 con una pantalla "O
 3. Mercado Pago: Colppy lo usa para facturar cobros (QR, links, transferencias; sin checkout-pro; planes Full y Enterprise), no para conciliar; el hueco de bruto contra neto sigue libre en lo leído (fuente: ayuda de Colppy, leída 06/11).
 4. Comparar precios de servicios de IA contra Duotach (USD 1.500-5.000 PyME, 800-3.000/mes) solo con la aclaración "publicado por ellos, sin metodología" (fuente: duotach.com, leído 06/11).
 5. ConciliaBot de Contatech sigue sin evidencia: si Martín quiere estudios contables, que lo abra una vez en su navegador y anote qué ve.
+
+# Pasada del 07/11/2026, quinta
+
+Pedido por lead-4/lead-5: cómo carga extractos Alegra, reseñas de los cuatro ERP, cambios en Xubio y Colppy desde la pasada del 06/11. Marca de fuente igual que antes: "leído" = abrí la página (lectura de solo lectura por un subagente, con la URL); "buscador" = resumen de un resultado, sin abrir. Ojo con "cambió": mis notas del 06/11 no tenían todo el texto de esas páginas, así que lo que sigue distingue "cambió" de "no estaba en mis notas".
+
+## Alegra Argentina: lo que se lee y lo que no
+- Los dos artículos de ayuda de la sección Bancos están leídos: ayuda.alegra.com/arg/conciliacion-bancaria-a-facturas-en-alegra y /arg/crea-cuentas-de-banco (pie "Copyright 2025", capturas del artículo con fecha 13/11/2025 en el texto alternativo; sin "actualizado"). La conciliación asocia movimientos del banco "con facturas, pagos o cuentas contables"; hay coincidencia automática "cuando sea posible" y asociación manual cuando no. El mayor contable no se nombra.
+- **No dicen cómo entran los movimientos**: ni formatos, ni bancos, ni credenciales, ni plan. Nada de PDF con IA ni conexión bancaria en lo leído de Argentina. El resumen del buscador que hablaba de PDF o imagen con IA era de Costa Rica; no vale para Argentina y no se usa.
+- Precios: sin cambios (Emprendedor 27.999, Pyme 40.999, Pro 68.999, Plus 109.999, sin IVA; leído 07/11). Límites de facturas por mes: 100, 250, 500 y 1.000; 10% de descuento anual; "Precio fijo por 6 meses" y 15 días gratis en la home. "Conciliaciones Bancarias" figura en el bloque del plan Pyme por orden de lista, no rotulado (inferencia).
+- Dato que no cuadra: la home de gestión dice "Más de 16.000 empresas en Argentina" y mi nota anterior decía "+40.000 pymes". Las dos son autodeclaradas y no sé a qué se refiere cada una.
+
+## Xubio: qué cambió (leído 07/11, xubio.com/ar)
+- **Precios de lista sin cambios**, en Empresa y en Estudio. Prueba de 14 días sin tarjeta igual.
+- **Promo con fecha**: CYBER XUBIO, 50% para clientes nuevos con débito bancario, "pagos registrados del 2/11/2026 al 30/11/2026". Corrige mi lectura del 06/11: el "mitad de precio con débito" no es permanente, el precio regular con débito es el de lista (Básico 98.700; con promo 49.350). La página se contradice en la duración: "6 meses" en el banner y "tres meses" en otros lugares y en la FAQ.
+- "Otros medios" (tarjeta, Mercado Pago, efectivo) con precios más altos: por ejemplo Empresa Básico 128.000 y Estudio Básico 64.600. No estaba en mis notas, no sé si es nuevo.
+- Conciliación: la importación de extractos en PDF con IA lleva badge "NUEVO" y "es sin costo hasta el 31/01/2027, con hasta 3 importaciones por mes" (el tope de 3 no estaba en mis notas). La conciliación automática "está disponible a partir del plan Empresa Estándar y Estudio Estándar". Interbanking "más de 50 bancos", sin cambios. **Corrección**: mi nota del 06/11 decía "con vista previa"; esa palabra no aparece en la página que leí hoy. No sé cuál lectura vale; no citar la vista previa hasta reconfirmar.
+- Blog (blog.xubio.com, página 1 de novedades; sin fechas visibles): nueva identidad de marca (rebrand), nota sobre el recibo de sueldo 2026 (Decreto 407/2026) y una nota de 2025 sobre Open Finance que dice que Xubio lo incorporó "para automatizar conciliaciones bancarias". No leí las páginas 2 a 5 de novedades.
+
+## Colppy: qué cambió (leído 07/11)
+- **Precios de lista sin cambios**: Essential 128.500, Platinum 189.500, Full 261.500, Enterprise 310.900 + IVA. Conciliación bancaria desde Platinum; "Conectá tu banco" y Mercado Pago desde Full; prueba de 7 días; "+3.000 empresas". Comprobantes por mes: 300, 1.000, 3.000 y 7.000. La home dice "Sincronización automática por monto y CUIT". Parte de la página de planes llegó resumida y no textual (los planes con Sueldos, desde 154.500 hasta 627.500, vienen de ese resumen; no citar).
+- Promo "Cyber Colppy": 1 mes gratis más 30% de descuento por 3 meses, "solo del 2 al 4 de noviembre", extendida "hasta el viernes 6 inclusive". Según su propio texto ya venció; el banner seguía visible.
+- Novedades de producto en su blog (solo títulos y bajadas): 04/11/2026, la campanita avisa cuando una factura espera el CAE o es autorizada; 19/10/2026, "Colppy te dice qué pasó en ARCA" con el estado de las facturas "evitando duplicados"; 03/08/2026, "7 mejoras en facturación, conciliación bancaria y reportes". **Ninguna mención de IA** en las tres páginas ni en las novedades visibles. Las entradas individuales no se leyeron. /novedades da 404.
+
+## Reseñas: no hay una fuente legible con volumen
+- Leído: la app de Xubio en Tienda Nube, **3,7 sobre 5 con 14 evaluaciones**; de 4 reseñas visibles la más reciente es del 31/03/2025. Citas: "Pesima atención con pequeños clientes." (30/06/2023), "No se puede configurar" (31/03/2025), elogio de intuitivo y fácil (07/06/2022). Es la app de integración para facturar, no el ERP. (El buscador había dicho 3,5 con 15; vale lo leído.)
+- Capterra, TrustRadius, G2 y Capterra de Alegra devuelven 403 a lectura automática; no las sorteé. Contabilium: sin fuente encontrada. Solo buscador, sin abrir y muestras mínimas: Xubio en Capterra 3,0 con 1 reseña de 2021; Colppy en G2 4,3 con 2 reseñas; Alegra en Capterra 4,5 con 4; Alegra en Trustpilot 4,1 con 83 según un agregador (sin verificar). **No alcanza para decir de qué se quejan los contadores de ninguno de los cuatro.**
+
+## Propuestas para Tramo (quinta pasada)
+1. La lectura de PDF con IA ya no es novedad que alcance: Xubio la tiene gratis hasta el 31/01/2027 con tope de 3 por mes, y la conciliación automática arranca en su plan Estándar (fuente: xubio.com, leído 07/11). Posicionar Tramo en la casilla de correo y el cierre de mes, no en "leemos PDF con IA".
+2. No comparar precios contra las promos de noviembre: Xubio 50% hasta el 30/11 y Cyber Colppy ya vencida. Usar los precios de lista con fecha (fuente: xubio.com y colppy.com, leído 07/11).
+3. Colppy está invirtiendo en el estado de las facturas ante ARCA (campanita, evitar duplicados), no en conciliación con IA: no encontré ninguna mención de IA en su sitio ni en novedades (fuente: colppy.com y blog, leído 07/11; falta leer las entradas individuales).
+4. Alegra concilia contra facturas y pagos y no publica cómo entran los extractos: no incluirla en ningún comparativo de entrada hasta tener ese dato (fuente: ayuda de Alegra, leída 07/11).
+5. Reseñas: sin fuente legible; si se quiere saber de qué se quejan los contadores, la vía es preguntarles a tres clientes reales de Tramo y no publicar quejas de terceros hasta tener citas leídas.
