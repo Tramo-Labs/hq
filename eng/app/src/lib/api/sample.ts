@@ -4,6 +4,7 @@ import { getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
   Page, PendingMovement, PendingTray, Role, TenantStatus, ItemDirection, OpenItems, Member, InvitePreview,
+  MercadoPagoAuthorize, MercadoPagoConnection,
 } from "./types";
 
 /**
@@ -136,6 +137,62 @@ export async function listTenants() {
 
 export async function listAccounts() {
   return page(fx.accounts[session().tenantId] ?? []);
+}
+
+// Mercado Pago, as the core answers it (spec tag mercadopago). Mercado Pago itself is not
+// called: authorize returns this portal's own return page with a sample code and the state.
+
+const mp = new Map<string, MercadoPagoConnection>();
+/** States handed out by authorize: who asked, for which company, when, and whether spent. */
+const mpStates = new Map<string, { tenantId: string; email: string; at: number; used: boolean }>();
+const STATE_TTL_MS = 10 * 60 * 1000;
+
+function mpOf(tenantId: string): MercadoPagoConnection {
+  return mp.get(tenantId) ?? fx.mercadoPago[tenantId] ?? { configured: true, status: "disconnected", revokeInMercadoPago: false };
+}
+
+export async function getMercadoPago() {
+  const s = session();
+  if (s.role !== "owner" && s.role !== "accountant" && s.role !== "operator") throw new ApiError(403, "forbidden");
+  return mpOf(s.tenantId);
+}
+
+export async function authorizeMercadoPago(): Promise<MercadoPagoAuthorize> {
+  const s = session();
+  if (s.role !== "owner") throw new ApiError(403, "forbidden");
+  if (!mpOf(s.tenantId).configured) throw new ApiError(501, "not_configured");
+  const state = crypto.randomUUID();
+  mpStates.set(state, { tenantId: s.tenantId, email: s.email, at: Date.now(), used: false });
+  return {
+    authorizeUrl: `/app/mercadopago/vuelta?code=ejemplo&state=${state}`,
+    expiresAt: new Date(Date.now() + STATE_TTL_MS).toISOString(),
+  };
+}
+
+export async function connectMercadoPago(code: string, state: string) {
+  const s = session();
+  if (s.role !== "owner") throw new ApiError(403, "forbidden");
+  if (!mpOf(s.tenantId).configured) throw new ApiError(501, "not_configured");
+  const st = mpStates.get(state);
+  if (!st) throw new ApiError(400, "state_invalid");
+  if (st.email !== s.email || st.tenantId !== s.tenantId) throw new ApiError(403, "state_not_yours");
+  if (st.used) throw new ApiError(409, "state_used");
+  if (Date.now() - st.at > STATE_TTL_MS) throw new ApiError(409, "state_expired");
+  st.used = true;
+  if (code !== "ejemplo") throw new ApiError(422, "mp_code_rejected");
+  const now = new Date().toISOString();
+  const conn: MercadoPagoConnection = { configured: true, status: "connected", mpUserId: "987654321", connectedAt: now, lastRefreshAt: now, revokeInMercadoPago: false };
+  mp.set(s.tenantId, conn);
+  return conn;
+}
+
+export async function disconnectMercadoPago() {
+  const s = session();
+  if (s.role !== "owner") throw new ApiError(403, "forbidden");
+  const was = mpOf(s.tenantId);
+  const conn: MercadoPagoConnection = { configured: was.configured, status: "disconnected", revokeInMercadoPago: was.status === "connected" };
+  mp.set(s.tenantId, conn);
+  return conn;
 }
 
 export async function listQuarantine() {

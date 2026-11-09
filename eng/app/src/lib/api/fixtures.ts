@@ -1,4 +1,4 @@
-import type { Account, Match, Membership, OpenItem, PendingMovement, QuarantinedFile, Role, TenantStatus } from "./types";
+import type { Account, Match, MercadoPagoConnection, Membership, OpenItem, PendingMovement, QuarantinedFile, Role, TenantStatus } from "./types";
 
 /**
  * Synthetic data for sample mode (no CORE_API_URL), in the exact shapes of
@@ -62,7 +62,26 @@ export const users: { email: string; memberships: { tenantId: string; role: Role
   { email: "lectura@agro.example", memberships: [{ tenantId: T.agro, role: "viewer" }] },
   { email: "contador@estudio.example", memberships: [{ tenantId: T.ferr, role: "accountant" }, { tenantId: T.trans, role: "accountant" }] },
   { email: "operador@tramo.example", memberships: [T.agro, T.frio, T.ferr, T.trans].map((tenantId) => ({ tenantId, role: "operator" as const })) },
+  // Last, so the ids of the people above stay as they were. One owner per Mercado Pago state.
+  { email: "titular@frio.example", memberships: [{ tenantId: T.frio, role: "owner" }] },
+  { email: "titular@ferr.example", memberships: [{ tenantId: T.ferr, role: "owner" }] },
+  { email: "titular@trans.example", memberships: [{ tenantId: T.trans, role: "owner" }] },
 ];
+
+/**
+ * Mercado Pago at the start, one state per company: agro has not connected (and walks the whole
+ * flow), frio is connected and imported once, ferr must reconnect, trans has no app credentials.
+ */
+export const mercadoPago: Record<string, MercadoPagoConnection> = {
+  [T.agro]: { configured: true, status: "disconnected", revokeInMercadoPago: false },
+  [T.frio]: {
+    configured: true, status: "connected", mpUserId: "123456789", connectedAt: "2026-11-02T13:10:00Z",
+    lastRefreshAt: "2026-11-06T09:00:00Z", lastImportAt: "2026-11-06T09:05:00Z",
+    lastSyncCode: "stopped_by_quarantine", lastSyncAt: "2026-11-07T09:05:00Z", revokeInMercadoPago: false,
+  },
+  [T.ferr]: { configured: true, status: "needs_reconnect", lastErrorCode: "revoked", lastErrorAt: "2026-11-05T21:40:00Z", revokeInMercadoPago: false },
+  [T.trans]: { configured: false, status: "disconnected", revokeInMercadoPago: false },
+};
 
 export const memberships = (email: string): Membership[] =>
   (users.find((u) => u.email === email)?.memberships ?? []).map((m) => ({ ...m, tenantName: tenants.find((t) => t.id === m.tenantId)!.name }));

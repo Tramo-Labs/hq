@@ -3,7 +3,7 @@ import * as live from "./live";
 import { getMode, getSession, setSession, type Session } from "./session";
 import type {
   Decision, DecisionRequest, ExportInfo, ExportKind, Match, MatchTray, Metric, MovementDecision, MovementDecisionRequest,
-  Page, PendingMovement, PendingTray, QuarantineList, Account, Role, TenantStatus, ItemDirection, OpenItems, Member, InvitePreview,
+  Page, PendingMovement, PendingTray, QuarantineList, MercadoPagoAuthorize, MercadoPagoConnection, Account, Role, TenantStatus, ItemDirection, OpenItems, Member, InvitePreview,
 } from "./types";
 
 export type * from "./types";
@@ -180,6 +180,36 @@ export async function removeMember(userId: string): Promise<void> {
     return;
   }
   return (await sample()).removeMember(userId);
+}
+
+// Mercado Pago (D-22): OAuth with PKCE; the core keeps the tokens, the portal never sees one
+
+/** GET /v1/integrations/mercadopago: owner, accountant and operator; 403 for the rest. */
+export async function getMercadoPago(): Promise<MercadoPagoConnection> {
+  return isLive() ? live.getJson("/v1/integrations/mercadopago") : (await sample()).getMercadoPago();
+}
+
+/** POST /v1/integrations/mercadopago/authorize (owner): 201 with the URL to send the browser to; 501 not_configured. */
+export async function authorizeMercadoPago(idempotencyKey: string): Promise<MercadoPagoAuthorize> {
+  if (!idempotencyKey) throw new ApiError(400, "bad_request", "Idempotency-Key is required");
+  if (!isLive()) return (await sample()).authorizeMercadoPago();
+  // No request body in the spec: only the key.
+  const res = await live.request("/v1/integrations/mercadopago/authorize", { method: "POST", headers: { "Idempotency-Key": idempotencyKey } });
+  return (await res.json()) as MercadoPagoAuthorize;
+}
+
+/** POST /v1/integrations/mercadopago/connect (owner): what Mercado Pago put in the return URL. */
+export async function connectMercadoPago(code: string, state: string, idempotencyKey: string): Promise<MercadoPagoConnection> {
+  if (!idempotencyKey) throw new ApiError(400, "bad_request", "Idempotency-Key is required");
+  return isLive()
+    ? live.postJson("/v1/integrations/mercadopago/connect", { code, state }, idempotencyKey)
+    : (await sample()).connectMercadoPago(code, state);
+}
+
+/** DELETE /v1/integrations/mercadopago (owner): forgets the tokens here; revokeInMercadoPago says the rest. */
+export async function disconnectMercadoPago(): Promise<MercadoPagoConnection> {
+  if (isLive()) return (await (await live.request("/v1/integrations/mercadopago", { method: "DELETE" })).json()) as MercadoPagoConnection;
+  return (await sample()).disconnectMercadoPago();
 }
 
 // decisions

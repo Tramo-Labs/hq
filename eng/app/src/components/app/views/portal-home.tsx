@@ -6,6 +6,7 @@ import type { OnboardingStep } from "@/lib/api";
 import { PageHead, StatusPill, formatDate } from "@/components/app/ui";
 import { ghostBtn } from "@/components/app/buttons";
 import { useData, useSession } from "@/components/app/session";
+import { MercadoPagoBlock } from "@/components/app/mercadopago";
 import { Loaded } from "./loaded";
 
 const o = app.onboarding;
@@ -51,6 +52,7 @@ export function PortalHome() {
                         ))}
                       </ul>
                     )}
+                    <MercadoPagoBlock />
                   </>
                 )}
                 {step.status !== "verified" && (

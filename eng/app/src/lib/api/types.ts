@@ -129,6 +129,37 @@ export const quarantineReasons = [
 ] as const;
 export type QuarantineReason = (typeof quarantineReasons)[number];
 
+// integrations
+
+/** GET /v1/integrations/mercadopago. Never carries a token. */
+export type MercadoPagoConnection = {
+  /** False while the app's credentials are not set; nothing can connect. */
+  configured: boolean;
+  /** needs_reconnect: Mercado Pago stopped accepting the tokens; they were deleted. */
+  status: "disconnected" | "connected" | "needs_reconnect";
+  mpUserId?: string;
+  connectedAt?: string;
+  connectedBy?: string;
+  tokenExpiresAt?: string;
+  lastRefreshAt?: string;
+  /** A code, never Mercado Pago's text. */
+  lastErrorCode?: "revoked" | "mp_unavailable";
+  lastErrorAt?: string;
+  /** When movements from Mercado Pago were last accepted. Absent until the first accepted import. */
+  lastImportAt?: string;
+  /**
+   * How the last sync ended, as a code. stopped_by_quarantine: a file went to quarantine and the
+   * sync waits, without retrying, until an operator resolves it. mp_unavailable: the next run retries.
+   */
+  lastSyncCode?: "imported" | "stopped_by_quarantine" | "mp_unavailable";
+  lastSyncAt?: string;
+  /** True right after a disconnect here: the owner also removes the app in Mercado Pago. */
+  revokeInMercadoPago: boolean;
+};
+
+/** POST /v1/integrations/mercadopago/authorize: where to send the browser. */
+export type MercadoPagoAuthorize = { authorizeUrl: string; expiresAt: string };
+
 /** A period, first and last day included (YYYY-MM-DD). */
 export type PeriodRange = { from: string; to: string };
 
